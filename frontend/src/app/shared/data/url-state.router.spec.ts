@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TestBed } from '@angular/core/testing';
 import { FormBuilder } from '@angular/forms';
@@ -8,7 +8,7 @@ import { map, of, startWith } from 'rxjs';
 import { PageRequest } from '../models/page';
 import { pagedQuery } from './paged-query';
 import { sameValue } from './same-value';
-import { syncFormWithUrl, urlParam, urlTab } from './url-state';
+import { UrlStateEmbedded, syncFormWithUrl, urlParam, urlTab } from './url-state';
 
 @Component({ template: '' })
 class ListHost {
@@ -135,5 +135,37 @@ describe('estado de tela na URL (com o roteador)', () => {
     await settle(harness);
     expect(host.query.page().page).toBe(0);
     expect(router.url).not.toContain('pagina');
+  });
+});
+
+@Component({ selector: 'app-embedded-tabs', template: '' })
+class EmbeddedTabs {
+  readonly tab = urlTab(['titulos', 'contatos'], 'titulos');
+}
+
+@Component({ imports: [EmbeddedTabs, UrlStateEmbedded], template: '<app-embedded-tabs appUrlStateEmbedded />' })
+class HostWithEmbedded {
+  readonly tab = urlTab(['negociacao', 'contatos'], 'negociacao');
+  readonly child = viewChild.required(EmbeddedTabs);
+}
+
+describe('tela embutida (appUrlStateEmbedded)', () => {
+  it('guarda a aba só em memória: não lê nem grava o ?aba= da tela hospedeira', async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'estacao', component: HostWithEmbedded }])] });
+    const router = TestBed.inject(Router);
+    const harness = await RouterTestingHarness.create();
+    const host = await harness.navigateByUrl('/estacao?aba=contatos', HostWithEmbedded);
+    await settle(harness);
+    const child = host.child();
+    expect(host.tab.value()).toBe('contatos');
+    expect(child.tab.value()).toBe('titulos'); // não herda o ?aba= da hospedeira
+
+    const navigate = vi.spyOn(router, 'navigate');
+    child.tab.set('contatos');
+    await settle(harness);
+    expect(child.tab.value()).toBe('contatos');
+    expect(navigate).not.toHaveBeenCalled();
+    expect(router.url).toBe('/estacao?aba=contatos');
+    expect(host.tab.value()).toBe('contatos');
   });
 });

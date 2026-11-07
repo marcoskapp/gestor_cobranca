@@ -312,6 +312,7 @@ são medidos, mas o peso relativo de cada atrito é estimativa.
 | 07/11/2026 | **Acabamento visual:** tipografia (corpo 400, títulos 600), raios e sombras, `app-kpi-card` único, "Mais ações" nas fichas, abas sublinhadas, números compactos, tons de status, celular (filtros recolhíveis, lista empilhada), login | 1.6 (visual), 4.1–4.5 | 927–945 (D4, D5) |
 | 07/11/2026 | **Navegação e listas:** filtros, página, ordenação e abas na URL (sem dado pessoal), rolagem restaurada, ordenação por coluna, filtro de devedor, menu por tarefa (operador de 31 para 16 itens), seções recolhíveis, trilha com "Voltar para" a origem, painéis sem abas duplicadas | 1.1, 1.2, 1.5, 3.5 | 946–963 (D6) |
 | 07/11/2026 | **Jornada do operador:** atendimento preservado por caso, estação para 1366×768, simulador e ficha do devedor em painel lateral, acordo fechado sem sair do caso (de ~20 para 7 cliques), "Seu dia" no início, convite de tour uma vez, caixa de entrada na Fila | 2.1–2.5, 1.6 (T7, T8) | 964–983 (D7, D8) |
+| 07/11/2026 | **Integração:** frentes unidas; abas da estação no padrão `.app-tabs`, colunas com `mobile` e `sortable`, retorno pela trilha, ficha do devedor embutida sem mexer na aba da estação | — | 963, 984, 985 |
 
 Pendentes desta revisão: 1.3 (busca de devedor e caso no Ctrl+K), 1.4 ("Relacionados" e ações da ficha do devedor),
 3.1–3.4 (aprovações, drill-down dos painéis, avaliar a partir do atendimento, modo consulta do caso) e os índices das

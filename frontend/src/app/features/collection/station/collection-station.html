@@ -291,7 +291,8 @@
   </div>
   <div class="offcanvas-body">
     @if (current(); as s) {
-      <app-debtor-detail [id]="s.debtor.id" />
+      <!-- ficha embutida: as abas dela não mexem no ?aba= da estação -->
+      <app-debtor-detail appUrlStateEmbedded [id]="s.debtor.id" />
     }
   </div>
 </ng-template>

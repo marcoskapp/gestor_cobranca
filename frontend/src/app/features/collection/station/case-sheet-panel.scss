@@ -77,8 +77,8 @@
   padding-top: 12px;
 }
 
-// abas numa linha só: as mais usadas à vista e as demais em "Mais ▾" (sem rolagem lateral escondida)
-// abas da ficha: o padrão `.app-tabs` (ux.md §12), mais denso — a estação precisa caber em 1366 px
+// abas da ficha: o padrão `.app-tabs` (ux.md §12), mais denso — as mais usadas à vista e as demais em "Mais ▾",
+// para caber em 1366 px sem depender da rolagem lateral do `.app-tabs`
 .sp-tabs {
   margin-top: 8px;
   margin-bottom: 8px;

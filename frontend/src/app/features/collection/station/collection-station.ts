@@ -1,5 +1,5 @@
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
-import { injectUrlStateWriter } from '../../../shared/data/url-state';
+import { UrlStateEmbedded, injectUrlStateWriter } from '../../../shared/data/url-state';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbOffcanvas, NgbOffcanvasRef, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -75,6 +75,7 @@ const GROUP = 'Estação de cobrança';
 @Component({
   selector: 'app-collection-station',
   imports: [
+    UrlStateEmbedded,
     FormsModule,
     RouterLink,
     NgbDropdownModule,

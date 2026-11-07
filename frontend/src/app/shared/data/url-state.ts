@@ -1,4 +1,4 @@
-import { DestroyRef, Signal, inject, linkedSignal } from '@angular/core';
+import { DestroyRef, Directive, InjectionToken, Signal, inject, linkedSignal, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormGroup } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Params, Router } from '@angular/router';
@@ -252,10 +252,32 @@ export interface UrlTab<T extends string> {
 }
 
 /**
+ * Tela embutida em outra (ex.: ficha do devedor no painel lateral da estação): a aba fica só em memória e não lê nem
+ * grava o `?aba=` da tela hospedeira, que tem as próprias abas na URL (ux.md §16).
+ */
+export const URL_STATE_EMBEDDED = new InjectionToken<boolean>('URL_STATE_EMBEDDED');
+
+/** Marca o componente do mesmo elemento (e os filhos) como embutido: `<app-debtor-detail appUrlStateEmbedded … />`. */
+@Directive({ selector: '[appUrlStateEmbedded]', providers: [{ provide: URL_STATE_EMBEDDED, useValue: true }] })
+export class UrlStateEmbedded {}
+
+/**
  * Aba ativa guardada na URL (`?aba=`), com `replaceUrl`: voltar para a tela reabre a mesma aba. Valor ausente ou
  * fora das opções → aba padrão (que não aparece na URL). Link externo com outra aba para a mesma tela também troca.
+ * Sob `appUrlStateEmbedded`, a aba fica só em memória.
  */
 export function urlTab<T extends string>(allowed: readonly T[], fallback: T, param = 'aba'): UrlTab<T> {
+  if (inject(URL_STATE_EMBEDDED, { optional: true })) {
+    const local = signal<T>(fallback);
+    return {
+      value: local.asReadonly(),
+      set(tab: T) {
+        if (allowed.includes(tab)) {
+          local.set(tab);
+        }
+      },
+    };
+  }
   const route = inject(ActivatedRoute);
   const writer = injectUrlStateWriter();
   const parse = (params: ParamMap): T => {

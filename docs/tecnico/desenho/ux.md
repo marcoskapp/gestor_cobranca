@@ -422,7 +422,7 @@ Revisão de produto 2026-11 (V2): as fichas tinham 5–7 contornos azuis do mesm
 1. **No máximo uma ação primária** (`.btn-primary`) — a próxima ação natural do estado (Aprovar, Renegociar, Editar dados, Reativar).
 2. **Até duas secundárias** em `.btn-outline-secondary` (atalhos e ações frequentes: Ficha do devedor, Corrigir valor, Baixar termo).
 3. **O resto em `app-more-actions`** (⋯ "Mais ações"), sempre com a **destrutiva** (cancelar, estornar, inativar) por último, separada e em vermelho; ela continua pedindo confirmação (`ConfirmService`).
-4. **Sem "← Voltar" no cabeçalho** para a lista: a trilha (`app-breadcrumbs`) já leva ao nível de cima, **com os filtros, a página e a rolagem de quando o usuário saiu da lista** (§16), e mostra "← Voltar para <origem>" quando ele veio de outra tela. Esse retorno contextual é um `.btn-sm.btn-outline-secondary` na linha da trilha, fora do cabeçalho, nunca concorrendo com a ação primária. Atalhos para **outro** módulo (ex.: o acordo a partir da atribuição) continuam. Estados de erro ("Voltar para devedores") usam `history.linkTo('/lista')`, para voltar com os filtros.
+4. **Sem "← Voltar" no cabeçalho** para a lista: a trilha (`app-breadcrumbs`) já leva ao nível de cima, **com os filtros, a página e a rolagem de quando o usuário saiu da lista** (§16), e mostra "← Voltar para <origem>" quando ele veio de outra tela. Esse retorno contextual é um `.btn-sm.btn-outline-secondary` na linha da trilha, fora do cabeçalho, nunca concorrendo com a ação primária. Atalhos para **outro** módulo (ex.: o acordo a partir da atribuição) continuam. Estados de erro das fichas de dívida e importação ("Voltar para devedores") usam `history.linkTo('/lista')`, para voltar com os filtros; as demais ainda usam o link simples (migrar ao tocar na tela).
 5. Ações sem permissão ficam ocultas (o menu inteiro some quando não sobra ação). No celular o rótulo "Mais ações" vira só o ícone (com `aria-label`).
 6. Ao escolher um item, o menu fecha e o foco volta ao botão "Mais ações" **antes** de a ação abrir o diálogo (o menu fica no `body`; o diálogo devolveria o foco a um item escondido). Itens que só existem num tamanho de tela são renderizados com `@if`, nunca escondidos por CSS (a navegação por setas do `ngbDropdown` contaria o item invisível) — ex.: "Chat de suporte" no menu do usuário abaixo de 600 px.
 
@@ -685,7 +685,7 @@ Pagamentos") e o "← Lista" voltava sem filtros; o menu era montado pela permis
 | `syncFormWithUrl(form, codecs)` | Lê os parâmetros ao abrir (antes da consulta), grava cada mudança dos filtros com `replaceUrl` (filtrar não cria entrada no histórico) e acompanha link externo para a mesma tela. Valor igual ao padrão não vai para a URL; vazio diferente do padrão ("Todas" quando o padrão é "Ativos") fica como `param=` |
 | `urlParam.*` | `text`, `id`, `ids`, `choice`, `flag`, `date`, `int`. Valor inválido ou adulterado cai no padrão; o servidor continua validando |
 | `pagedQuery(..., { url: true, sortFields })` | `pagina` (1 em diante), `tamanho` e `ordem` (`-coluna` = decrescente) na URL da lista principal; `sortFields` mapeia a coluna da tabela para o campo da lista branca do servidor (`sort=campo,asc|desc`, `SortableFields`) |
-| `urlTab(abas, padrão)` | Aba ativa em `?aba=` (`[activeId]="tab.value()" (activeIdChange)="tab.set($event)"`) |
+| `urlTab(abas, padrão)` | Aba ativa em `?aba=` (`[activeId]="tab.value()" (activeIdChange)="tab.set($event)"`). Tela embutida em outra (ex.: ficha do devedor no painel da estação) leva `appUrlStateEmbedded` no elemento: a aba fica só em memória e não toca o `?aba=` da hospedeira (decisão 985) |
 | `UrlStateWriter` | Um por rota ativada: coalesce as gravações da tela (inclusive as dos efeitos do mesmo ciclo) numa navegação só, mantém na fila os parâmetros de uma gravação ainda em curso e descarta a gravação durante a navegação de um link ou do "voltar" e depois que a tela foi deixada |
 
 Nomes de parâmetro em português, curtos (`credor`, `devedor`, `situacao`, `pagina`, `ordem`, `aba`). **Nunca dado
@@ -704,8 +704,8 @@ Também guarda de onde o usuário veio e o último endereço de cada tela (só e
 **Trilha e retorno** (`breadcrumbs.ts`): seção some quando tem o nome do item; fichas mostram o nome do registro
 (`recordLabel(() => …)`); o link da lista na trilha volta com os filtros (e é o "voltar" do navegador quando a lista é a
 origem, com rolagem); "← Voltar para <origem>" aparece quando a origem é outra tela (ex.: da estação para a ficha do
-devedor). Não há "← Lista" no cabeçalho das fichas (§12.2, item 4); os links de volta dos estados de erro usam
-`history.linkTo('/lista')`.
+devedor). Não há "← Lista" no cabeçalho das fichas (§12.2, item 4); nos estados de erro, as fichas de dívida e importação
+voltam com `history.linkTo('/lista')` e as demais ainda com o link simples.
 
 **Menu por tarefa** (`core/layout/navigation.ts`, `docs/negocio/perfis-de-acesso.md`): `permissions` = quem tem a tarefa;
 `alsoRequires` = exigidas todas, além de uma da tarefa (área de consulta + consulta dos dados; rota: `data.allPermissions` no `permissionGuard`); `openedFrom` = quem abre a tela por outro caminho (a rota aceita as duas listas; `navigation-routes.spec.ts` confere e
