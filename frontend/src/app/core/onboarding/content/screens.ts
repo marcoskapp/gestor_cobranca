@@ -186,7 +186,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.queue',
-    version: 8,
+    version: 9,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -211,11 +211,15 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Abas que não cabem ficam em "Mais"; a tabela de títulos mostra sempre o saldo (o valor original fica no detalhe do saldo).',
         ],
       },
+      {
+        version: 9,
+        items: ['O botão das abas recolhidas mostra a seta e quantas abas guarda ("Mais 3 ▾"); com uma delas aberta, mostra o nome curto dela e quantas outras há ("Agenda +2 ▾"); o nome completo aparece na dica.'],
+      },
     ],
   },
   {
     key: 'collection.case',
-    version: 8,
+    version: 9,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -239,6 +243,10 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Simulador e ficha do devedor abrem num painel ao lado, sem sair do caso. O acordo fecha ali mesmo: "Propor esta oferta", aceite com o canal do atendimento e formalização com a confirmação digitada, Pix e o cartão "Acordo formalizado".',
           'Abas que não cabem ficam em "Mais"; a tabela de títulos mostra sempre o saldo (o valor original fica no detalhe do saldo).',
         ],
+      },
+      {
+        version: 9,
+        items: ['O botão das abas recolhidas mostra a seta e quantas abas guarda ("Mais 3 ▾"); com uma delas aberta, mostra o nome curto dela e quantas outras há ("Agenda +2 ▾"); o nome completo aparece na dica.'],
       },
     ],
   },
@@ -285,7 +293,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.dispute',
-    version: 2,
+    version: 3,
     path: '/cobranca/contestacoes/:id',
     tourId: 'collection.dispute',
     changes: [
@@ -296,6 +304,13 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Confirme a posição do credor a partir do e-mail; só então o pedido deixa de aguardar o credor.',
           'Documentos enviados pelo credor pela integração mostram quantos estão em verificação de segurança ou foram recusados.',
           'Contestação procedente com valor a corrigir abre a correção no título já vinculada.',
+        ],
+      },
+      {
+        version: 3,
+        items: [
+          'Canal com o credor organizado por pedido, como uma conversa: o "E-mail enviado ao credor" (para, cópia, prazo, envios) e, logo abaixo, os "E-mails recebidos do credor" e as respostas registradas.',
+          'Mensagens abertas num quadro com rolagem; no e-mail recebido, as verificações em selos, o motivo da quarentena em destaque e as ações numa linha própria.',
         ],
       },
     ],

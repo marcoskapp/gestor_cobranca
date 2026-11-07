@@ -43,9 +43,13 @@ export const SHEET_TAB_SLUGS = ['titulos', 'contatos', 'historico', 'agenda', 'c
 export const CONVERSATIONS_TAB = 6;
 /** Índice da aba "Negociação" (acordo formalizado e propostas do caso). */
 export const NEGOTIATION_TAB = 5;
+/** Nome curto da aba no botão "Mais" quando ela está aberta (mesma ordem e tamanho de `SHEET_TABS`; o completo fica no menu, na dica e no rótulo acessível). */
+/** Tupla de textos com o mesmo tamanho de `T` (mapeado homomórfico: o compilador recusa nome curto faltando). */
+type TabTexts<T extends readonly unknown[]> = { readonly [K in keyof T]: string };
+export const SHEET_TAB_SHORT: TabTexts<typeof SHEET_TABS> = ['Títulos', 'Contatos', 'Histórico', 'Agenda', 'Contestações', 'Negociação', 'Conversas'];
 /**
- * Abas sempre à vista (as mais usadas no atendimento); as demais ficam em "Mais ▾", que mostra o
- * nome da aba quando ela está ativa. Cabe na coluna central a 1366 px sem rolagem lateral.
+ * Abas sempre à vista (as mais usadas no atendimento); as demais ficam em "Mais N ▾", que mostra o
+ * nome curto da aba quando ela está ativa ("Agenda +2 ▾"). Cabe na coluna central a 1366 px sem rolagem lateral.
  */
 export const PRIMARY_TABS: readonly number[] = [0, 1, 2, NEGOTIATION_TAB];
 
@@ -118,12 +122,22 @@ export class CaseSheetPanel {
   private readonly reviewApi = inject(PaymentReviewStatusApi);
 
   protected readonly tabs = SHEET_TABS;
+  protected readonly shortTabs = SHEET_TAB_SHORT;
   protected readonly primaryTabs = PRIMARY_TABS;
   /** Abas recolhidas em "Mais ▾" (Conversas só com `INBOX_VIEW`). */
   protected readonly moreTabs = computed(() =>
     SHEET_TABS.map((_, i) => i).filter((i) => !PRIMARY_TABS.includes(i) && (i !== CONVERSATIONS_TAB || this.canSeeConversations())),
   );
   protected readonly activeInMore = computed(() => this.moreTabs().includes(this.tab()));
+  /** Dica do botão "Mais": as abas que ele guarda (o rótulo mostra só a ativa ou a contagem). */
+  protected readonly moreHint = computed(() => {
+    const all = `Mais abas: ${this.moreTabs().map((i) => SHEET_TABS[i]).join(', ')}`;
+    return this.activeInMore() ? `Aberta: ${SHEET_TABS[this.tab()]}. ${all}` : all;
+  });
+  /** Rótulo acessível curto (a lista das abas do menu já é lida pela dica, via `aria-describedby`). */
+  protected readonly moreAriaLabel = computed(() =>
+    this.activeInMore() ? `Mais abas (aberta: ${SHEET_TABS[this.tab()]})` : `Mais abas (${this.moreTabs().length})`,
+  );
   protected readonly channelLabels = CHANNEL_LABELS;
   protected readonly channelIcons = CHANNEL_ICONS;
   protected readonly contactTypes = CONTACT_TYPE_LABELS;

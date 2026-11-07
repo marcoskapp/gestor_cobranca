@@ -237,6 +237,77 @@ describe('DisputePage', () => {
     expect([...items[1].querySelectorAll('button')].map((b) => b.textContent!.trim())).toEqual(['Original']);
   });
 
+  const threadRequest = () => ({
+    id: 'r-1', disputeId: ID, sequenceNumber: 1, templateKey: 'NOT_RECOGNIZED', templateVersion: 0,
+    to: ['contestacoes@alfa.test'], cc: ['juridico@alfa.test'], replyTo: null, subject: 'Contestação ABCDEF12', body: 'Texto',
+    requestedDueDate: '2026-11-07', status: 'SENT' as const, overdue: false, sentAt: '2026-11-02T10:00:00Z', answeredAt: null,
+    linkExpiresAt: null, linkDownloads: 0, titleIds: [], evidenceIds: [], requestedBy: 'u-1', requestedByName: 'Maria',
+    createdAt: '2026-11-02T10:00:00Z', mails: [],
+  });
+  const threadReply = (over: Partial<MailReplyView> = {}): MailReplyView => ({
+    id: 'mr-1', disputeId: ID, requestId: 'r-1', requestSequence: 1, creditorId: 'c-1', sender: 'contestacoes@alfa.test',
+    subject: 'Re: Contestação ABCDEF12', text: 'Ok', textTruncated: false, receivedAt: '2026-11-04T10:00:00Z',
+    status: 'PENDING_CONFIRMATION', quarantineReason: null, releasable: false, authenticated: true, spf: 'PASS', dkim: 'PASS',
+    dmarc: 'PASS', virus: 'PASS', spam: 'PASS', rawSha256: 'a'.repeat(64), rawSize: 1, attachments: 0, evidenceIds: [],
+    attachmentsInVerification: 0, attachmentsRejected: 0, responseId: null, decidedBy: null, decidedByName: null, decidedAt: null,
+    decisionNote: null, releasedByName: null, releasedAt: null, releaseNote: null,
+    ...over,
+  }) as MailReplyView;
+
+  it('canal com o credor: cada pedido é um fio com os dados em pares e as respostas por e-mail logo abaixo dele', async () => {
+    permissions.set(['DISPUTE_WORK']);
+    const f = await render(detail(dispute({ assigneeId: 'u-1', assigneeName: 'Eu' }), { creditorRequests: [threadRequest()] }), [threadReply()]);
+    const thread = (f.nativeElement as HTMLElement).querySelector('[data-tour="dispute-creditor-channel"] .dp-thread')!;
+    const terms = [...thread.querySelectorAll('.dp-mail--out dl > dt')].map((t) => t.textContent!.trim());
+    expect(terms).toEqual(['Para', 'Cópia', 'Prazo pedido']);
+    // a resposta por e-mail aparece dentro do fio do pedido, uma vez só, sem repetir a referência ao pedido
+    expect(thread.querySelectorAll('[data-tour="dispute-mail-reply"]')).toHaveLength(1);
+    expect((f.nativeElement as HTMLElement).querySelectorAll('[data-tour="dispute-mail-reply"]')).toHaveLength(1);
+    expect(thread.querySelector('[data-tour="dispute-mail-reply"]')!.textContent).not.toContain('Pedido 1');
+  });
+
+  it('canal com o credor: e-mail de pedido fora da lista e resposta sem pedido aparecem depois dos fios, uma vez só', async () => {
+    permissions.set(['DISPUTE_WORK']);
+    const orphanResponse = {
+      id: 'cr-1', disputeId: ID, requestId: null, source: 'MANUAL' as const, position: 'INFORMATION' as const, note: 'Sem pedido',
+      receivedAt: '2026-11-05T10:00:00Z', recordedBy: 'u-1', recordedByName: 'Eu', evidenceIds: [], documentsInVerification: 0, documentsRejected: 0,
+    };
+    const f = await render(
+      detail(dispute({ assigneeId: 'u-1', assigneeName: 'Eu' }), { creditorRequests: [threadRequest()], creditorResponses: [orphanResponse] }),
+      [threadReply(), threadReply({ id: 'mr-2', requestId: 'r-9', requestSequence: 9 })],
+    );
+    const channel = (f.nativeElement as HTMLElement).querySelector('[data-tour="dispute-creditor-channel"]')!;
+    expect(channel.querySelectorAll('[data-tour="dispute-mail-reply"]')).toHaveLength(2);
+    expect(channel.querySelector('.dp-thread')!.querySelectorAll('[data-tour="dispute-mail-reply"]')).toHaveLength(1);
+    // fora do fio, o e-mail diz a que pedido se refere
+    expect(channel.querySelector(':scope > app-dispute-mail-replies')!.textContent).toContain('Pedido 9');
+    expect(channel.querySelectorAll(':scope > app-creditor-response')).toHaveLength(1);
+    expect(channel.querySelector('.dp-thread app-creditor-response')).toBeNull();
+  });
+
+  it('canal com o credor: os e-mails são lidos uma vez por contestação, compartilhados pelos fios', async () => {
+    permissions.set(['DISPUTE_WORK']);
+    const second = { ...threadRequest(), id: 'r-2', sequenceNumber: 2 };
+    const fixture = TestBed.createComponent(DisputePage);
+    fixture.componentRef.setInput('id', ID);
+    fixture.detectChanges();
+    http.expectOne(`/api/v1/collection/disputes/${ID}/detail`).flush(detail(dispute({ assigneeId: 'u-1', assigneeName: 'Eu' }), { creditorRequests: [threadRequest(), second] }));
+    http.expectOne(`/api/v1/collection/disputes/${ID}/evidences`).flush([]);
+    let mailReads = 0;
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await Promise.resolve();
+      for (const req of http.match((r) => r.method === 'GET')) {
+        const url = req.request.url;
+        if (url.includes('/mail-replies')) {
+          mailReads++;
+        }
+        req.flush(url.includes('/mail-replies') ? [] : url.includes('/debtors') ? [{ id: 'd-1', name: 'João Devedor' }] : { id: 'c-1', tradeName: 'Banco Alfa', legalName: 'Banco Alfa S.A.' });
+      }
+    }
+    expect(mailReads).toBe(1);
+  });
+
   it('ajuste pendente: atalho leva ao cancelamento no título com o motivo sugerido', async () => {
     permissions.set(['DISPUTE_MANAGE', 'DEBT_TITLE_MANAGE']);
     const f = await render(

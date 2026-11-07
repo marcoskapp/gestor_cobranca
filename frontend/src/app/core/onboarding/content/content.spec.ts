@@ -212,8 +212,8 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/assistente/politicas/p-1')?.tourId).toBe('assistant.policy');
     expect(findScreen('/assistente/turnos/t-1?revisao=r-1')?.tourId).toBe('assistant.turn');
     expect(findScreen('/assistente/qualidade')?.tourId).toBe('assistant.quality');
-    // estação: atendimento guardado por caso, painel lateral e acordo sem sair do caso (revisão de 2026-11)
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(8);
+    // estação: atendimento guardado por caso, painel lateral e acordo sem sair do caso (revisão de 2026-11); v9: aba "Mais" com seta e contagem
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(9);
     expect(findTour('collection.station')?.version).toBe(4);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(2);
     // decisões do responsável às 856 e 873: aviso da segunda conferência para quem informa e nova tentativa do extrato

@@ -34,7 +34,7 @@ import {
   MAIL_STATUS_LABELS,
   NOTICE_CHANNEL_LABELS,
 } from '../data/collection.labels';
-import { DisputeDetail, DisputeView, EvidenceView } from '../data/collection.models';
+import { CreditorResponseView, DisputeDetail, DisputeView, EvidenceView } from '../data/collection.models';
 import { daysBetween, zonedNow } from '../data/collection.rules';
 import {
   AssignDisputeData,
@@ -48,8 +48,69 @@ import {
   ResolveDisputeData,
   ResolveDisputeDialog,
 } from './dispute-dialogs';
-import { DisputeMailReplies } from './dispute-mail-replies';
+import { DisputeMailReplies, DisputeMailRepliesSource } from './dispute-mail-replies';
 import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending, nearestDue, protocolOf } from './dispute.rules';
+
+/** Resposta registrada do credor (pela API, por e-mail confirmado ou registrada à mão), no fio do pedido. */
+@Component({
+  selector: 'app-creditor-response',
+  imports: [AppDatePipe],
+  template: `
+    <header class="dp-thread__head">
+      <strong>Resposta do credor</strong>
+      <span class="badge rounded-pill bg-info-subtle text-info-emphasis">{{ positionLabel() }}</span>
+      <span class="app-muted dp-thread__when">{{ response().receivedAt | appDate }}</span>
+    </header>
+    <dl class="app-definition-list dp-meta">
+      <dt>Origem</dt>
+      <dd>{{ response().source === 'PUBLIC_API' ? 'API do credor' : (response().source === 'EMAIL' ? 'E-mail, confirmado por ' : 'Registrada por ') + (response().source === 'PUBLIC_API' ? '' : (response().recordedByName ?? 'usuário')) }}</dd>
+      @if (response().evidenceIds.length || response().documentsInVerification || response().documentsRejected) {
+        <dt>Documentos</dt>
+        <dd>
+          @if (response().evidenceIds.length) {
+            <div>{{ response().evidenceIds.length }} nas evidências</div>
+          }
+          @if (response().documentsInVerification) {
+            <div>{{ response().documentsInVerification }} em verificação de segurança</div>
+          }
+          @if (response().documentsRejected) {
+            <div class="dp-late">{{ response().documentsRejected }} recusado(s) na verificação de segurança — peça o reenvio por outro meio</div>
+          }
+        </dd>
+      }
+    </dl>
+    <p class="dp-pre mb-0">{{ response().note }}</p>
+  `,
+  // o cartão (fundo, recuo e linha à esquerda) vem da classe `dp-reply` aplicada pelo canal com o credor
+  styles: `
+    .dp-thread__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+    }
+    .dp-thread__when {
+      margin-left: auto;
+      font-size: var(--app-text-sm);
+    }
+    .dp-meta {
+      gap: 4px 20px;
+      font-size: var(--app-text-sm);
+    }
+    .dp-late {
+      font-weight: var(--app-weight-semibold);
+      color: var(--app-danger-fg);
+    }
+    .dp-pre {
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+  `,
+})
+export class CreditorResponseCard {
+  readonly response = input.required<CreditorResponseView>();
+  protected readonly positionLabel = computed(() => CREDITOR_POSITION_LABELS[this.response().position]);
+}
 
 /**
  * Página da contestação (F21): resumo com os três relógios (prazo interno, prazo de resposta ao devedor e prazo pedido
@@ -58,7 +119,8 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
  */
 @Component({
   selector: 'app-dispute-page',
-  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, Icon, DisputeMailReplies],
+  providers: [DisputeMailRepliesSource],
+  imports: [RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, Icon, DisputeMailReplies, CreditorResponseCard],
   template: `
     @if (detail.error()) {
       <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar a contestação." message="Ela pode não existir ou não estar no seu escopo de credores.">
@@ -217,60 +279,75 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
 
           <section class="app-card" aria-labelledby="dp-creditor" data-tour="dispute-creditor-channel">
             <h2 class="app-card__title" id="dp-creditor">Canal com o credor</h2>
+            <!-- um fio por pedido: o que foi pedido (pares rótulo/valor) e, recuadas logo abaixo, as respostas a ele -->
             @for (r of v.creditorRequests; track r.id) {
-              <article class="dp-item">
-                <header class="dp-item__head">
+              <article class="dp-thread">
+                <header class="dp-thread__head">
                   <strong>Pedido {{ r.sequenceNumber }}</strong>
                   <app-status-chip domain="disputeCreditorRequest" [status]="r.status" />
                   @if (r.overdue) {
                     <span class="dp-late">retorno vencido</span>
                   }
-                  <span class="app-muted">{{ r.createdAt | appDate }}{{ r.requestedByName ? ' · ' + r.requestedByName : '' }}</span>
+                  <span class="app-muted dp-thread__when">{{ r.createdAt | appDate }}{{ r.requestedByName ? ' · ' + r.requestedByName : '' }}</span>
                 </header>
-                <div class="app-muted">Para {{ r.to.join(', ') }}{{ r.cc.length ? ' · cópia ' + r.cc.join(', ') : '' }} · prazo pedido {{ r.requestedDueDate | appDate: 'date' }}</div>
-                <details>
-                  <summary>{{ r.subject }}</summary>
-                  <p class="dp-pre mb-1">{{ r.body }}</p>
-                  @if (r.evidenceIds.length) {
-                    <div class="app-muted">
-                      {{ r.evidenceIds.length }} evidência(s) por link{{ r.linkExpiresAt ? ' válido até ' : '' }}{{ r.linkExpiresAt ? (r.linkExpiresAt | appDate: 'date') : '' }} · {{ r.linkDownloads }} download(s)
-                    </div>
+                <!-- o pedido é o e-mail que enviamos: mesmo formato dos recebidos, com a direção no título -->
+                <article class="dp-mail dp-mail--out">
+                  <header class="dp-thread__head">
+                    <app-icon name="send" class="dp-mail__icon" />
+                    <strong>{{ r.sentAt ? 'E-mail enviado ao credor' : 'E-mail ao credor (não enviado)' }}</strong>
+                    @if (r.sentAt) {
+                      <span class="app-muted dp-thread__when">{{ r.sentAt | appDate }}</span>
+                    }
+                  </header>
+                  <dl class="app-definition-list dp-meta">
+                    <dt>Para</dt>
+                    <dd>{{ r.to.join(', ') }}</dd>
+                    @if (r.cc.length) {
+                      <dt>Cópia</dt>
+                      <dd>{{ r.cc.join(', ') }}</dd>
+                    }
+                    <dt>Prazo pedido</dt>
+                    <dd>{{ r.requestedDueDate | appDate: 'date' }}</dd>
+                    @if (r.mails.length) {
+                      <dt>Envios</dt>
+                      <dd>
+                        <ul class="dp-sends">
+                          @for (m of r.mails; track m.id) {
+                            <li>
+                              {{ mailPurposes[m.purpose] }}: {{ mailStatuses[m.status] }}{{ m.sentAt ? ' em ' : '' }}{{ m.sentAt ? (m.sentAt | appDate) : '' }}{{ m.status === 'QUEUED' && m.attempts ? ' · ' + m.attempts + ' tentativa(s)' : '' }}
+                            </li>
+                          }
+                        </ul>
+                      </dd>
+                    }
+                    @if (r.evidenceIds.length) {
+                      <dt>Evidências</dt>
+                      <dd>
+                        {{ r.evidenceIds.length }} por link{{ r.linkExpiresAt ? ' válido até ' : '' }}{{ r.linkExpiresAt ? (r.linkExpiresAt | appDate: 'date') : '' }} · {{ r.linkDownloads }} download(s)
+                      </dd>
+                    }
+                  </dl>
+                  <details class="dp-message">
+                    <summary>Mensagem: {{ r.subject }}</summary>
+                    <blockquote class="dp-quote" tabindex="0" aria-label="Texto do e-mail enviado ao credor">{{ r.body }}</blockquote>
+                  </details>
+                </article>
+                <div class="dp-replies">
+                  @for (resp of responsesTo(v, r.id); track resp.id) {
+                    <app-creditor-response class="dp-reply" [response]="resp" />
                   }
-                </details>
-                <ul class="dp-list">
-                  @for (m of r.mails; track m.id) {
-                    <li class="app-muted">
-                      {{ mailPurposes[m.purpose] }}: {{ mailStatuses[m.status] }}{{ m.sentAt ? ' em ' : '' }}{{ m.sentAt ? (m.sentAt | appDate) : '' }}{{ m.status === 'QUEUED' && m.attempts ? ' · ' + m.attempts + ' tentativa(s)' : '' }}
-                    </li>
-                  }
-                </ul>
+                  <app-dispute-mail-replies [disputeId]="d.id" [requestIds]="[r.id]" [workable]="workable()" [canManage]="canManage()" [canWork]="canWork()" (changed)="reload()" />
+                </div>
               </article>
             } @empty {
               <p class="app-muted mb-0">Nenhum pedido ao credor.{{ pending() && workable() ? ' Use "Solicitar ao credor" para pedir documentos ou posicionamento.' : '' }}</p>
             }
-            @for (resp of v.creditorResponses; track resp.id) {
-              <article class="dp-item dp-item--response">
-                <header class="dp-item__head">
-                  <strong>Resposta do credor</strong>
-                  <span>{{ positions[resp.position] }}</span>
-                  <span class="app-muted">
-                    {{ resp.receivedAt | appDate }} ·
-                    {{ resp.source === 'PUBLIC_API' ? 'pela API' : (resp.source === 'EMAIL' ? 'por e-mail, confirmada por ' : 'registrada por ') + (resp.recordedByName ?? 'usuário') }}
-                  </span>
-                </header>
-                <p class="dp-pre mb-0">{{ resp.note }}</p>
-                @if (resp.evidenceIds.length) {
-                  <div class="app-muted">{{ resp.evidenceIds.length }} documento(s) nas evidências</div>
-                }
-                @if (resp.documentsInVerification) {
-                  <div class="app-muted">{{ resp.documentsInVerification }} documento(s) em verificação de segurança</div>
-                }
-                @if (resp.documentsRejected) {
-                  <div class="dp-late">{{ resp.documentsRejected }} documento(s) recusado(s) na verificação de segurança — peça o reenvio por outro meio</div>
-                }
-              </article>
+            <!-- respostas sem pedido (registradas direto ou pela API) e e-mails de pedidos que não estão na lista -->
+            @for (resp of responsesTo(v, null); track resp.id) {
+              <app-creditor-response class="dp-reply" [response]="resp" />
             }
-            <app-dispute-mail-replies [disputeId]="d.id" [workable]="workable()" [canManage]="canManage()" [canWork]="canWork()" (changed)="reload()" />
+            <app-dispute-mail-replies class="dp-replies-rest" [disputeId]="d.id" [excludeRequestIds]="requestIdList()" [workable]="workable()" [canManage]="canManage()" [canWork]="canWork()" (changed)="reload()" />
+
           </section>
 
           <section class="app-card" aria-labelledby="dp-evidence">
@@ -396,6 +473,84 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
         cursor: pointer;
       }
     }
+    /* canal com o credor: cada pedido é um cartão embutido (fundo terciário, sem borda dentro do card) e as
+       respostas a ele vêm recuadas, com uma linha à esquerda que mostra a quem respondem */
+    .dp-thread {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-tertiary-bg);
+    }
+    .dp-thread__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+    }
+    .dp-thread__when {
+      margin-left: auto;
+      font-size: var(--app-text-sm);
+    }
+    .dp-meta {
+      gap: 4px 20px;
+      font-size: var(--app-text-sm);
+      dd {
+        overflow-wrap: anywhere;
+      }
+    }
+    .dp-sends {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    details summary {
+      cursor: pointer;
+    }
+    /* e-mails do fio (enviado e recebidos): cartão branco com a linha da direção à esquerda */
+    .dp-mail {
+      display: grid;
+      gap: 8px;
+      padding: 12px 14px;
+      border-left: 3px solid var(--bs-primary);
+      border-radius: var(--bs-border-radius-sm);
+      background: var(--bs-body-bg);
+    }
+    .dp-mail__icon {
+      color: var(--bs-secondary-color);
+    }
+    /* texto do e-mail aberto: quadro de citação com altura limitada, para o fio continuar legível */
+    .dp-quote {
+      max-height: 320px;
+      overflow: auto;
+      margin: 12px 0 0;
+      padding: 10px 12px;
+      border-radius: var(--bs-border-radius-sm);
+      background: var(--bs-tertiary-bg);
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+    .dp-replies {
+      display: grid;
+      gap: 10px;
+    }
+    /* e-mails de pedidos fora da lista: mesmo espaçamento dos fios, sem sobra quando não há nenhum */
+    .dp-replies-rest:not(:empty) {
+      margin-top: 12px;
+    }
+    .dp-reply {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-left: 3px solid var(--app-border-strong);
+      border-radius: var(--bs-border-radius-sm);
+      background: var(--bs-body-bg);
+    }
+    .dp-replies .dp-reply {
+      margin-top: 0;
+    }
     .dp-item__head {
       display: flex;
       flex-wrap: wrap;
@@ -421,15 +576,22 @@ export class DisputePage {
   protected readonly outcomes = DISPUTE_OUTCOME_LABELS;
   protected readonly deadlineSources = DEADLINE_SOURCE_LABELS;
   protected readonly adjustmentLabels = ADJUSTMENT_ACTION_LABELS;
-  protected readonly positions = CREDITOR_POSITION_LABELS;
   protected readonly mailPurposes = MAIL_PURPOSE_LABELS;
   protected readonly mailStatuses = MAIL_STATUS_LABELS;
+
+  /** Respostas registradas para um pedido (`null`: as sem pedido, mostradas depois dos fios). */
+  protected responsesTo(v: DisputeDetail, requestId: string | null): CreditorResponseView[] {
+    return v.creditorResponses.filter((r) => (requestId === null ? !r.requestId || !v.creditorRequests.some((q) => q.id === r.requestId) : r.requestId === requestId));
+  }
+
   protected readonly channels = NOTICE_CHANNEL_LABELS;
   protected readonly assignmentModes = DISPUTE_ASSIGNMENT_MODE_LABELS;
   protected readonly accept = EVIDENCE_ACCEPT;
   private readonly today = zonedNow().date;
 
   protected readonly detail = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.detail(params) });
+  /** Pedidos com fio próprio: os e-mails deles não se repetem no bloco final. */
+  protected readonly requestIdList = computed(() => this.detail.value()?.creditorRequests.map((r) => r.id) ?? []);
   protected readonly view = valueOr(this.detail, undefined);
   private readonly evidences = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.evidences(params) });
   protected readonly evidenceRows = valueOr(this.evidences, []);

@@ -470,14 +470,23 @@ describe('CollectionStation', () => {
     TestBed.inject(AttendanceService).clear();
   });
 
-  it('abas que não cabem ficam em "Mais", que mostra o nome da aba ativa', async () => {
+  it('abas que não cabem ficam em "Mais N ▾"; com uma delas ativa, o botão mostra o nome curto dela e "+N"', async () => {
     const fixture = await render('k-1');
     const tabs = (fixture.nativeElement as HTMLElement).querySelector('[data-tour="case-tabs"]')!;
-    const visible = [...tabs.querySelectorAll(':scope > li:not(.d-none) > .nav-link')].map((b) => b.textContent?.trim());
+    const visible = [...tabs.querySelectorAll(':scope > li:not(.d-none) > .nav-link')].map((b) =>
+      b.classList.contains('sp-more') ? b.querySelector('.sp-more__label')?.textContent?.trim() : b.textContent?.trim(),
+    );
     expect(visible).toEqual(['Títulos (1)', 'Contatos (1)', 'Histórico (2)', 'Negociação', 'Mais']);
+    const more = tabs.querySelector<HTMLElement>('.sp-more')!;
+    const hidden = Number(more.querySelector('.sp-more__count')?.textContent?.trim());
+    expect(hidden).toBeGreaterThan(1);
+    expect(more.querySelector('.sp-more__chevron')).not.toBeNull();
+    expect(more.getAttribute('aria-label')).toBe(`Mais abas (${hidden})`);
     press('4');
     fixture.detectChanges();
-    expect(tabs.querySelector('.sp-more')?.textContent?.trim()).toBe('Agenda e promessas');
+    expect(more.querySelector('.sp-more__label')?.textContent?.trim()).toBe('Agenda');
+    expect(more.querySelector('.sp-more__count')?.textContent?.trim()).toBe(`+${hidden - 1}`);
+    expect(more.getAttribute('aria-label')).toContain('aberta: Agenda e promessas');
     TestBed.inject(AttendanceService).clear();
   });
 

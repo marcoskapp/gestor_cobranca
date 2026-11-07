@@ -90,14 +90,53 @@
 .sp-tabs {
   margin-top: 8px;
   margin-bottom: 8px;
-  --bs-nav-underline-gap: 0.75rem;
+  --bs-nav-underline-gap: 0.625rem;
   --bs-nav-link-padding-y: 0.375rem;
   font-size: var(--app-text-sm);
 }
 
 .sp-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
   border: 0;
   background: none;
+}
+
+// o item "Mais" é o único que encolhe: o nome da aba recolhida ativa cede espaço (reticências) e a
+// contagem e a seta nunca saem da faixa a 1366 px; o nome completo está na dica e no rótulo acessível
+.sp-tabs > li:not(.sp-more-item) {
+  flex-shrink: 0;
+}
+
+.sp-more-item {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.sp-more__label {
+  min-width: 2.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// contagem das abas no menu (ou "+N" além da aba ativa) e seta: o botão se lê como menu
+.sp-more__count,
+.sp-more__chevron {
+  flex-shrink: 0;
+}
+
+.sp-more__count {
+  background: var(--bs-secondary-bg);
+  color: var(--bs-secondary-color);
+  font-size: var(--app-text-xs);
+  font-weight: var(--app-weight-medium);
+}
+
+.sp-more__chevron {
+  font-size: 0.75em;
 }
 
 // tabela de títulos: na ficha estreita (1366 px) ficam Título · Vencimento · Atraso · Saldo; o valor

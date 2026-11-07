@@ -91,7 +91,7 @@
   <app-payment-review-alert class="sp-alert" [pending]="r.pending" [rejected]="r.rejected" [compact]="true" [breakSuspension]="r.breakSuspension" />
 }
 
-<!-- abas mais usadas à vista; as demais em "Mais ▾" (atalhos Alt + 1…7 no tooltip) -->
+<!-- abas mais usadas à vista; as demais em "Mais N ▾" (com a aba recolhida ativa: "<aba> +N ▾"; atalhos Alt + 1…7 no tooltip) -->
 <ul ngbNav #nav="ngbNav" class="nav-underline app-tabs sp-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="case-tabs">
   <li [ngbNavItem]="0" [class.d-none]="!primaryTabs.includes(0)">
     <button ngbNavLink type="button" ngbTooltip="Alt + 1">Títulos ({{ sheet().titles.length }})</button>
@@ -354,15 +354,19 @@
       </ng-template>
     </li>
   }
-  <li class="nav-item" ngbDropdown placement="bottom-end" display="dynamic">
+  <li class="nav-item sp-more-item" ngbDropdown placement="bottom-end" display="dynamic">
     <button
       type="button"
       class="nav-link sp-more"
       [class.active]="activeInMore()"
       ngbDropdownToggle
-      [attr.aria-label]="activeInMore() ? 'Mais abas (aberta: ' + tabs[tab()] + ')' : 'Mais abas'"
+      [ngbTooltip]="moreHint()"
+      [attr.aria-label]="moreAriaLabel()"
     >
-      {{ activeInMore() ? tabs[tab()] : 'Mais' }}
+      <!-- sempre com seta e contagem: o rótulo diz que o botão abre um menu com outras abas -->
+      <span class="sp-more__label">{{ activeInMore() ? shortTabs[tab()] : 'Mais' }}</span>
+      <span class="badge rounded-pill sp-more__count" aria-hidden="true">{{ activeInMore() ? '+' + (moreTabs().length - 1) : moreTabs().length }}</span>
+      <app-icon name="chevron-down" class="sp-more__chevron" />
     </button>
     <div ngbDropdownMenu class="shadow app-menu">
       @for (i of moreTabs(); track i) {
