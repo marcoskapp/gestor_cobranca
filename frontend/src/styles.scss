@@ -305,6 +305,13 @@ time {
   }
 }
 
+// item que guarda o botão "Mais N ▾" (`app-tabs-more`): o único da faixa que encolhe (o nome da aba aberta
+// recolhida ganha reticências; contagem e seta ficam visíveis)
+.app-tabs > .app-tabs-more-item {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 // Item que não é campo (caixa de seleção, botão de ícone, grupo de botões) numa linha de campos
 // alinhada ao topo (`align-items-start`): desce a altura do rótulo e centraliza na altura do
 // controle. Assim a linha não desalinha quando um campo mostra ajuda ou mensagem de erro embaixo

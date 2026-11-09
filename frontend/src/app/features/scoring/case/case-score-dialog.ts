@@ -136,7 +136,7 @@ export interface CaseScoreDialogData {
           </ng-template>
         </li>
         <!-- abas que não cabem vão para "Mais N ▾" (ux.md §12) -->
-        <li [appTabsMore]="nav"></li>
+        <li class="nav-item app-tabs-more-item d-none" role="presentation"><app-tabs-more [nav]="nav" /></li>
       </ul>
       <div [ngbNavOutlet]="nav"></div>
       <div class="alert alert-secondary d-flex gap-2 align-items-start mt-3 mb-0" role="note">

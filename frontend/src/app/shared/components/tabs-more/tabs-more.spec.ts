@@ -13,7 +13,7 @@ import { TabsMore } from './tabs-more';
           <ng-template ngbNavContent>conteúdo {{ t }}</ng-template>
         </li>
       }
-      <li [appTabsMore]="tabs"></li>
+      <li class="nav-item app-tabs-more-item d-none" role="presentation"><app-tabs-more [nav]="tabs" /></li>
     </ul>
   `,
 })
@@ -31,8 +31,8 @@ describe('TabsMore (abas que não cabem em "Mais N ▾")', () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
-        observe(): void {}
-        disconnect(): void {}
+        observe = vi.fn();
+        disconnect = vi.fn();
       },
     );
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
@@ -61,9 +61,9 @@ describe('TabsMore (abas que não cabem em "Mais N ▾")', () => {
     return fixture;
   }
 
-  const more = (f: ComponentFixture<Host>) => (f.nativeElement as HTMLElement).querySelector<HTMLElement>('li.app-tabs-more')!;
+  const more = (f: ComponentFixture<Host>) => (f.nativeElement as HTMLElement).querySelector<HTMLElement>('li.app-tabs-more-item')!;
   const visibleTabs = (f: ComponentFixture<Host>) =>
-    [...(f.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ul > li.nav-item:not(.app-tabs-more)')]
+    [...(f.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ul > li.nav-item:not(.app-tabs-more-item)')]
       .filter((li) => li.style.display !== 'none')
       .map((li) => li.textContent!.trim());
 
@@ -127,12 +127,13 @@ describe('TabsMore (abas que não cabem em "Mais N ▾")', () => {
     expect(document.activeElement?.classList.contains('nav-link') && document.activeElement !== toggle).toBe(false);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(document.activeElement?.classList.contains('dropdown-item')).toBe(true);
+    // marcação esperada nas telas: o `li` do botão é `presentation` dentro do `tablist` (documenta o contrato)
     expect(more(f).getAttribute('role')).toBe('presentation');
   });
 
   it('← → com abas recolhidas percorrem só as visíveis e o botão "Mais"', async () => {
     const f = await render(500);
-    const links = [...(f.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ul > li:not(.app-tabs-more) > .nav-link')];
+    const links = [...(f.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ul > li:not(.app-tabs-more-item) > .nav-link')];
     const toggle = more(f).querySelector<HTMLElement>('.app-tabs-more__toggle')!;
     const press = (el: HTMLElement, key: string) => {
       el.focus();

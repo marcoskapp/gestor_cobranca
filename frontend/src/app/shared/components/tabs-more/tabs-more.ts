@@ -19,22 +19,21 @@ const sameTabs = (a: readonly HiddenTab[], b: readonly HiddenTab[]) =>
   a.length === b.length && a.every((t, i) => t.domId === b[i].domId && t.label === b[i].label && t.active === b[i].active && t.disabled === b[i].disabled);
 
 /**
- * Abas que não cabem na faixa (`ul ngbNav.nav-underline.app-tabs`) vão para "Mais N ▾" (ux.md §12): o componente é o
- * último item da faixa, mede a largura disponível e oculta as abas que sobram, na ordem, listando-as no menu. Com uma
+ * Abas que não cabem na faixa (`ul ngbNav.nav-underline.app-tabs`) vão para "Mais N ▾" (ux.md §12): o componente fica
+ * no último item da faixa, mede a largura disponível e oculta as abas que sobram, na ordem, listando-as no menu. Com uma
  * aba recolhida aberta, o botão mostra o nome dela e "+N" (o nome encolhe com reticências; a contagem e a seta nunca
  * saem da faixa). Escolher no menu aciona o próprio link da aba — estado na URL, permissões e carregamento continuam
  * os da tela. Recalcula ao mudar a largura, os rótulos (contagens que chegam depois) ou a aba ativa.
  *
- * Uso: `<ul ngbNav #tabs="ngbNav" class="nav-underline app-tabs"> … <li [appTabsMore]="tabs"></li></ul>`.
+ * Uso (o `li` começa oculto; o componente o mostra quando alguma aba não cabe):
+ * `<ul ngbNav #tabs="ngbNav" class="nav-underline app-tabs"> …
+ *    <li class="nav-item app-tabs-more-item d-none" role="presentation"><app-tabs-more [nav]="tabs" /></li></ul>`.
  */
 @Component({
-  selector: 'li[appTabsMore]',
+  selector: 'app-tabs-more',
   imports: [NgbDropdownModule, NgbTooltip, Icon],
   host: {
-    class: 'nav-item app-tabs-more',
-    // dentro de `role="tablist"`, como os `li[ngbNavItem]`
-    role: 'presentation',
-    '[class.d-none]': '!hidden().length',
+    class: 'app-tabs-more',
     // as teclas do menu não sobem para o `ngbNav` (que levaria o foco para a primeira aba)
     '(keydown)': 'keepMenuKeys($event)',
   },
@@ -65,7 +64,7 @@ const sameTabs = (a: readonly HiddenTab[], b: readonly HiddenTab[]) =>
   `,
   styles: `
     :host {
-      flex: 0 1 auto;
+      display: flex;
       min-width: 0;
     }
     .app-tabs-more__dropdown {
@@ -103,9 +102,18 @@ const sameTabs = (a: readonly HiddenTab[], b: readonly HiddenTab[]) =>
 })
 export class TabsMore implements AfterViewInit {
   /** O `ngbNav` da faixa (aba ativa). */
-  readonly nav = input.required<NgbNav>({ alias: 'appTabsMore' });
+  readonly nav = input.required<NgbNav>();
 
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
+
+  /** O `li` da faixa que contém o componente (ele mesmo não é uma aba). */
+  private get item(): HTMLElement | null {
+    return this.host.parentElement;
+  }
+
+  private get strip(): HTMLElement | null {
+    return this.item?.parentElement ?? null;
+  }
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly hidden = signal<readonly HiddenTab[]>([], { equal: sameTabs });
@@ -121,16 +129,16 @@ export class TabsMore implements AfterViewInit {
   private frame = 0;
 
   ngAfterViewInit(): void {
-    const strip = this.host.parentElement;
+    const strip = this.strip;
     if (!strip || typeof ResizeObserver === 'undefined') {
       return;
     }
     const resize = new ResizeObserver(() => this.schedule());
     resize.observe(strip);
     // rótulos, abas condicionais e aba ativa (`aria-selected` muda com clique, `[activeId]` ou `select()`); as mudanças
-    // deste próprio item não contam e o `layout()` só altera `style`, que fica fora do filtro
+    // deste próprio item não contam e o `layout()` só altera `style` e `class`, que ficam fora do filtro
     const mutations = new MutationObserver((records) => {
-      if (records.some((r) => !this.host.contains(r.target))) {
+      if (records.some((r) => !this.item?.contains(r.target))) {
         this.schedule();
       }
     });
@@ -185,7 +193,7 @@ export class TabsMore implements AfterViewInit {
 
   /** Abre a aba recolhida pelo próprio link (mesmo fluxo de um clique na faixa). */
   protected open(tab: HiddenTab): void {
-    (this.host.parentElement?.querySelector<HTMLElement>(`#${CSS.escape(tab.domId)}`))?.click();
+    this.strip?.querySelector<HTMLElement>(`#${CSS.escape(tab.domId)}`)?.click();
   }
 
   private schedule(): void {
@@ -195,12 +203,13 @@ export class TabsMore implements AfterViewInit {
 
   /** Mostra todas, mede e oculta, na ordem, as que não cabem com o botão "Mais". */
   private layout(): void {
-    const strip = this.host.parentElement;
-    if (!strip) {
+    const strip = this.strip;
+    const item = this.item;
+    if (!strip || !item) {
       return;
     }
     const tabsInStrip = [...strip.children].filter(
-      (el): el is HTMLElement => el !== this.host && el instanceof HTMLElement && !!el.querySelector(':scope > .nav-link'),
+      (el): el is HTMLElement => el !== item && el instanceof HTMLElement && !!el.querySelector(':scope > .nav-link'),
     );
     tabsInStrip.forEach((li) => li.style.removeProperty('display'));
     // abas ocultas pela própria tela (ex.: classes responsivas) ficam fora da medição
@@ -245,6 +254,7 @@ export class TabsMore implements AfterViewInit {
         disabled: link.classList.contains('disabled'),
       };
     });
+    item.classList.toggle('d-none', !tabs.length);
     this.hidden.set(tabs);
   }
 }

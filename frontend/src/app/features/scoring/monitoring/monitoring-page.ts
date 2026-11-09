@@ -36,7 +36,7 @@ import { TabsMore } from '../../../shared/components/tabs-more/tabs-more';
         </ng-template>
       </li>
       <!-- abas que não cabem vão para "Mais N ▾" (ux.md §12) -->
-      <li [appTabsMore]="nav"></li>
+      <li class="nav-item app-tabs-more-item d-none" role="presentation"><app-tabs-more [nav]="nav" /></li>
     </ul>
     <div [ngbNavOutlet]="nav"></div>
   `,
