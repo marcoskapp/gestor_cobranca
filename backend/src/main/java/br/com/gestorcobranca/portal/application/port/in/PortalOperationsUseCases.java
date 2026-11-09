@@ -38,7 +38,8 @@ public interface PortalOperationsUseCases {
     /** @param hasNote o devedor escreveu uma mensagem (o texto só vem no detalhe, {@link #serviceRequest}) */
     record ServiceRequestSummary(UUID id, String protocol, UUID creditorId, UUID portfolioId, UUID debtorId,
                                  String reason, String preferredChannel, String status, boolean hasNote,
-                                 UUID conversationId, String failureCode, Instant createdAt, Instant forwardedAt) {
+                                 UUID conversationId, String failureCode, Instant createdAt, Instant forwardedAt,
+                                 String disputeType, String disputeIntakeStatus, Integer disputesOpened) {
     }
 
     /** @param note mensagem do próprio devedor (guardada criptografada; exibida a quem atende a fila) */

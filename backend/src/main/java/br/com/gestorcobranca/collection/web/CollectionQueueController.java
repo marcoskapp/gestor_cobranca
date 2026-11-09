@@ -104,12 +104,13 @@ class CollectionQueueController {
                         @Size(max = 30) String ordering,
                         @Size(max = 20) String strategy,
                         @Min(1) Integer maxCasesPerUser,
-                        @Size(max = 50) Set<UUID> teamIds) {
+                        @Size(max = 50) Set<UUID> teamIds,
+                        Boolean vulnerableOnly) {
 
         QueueCommand toCommand() {
             return new QueueCommand(code, name, description, priority, creditorId, portfolioId, minDaysOverdue,
                     maxDaysOverdue, minBalance, maxBalance, minScore, maxScore, ordering, strategy, maxCasesPerUser,
-                    teamIds);
+                    teamIds, vulnerableOnly);
         }
     }
 }

@@ -111,6 +111,18 @@ export const DISPUTE_FORM_DEFAULTS: DisputeListFormValue = {
   mailReplyPending: false,
 };
 
+/**
+ * Filtros aplicados (diferentes do padrão da fila), para o botão "Filtros (n)" do `app-filter-bar` no celular
+ * (docs/tecnico/desenho/ux.md §12.3).
+ */
+export function activeDisputeFilters(value: DisputeListFormValue): number {
+  return (Object.keys(DISPUTE_FORM_DEFAULTS) as (keyof DisputeListFormValue)[]).filter((key) => {
+    const current = value[key];
+    const initial = DISPUTE_FORM_DEFAULTS[key];
+    return Array.isArray(current) ? current.length > 0 : current !== initial;
+  }).length;
+}
+
 /** Opção do formulário ↔ valor curto em português na URL. */
 function mappedParam(param: string, values: Record<string, string>): UrlCodec<string> {
   return {

@@ -176,6 +176,20 @@ public final class BusinessEventTypes {
     public static final String DATA_SUBJECT_REQUEST_OPENED = "data_subject_request.opened";
     public static final String DATA_SUBJECT_REQUEST_COMPLETED = "data_subject_request.completed";
     public static final String RETENTION_RUN_COMPLETED = "retention.run_completed";
+    // Marcador de vulnerabilidade (compliance) — sem devedor e sem a categoria sensível; §3.1a de logs-e-metricas.md
+    public static final String VULNERABILITY_REGISTERED = "vulnerability.registered";
+    public static final String VULNERABILITY_RETIRED = "vulnerability.retired";
+    public static final String VULNERABILITY_CAPACITY_CHANGED = "vulnerability.capacity_changed";
+    public static final String VULNERABILITY_SUGGESTED = "vulnerability.suggested";
+    public static final String VULNERABILITY_SUGGESTION_RESOLVED = "vulnerability.suggestion_resolved";
+
+    // Reclamações (módulo complaint) — atributos em docs/tecnico/logs-e-metricas.md §3.15
+    public static final String COMPLAINT_REGISTERED = "complaint.registered";
+    public static final String COMPLAINT_ASSIGNED = "complaint.assigned";
+    public static final String COMPLAINT_ANSWERED = "complaint.answered";
+    public static final String COMPLAINT_CLOSED = "complaint.closed";
+    public static final String COMPLAINT_OVERDUE = "complaint.overdue";
+    public static final String COMPLAINT_EVIDENCE_SCANNED = "complaint.evidence_scanned";
 
     // Telefonia (telephony) — atributos em docs/tecnico/logs-e-metricas.md §3.7
     public static final String CALL_DIALED = "call.dialed";
@@ -200,6 +214,7 @@ public final class BusinessEventTypes {
     public static final String PORTAL_PAYMENT_CONFIRMED = "portal.payment_confirmed";
     /** Pedido que foge do portal (falar com atendente, contestação) encaminhado à fila humana. */
     public static final String PORTAL_SERVICE_REQUESTED = "portal.service_requested";
+    public static final String PORTAL_DISPUTE_REGISTERED = "portal.dispute_registered";
     /** Configuração do portal de um credor criada ou alterada. */
     public static final String PORTAL_CONFIGURATION_CHANGED = "portal.configuration_changed";
     public static final String SCORE_CALCULATED = "score.calculated";

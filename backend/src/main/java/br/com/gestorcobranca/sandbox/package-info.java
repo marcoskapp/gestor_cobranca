@@ -17,7 +17,7 @@
                 "negotiation :: usecases", "payment :: usecases", "settlement :: usecases",
                 "communication :: usecases", "campaign :: usecases", "legal :: usecases", "incentive :: usecases",
                 "telephony :: usecases", "portal :: usecases", "assistant :: usecases", "analytics :: usecases",
-                "publicapi :: usecases"})
+                "publicapi :: usecases", "complaint :: usecases"})
 package br.com.gestorcobranca.sandbox;
 
 import org.springframework.modulith.ApplicationModule;

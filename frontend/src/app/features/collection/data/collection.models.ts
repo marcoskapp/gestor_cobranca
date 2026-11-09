@@ -199,6 +199,8 @@ export interface QueueView {
   teamIds: string[];
   updatedAt: string;
   version: number;
+  /** Só devedores com marcador de vulnerabilidade (fila própria de atendimento cuidadoso). */
+  vulnerableOnly?: boolean;
 }
 
 /** `CollectionQueueController.QueueRequest` (`code` só na criação). */
@@ -219,6 +221,8 @@ export interface QueueRequest {
   strategy: QueueStrategy;
   maxCasesPerUser: number | null;
   teamIds: string[];
+  /** Só devedores com marcador de vulnerabilidade. */
+  vulnerableOnly?: boolean;
 }
 
 /** `QueueUseCases.QueueSummary` */

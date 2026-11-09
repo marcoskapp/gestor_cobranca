@@ -4,7 +4,10 @@ package br.com.gestorcobranca.portal.domain.model;
 public enum ServiceRequestReason {
     /** Falar com um atendente. */
     TALK_TO_AGENT,
-    /** Contestar a dívida (não reconhece, valor incorreto, já pagou) — registrada pelo atendente no collection. */
+    /**
+     * Contestar a dívida (não reconhece, valor incorreto, já pagou): registrada automaticamente como contestação no
+     * collection (job {@code portal.dispute_intake}; o prazo do CDC conta do pedido) e também levada à fila humana.
+     */
     DISPUTE,
     /** Nenhuma condição do portal cabe no orçamento. */
     CANNOT_AFFORD,

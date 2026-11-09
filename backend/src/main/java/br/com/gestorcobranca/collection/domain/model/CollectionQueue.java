@@ -22,7 +22,7 @@ import java.util.UUID;
 
 /**
  * Fila de cobrança (F07): critérios que selecionam casos (credor, carteira, faixa de atraso,
- * faixa de saldo e, futuramente, faixa de score), ordem de entrega, estratégia de distribuição e
+ * faixa de saldo, faixa de score e devedor com marcador de vulnerabilidade), ordem de entrega, estratégia de distribuição e
  * equipes que a atendem. Um caso pertence à primeira fila ativa (menor {@code priority}) cujos
  * critérios ele satisfaz. Critério nulo não restringe.
  */
@@ -80,6 +80,10 @@ public class CollectionQueue extends TenantScopedEntity {
     @Column(name = "max_cases_per_user")
     private Integer maxCasesPerUser;
 
+    /** Só casos de devedor com marcador de vulnerabilidade (fila própria de atendimento cuidadoso). */
+    @Column(name = "vulnerable_only", nullable = false)
+    private boolean vulnerableOnly;
+
     /** Último operador que recebeu caso no rodízio. */
     @Column(name = "round_robin_cursor")
     private UUID roundRobinCursor;
@@ -105,11 +109,13 @@ public class CollectionQueue extends TenantScopedEntity {
      *
      * @param priority        ordem de avaliação no roteamento (menor primeiro)
      * @param maxCasesPerUser capacidade por operador nesta fila (nulo = ilimitada)
+     * @param vulnerableOnly  só casos de devedor com marcador de vulnerabilidade
      */
     public record QueueDefinition(String name, String description, int priority, UUID creditorId, UUID portfolioId,
                                   Integer minDaysOverdue, Integer maxDaysOverdue, Money minBalance, Money maxBalance,
                                   Integer minScore, Integer maxScore, CaseOrdering ordering,
-                                  DistributionStrategy strategy, Integer maxCasesPerUser, Set<UUID> teamIds) {
+                                  DistributionStrategy strategy, Integer maxCasesPerUser, Set<UUID> teamIds,
+                                  boolean vulnerableOnly) {
     }
 
     public void define(QueueDefinition d) {
@@ -147,6 +153,7 @@ public class CollectionQueue extends TenantScopedEntity {
         this.ordering = d.ordering() == null ? CaseOrdering.OLDEST_OVERDUE : d.ordering();
         this.strategy = d.strategy() == null ? DistributionStrategy.PULL : d.strategy();
         this.maxCasesPerUser = d.maxCasesPerUser();
+        this.vulnerableOnly = d.vulnerableOnly();
         replaceTeams(d.teamIds());
     }
 
@@ -175,6 +182,9 @@ public class CollectionQueue extends TenantScopedEntity {
             return false;
         }
         if (portfolioId != null && !portfolioId.equals(c.getPortfolioId())) {
+            return false;
+        }
+        if (vulnerableOnly && !c.isVulnerable()) {
             return false;
         }
         long overdue = c.daysOverdue(today);
@@ -210,6 +220,10 @@ public class CollectionQueue extends TenantScopedEntity {
 
     public void advanceRoundRobin(UUID lastAssignedUser) {
         this.roundRobinCursor = lastAssignedUser;
+    }
+
+    public boolean isVulnerableOnly() {
+        return vulnerableOnly;
     }
 
     public String getCode() {

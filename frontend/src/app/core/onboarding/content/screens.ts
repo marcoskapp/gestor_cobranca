@@ -141,7 +141,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.debtors', version: 1, path: '/devedores', tourId: 'debt.debtors' },
   {
     key: 'debt.debtor-detail',
-    version: 4,
+    version: 5,
     path: '/devedores/:id',
     tourId: 'debt.debtor-detail',
     changes: [
@@ -156,6 +156,7 @@ export const SCREENS: readonly ScreenGuide[] = [
           'O envio do link do portal passou para o menu "Mais ações" (⋯); a lista de títulos filtrada pelo devedor fica em "Relacionados".',
         ],
       },
+      { version: 5, items: ['Selo de vulnerabilidade no cabeçalho quando o devedor tem marcador ativo (a categoria só aparece para quem pode vê-la).'] },
     ],
   },
   {
@@ -227,7 +228,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.queue',
-    version: 10,
+    version: 11,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -260,11 +261,12 @@ export const SCREENS: readonly ScreenGuide[] = [
         version: 10,
         items: ['Cada caso tem um endereço só: ao abrir um caso na estação, o endereço passa a ser o do caso, que você pode copiar e compartilhar; o menu continua marcando a estação.'],
       },
+      { version: 11, items: ['Selo de vulnerabilidade no cabeçalho quando o devedor tem marcador ativo (a categoria só aparece para quem pode vê-la).'] },
     ],
   },
   {
     key: 'collection.case',
-    version: 10,
+    version: 11,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -300,6 +302,7 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Histórico: "Avaliar" em cada atendimento de outra pessoa abre a monitoria já preenchida (para quem avalia a qualidade).',
         ],
       },
+      { version: 11, items: ['Selo de vulnerabilidade no cabeçalho quando o devedor tem marcador ativo (a categoria só aparece para quem pode vê-la).'] },
     ],
   },
   {
@@ -315,10 +318,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
   {
     key: 'collection.queues',
-    version: 2,
+    version: 3,
     path: '/cobranca/filas',
     tourId: 'collection.queues',
-    changes: [{ version: 2, items: ['O nome da fila abre a lista de casos dessa fila.'] }],
+    changes: [
+      { version: 2, items: ['O nome da fila abre a lista de casos dessa fila.'] },
+      { version: 3, items: ['Critério "Só devedores com marcador de vulnerabilidade": crie uma fila de atendimento cuidadoso para esses casos.'] },
+    ],
   },
   {
     key: 'collection.tabulations',
@@ -329,7 +335,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'collection.settings', version: 1, path: '/cobranca/parametros' },
   {
     key: 'collection.disputes',
-    version: 4,
+    version: 5,
     path: '/cobranca/contestacoes',
     tourId: 'collection.disputes',
     changes: [
@@ -343,6 +349,13 @@ export const SCREENS: readonly ScreenGuide[] = [
         ],
       },
       { version: 4, items: ['Filtro "Resposta por e-mail a confirmar" e pendência das respostas do credor recebidas por e-mail.'] },
+      {
+        version: 5,
+        items: [
+          'Contestação feita pelo devedor no portal entra sozinha na fila, com o prazo de resposta contando do pedido no portal.',
+          'No celular, os filtros ficam no botão "Filtros".',
+        ],
+      },
     ],
   },
   {
@@ -812,6 +825,15 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
     ],
   },
+  { key: 'compliance.vulnerability', version: 1, path: '/compliance/vulnerabilidade', tourId: 'compliance.vulnerability' },
+  { key: 'compliance.complaints', version: 1, path: '/compliance/reclamacoes', tourId: 'compliance.complaints' },
+  {
+    key: 'compliance.complaint-config',
+    version: 1,
+    path: '/compliance/reclamacoes/configuracao',
+    tourId: 'compliance.complaint-config',
+  },
+  { key: 'compliance.complaint-detail', version: 1, path: '/compliance/reclamacoes/:id', tourId: 'compliance.complaint-detail' },
   { key: 'organization.creditors', version: 1, path: '/organizacao/credores', tourId: 'organization.creditors' },
   {
     key: 'organization.creditor-detail',

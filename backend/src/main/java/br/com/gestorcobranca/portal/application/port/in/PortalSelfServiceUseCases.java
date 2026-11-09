@@ -141,12 +141,17 @@ public interface PortalSelfServiceUseCases {
      * @param reason           TALK_TO_AGENT, DISPUTE, CANNOT_AFFORD ou OTHER
      * @param preferredChannel WHATSAPP, SMS ou EMAIL (por onde o atendente responde)
      * @param note             mensagem opcional (obrigatória em OTHER), até 500 caracteres
+     * @param disputeType      só para {@code DISPUTE}: NOT_RECOGNIZED, ALREADY_PAID, WRONG_AMOUNT ou OTHER (nulo = OTHER)
      */
-    record ServiceRequestCommand(String reason, String preferredChannel, UUID portfolioId, String note) {
+    record ServiceRequestCommand(String reason, String preferredChannel, UUID portfolioId, String note,
+                                 String disputeType) {
     }
 
-    /** @param status OPEN, FORWARDED ou UNDELIVERED */
+    /**
+     * @param status              OPEN, FORWARDED ou UNDELIVERED
+     * @param disputeIntakeStatus só contestação: PENDING, OPENED, ALREADY_OPEN, NO_CASE ou NO_TITLES
+     */
     record ServiceRequestView(UUID id, String protocol, String reason, String preferredChannel, String status,
-                              Instant createdAt) {
+                              Instant createdAt, String disputeType, String disputeIntakeStatus) {
     }
 }

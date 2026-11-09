@@ -6,6 +6,7 @@ export const MANUAL: ModuleManual = {
     'O compliance garante que a cobrança respeita a lei e a vontade do devedor. Antes de qualquer contato, por pessoa, régua, discador ou assistente, o sistema responde "Posso contatar agora?" para cada canal.',
     'A resposta considera restrições de contato (pedidos de não contato, bloqueios do credor, contatos inválidos), a política de contato com horários, dias e limites de tentativas, e os feriados.',
     'O módulo também cuida da LGPD: base legal do tratamento por credor, atendimento aos pedidos dos titulares dentro do prazo legal e retenção com anonimização ao fim do prazo de guarda.',
+    'E cuida da conduta da operação: o marcador de atenção especial (vulnerabilidade e superendividamento) e as reclamações recebidas por Procon, consumidor.gov.br, Banco Central, ouvidoria e Reclame Aqui, com prazo de resposta e responsável.',
   ],
   connections: [
     { module: 'cobranca', text: 'Entrega: casos com todos os canais restritos ficam inelegíveis; a estação mostra a decisão por canal.' },
@@ -21,6 +22,9 @@ export const MANUAL: ModuleManual = {
     'O prazo legal de um pedido do titular conta a partir do recebimento, por qualquer canal: registre no mesmo dia.',
     'Eliminação de dados pede confirmação reforçada e não pode ser desfeita.',
     'Políticas de retenção nascem desabilitadas; simule antes de executar.',
+    'Atenção especial guarda só a categoria, a base legal e quem registrou: nunca escreva diagnóstico ou relato. A categoria só aparece para compliance e gestão; os demais veem "atenção especial".',
+    'O assistente de IA só sugere o marcador; uma pessoa confirma a categoria ou dispensa.',
+    'Reclamação: o prazo informado pelo canal prevalece; sem ele, vale o prazo do canal configurado pela assessoria.',
   ],
   screens: [
     {
@@ -116,6 +120,69 @@ export const MANUAL: ModuleManual = {
       related: [{ screen: 'compliance.legal-bases', why: 'Prazos por credor.' }],
       terms: ['anonimizacao', 'base-legal'],
     },
+    {
+      id: 'compliance.vulnerability',
+      title: 'Vulnerabilidade e superendividamento',
+      objective: 'Sugestões do assistente a confirmar, marcadores de atenção especial e os efeitos do marcador na oferta.',
+      purpose: [
+        'Confirme a categoria da sugestão do assistente ou dispense. O marcador também é registrado no selo da ficha do devedor e da estação.',
+        'Em "Efeitos na oferta" (quem tem acesso a todos os credores), a assessoria decide se bloqueia parcela acima da capacidade declarada e se portal, assistente e integrações deixam de negociar com o devedor marcado.',
+      ],
+      profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'COMPLIANCE'],
+      inputs: ['Sugestões do assistente de IA e declarações do devedor no atendimento.'],
+      outputs: ['Atendimento cuidadoso, fila própria quando configurada e ofertas que preservam o mínimo existencial.'],
+      related: [
+        { screen: 'collection.queues', why: 'Fila só de devedores com marcador.' },
+        { screen: 'debt.debtors', why: 'Selo na ficha do devedor.' },
+      ],
+      terms: ['atencao-especial', 'minimo-existencial'],
+    },
+    {
+      id: 'compliance.complaints',
+      title: 'Reclamações',
+      objective: 'Reclamações do Procon, consumidor.gov.br, Banco Central, ouvidoria do credor e Reclame Aqui, com prazo de resposta e responsável.',
+      purpose: [
+        'Registre no dia do recebimento, com o protocolo do canal e o prazo informado. Vencidas aparecem em vermelho; perto do prazo, em amarelo.',
+        'Clique num indicador para filtrar. As que estão perto do prazo aparecem também em "Minhas pendências".',
+      ],
+      profiles: ['OPERADOR', 'SUPERVISOR', 'COMPLIANCE', 'GESTOR'],
+      inputs: ['Notificações dos órgãos e canais, com protocolo e prazo.'],
+      outputs: ['Respostas no prazo e indicador por credor.'],
+      related: [
+        { screen: 'compliance.complaint-config', why: 'Prazos por canal e indicador.' },
+        { screen: 'collection.disputes', why: 'Contestação da dívida.' },
+      ],
+      terms: ['reclamacao'],
+    },
+    {
+      id: 'compliance.complaint-detail',
+      title: 'Reclamação',
+      objective: 'Tratamento de uma reclamação: responsável, resposta ao canal, evidências e encerramento.',
+      purpose: [
+        'Comece o tratamento, registre a resposta enviada ao canal e encerre com o resultado. Respondida até o prazo conta como no prazo.',
+        'Anexe a notificação e a resposta protocolada em PDF ou imagem; os arquivos passam por verificação antes de ficar disponíveis.',
+      ],
+      profiles: ['SUPERVISOR', 'COMPLIANCE', 'GESTOR'],
+      inputs: ['Reclamação registrada e a notificação do canal.'],
+      outputs: ['Resposta registrada, evidências e resultado.'],
+      related: [{ screen: 'compliance.complaints', why: 'Fila de reclamações.' }],
+      terms: ['reclamacao'],
+    },
+    {
+      id: 'compliance.complaint-config',
+      title: 'Prazos e indicador de reclamações',
+      objective: 'Prazo de resposta por canal e indicador por credor: recebidas, respondidas no prazo e fora do prazo.',
+      purpose: [
+        'Os prazos são da assessoria e podem ser ajustados; o prazo informado pelo canal no registro sempre prevalece.',
+        'O indicador mostra, por credor, quantas foram respondidas no prazo no período e quantas estão vencidas agora.',
+      ],
+      profiles: ['SUPERVISOR', 'COMPLIANCE', 'GESTOR'],
+      inputs: ['Prazos combinados com os canais e os credores.'],
+      outputs: ['Prazos aplicados às novas reclamações e acompanhamento por credor.'],
+      related: [{ screen: 'compliance.complaints', why: 'Fila de reclamações.' }],
+      terms: ['reclamacao'],
+    },
   ],
-  terms: ['porteiro-de-contato', 'restricao-de-contato', 'politica-de-contato', 'base-legal', 'titular', 'anonimizacao'],
+  terms: ['porteiro-de-contato', 'restricao-de-contato', 'politica-de-contato', 'base-legal', 'titular', 'anonimizacao',
+    'atencao-especial', 'minimo-existencial', 'reclamacao'],
 };

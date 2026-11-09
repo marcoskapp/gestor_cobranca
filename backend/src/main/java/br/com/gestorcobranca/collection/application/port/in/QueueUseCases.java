@@ -40,11 +40,13 @@ public interface QueueUseCases {
      * @param strategy        PULL, ROUND_ROBIN ou LEAST_LOADED
      * @param maxCasesPerUser capacidade de casos ativos por operador na fila (nulo = ilimitada)
      * @param teamIds         equipes que atendem a fila (vazio = qualquer operador)
+     * @param vulnerableOnly  só casos de devedor com marcador de vulnerabilidade (fila própria de atendimento
+     *                        cuidadoso; nulo = não restringe)
      */
     record QueueCommand(String code, String name, String description, int priority, UUID creditorId, UUID portfolioId,
                         Integer minDaysOverdue, Integer maxDaysOverdue, BigDecimal minBalance, BigDecimal maxBalance,
                         Integer minScore, Integer maxScore, String ordering, String strategy, Integer maxCasesPerUser,
-                        Set<UUID> teamIds) {
+                        Set<UUID> teamIds, Boolean vulnerableOnly) {
 
         public QueueCommand {
             teamIds = teamIds == null ? Set.of() : Set.copyOf(teamIds);
@@ -54,7 +56,8 @@ public interface QueueUseCases {
     record QueueView(UUID id, String code, String name, String description, boolean active, int priority,
                      UUID creditorId, UUID portfolioId, Integer minDaysOverdue, Integer maxDaysOverdue,
                      BigDecimal minBalance, BigDecimal maxBalance, Integer minScore, Integer maxScore, String ordering,
-                     String strategy, Integer maxCasesPerUser, Set<UUID> teamIds, Instant updatedAt, long version) {
+                     String strategy, Integer maxCasesPerUser, Set<UUID> teamIds, Instant updatedAt, long version,
+                     boolean vulnerableOnly) {
     }
 
     /**

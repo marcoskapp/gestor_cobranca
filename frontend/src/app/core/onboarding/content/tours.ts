@@ -507,6 +507,76 @@ export const TOURS: readonly TourDefinition[] = [
     ],
   },
   {
+    id: 'compliance.vulnerability',
+    version: 1,
+    title: 'Vulnerabilidade',
+    summary: 'Sugestões do assistente, marcadores e efeitos na oferta.',
+    steps: [
+      {
+        anchor: 'vulnerability-tabs',
+        title: 'Sugestões e marcadores',
+        body: 'Confirme a categoria sugerida pelo assistente ou dispense. Nada é marcado sem uma pessoa.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Só a categoria',
+        body: 'O marcador guarda categoria, base legal e quem registrou. Nunca escreva diagnóstico ou relato.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'compliance.complaints',
+    version: 1,
+    title: 'Reclamações',
+    summary: 'Procon, consumidor.gov.br, Banco Central, ouvidoria e Reclame Aqui com prazo.',
+    steps: [
+      {
+        anchor: 'complaint-new',
+        title: 'Registre no dia',
+        body: 'Informe canal, protocolo e o prazo dado pelo canal. Sem prazo informado, vale a regra do canal.',
+      },
+      {
+        anchor: 'complaint-kpis',
+        title: 'Situação da fila',
+        body: 'Vencidas, perto do prazo e sem responsável. Clique num indicador para filtrar.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Prazo em destaque',
+        body: 'Vencidas em vermelho, perto do prazo em amarelo. Elas também aparecem em "Minhas pendências".',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'compliance.complaint-detail',
+    version: 1,
+    title: 'Tratamento da reclamação',
+    summary: 'Responsável, resposta ao canal, evidências e encerramento.',
+    steps: [
+      {
+        anchor: 'complaint-actions',
+        title: 'Próxima ação',
+        body: 'Comece o tratamento, registre a resposta enviada ao canal e encerre com o resultado.',
+      },
+    ],
+  },
+  {
+    id: 'compliance.complaint-config',
+    version: 1,
+    title: 'Prazos e indicador',
+    summary: 'Prazo por canal e resposta no prazo por credor.',
+    steps: [
+      {
+        anchor: 'complaint-indicator',
+        title: 'Indicador por credor',
+        body: 'Recebidas, respondidas no prazo e fora do prazo no período, e vencidas agora.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
     id: 'compliance.retention',
     version: 1,
     title: 'Retenção de dados',

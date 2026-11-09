@@ -12,6 +12,7 @@ import br.com.gestorcobranca.collection.domain.repository.CollectionCaseReposito
 import br.com.gestorcobranca.collection.domain.repository.CollectionQueueRepository;
 import br.com.gestorcobranca.collection.domain.repository.CollectionTaskRepository;
 import br.com.gestorcobranca.collection.domain.service.QueueRouter;
+import br.com.gestorcobranca.compliance.application.port.in.VulnerabilityQueries;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
 import br.com.gestorcobranca.shared.domain.Money;
@@ -56,11 +57,13 @@ class CaseSynchronizer {
     private final CallbackRecorder callbacks;
     private final DebtorCaseLock lock;
     private final CurrentActor currentActor;
+    private final VulnerabilityQueries vulnerability;
     private final Clock clock;
 
     CaseSynchronizer(CollectionCaseRepository cases, CollectionQueueRepository queues, CollectionTaskRepository tasks,
                      DebtTitleUseCases titles, EligibilityEvaluator eligibility, CaseRecorder recorder,
-                     CallbackRecorder callbacks, DebtorCaseLock lock, CurrentActor currentActor, Clock clock) {
+                     CallbackRecorder callbacks, DebtorCaseLock lock, CurrentActor currentActor,
+                     VulnerabilityQueries vulnerability, Clock clock) {
         this.cases = cases;
         this.queues = queues;
         this.tasks = tasks;
@@ -70,12 +73,26 @@ class CaseSynchronizer {
         this.callbacks = callbacks;
         this.lock = lock;
         this.currentActor = currentActor;
+        this.vulnerability = vulnerability;
         this.clock = clock;
     }
 
     /** Contexto de uma execução (filas ativas e carteiras carregadas uma vez). */
     Context context() {
-        return new Context(queues.findByActiveTrue(), eligibility.batch());
+        return new Context(queues.findByActiveTrue(), eligibility.batch(), null);
+    }
+
+    /**
+     * Contexto de um lote de devedores (reprocessamento da carteira): o marcador de vulnerabilidade é consultado uma
+     * vez para todos, em vez de uma consulta por caso aberto.
+     */
+    Context context(java.util.Collection<UUID> debtorIds) {
+        return new Context(queues.findByActiveTrue(), eligibility.batch(), vulnerability.vulnerableAmong(debtorIds));
+    }
+
+    /** Estado atual do marcador no compliance (fonte da verdade do indicador do caso). */
+    boolean debtorIsVulnerable(UUID debtorId) {
+        return vulnerability.isVulnerable(debtorId);
     }
 
     /**
@@ -153,6 +170,26 @@ class CaseSynchronizer {
     }
 
     /**
+     * Marcador de vulnerabilidade do devedor mudou (compliance): guarda o indicador no caso e refaz só o roteamento
+     * (o critério "só devedores com marcador" pode mudar a fila); a elegibilidade não depende do marcador.
+     *
+     * @return true se o indicador do caso mudou
+     */
+    boolean applyVulnerability(CollectionCase c, boolean vulnerable, String trigger) {
+        if (!c.getStatus().isActive()) {
+            return false;
+        }
+        CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);
+        if (!c.markVulnerable(vulnerable)) {
+            return false;
+        }
+        c.routeTo(QueueRouter.route(c, context().queues(), CollectionViews.today(clock)).map(CollectionQueue::getId)
+                .orElse(null));
+        recorder.commit(c, before, AssignmentMode.ROUTING, null, trigger);
+        return true;
+    }
+
+    /**
      * Score de propensão novo (módulo scoring): guarda no caso e reavalia só a fila — o critério de
      * faixa de score pode mudar o roteamento; a elegibilidade não depende do score. Cálculo mais
      * antigo que o aplicado é ignorado.
@@ -186,6 +223,9 @@ class CaseSynchronizer {
     private CollectionCase open(UUID debtorId, UUID creditorId, UUID portfolioId, CaseBalance balance, Instant now,
                                 String trigger, Context ctx) {
         CollectionCase c = new CollectionCase(debtorId, creditorId, portfolioId, balance, now);
+        // devedor já marcado como vulnerável: o caso nasce com o indicador (critério de fila própria)
+        c.markVulnerable(ctx.vulnerableDebtors() != null ? ctx.vulnerableDebtors().contains(debtorId)
+                : vulnerability.isVulnerable(debtorId));
         // id definido antes da avaliação (contestações são consultadas pelo caso; aqui não há nenhuma)
         applyEligibilityAndRoute(c, ctx);
         return recorder.opened(c, trigger);
@@ -260,7 +300,9 @@ class CaseSynchronizer {
         return CloseReason.NO_OPEN_TITLES;
     }
 
-    record Context(List<CollectionQueue> queues, EligibilityEvaluator.Batch eligibility) {
+    /** @param vulnerableDebtors devedores com marcador já consultados em lote (nulo = consultar caso a caso) */
+    record Context(List<CollectionQueue> queues, EligibilityEvaluator.Batch eligibility,
+                   java.util.Set<UUID> vulnerableDebtors) {
 
         Context {
             queues = queues.stream().sorted(Comparator.comparingInt(CollectionQueue::getPriority)

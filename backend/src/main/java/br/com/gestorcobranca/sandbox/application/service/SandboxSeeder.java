@@ -42,6 +42,7 @@ class SandboxSeeder {
     private final PortfolioLoadSeeder portfolioLoad;
     private final PdfImportDemoSeeder pdfImportDemo;
     private final OperationSeeder operations;
+    private final ConformitySeeder conformity;
     private final LegalSeeder legal;
     private final CampaignSeeder campaigns;
     private final SeedStatus status;
@@ -50,8 +51,8 @@ class SandboxSeeder {
 
     SandboxSeeder(IdentitySeeder identity, OrganizationSeeder organization, ConfigurationSeeder configuration,
                   ChannelSeeder channels, IntegrationTokensSeeder integrationTokens, PortfolioLoadSeeder portfolioLoad,
-                  PdfImportDemoSeeder pdfImportDemo, OperationSeeder operations, LegalSeeder legal, CampaignSeeder campaigns, SeedStatus status,
-                  SeedRuntime rt, MeterRegistry meters) {
+                  PdfImportDemoSeeder pdfImportDemo, OperationSeeder operations, ConformitySeeder conformity,
+                  LegalSeeder legal, CampaignSeeder campaigns, SeedStatus status, SeedRuntime rt, MeterRegistry meters) {
         this.identity = identity;
         this.organization = organization;
         this.configuration = configuration;
@@ -60,6 +61,7 @@ class SandboxSeeder {
         this.portfolioLoad = portfolioLoad;
         this.pdfImportDemo = pdfImportDemo;
         this.operations = operations;
+        this.conformity = conformity;
         this.legal = legal;
         this.campaigns = campaigns;
         this.status = status;
@@ -92,6 +94,7 @@ class SandboxSeeder {
                 step("carga das carteiras", seed, portfolioLoad::seed);
                 step("importação PDF de demonstração", seed, pdfImportDemo::seed);
                 step("cenários operacionais", seed, operations::seed);
+                step("vulnerabilidade e reclamações", seed, conformity::seed);
                 step("fluxo jurídico", seed, legal::seed);
                 step("réguas de cobrança", seed, campaigns::seed);
                 step("distribuição, prestação de contas e painéis", seed, operations::finish);

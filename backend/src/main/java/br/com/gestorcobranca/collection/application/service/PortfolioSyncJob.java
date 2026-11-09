@@ -61,7 +61,7 @@ class PortfolioSyncJob implements JobHandler<PortfolioSyncJob.Payload> {
         int batch = properties.batchSize();
         List<UUID> debtors = titles.debtorIdsByImportBatch(payload.creditorId(), payload.importBatchId(),
                 payload.afterDebtorId(), batch);
-        CaseSynchronizer.Context ctx = synchronizer.context();
+        CaseSynchronizer.Context ctx = synchronizer.context(debtors);
         int touched = 0;
         for (UUID debtorId : debtors) {
             touched += synchronizer.syncDebtor(debtorId, payload.creditorId(), "portfolio_loaded", ctx).size();

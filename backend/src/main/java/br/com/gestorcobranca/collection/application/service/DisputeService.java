@@ -182,6 +182,15 @@ class DisputeService implements DisputeUseCases {
      * transação do registro.
      */
     Dispute openFor(CollectionCase c, OpenDisputeCommand command, UUID originInteractionId) {
+        return openFor(c, command, originInteractionId, null, null);
+    }
+
+    /**
+     * Abertura com origem externa: {@code receivedAt} é quando o devedor contestou (o prazo do CDC conta dali, mesmo
+     * que o registro aqui aconteça depois); {@code originReference} identifica o pedido de origem (idempotência).
+     */
+    Dispute openFor(CollectionCase c, OpenDisputeCommand command, UUID originInteractionId, String originReference,
+                    Instant receivedAt) {
         Guard.require(command != null, "dispute.required", "Dados da contestação obrigatórios");
         Guard.requireState(c.getStatus().isActive(), "case.closed", "Caso encerrado");
         DisputeType type = CollectionEnums.parse(DisputeType.class, command.type(), "dispute.type_invalid", "Tipo");
@@ -194,14 +203,16 @@ class DisputeService implements DisputeUseCases {
         Guard.require(available.keySet().containsAll(titleIds), "dispute.title_invalid",
                 "Título contestado não pertence ao caso ou não está em cobrança");
         Money amount = titleIds.stream().map(id -> Money.of(available.get(id).openBalance())).reduce(Money.ZERO, Money::plus);
-        LocalDate today = CollectionViews.today(clock);
+        Instant openedAt = receivedAt == null ? Instant.now(clock) : receivedAt;
+        LocalDate today = openedAt.atZone(br.com.gestorcobranca.shared.config.TimeConfig.BUSINESS_ZONE).toLocalDate();
         Guard.require(command.responseDueDate() == null || !command.responseDueDate().isBefore(today),
                 "dispute.due_in_past", "Prazo de resposta no passado");
         Deadlines deadlines = deadlines(c.getCreditorId(), type, command.responseDueDate(), today);
         boolean blocks = command.blocksCollection() == null || command.blocksCollection();
-        Dispute dispute = disputes.save(new Dispute(c, titleIds, type, origin, command.description(), blocks, amount,
-                deadlines.responseDue(), deadlines.internalDue(), deadlines.source(), originInteractionId,
-                Instant.now(clock)));
+        Dispute opened = new Dispute(c, titleIds, type, origin, command.description(), blocks, amount,
+                deadlines.responseDue(), deadlines.internalDue(), deadlines.source(), originInteractionId, openedAt);
+        opened.originatedFrom(originReference);
+        Dispute dispute = disputes.save(opened);
         ledger.markDisputed(titleIds, dispute.getId(), blocks);
 
         CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);
@@ -223,7 +234,8 @@ class DisputeService implements DisputeUseCases {
                 .created("responseDueDate", dispute.getResponseDueDate())
                 .created("internalDueDate", dispute.getInternalDueDate())
                 .created("deadlineSource", dispute.getDeadlineSource())
-                .created("originInteractionId", originInteractionId));
+                .created("originInteractionId", originInteractionId)
+                .meta("originReference", originReference));
         businessEvents.log(CaseRecorder.base(BusinessEventTypes.DISPUTE_OPENED, c, today)
                 .reference("dispute", dispute.getId())
                 .amount(dispute.getDisputedAmount())
@@ -234,7 +246,8 @@ class DisputeService implements DisputeUseCases {
                 .attr("responseDays", ChronoUnit.DAYS.between(today, dispute.getResponseDueDate()))
                 .attr("internalDays", ChronoUnit.DAYS.between(today, dispute.getInternalDueDate()))
                 .attr("deadlineSource", dispute.getDeadlineSource())
-                .attr("trigger", originInteractionId == null ? "manual" : "tabulation"));
+                .attr("trigger", originReference != null ? "portal"
+                        : originInteractionId == null ? "manual" : "tabulation"));
         // a abertura pela tabulação segue a mesma distribuição (manual = sem responsável; automática = menos carregado)
         assignments.autoAssign(dispute);
         publish(dispute);

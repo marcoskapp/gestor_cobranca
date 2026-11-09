@@ -169,7 +169,7 @@ class QueueService implements QueueUseCases {
                 CollectionEnums.parseOptional(CaseOrdering.class, c.ordering(), "queue.ordering_invalid", "Ordem da fila"),
                 CollectionEnums.parseOptional(DistributionStrategy.class, c.strategy(), "queue.strategy_invalid",
                         "Estratégia de distribuição"),
-                c.maxCasesPerUser(), c.teamIds());
+                c.maxCasesPerUser(), c.teamIds(), Boolean.TRUE.equals(c.vulnerableOnly()));
     }
 
     /** Fila de credor exige o credor no escopo; fila sem credor alcança todos e exige acesso total. */
@@ -199,8 +199,9 @@ class QueueService implements QueueUseCases {
     }
 
     private static String criteria(CollectionQueue q) {
-        return "creditor=%s;portfolio=%s;overdue=%s-%s;balance=%s-%s;score=%s-%s;teams=%s".formatted(q.getCreditorId(),
-                q.getPortfolioId(), q.getMinDaysOverdue(), q.getMaxDaysOverdue(), q.getMinBalance(), q.getMaxBalance(),
-                q.getMinScore(), q.getMaxScore(), q.getTeamIds().stream().sorted().toList());
+        return "creditor=%s;portfolio=%s;overdue=%s-%s;balance=%s-%s;score=%s-%s;teams=%s;vulnerableOnly=%s".formatted(
+                q.getCreditorId(), q.getPortfolioId(), q.getMinDaysOverdue(), q.getMaxDaysOverdue(), q.getMinBalance(),
+                q.getMaxBalance(), q.getMinScore(), q.getMaxScore(), q.getTeamIds().stream().sorted().toList(),
+                q.isVulnerableOnly());
     }
 }

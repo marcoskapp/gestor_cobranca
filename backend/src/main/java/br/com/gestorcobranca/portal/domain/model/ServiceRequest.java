@@ -71,6 +71,13 @@ public class ServiceRequest extends TenantScopedEntity {
     @Column(name = "forwarded_at")
     private Instant forwardedAt;
 
+    /**
+     * Motivo da contestação escolhido pelo devedor (só {@code DISPUTE}). O registro no collection fica em
+     * {@link ServiceRequestDispute} (linha própria: o job da contestação e o do atendimento não disputam esta).
+     */
+    @Column(name = "dispute_type", length = 20, updatable = false)
+    private String disputeType;
+
     protected ServiceRequest() {
     }
 
@@ -92,6 +99,20 @@ public class ServiceRequest extends TenantScopedEntity {
         this.note = trimmed;
         this.status = ServiceRequestStatus.OPEN;
     }
+
+    /** Contestação: motivo escolhido no portal (nulo = OTHER). */
+    public void disputeOf(String type) {
+        Guard.requireState(reason == ServiceRequestReason.DISPUTE, "portal.request_not_dispute",
+                "Pedido não é contestação");
+        Guard.require(type == null || DISPUTE_TYPES.contains(type), "portal.dispute_type_invalid",
+                "Motivo da contestação inválido");
+        this.disputeType = type == null ? "OTHER" : type;
+    }
+
+    /** Motivos que o devedor escolhe no portal (mesmos códigos do collection). */
+    public static final java.util.Set<String> DISPUTE_TYPES = java.util.Set.of("NOT_RECOGNIZED", "ALREADY_PAID",
+            "WRONG_AMOUNT", "OTHER");
+
 
     public void forwarded(UUID conversationId, UUID messageId, Instant now) {
         this.status = ServiceRequestStatus.FORWARDED;
@@ -127,4 +148,5 @@ public class ServiceRequest extends TenantScopedEntity {
     public UUID getMessageId() { return messageId; }
     public String getFailureCode() { return failureCode; }
     public Instant getForwardedAt() { return forwardedAt; }
+    public String getDisputeType() { return disputeType; }
 }

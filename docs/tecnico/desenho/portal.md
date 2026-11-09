@@ -99,12 +99,22 @@ Devedor ─► /portal/{slug}               (marca pública, aviso de privacidad
 | 13 | Link para outros módulos em dois passos (`issue` + `recordDispatch`) na transação de quem envia | portal enviar a mensagem da régua | a etapa define template, variáveis, autor `CAMPAIGN` e a chave idempotente; desfazer a etapa desfaz o link (decisão 515) |
 | 14 | Régua exige a carteira do caso habilitada no portal, além das regras do link do operador | só dívida em alguma carteira habilitada | a régua trabalha um caso; link para quem não negocia aquela carteira no portal seria inútil (decisão 516) |
 
+## 8a. Contestação do devedor → collection (I14)
+
+O pedido `DISPUTE` traz o motivo (`dispute_type`: `NOT_RECOGNIZED`, `ALREADY_PAID`, `WRONG_AMOUNT`, `OTHER`) e,
+opcionalmente, a carteira. Na mesma transação: linha `portal.service_request_dispute` (`PENDING`) e job
+`portal.dispute_intake`, que chama `DisputeIntakeUseCases#openFromPortal` do collection (dependência nova
+`collection :: usecases`) com as carteiras do pedido (a escolhida ou as habilitadas no portal) e o instante do pedido
+(base do prazo do CDC). O resultado (`OPENED`, `ALREADY_OPEN`, `NO_CASE`, `NO_TITLES`) fica na linha própria — o job
+do atendimento humano (`portal.service_request_dispatch`) continua em paralelo sem disputar a linha do pedido — e
+aparece para o devedor (`disputeIntakeStatus`) e na lista interna. Evento `portal.dispute_registered`, métrica
+`portal.dispute_intake{outcome}`, auditoria `portal.dispute_registered`. Detalhes em [conformidade.md](conformidade.md) §2.
+
 ## 9. Pendências
 
 * WAF com regra de taxa nos endpoints públicos do portal (recomendação já registrada em segurança).
 * Boleto/link de pagamento no portal quando houver provedor (issue #12); hoje só Pix.
 * Renegociação de acordo quebrado e mais de 6 parcelas pelo portal: dependem de a operação atribuir outro perfil ao canal (o perfil `PORTAL` padrão não renegocia).
-* Registro automático da contestação no collection a partir do pedido `DISPUTE` (hoje o atendente registra).
 * Modelo de termo por credor (pendência do negotiation) aparecerá automaticamente no portal.
 * Templates `PORTAL_*` precisam ser cadastrados e aprovados pelos canais antes de ativar um portal (a tela não verifica).
 * Devedor com todos os títulos fora de cobrança aberta (ex.: suspensos) não entra no portal: o link da régua é recusado (`DEBTOR_NOT_IN_PORTAL`).

@@ -189,11 +189,18 @@ export interface AcceptanceResult {
 
 export type ServiceReason = 'TALK_TO_AGENT' | 'DISPUTE' | 'CANNOT_AFFORD' | 'OTHER';
 
+/** Motivo da contestação (mesmos códigos do collection). */
+export type PortalDisputeType = 'NOT_RECOGNIZED' | 'ALREADY_PAID' | 'WRONG_AMOUNT' | 'OTHER';
+
+/** Registro da contestação no sistema da assessoria (o prazo de resposta conta do pedido). */
+export type DisputeIntakeStatus = 'PENDING' | 'OPENED' | 'ALREADY_OPEN' | 'NO_CASE' | 'NO_TITLES';
+
 export interface ServiceRequestBody {
   reason: ServiceReason;
   preferredChannel: PortalChannel;
   portfolioId?: string | null;
   note?: string | null;
+  disputeType?: PortalDisputeType | null;
 }
 
 export interface ServiceRequestView {
@@ -203,4 +210,6 @@ export interface ServiceRequestView {
   preferredChannel: PortalChannel;
   status: 'OPEN' | 'FORWARDED' | 'UNDELIVERED';
   createdAt: string;
+  disputeType?: PortalDisputeType | null;
+  disputeIntakeStatus?: DisputeIntakeStatus | null;
 }

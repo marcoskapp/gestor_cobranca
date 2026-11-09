@@ -125,6 +125,11 @@ public enum Permission {
     CONTACT_RESTRICTION_MANAGE("Gerenciar bloqueios e opt-out"),
     DATA_SUBJECT_REQUEST_MANAGE("Atender solicitações de titulares (LGPD)"),
     RETENTION_MANAGE("Gerenciar retenção e descarte"),
+    VULNERABILITY_REGISTER("Registrar marcador de vulnerabilidade do devedor e confirmar as sugestões do assistente"),
+    VULNERABILITY_SENSITIVE_VIEW("Ver a categoria do marcador de vulnerabilidade (inclui saúde, dado sensível; acesso registrado)"),
+    VULNERABILITY_MANAGE("Retirar marcadores de vulnerabilidade, ver a categoria sensível e configurar os efeitos na oferta"),
+    COMPLAINT_REGISTER("Registrar reclamações recebidas (Procon, consumidor.gov.br, Bacen, ouvidoria, Reclame Aqui)"),
+    COMPLAINT_MANAGE("Tratar reclamações: responsável, resposta, encerramento e prazos por canal"),
 
     // Telefonia
     TELEPHONY_USE("Usar telefonia: clique para ligar, presença no discador e tabulação das próprias chamadas"),

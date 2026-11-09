@@ -20,6 +20,16 @@ stateDiagram-v2
 - "Aguardando o credor" **não é uma situação nova**: é derivado do pedido ao credor em aberto (§4) e aparece como selo, filtro e indicador. A contestação continua aberta ou em análise.
 - Resolver (procedente, parcialmente procedente ou improcedente) ou desistir libera os títulos e reavalia o caso. Pedidos ao credor ainda abertos são cancelados (os lembretes deixam de sair).
 
+### 1.1 Contestação aberta pelo devedor no portal
+
+Quando o devedor escolhe "Não reconheço a dívida ou o valor" no portal de autonegociação e informa o motivo (não reconhece, já pagou, valor errado, outro), o sistema **registra a contestação sozinho** em cada caso ativo do devedor nas dívidas que ele vê no portal (ou só na dívida escolhida):
+
+- origem **Devedor**, bloqueante, com o protocolo do pedido do portal na descrição; o relato do devedor **não é copiado** para a contestação — fica no pedido do portal (Portal → Pedidos de atendimento), aberto com permissão e registro de acesso;
+- **o prazo de resposta conta do instante do pedido no portal**, pelas mesmas regras de prazo da contestação manual (§3) — o atraso de processamento não come o prazo do CDC;
+- entra na fila e na distribuição como as demais; o pedido também continua indo para a fila humana, para o atendente falar com o devedor;
+- caso que já tem contestação em aberto não ganha outra; sem caso ativo ou sem títulos em cobrança, o atendente trata pela conversa;
+- o devedor vê no portal "Contestação registrada: a cobrança fica suspensa até a resposta".
+
 ## 2. Responsável e fila
 
 | Quem | Pode |
@@ -98,12 +108,13 @@ Atalhos para os fluxos existentes, com as regras e permissões deles: **cancelar
 ## 7. Indicadores e logs
 
 - Painel **Contestações** (`/paineis/contestacoes`): abertas, em aberto e vencidas, resolvidas no prazo, tempo médio, procedência, retorno do credor e fila por responsável — definições em [indicadores.md §7](indicadores.md#7-contestações).
-- Eventos de negócio (sem dado pessoal): `dispute.opened`, `dispute.assigned`, `dispute.creditor_request_sent`/`_failed`/`_overdue`, `dispute.creditor_responded`, `dispute.creditor_mail_received`/`_confirmed`/`_dismissed`/`_released`, `dispute.resolved`, `dispute.debtor_notified`, `dispute.adjustment_suggested`/`_closed` — atributos em [logs-e-metricas.md §3.3](../tecnico/logs-e-metricas.md).
+- Eventos de negócio (sem dado pessoal): `dispute.opened` (`trigger=portal` na contestação do portal; `portal.dispute_registered` no portal), `dispute.assigned`, `dispute.creditor_request_sent`/`_failed`/`_overdue`, `dispute.creditor_responded`, `dispute.creditor_mail_received`/`_confirmed`/`_dismissed`/`_released`, `dispute.resolved`, `dispute.debtor_notified`, `dispute.adjustment_suggested`/`_closed` — atributos em [logs-e-metricas.md §3.3](../tecnico/logs-e-metricas.md).
 - Respostas por e-mail: recebidas, aceitas, em quarentena por motivo e tempo até a confirmação em `collection.disputes.mail_replies.*`; retenções por segurança no log de acesso (`INBOUND_MAIL_REJECTED`).
 
 ## 8. O que ainda depende do responsável
 
 - Ligar a verificação de malware (daemon ClamAV) dos documentos recebidos pela API e por e-mail (decisão 816).
+- Contestação do portal: confirmar se o pedido sem carteira escolhida deve abrir a contestação em **todas** as dívidas que o devedor vê no portal (como hoje) ou só pedir a escolha (decisão G9 [revisar]).
 - Leitura de e-mail: escolher o subdomínio, verificar no SES e criar o MX ([email-entrada.md §2](../tecnico/operacao/email-entrada.md)); revisar os limites (827), a cópia obrigatória ao responsável (821) e uma tela para os e-mails sem rota (831).
 
 - Revisão jurídica dos **textos padrão** dos modelos (pedido ao credor por tipo e resposta ao devedor por resultado).

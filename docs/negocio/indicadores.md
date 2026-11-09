@@ -121,6 +121,23 @@ Painel `/paineis/contestacoes` (`DASHBOARD_VIEW`, `REPORT_VIEW` ou `DISPUTE_MANA
 
 Por motivo, origem e credor: abertas, resolvidas, procedentes, procedência, no prazo, tempo médio, em aberto/vencidas e retorno do credor. **Escopo de pessoas** na fila por responsável: quem tem `DISPUTE_MANAGE` vê todos; os demais, só as pessoas do próprio escopo de desempenho (próprio ou equipe; o painel avisa). Exportação: relatório `disputes`.
 
+## 9. Reclamações (por credor)
+
+Tela Compliance → Reclamações → "Prazos e indicador" (`COMPLAINT_MANAGE`), período (padrão: mês corrente) por data de
+negócio; credores fora do escopo do usuário não aparecem. Regras em
+[conformidade.md](../tecnico/desenho/conformidade.md) §3.
+
+| Indicador | Fórmula | Denominador |
+| --- | --- | --- |
+| Recebidas | reclamações com recebimento no período, todos os canais | — |
+| Respondidas no prazo | respostas registradas no período com data da resposta (fuso de negócio) até o prazo da reclamação | — |
+| Respondidas fora do prazo | respostas registradas no período depois do prazo | — |
+| % no prazo | respondidas no prazo ÷ (no prazo + fora do prazo); sem respostas no período, "—" | respostas no período |
+| Em aberto agora / vencidas agora | recebidas ou em tratamento hoje; vencidas = prazo anterior a hoje | — |
+
+O prazo é o informado pelo canal no registro ou, sem ele, a regra do canal da assessoria (padrão de 10 dias corridos,
+editável — não é prazo legal).
+
 ## 8. Exportação
 
 Todo relatório pode ser exportado (permissão `REPORT_EXPORT`) em XLSX ou CSV (UTF-8 com BOM, separador `;`, números com ponto decimal), com os mesmos filtros e escopo da tela, em formato longo: seção, chave, rótulo, indicador, valor, numerador, denominador e observação (motivo de indisponibilidade). Cada exportação fica no log de acesso (`DATA_EXPORTED`, com o SHA-256 do arquivo).

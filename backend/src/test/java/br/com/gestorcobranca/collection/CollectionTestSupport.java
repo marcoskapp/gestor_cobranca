@@ -286,7 +286,7 @@ abstract class CollectionTestSupport extends IntegrationTest {
 
     QueueCommand queue(String code, int priority, UUID creditorId, String strategy, Integer capacity, Set<UUID> teamIds) {
         return new QueueCommand(code, "Fila " + code, null, priority, creditorId, null, null, null, null, null, null, null,
-                "OLDEST_OVERDUE", strategy, capacity, teamIds);
+                "OLDEST_OVERDUE", strategy, capacity, teamIds, null);
     }
 
     RecordInteractionCommand interaction(String tabulation, InteractionUseCases.PromiseInput promise,

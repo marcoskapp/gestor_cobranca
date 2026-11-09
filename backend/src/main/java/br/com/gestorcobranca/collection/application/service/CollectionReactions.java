@@ -7,6 +7,7 @@ import br.com.gestorcobranca.collection.domain.model.CollectionCase;
 import br.com.gestorcobranca.collection.domain.repository.CollectionCaseRepository;
 import br.com.gestorcobranca.shared.events.compliance.ContactPolicyPublished;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
+import br.com.gestorcobranca.shared.events.compliance.VulnerabilityMarkerChanged;
 import br.com.gestorcobranca.shared.events.debt.PortfolioLoaded;
 import br.com.gestorcobranca.shared.events.debt.TitleStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
@@ -103,6 +104,19 @@ class CollectionReactions {
         List<UUID> ids = cases.findActiveIdsByDebtor(e.debtorId(), e.creditorId());
         CaseSynchronizer.Context ctx = synchronizer.context();
         cases.findAllByIdIn(ids).forEach(c -> synchronizer.reevaluate(c, "contact_restriction", ctx));
+    }
+
+    /**
+     * Marcador de vulnerabilidade do devedor mudou: indicador e fila dos casos ativos do devedor (todos os credores).
+     * O estado é relido no compliance sob o lock do devedor — eventos podem chegar fora de ordem (registro e retirada
+     * próximos), então o booleano do evento não é a fonte.
+     */
+    void vulnerabilityMarkerChanged(VulnerabilityMarkerChanged e) {
+        metrics.eventConsumed("vulnerability_marker");
+        access.lockDebtor(e.debtorId());
+        boolean vulnerable = synchronizer.debtorIsVulnerable(e.debtorId());
+        cases.findActiveByDebtorId(e.debtorId())
+                .forEach(c -> synchronizer.applyVulnerability(c, vulnerable, "vulnerability_marker"));
     }
 
     /** Nova política de contato: reavalia os casos do credor (ou de todos) a partir do início da vigência. */

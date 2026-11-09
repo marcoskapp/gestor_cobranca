@@ -1,4 +1,12 @@
-import { InstallmentStatus, KnowledgeChallenge, PortalChannel, ServiceReason, UnavailableReason } from './portal.models';
+import {
+  DisputeIntakeStatus,
+  InstallmentStatus,
+  KnowledgeChallenge,
+  PortalChannel,
+  PortalDisputeType,
+  ServiceReason,
+  UnavailableReason,
+} from './portal.models';
 
 /** Textos em linguagem simples (sem jargão de cobrança) para o devedor. */
 export const CHANNEL_LABELS: Record<PortalChannel, string> = {
@@ -42,6 +50,29 @@ export const REASON_LABELS: Record<ServiceReason, { label: string; hint: string 
   DISPUTE: { label: 'Não reconheço a dívida ou o valor', hint: 'Por exemplo: já paguei ou o valor está errado.' },
   OTHER: { label: 'Outro assunto', hint: 'Conte em poucas palavras.' },
 };
+
+export const DISPUTE_TYPE_LABELS: Record<PortalDisputeType, string> = {
+  NOT_RECOGNIZED: 'Não reconheço esta dívida',
+  ALREADY_PAID: 'Já paguei',
+  WRONG_AMOUNT: 'O valor está errado',
+  OTHER: 'Outro motivo',
+};
+
+/** Situação da contestação para o devedor, em linguagem simples. */
+export function disputeIntakeText(status: DisputeIntakeStatus | null | undefined): string | null {
+  switch (status) {
+    case 'PENDING':
+      return 'Contestação sendo registrada';
+    case 'OPENED':
+    case 'ALREADY_OPEN':
+      return 'Contestação registrada: a cobrança fica suspensa até a resposta';
+    case 'NO_CASE':
+    case 'NO_TITLES':
+      return 'Um atendente vai analisar a sua contestação';
+    default:
+      return null;
+  }
+}
 
 /** Mensagens dos erros do portal em linguagem simples (o servidor já devolve pt-BR em `detail`). */
 export const ERROR_MESSAGES: Record<string, string> = {

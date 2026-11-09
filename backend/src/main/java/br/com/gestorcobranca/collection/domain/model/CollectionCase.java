@@ -139,6 +139,13 @@ public class CollectionCase extends TenantScopedEntity {
     @Column(name = "score_calculated_at")
     private Instant scoreCalculatedAt;
 
+    /**
+     * O devedor tem marcador de vulnerabilidade ativo (compliance). Só o indicador: a categoria fica no compliance
+     * (pode ser dado sensível). Usado pelo critério "só devedores com marcador" das filas.
+     */
+    @Column(name = "vulnerable", nullable = false)
+    private boolean vulnerable;
+
     protected CollectionCase() {
     }
 
@@ -344,6 +351,19 @@ public class CollectionCase extends TenantScopedEntity {
                 lastEffectiveContactAt = at;
             }
         }
+    }
+
+    /** @return true se o indicador de vulnerabilidade mudou */
+    public boolean markVulnerable(boolean value) {
+        if (vulnerable == value) {
+            return false;
+        }
+        vulnerable = value;
+        return true;
+    }
+
+    public boolean isVulnerable() {
+        return vulnerable;
     }
 
     /**

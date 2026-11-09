@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
+import br.com.gestorcobranca.compliance.application.port.in.VulnerabilityQueries;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
 import br.com.gestorcobranca.negotiation.application.port.out.CaseEligibilityPort;
 import br.com.gestorcobranca.negotiation.application.port.out.CaseEligibilityPort.EligibilityResult;
@@ -50,7 +51,10 @@ import java.util.UUID;
  *   <li>títulos do devedor no credor, em aberto e elegíveis ({@link CaseEligibilityPort});</li>
  *   <li>composição pelo {@link DebtCalculator} com as regras da sobreposição aplicável;</li>
  *   <li>perfil de alçada do ator ({@link AuthorityResolver}) e limites efetivos
- *       mínimo(envelope, perfil) pelo {@link TermsEvaluator}.</li>
+ *       mínimo(envelope, perfil) pelo {@link TermsEvaluator};</li>
+ *   <li>salvaguarda do devedor com marcador de vulnerabilidade, se a assessoria ligou
+ *       ({@link VulnerabilityQueries}, compliance): canal automático bloqueado e entrada ou parcela acima da
+ *       capacidade de pagamento declarada viram violação de política (nunca concedidas).</li>
  * </ol>
  * A simulação usa {@link #prepare} e {@link #evaluate} para gerar as ofertas; a validação de
  * condições específicas e as propostas ({@code ProposalEvaluator}) usam {@link #validate}.
@@ -82,10 +86,12 @@ class NegotiationGuard {
      *
      * @param excluded           títulos pedidos e inelegíveis, com motivos
      * @param contextViolations  violações que não dependem das condições (versão de política, elegibilidade)
+     * @param vulnerabilityGuarded o devedor tem salvaguarda de oferta por marcador de vulnerabilidade
      */
     record Context(Actor actor, ResolvedPolicy policy, PolicyTerms.Resolved resolved, UUID portfolioId,
                    DebtComposition composition, Resolution authority, LocalDate today,
-                   Map<UUID, List<String>> excluded, List<Violation> contextViolations) {
+                   Map<UUID, List<String>> excluded, List<Violation> contextViolations, UUID debtorId,
+                   boolean vulnerabilityGuarded) {
 
         PolicyRules rules() {
             return resolved.rules();
@@ -107,6 +113,7 @@ class NegotiationGuard {
     private final MonetaryIndexProvider indexProvider;
     private final AuthorityResolver authorityResolver;
     private final NegotiationMetrics metrics;
+    private final VulnerabilityQueries vulnerability;
     private final Clock clock;
     private final DebtCalculator calculator = new DebtCalculator();
     private final OfferCalculator offers = new OfferCalculator();
@@ -114,7 +121,8 @@ class NegotiationGuard {
 
     NegotiationGuard(AccessScope accessScope, AccessLogger accessLogger, PolicyResolver policies, DebtTitles debtTitles,
                      CaseEligibilityPort eligibility, MonetaryIndexProvider indexProvider,
-                     AuthorityResolver authorityResolver, NegotiationMetrics metrics, Clock clock) {
+                     AuthorityResolver authorityResolver, NegotiationMetrics metrics, VulnerabilityQueries vulnerability,
+                     Clock clock) {
         this.accessScope = accessScope;
         this.accessLogger = accessLogger;
         this.policies = policies;
@@ -123,6 +131,7 @@ class NegotiationGuard {
         this.indexProvider = indexProvider;
         this.authorityResolver = authorityResolver;
         this.metrics = metrics;
+        this.vulnerability = vulnerability;
         this.clock = clock;
     }
 
@@ -188,7 +197,7 @@ class NegotiationGuard {
         }
         Resolution authority = authorityResolver.resolve(actor, request.creditorId());
         return new Context(actor, policy, resolved, portfolioId, composition, authority, today, result.ineligible(),
-                List.copyOf(contextViolations));
+                List.copyOf(contextViolations), request.debtorId(), vulnerability.offerSafeguardActive(request.debtorId()));
     }
 
     /** Aplica descontos e forma de pagamento ao contexto e avalia contra política e alçada. */
@@ -200,6 +209,14 @@ class NegotiationGuard {
         List<Violation> violations = new ArrayList<>(ctx.contextViolations());
         violations.addAll(evaluator.evaluate(new TermsEvaluator.Context(ctx.rules(), ctx.limits(), ctx.today(),
                 ctx.composition().referenceDate()), new TermsEvaluator.Terms(level, justified, discounts, plan)));
+        if (ctx.vulnerabilityGuarded()) {
+            Money largest = plan.schedule().stream().map(p -> p.amount()).max(Money::compareTo).orElse(plan.downPayment());
+            // canal automático: portal (DEBTOR), assistente e integração (API pública) — decisão G18 [revisar]
+            boolean automated = ctx.actor().type() == Actor.ActorType.DEBTOR || ctx.actor().isAssistant()
+                    || ctx.actor().type() == Actor.ActorType.INTEGRATION;
+            vulnerability.checkOffer(ctx.debtorId(), automated, largest.amount()).forEach(b ->
+                    violations.add(Violation.of(ViolationKind.POLICY, b.code(), b.message())));
+        }
         return new Evaluation(level, priced, plan, List.copyOf(violations), outcome(violations));
     }
 

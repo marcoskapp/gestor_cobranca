@@ -9,8 +9,11 @@ import br.com.gestorcobranca.communication.application.port.in.MessageUseCases.M
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases.SendMessageCommand;
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases;
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases.CreateRestrictionCommand;
+import br.com.gestorcobranca.compliance.application.port.in.VulnerabilityUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.VulnerabilityUseCases.SuggestCommand;
 import br.com.gestorcobranca.shared.domain.DomainException;
 import org.slf4j.Logger;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +25,10 @@ import java.util.UUID;
  * resposta ({@code MessageUseCases#send} — o porteiro de contato decide no pedido e de novo no envio),
  * transferência ({@code ConversationUseCases#handoffToHumans}), rascunho ({@code proposeDraft}) e
  * opt-out pedido na conversa. Sem política vigente, a transferência é feita como sistema.
+ * <p>
+ * Transferência por {@code VULNERABILITY}: além de ir para o operador sênior, deixa uma <b>sugestão</b> de marcador de
+ * vulnerabilidade no compliance (só a referência da conversa, sem texto nem categoria presumida); uma pessoa confirma
+ * a categoria ou dispensa.
  */
 @Component
 class AssistantChannel {
@@ -32,13 +39,17 @@ class AssistantChannel {
     private final ConversationUseCases conversations;
     private final ContactRestrictionUseCases restrictions;
     private final AssistantActors actors;
+    private final VulnerabilityUseCases vulnerability;
+    private final AssistantMetrics metrics;
 
     AssistantChannel(MessageUseCases messages, ConversationUseCases conversations, ContactRestrictionUseCases restrictions,
-                     AssistantActors actors) {
+                     AssistantActors actors, VulnerabilityUseCases vulnerability, AssistantMetrics metrics) {
         this.messages = messages;
         this.conversations = conversations;
         this.restrictions = restrictions;
         this.actors = actors;
+        this.vulnerability = vulnerability;
+        this.metrics = metrics;
     }
 
     /**
@@ -72,6 +83,9 @@ class AssistantChannel {
 
     /** Transferência para humanos; já transferida (corrida com outro pedido) não é erro. */
     void handoff(TurnContext ctx, HandoffReason reason, String summary, String referenceType, UUID referenceId) {
+        if (reason == HandoffReason.VULNERABILITY) {
+            suggestVulnerability(ctx);
+        }
         String profile = ctx.hasPolicy() ? ctx.policy.settings().requiredProfileFor(reason) : reason.defaultProfile();
         HandoffCommand command = new HandoffCommand(reason.name(), summary, profile, referenceType, referenceId);
         try {
@@ -87,6 +101,34 @@ class AssistantChannel {
                 return;
             }
             throw e;
+        }
+    }
+
+    /**
+     * Sugestão de marcador (gatilho {@code VULNERABILITY}); falha não impede a transferência — só log técnico, sem
+     * dado pessoal.
+     */
+    void suggestVulnerability(TurnContext ctx) {
+        if (ctx.conversation.debtorId() == null) {
+            return;
+        }
+        try {
+            boolean created = actors.system(ctx.tenantId, () -> vulnerability.suggest(new SuggestCommand(
+                    ctx.conversation.debtorId(), ctx.conversation.creditorId(), "ASSISTANT", "assistant_conversation",
+                    ctx.conversation.id()))).isPresent();
+            metrics.vulnerabilitySuggestion(created ? "created" : "ignored");
+        } catch (DataIntegrityViolationException | DomainException e) {
+            // corrida com outra detecção do mesmo devedor (índice único) ou regra de negócio: esperado, sem alarme
+            metrics.vulnerabilitySuggestion("rejected");
+            LOG.atInfo().addKeyValue("conversationId", ctx.conversation.id())
+                    .addKeyValue("error", e.getClass().getSimpleName())
+                    .log("Sugestão de marcador de vulnerabilidade não registrada; a transferência segue");
+        } catch (RuntimeException e) {
+            // falha inesperada: métrica para alarme e log de erro; a transferência ao humano não pode ser perdida
+            metrics.vulnerabilitySuggestion("error");
+            LOG.atError().addKeyValue("conversationId", ctx.conversation.id())
+                    .addKeyValue("error", e.getClass().getSimpleName())
+                    .log("Falha inesperada ao sugerir marcador de vulnerabilidade; a transferência segue");
         }
     }
 

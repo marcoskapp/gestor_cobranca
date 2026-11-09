@@ -17,6 +17,7 @@
   <!-- selos do caso (situação, elegibilidade e marcadores como o de vulnerabilidade): mesma área na estação e na consulta -->
   <div class="sp-head__chips" data-tour="case-badges">
     <app-status-chip domain="case" [status]="cs.status" />
+    <app-vulnerability-badge [debtorId]="cs.debtorId" />
     @if (cs.eligible) {
       <span class="app-status app-status--success"><app-icon class="app-status__icon" name="check-circle" />Elegível</span>
     } @else {

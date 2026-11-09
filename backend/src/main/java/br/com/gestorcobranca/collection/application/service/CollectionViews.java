@@ -67,7 +67,7 @@ final class CollectionViews {
                 q.getCreditorId(), q.getPortfolioId(), q.getMinDaysOverdue(), q.getMaxDaysOverdue(),
                 amount(q.getMinBalance()), amount(q.getMaxBalance()), q.getMinScore(), q.getMaxScore(),
                 q.getOrdering().name(), q.getStrategy().name(), q.getMaxCasesPerUser(), q.getTeamIds(), q.getUpdatedAt(),
-                version(q.getVersion()));
+                version(q.getVersion()), q.isVulnerableOnly());
     }
 
     static TabulationView tabulation(Tabulation t) {

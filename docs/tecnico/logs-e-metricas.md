@@ -36,11 +36,12 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Remuneração variável (incentive) | `attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `commission.plan_published`, `quality.evaluated` |
 | Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.received`, `message.blocked`, `conversation.started`, `conversation.handoff`, `conversation.closed`, `template.published` |
 | Campanhas | `campaign.activated`, `campaign.paused`, `campaign.finished`, `campaign.step_executed`, `campaign.step_skipped`, `campaign.replied`, `campaign.cadence_exhausted`, `experiment.variant_assigned` |
-| Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed` |
+| Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed`, `vulnerability.registered`, `vulnerability.retired`, `vulnerability.capacity_changed`, `vulnerability.suggested`, `vulnerability.suggestion_resolved` (§3.1a) |
+| Reclamações (complaint) | `complaint.registered`, `complaint.assigned`, `complaint.answered`, `complaint.closed`, `complaint.overdue`, `complaint.evidence_scanned` (§3.15) |
 | Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
 | Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`, `assistant.pix_issued`, `assistant.pix_denied`, `assistant.pix_suggested`, `assistant.pix_delivery`, `assistant.pix_paid`; `policy.published` com `policyKind = assistant` |
-| Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.configuration_changed` (§3.10) |
+| Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.dispute_registered`, `portal.configuration_changed` (§3.10) |
 | Chat de suporte (helpdesk) | `helpdesk.question_answered`, `helpdesk.question_unanswered`, `helpdesk.feedback_recorded`, `helpdesk.ticket_drafted`, `helpdesk.ticket_opened`, `helpdesk.ticket_cancelled` (§3.12) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 | Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
@@ -56,6 +57,23 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | `contact.denied` | `ContactGate.authorizeAndRecord` negou um contato | `origin`, `reasons` (lista separada por vírgula); `channel` |
 | `data_subject_request.opened` / `.completed` | solicitação de titular aberta / encerrada (concluída ou recusada) | `type`, `dueDays`; no encerramento `outcome`, `rejectionCause`, `withinDeadline`, `durationMs` |
 | `retention.run_completed` | execução de retenção concluída (simulada ou efetiva) | `category`, `trigger`, `dryRun`, `candidates`, `eligible`, `processed`, `retained`, `failed` |
+
+### 3.1a Atributos dos eventos do marcador de vulnerabilidade (compliance)
+
+O marcador pode ser dado sensível (saúde, LGPD art. 11): **os eventos não levam o devedor** (`debtor_id` nulo) **nem a
+categoria** (decisão G17). Referência opaca `vulnerability_marker` ou `vulnerability_suggestion`.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `vulnerability.registered` | marcador registrado (manual ou confirmando a sugestão do assistente) | `source`, `legalBasis`, `withCapacity`, `fromSuggestion` |
+| `vulnerability.retired` | marcador retirado ou apagado | `reason`, `erased` (revogação do consentimento ou pedido do titular), `activeDays` |
+| `vulnerability.capacity_changed` | capacidade de pagamento declarada alterada | `withCapacity` |
+| `vulnerability.suggested` | sugestão criada pelo gatilho `VULNERABILITY` do assistente | `origin`; `creditor_id` da conversa |
+| `vulnerability.suggestion_resolved` | sugestão confirmada ou dispensada | `outcome` (`CONFIRMED`/`DISMISSED`), `origin`, `hoursPending` |
+
+Log de acesso: `SENSITIVE_DATA_VIEWED` (`resource=vulnerability_marker`, `view` = `debtor` ou `list`, `debtorIds` = os
+devedores com categoria sensível exibidos) quando saúde é exibida a quem tem `VULNERABILITY_SENSITIVE_VIEW`. Na trilha
+de auditoria a categoria sensível aparece como `SENSITIVE`.
 
 ### 3.2 Atributos dos eventos de garantias, partes e prescrição (debt)
 
@@ -380,11 +398,30 @@ Sem documento, contato, nome ou IP: só ids, canal `PORTAL`, valores e códigos.
 | `portal.pix_issued` | Pix da parcela emitido ou reaproveitado (2ª via) | `installmentNumber`, `reused`; `amount` |
 | `portal.payment_confirmed` | primeiro pagamento confirmado de acordo fechado no portal | `installments`, `method`; `durationMs` = desde a formalização; `amount` |
 | `portal.service_requested` | pedido de atendimento humano | `reason` (`TALK_TO_AGENT`, `DISPUTE`, `CANNOT_AFFORD`, `OTHER`), `preferredChannel`, `withNote` |
+| `portal.dispute_registered` | contestação do portal registrada no collection (job `portal.dispute_intake`) | `outcome` (`OPENED`, `ALREADY_OPEN`, `NO_CASE`, `NO_TITLES`), `disputeType`, `opened`, `secondsToRegister`; referência `portal_service_request` |
 | `portal.configuration_changed` | configuração do portal criada/alterada | `operation`, `enabled`, `portfolios`, `knowledgeChallenge`, `privacyNoticeVersion`, `noticeChanged` |
 
 Log de acesso (segurança): `INTEGRATION_ENDPOINT_CHANGED` (`action` `created`/`changed`, `pixAccountId`, hosts atual e anterior, `webhookAuth`, `active`) a cada criação ou troca de endereços de conta Pix; `MFA_RESET` traz `targetIsAdmin`; `ACCESS_DENIED` traz `reason` `target_outranks_actor`/`role_outranks_actor` (com `operation` e `missingPermissions`), `reserved_role_code`, `admin_role_reduction_requires_admin`, `admin_mfa_reset_requires_other_admin`. Eventos gravados com IP de cliente inválido trazem `clientIpInvalid=true` e `client_ip` nulo.
 
 Log de acesso: `PORTAL_CODE_REQUESTED` (inclusive para documento inexistente, com `match` só no log), `PORTAL_LOGIN_SUCCESS`, `PORTAL_LOGIN_FAILURE` (`reason`: `wrong_code`, `wrong_knowledge`, `no_match`, `challenge_closed`, `unknown_link`, `link_unusable`…), `PORTAL_LOCKED` (`key` `DOCUMENT`/`IP`, `until`), `PORTAL_LINK_ISSUED` (`linkId`, `channel`, `delivered`, `origin` `OPERATOR`/`CAMPAIGN`, `reference`; nunca a URL), `PORTAL_LOGOUT`, `PORTAL_SESSION_REVOKED`, `PORTAL_PRIVACY_ACKNOWLEDGED`; documento sempre mascarado.
+
+### 3.15 Atributos dos eventos de reclamações (complaint)
+
+Ids de credor, devedor e caso, canal (`PROCON`, `CONSUMIDOR_GOV`, `BACEN`, `CREDITOR_OMBUDSMAN`, `RECLAME_AQUI`, `OTHER`) e
+`subject` em todos. **Nunca** o resumo, a resposta ou o protocolo externo. Referência `complaint`.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `complaint.registered` | reclamação registrada | `deadlineSource` (`INFORMED`, `CHANNEL_RULE`, `DEFAULT`), `responseDays`, `withCase`, `withDebtor`, `hoursToRegister` (recebimento → registro) |
+| `complaint.assigned` | responsável definido, trocado ou retirado | `mode` (`manual`, `take`), `unassigned` |
+| `complaint.answered` | resposta ao canal registrada | `onTime`, `daysToAnswer`, `daysLate` |
+| `complaint.closed` | encerrada | `outcome` (`RESOLVED`, `NOT_ACCEPTED`, `UNFOUNDED`, `CLOSED_BY_CHANNEL`), `onTime`, `daysOpen` |
+| `complaint.overdue` | prazo vencido sem resposta (job, uma vez por prazo) | `daysLate`, `assigned` |
+| `complaint.evidence_scanned` | evidência verificada (quarentena) | `verdict`, `engine`, `attempts`, `minutesInQuarantine` |
+
+Log de acesso: `SENSITIVE_DATA_VIEWED` (`resource=complaint`, `field=summary,response`) ao abrir o detalhe;
+`FILE_DOWNLOADED` (`resource=complaint_evidence`); `MALWARE_DETECTED` (`resource=complaint_evidence`, `sha256`,
+`signature`).
 
 ### 3.11 Envelhecimento das pendências (pendingwork)
 
@@ -554,6 +591,10 @@ fields @timestamp, tenantId, callId, instance, process
 | `integration.calls{provider,operation,outcome}` | provedores externos (convenção para os adaptadores) |
 | `compliance.contact_gate.decisions{operation,outcome}`, `compliance.contact_gate.denials{operation,reason}` | porteiro de contato (consultas e autorizações, motivos de negação) |
 | `compliance.dsr.overdue{type}` | solicitações de titulares que passaram do prazo (alarme) |
+| `compliance.vulnerability.markers{action}`, `compliance.vulnerability.suggestions{outcome}`, `compliance.vulnerability.offer_blocks{code}`, `assistant.vulnerability_suggestions{outcome}` | marcadores `registered`/`retired`/`erased` (sem categoria), sugestões no compliance do assistente (`created`, `ignored_marked`, `ignored_pending`, `confirmed`, `dismissed`), condições bloqueadas pela salvaguarda (`vulnerability.payment_capacity_exceeded`, `vulnerability.automated_channel_blocked`) e o resultado da sugestão no assistente (`created`, `ignored`, `rejected`, `error` — alarme em `error`) |
+| `complaint.registered{channel}`, `complaint.answered{channel,on_time}`, `complaint.closed{channel,outcome}`, `complaint.overdue{channel}` | reclamações por canal; `complaint.overdue` = prazos vencidos sem resposta (alarme sugerido: qualquer ocorrência no canal `BACEN` ou `PROCON`) |
+| `complaint.evidence.scans{engine,verdict}`, `complaint.evidence.scan.duration{engine}` | verificação de malware das evidências de reclamação (`clean`, `not_scanned`, `infected`, `unavailable`) |
+| `collection.disputes.portal_intake{outcome}`, `portal.dispute_intake{outcome}` | contestações do portal registradas no collection (`OPENED`, `ALREADY_OPEN`, `NO_CASE`, `NO_TITLES`); `NO_CASE` crescendo = portal com carteira sem caso ativo |
 | `compliance.restrictions.expired`, `compliance.retention.runs{category,dryRun,outcome}`, `compliance.retention.debtors{outcome}` | fim de vigência de restrições e execuções de retenção |
 | `collection.cases.opened{trigger}`, `collection.cases.closed{reason}`, `collection.cases.transitions{from,to}` | ciclo de vida dos casos |
 | `collection.eligibility.evaluations{outcome,changed}`, `collection.eligibility.reasons{reason}` | elegibilidade (RB02) e motivos de inelegibilidade |

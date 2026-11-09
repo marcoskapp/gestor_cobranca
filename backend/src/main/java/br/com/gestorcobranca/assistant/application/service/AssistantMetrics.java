@@ -73,6 +73,11 @@ class AssistantMetrics {
         registry.counter("assistant.handoffs", "reason", reason, "source", source).increment();
     }
 
+    /** Sugestão de marcador de vulnerabilidade: {@code created}/{@code ignored}, {@code rejected} (regra) ou {@code error}. */
+    void vulnerabilitySuggestion(String outcome) {
+        registry.counter("assistant.vulnerability_suggestions", "outcome", outcome).increment();
+    }
+
     void guardrail(String code) {
         registry.counter("assistant.guardrails", "code", code).increment();
     }

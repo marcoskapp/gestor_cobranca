@@ -121,7 +121,7 @@ class ServiceRequestDispatchJob implements JobHandler<ServiceRequestDispatchJob.
     static String summary(ServiceRequest r) {
         String what = switch (r.getReason()) {
             case TALK_TO_AGENT -> "pediu para falar com um atendente";
-            case DISPUTE -> "quer contestar a dívida (registrar a contestação no caso)";
+            case DISPUTE -> "contestou a dívida (a contestação é registrada pelo sistema no caso; confira em Contestações)";
             case CANNOT_AFFORD -> "não encontrou condição que caiba no orçamento";
             case OTHER -> "fez um pedido";
         };

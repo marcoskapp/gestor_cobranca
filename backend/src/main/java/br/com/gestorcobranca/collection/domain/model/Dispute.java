@@ -141,6 +141,13 @@ public class Dispute extends TenantScopedEntity {
     @Column(name = "origin_interaction_id", updatable = false)
     private UUID originInteractionId;
 
+    /**
+     * Pedido externo que abriu a contestação (ex.: {@code portal_request:<id>} — contestação aberta pelo devedor no
+     * portal). Chave de idempotência com o caso.
+     */
+    @Column(name = "origin_reference", length = 80, updatable = false)
+    private String originReference;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "dispute_title", schema = "collection", joinColumns = @JoinColumn(name = "dispute_id"))
     @Column(name = "title_id", nullable = false)
@@ -181,6 +188,18 @@ public class Dispute extends TenantScopedEntity {
                 : internalDueDate;
         this.deadlineSource = deadlineSource == null ? DeadlineSource.TENANT_DEFAULT : deadlineSource;
         this.originInteractionId = originInteractionId;
+    }
+
+    /** Registra a origem externa (só na abertura, antes de gravar). */
+    public void originatedFrom(String reference) {
+        Guard.requireState(this.originReference == null, "dispute.origin_reference_set", "Origem já registrada");
+        Guard.require(reference == null || reference.matches("[a-z_]{2,40}:[0-9a-f\\-]{36}"),
+                "dispute.origin_reference_invalid", "Referência de origem inválida");
+        this.originReference = reference;
+    }
+
+    public String getOriginReference() {
+        return originReference;
     }
 
     // ------------------------------------------------------------------ responsável

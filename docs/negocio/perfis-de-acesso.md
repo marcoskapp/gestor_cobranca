@@ -15,12 +15,25 @@ Toda assessoria nasce com um perfil para cada tipo de usuário do sistema. Eles 
 | Analista de carteiras (`ANALISTA_CARTEIRA`) | Back-office de cargas | Importação e saneamento de carteiras, títulos, garantias e devedores (não aprova a própria carga) | — |
 | Estratégia de cobrança (`ESTRATEGIA`) | Inteligência e campanhas | Segmentos, réguas, testes A/B, templates e score de propensão, com painéis | — |
 | Monitoria e qualidade (`QUALIDADE`) | Qualidade do atendimento | Avaliação de atendimentos, revisão do assistente de IA e escuta de gravações | Obrigatório |
-| Compliance e privacidade (`COMPLIANCE`) | Encarregado de dados / compliance | Restrições de contato, solicitações de titulares (LGPD), retenção, logs de acesso e auditoria | Obrigatório |
+| Compliance e privacidade (`COMPLIANCE`) | Encarregado de dados / compliance | Restrições de contato, solicitações de titulares (LGPD), retenção, marcador de vulnerabilidade (registra, vê a categoria, retira e configura), reclamações (registra e trata), logs de acesso e auditoria | Obrigatório |
 | Integrações (`INTEGRACAO`) | Equipe técnica | Canais, provedores e cargas automáticas; tokens de integração da API pública (só com os escopos que o perfil tem: carteiras e importação) e consumo; sem acesso a dados de devedores | Obrigatório |
 
 Além desses, o tenant da plataforma tem o perfil **Administrador da plataforma** (`PLATFORM_ADMIN`), com MFA **obrigatório** (decisão 521): provisiona e suspende assessorias, reenvia o convite do administrador inicial enquanto a assessoria não tem administrador ativo, administra os usuários da própria plataforma e mantém o faturamento da plataforma às assessorias (`PLATFORM_BILLING_VIEW` e `PLATFORM_BILLING_MANAGE`, exclusivas da plataforma como `TENANT_MANAGE` — api-publica.md §9) e controla os tokens de integração de qualquer assessoria — pausar, retomar e revogar para bloquear consumo indevido (`PLATFORM_API_TOKENS_MANAGE`, também exclusiva da plataforma — api-publica.md §9.3). O autenticador é cadastrado no primeiro login, logo depois da ativação. São 10 perfis com MFA obrigatório: os 9 marcados acima e o `PLATFORM_ADMIN` (`app.security.mfa.required-for-roles`).
 
 A lista exata de permissões de cada perfil está em `backend/src/main/java/br/com/gestorcobranca/identity/domain/model/DefaultRoles.java`.
+
+## Conformidade da operação (vulnerabilidade e reclamações)
+
+| Permissão | O que libera | Perfis padrão |
+| --- | --- | --- |
+| `VULNERABILITY_REGISTER` | registrar o marcador de atenção especial do devedor e confirmar ou dispensar a sugestão do assistente; vê só "atenção especial", sem a categoria | Operador (e quem herda dele), Compliance |
+| `VULNERABILITY_MANAGE` | também retirar o marcador (por revogação do consentimento ou pedido do titular, ele é apagado), alterar a capacidade de pagamento, listar todos e configurar os efeitos na oferta (lista e configuração só com acesso a todos os credores) | Supervisor, Gestor, Compliance, Administrador |
+| `VULNERABILITY_SENSITIVE_VIEW` | ver a categoria do marcador, inclusive saúde (dado sensível; acesso registrado) | Gestor, Compliance, Administrador |
+| `COMPLAINT_REGISTER` | registrar reclamações (Procon, consumidor.gov.br, Banco Central, ouvidoria, Reclame Aqui), consultar a fila e anexar evidências | Operador (e quem herda dele), Compliance |
+| `COMPLAINT_MANAGE` | também assumir e atribuir, responder ao canal, encerrar, mudar prazo, regras por canal (só com acesso a todos os credores) e indicador por credor | Supervisor, Gestor, Compliance, Administrador |
+
+O selo de atenção especial aparece a quem vê o devedor; a categoria, só a quem tem `VULNERABILITY_SENSITIVE_VIEW`. Detalhes em
+[conformidade.md](../tecnico/desenho/conformidade.md).
 
 ## Como os perfis se mantêm atualizados
 

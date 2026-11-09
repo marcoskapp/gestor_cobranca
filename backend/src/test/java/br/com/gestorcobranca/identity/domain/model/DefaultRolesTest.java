@@ -56,4 +56,16 @@ class DefaultRolesTest {
             }
         }));
     }
+
+    @Test
+    void categoriaDoMarcadorDeVulnerabilidadeSoParaComplianceGestorEAdministrador() {
+        for (String code : Set.of(DefaultRoles.COMPLIANCE, DefaultRoles.GESTOR, DefaultRoles.ADMIN)) {
+            assertThat(roles.get(code)).as(code).contains(VULNERABILITY_SENSITIVE_VIEW);
+        }
+        assertThat(roles.get(DefaultRoles.SUPERVISOR)).contains(VULNERABILITY_MANAGE)
+                .doesNotContain(VULNERABILITY_SENSITIVE_VIEW);
+        assertThat(roles.get(DefaultRoles.OPERADOR)).contains(VULNERABILITY_REGISTER, COMPLAINT_REGISTER)
+                .doesNotContain(VULNERABILITY_MANAGE, VULNERABILITY_SENSITIVE_VIEW, COMPLAINT_MANAGE);
+        assertThat(roles.get(DefaultRoles.AUDITOR)).doesNotContain(VULNERABILITY_SENSITIVE_VIEW);
+    }
 }

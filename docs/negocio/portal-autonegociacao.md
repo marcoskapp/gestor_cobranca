@@ -53,6 +53,6 @@ Funil por sessão: **acesso → simulação → aceite → Pix gerado → pagame
 | --- | --- |
 | Falar com atendente / outro assunto | Conversa na fila (motivo "devedor pediu humano") |
 | Nenhuma condição cabe | Conversa na fila (motivo "negociação do portal"): o negociador pode propor outra condição dentro da sua alçada |
-| Não reconheço a dívida | Conversa na fila (motivo "contestação"): o atendente registra a contestação no caso |
+| Não reconheço a dívida | O devedor escolhe o motivo (não reconheço, já paguei, valor errado, outro) e, se tiver mais de uma, a dívida. A **contestação é registrada sozinha** no caso, com o prazo de resposta contando do pedido e a cobrança suspensa ([contestacoes.md §1.1](contestacoes.md)); a conversa também vai para a fila (motivo "contestação") para o atendente falar com o devedor |
 
 Se não houver como abrir a conversa (sem contato no canal, template ausente), o pedido aparece em "Pedidos do portal" para a operação retornar.

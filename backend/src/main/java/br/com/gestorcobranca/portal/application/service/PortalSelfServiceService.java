@@ -29,8 +29,10 @@ import br.com.gestorcobranca.portal.domain.model.PortalChannel;
 import br.com.gestorcobranca.portal.domain.model.PortalConfiguration;
 import br.com.gestorcobranca.portal.domain.model.PortalSession;
 import br.com.gestorcobranca.portal.domain.model.ServiceRequest;
+import br.com.gestorcobranca.portal.domain.model.ServiceRequestDispute;
 import br.com.gestorcobranca.portal.domain.model.ServiceRequestReason;
 import br.com.gestorcobranca.portal.domain.repository.PortalSessionRepository;
+import br.com.gestorcobranca.portal.domain.repository.ServiceRequestDisputeRepository;
 import br.com.gestorcobranca.portal.domain.repository.ServiceRequestRepository;
 import br.com.gestorcobranca.portal.domain.service.AccessSecrets;
 import br.com.gestorcobranca.shared.config.TimeConfig;
@@ -101,6 +103,7 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
     private final PortalAgreementLedger ledger;
     private final PortalSessionRepository sessions;
     private final ServiceRequestRepository serviceRequests;
+    private final ServiceRequestDisputeRepository requestDisputes;
     private final JobQueue jobs;
     private final BusinessEventLogger businessEvents;
     private final PortalMetrics metrics;
@@ -110,7 +113,8 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
     PortalSelfServiceService(PortalContext context, PortalDebts debts, NegotiationSimulationUseCases simulations,
                        ProposalUseCases proposals, AgreementUseCases agreements, PaymentInstructionUseCases instructions,
                        PortfolioUseCases portfolios, PortalAgreementLedger ledger, PortalSessionRepository sessions,
-                       ServiceRequestRepository serviceRequests, JobQueue jobs, BusinessEventLogger businessEvents,
+                       ServiceRequestRepository serviceRequests, ServiceRequestDisputeRepository requestDisputes,
+                       JobQueue jobs, BusinessEventLogger businessEvents,
                        PortalMetrics metrics, PlatformTransactionManager transactionManager, Clock clock) {
         this.context = context;
         this.debts = debts;
@@ -122,6 +126,7 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
         this.ledger = ledger;
         this.sessions = sessions;
         this.serviceRequests = serviceRequests;
+        this.requestDisputes = requestDisputes;
         this.jobs = jobs;
         this.businessEvents = businessEvents;
         this.metrics = metrics;
@@ -455,26 +460,42 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
         while (serviceRequests.existsByProtocol(protocol)) {
             protocol = AccessSecrets.newProtocol();
         }
-        ServiceRequest request = serviceRequests.save(new ServiceRequest(c.config().getId(), c.session().getId(),
+        ServiceRequest created = new ServiceRequest(c.config().getId(), c.session().getId(),
                 c.config().getCreditorId(), command.portfolioId(), c.session().getDebtorId(), protocol, reason, channel,
-                command.note()));
+                command.note());
+        if (reason == ServiceRequestReason.DISPUTE) {
+            created.disputeOf(command.disputeType() == null || command.disputeType().isBlank() ? null
+                    : command.disputeType().trim().toUpperCase(java.util.Locale.ROOT));
+        }
+        ServiceRequest request = serviceRequests.save(created);
         jobs.enqueue(ServiceRequestDispatchJob.TYPE, new ServiceRequestDispatchJob.Payload(request.getId()), null,
                 "portal-request:" + request.getId());
+        ServiceRequestDispute disputeIntake = null;
+        if (reason == ServiceRequestReason.DISPUTE) {
+            // o prazo do CDC conta daqui: o job registra a contestação no collection com este instante
+            disputeIntake = requestDisputes.save(new ServiceRequestDispute(request.getId()));
+            jobs.enqueue(PortalDisputeIntakeJob.TYPE, new PortalDisputeIntakeJob.Payload(request.getId()), null,
+                    "portal-dispute:" + request.getId());
+        }
         businessEvents.log(BusinessEvent.of(BusinessEventTypes.PORTAL_SERVICE_REQUESTED).creditor(request.getCreditorId())
                 .portfolio(request.getPortfolioId()).debtor(request.getDebtorId())
                 .reference("portal_service_request", request.getId()).channel(CHANNEL)
                 .attr("reason", reason.name()).attr("preferredChannel", channel.name())
                 .attr("withNote", request.getNote() != null));
         metrics.serviceRequest(reason.name(), "CREATED");
-        return view(request);
+        return view(request, disputeIntake == null ? null : disputeIntake.getStatus());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ServiceRequestView> serviceRequests() {
         Current c = context.require();
-        return serviceRequests.findByDebtorIdAndCreditorIdOrderByCreatedAtDesc(c.session().getDebtorId(),
-                c.config().getCreditorId()).stream().limit(50).map(PortalSelfServiceService::view).toList();
+        List<ServiceRequest> list = serviceRequests.findByDebtorIdAndCreditorIdOrderByCreatedAtDesc(
+                c.session().getDebtorId(), c.config().getCreditorId()).stream().limit(50).toList();
+        java.util.Map<UUID, String> intake = new java.util.HashMap<>();
+        requestDisputes.findByRequestIdIn(list.stream().map(ServiceRequest::getId).toList())
+                .forEach(d -> intake.put(d.getRequestId(), d.getStatus()));
+        return list.stream().map(r -> view(r, intake.get(r.getId()))).toList();
     }
 
     // ------------------------------------------------------------------ apoio
@@ -570,9 +591,9 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                 t.openBalance(), t.status());
     }
 
-    private static ServiceRequestView view(ServiceRequest r) {
+    private static ServiceRequestView view(ServiceRequest r, String disputeIntakeStatus) {
         return new ServiceRequestView(r.getId(), r.getProtocol(), r.getReason().name(), r.getPreferredChannel().name(),
-                r.getStatus().name(), r.getCreatedAt());
+                r.getStatus().name(), r.getCreatedAt(), r.getDisputeType(), disputeIntakeStatus);
     }
 
     static <E extends Enum<E>> E parse(Class<E> type, String value, String code) {

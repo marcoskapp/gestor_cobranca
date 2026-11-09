@@ -68,6 +68,11 @@ class PortalMetrics {
         registry.counter("portal.service_requests", "reason", reason, "outcome", outcome).increment();
     }
 
+    /** Contestação do portal registrada no collection: OPENED, ALREADY_OPEN, NO_CASE ou NO_TITLES. */
+    void disputeIntake(String outcome) {
+        registry.counter("portal.dispute_intake", "outcome", outcome).increment();
+    }
+
     /** Descarte de dados de acesso: {@code kind} CHALLENGE, THROTTLE, SESSION_CLIENT_DATA. */
     void retention(String kind, int purged) {
         if (purged > 0) {

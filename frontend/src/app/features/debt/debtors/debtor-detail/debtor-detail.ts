@@ -57,6 +57,7 @@ import { CHANNEL_LABELS as CONVERSATION_CHANNELS } from '../../../communication/
 import { DISPUTE_TYPE_LABELS } from '../../../collection/data/collection.labels';
 import { RELATED_PREVIEW, activeCases, debtorLinks } from '../../data/debtor-links';
 import { DebtorInteractions } from '../debtor-interactions/debtor-interactions';
+import { VulnerabilityBadge } from '../../../compliance/vulnerability/vulnerability-badge';
 
 /**
  * Ficha do devedor: dados cadastrais (documento mascarado, revelação auditada), posição por
@@ -71,7 +72,7 @@ import { DebtorInteractions } from '../debtor-interactions/debtor-interactions';
  */
 @Component({
   selector: 'app-debtor-detail',
-  imports: [TabsMore, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions, RelatedRecords, DebtorInteractions],
+  imports: [TabsMore, VulnerabilityBadge, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions, RelatedRecords, DebtorInteractions],
   templateUrl: './debtor-detail.html',
   styleUrl: '../../debt.scss',
 })
