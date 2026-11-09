@@ -6,6 +6,7 @@ export const MANUAL: ModuleManual = {
     'Os painéis medem a operação com regras públicas: cada indicador tem fórmula e denominador explícitos e mostra a base ("1.100 de 4.000"), nunca uma taxa sozinha. Sem base no período, o indicador aparece como indisponível, nunca como 0%.',
     'Recuperado é sempre pagamento confirmado, líquido de estornos, a mesma base da prestação de contas. O valor acordado aparece separado do valor pago.',
     'Os números são consolidados periodicamente; o "Dados até" mostra a partir de quando valem. Os filtros ficam no endereço da página, para compartilhar exatamente a mesma visão.',
+    'Número sublinhado leva à lista que forma o número, com o mesmo credor, carteira e período: casos em aberto, casos elegíveis por estado e a fila pendente abrem Casos; recuperado, recebido e estornado abrem o Razão de comissão; divergências abrem a lista de divergências. A lista é atual e o painel vale até o "Dados até", então pode haver pequena diferença. Sem a lista no seu perfil, ou com um recorte que a lista não tem (mais de um credor, pessoa ou canal), o número fica só como texto.',
   ],
   connections: [
     { module: 'cobranca', text: 'Recebe: casos, filas, tentativas e contatos efetivos.' },
@@ -25,7 +26,7 @@ export const MANUAL: ModuleManual = {
       id: 'analytics.operational',
       title: 'Painel operacional',
       objective: 'Posição da carteira agora: valor em cobrança, saldo vencido e elegível, casos por estado e filas pendentes.',
-      purpose: ['Mostra a carteira na data da última consolidação; o período não se aplica a esta visão.'],
+      purpose: ['Mostra a carteira na data da última consolidação; o período não se aplica a esta visão.', 'Casos em aberto, fila pendente e as linhas por estado e por fila abrem a lista de casos já filtrada; o recuperado abre o Razão de comissão. O saldo elegível não tem link: é somado por título, e a lista filtra a elegibilidade do caso inteiro.'],
       profiles: ['GESTOR', 'SUPERVISOR', 'FINANCEIRO', 'AUDITOR'],
       inputs: ['Casos, títulos e filas consolidados.'],
       outputs: ['Exportação em planilha ou CSV com os mesmos filtros.'],
@@ -39,11 +40,14 @@ export const MANUAL: ModuleManual = {
       id: 'analytics.recovery',
       title: 'Recuperação',
       objective: 'Valor recuperado líquido e taxa de recuperação sobre o saldo elegível no início do período.',
-      purpose: ['Compare credores, carteiras e faixas de atraso. Estornos entram na data do estorno, sem alterar o período do pagamento.'],
+      purpose: ['Compare credores, carteiras e faixas de atraso. Estornos entram na data do estorno, sem alterar o período do pagamento.', 'Recuperado, estornos e as linhas por credor, carteira, mês, semana ou dia abrem o Razão de comissão com os recebimentos e estornos que formam o número.'],
       profiles: ['GESTOR', 'FINANCEIRO', 'AUDITOR'],
       inputs: ['Pagamentos confirmados e estornos.'],
       outputs: ['Exportação para análise e relatórios ao credor.'],
-      related: [{ screen: 'settlement.statements', why: 'A mesma base na prestação de contas.' }],
+      related: [
+        { screen: 'settlement.statements', why: 'A mesma base na prestação de contas.' },
+        { screen: 'settlement.ledger', why: 'Os recebimentos e estornos de cada número.' },
+      ],
       terms: ['recuperado', 'base-do-indicador'],
     },
     {

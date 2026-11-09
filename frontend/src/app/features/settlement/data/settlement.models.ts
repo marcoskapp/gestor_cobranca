@@ -112,6 +112,9 @@ export interface ReceiptFilter {
   to: string | null;
   ratingStatus: RatingStatus | null;
   inStatement: boolean | null;
+  portfolioId?: string | null;
+  /** Recebimentos (`PAYMENT`) ou estornos (`REVERSAL`); nulo = os dois. */
+  kind?: ReceiptKind | null;
 }
 
 export interface EntryView {

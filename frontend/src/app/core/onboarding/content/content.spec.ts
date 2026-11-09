@@ -165,7 +165,8 @@ describe('conteúdo do onboarding', () => {
     expect(findTour('analytics.panels')).toBeUndefined();
     expect(RELEASE_NOTES.find((n) => n.version === 7)?.title).toContain('Painéis');
     expect(RELEASE_NOTES.find((n) => n.version === 12)?.title).toContain('número');
-    expect(findScreen('/')?.version).toBe(3);
+    // v4: drill-down nos indicadores da operação (frente F)
+    expect(findScreen('/')?.version).toBe(4);
   });
 
   it('pagamentos, instruções, aprovação, sobras, conciliação e contas Pix registrados com tour (rotas fixas antes de :id)', () => {
@@ -231,9 +232,10 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/negociacao/acordos/a-1')?.changes?.find((c) => c.version === 3)).toBeDefined();
     expect(findScreen('/pagamentos/conciliacao/st-1')?.changes?.find((c) => c.version === 3)?.items.join(' ')).toContain('Tentar novamente');
     // pedido do responsável: cancelar o processamento do extrato, com novidade na tela e tour revisado
-    expect(findScreen('/pagamentos/conciliacao/st-1')?.version).toBe(4);
+    // v5: "Cancelar processamento" no "Mais ações" (frente F)
+    expect(findScreen('/pagamentos/conciliacao/st-1')?.version).toBe(5);
     expect(findScreen('/pagamentos/conciliacao/st-1')?.changes?.find((c) => c.version === 4)?.items.join(' ')).toContain('Cancelar processamento');
-    expect(findTour('payment.statement')?.version).toBe(3);
+    expect(findTour('payment.statement')?.version).toBe(4);
     // nota de versão nova, a mais recente primeiro
     expect(RELEASE_NOTES.find((n) => n.version === 8)?.title).toContain('Prestação de contas');
     // checklists: itens de visita apontam para telas registradas; supervisão antes do negociador

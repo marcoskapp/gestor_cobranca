@@ -88,7 +88,10 @@ export const MANUAL: ModuleManual = {
       id: 'settlement.ledger',
       title: 'Razão de comissão',
       objective: 'Cada recebimento confirmado vira um lançamento com a regra vigente na data do pagamento e a memória de cálculo.',
-      purpose: ['Lançamentos não mudam: estornos geram lançamentos de compensação. Veja os aguardando regra e os já prestados.'],
+      purpose: [
+        'Lançamentos não mudam: estornos geram lançamentos de compensação. Veja os aguardando regra e os já prestados.',
+        'Filtre por carteira e por lançamento (recebimentos, estornos ou os dois). O período usa a data do pagamento e, no estorno, a do estorno: a mesma base do recuperado dos painéis, que abrem esta lista já filtrada.',
+      ],
       profiles: ['FINANCEIRO', 'GESTOR', 'AUDITOR'],
       inputs: ['Pagamentos confirmados e regras de comissão publicadas.'],
       outputs: ['Base do demonstrativo do período.'],

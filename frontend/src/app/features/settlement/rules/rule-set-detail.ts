@@ -31,6 +31,8 @@ import { CalculationView, CommissionRules, HonorariumOwnership, PaymentType, Rat
 import { cloneRules, criteriaText, periodText, rulesProblems, specificity } from '../data/settlement.rules';
 import { RateRuleDialog, RateRuleDialogData } from './rate-rule-dialog';
 import { Icon } from '../../../shared/components/icon/icon';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../shared/dialog/dialog.service';
@@ -52,6 +54,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
     AppDatePipe,
     CalculationMemory,
     EmptyState,
+    MoreActions,
     PageHeader,
     Skeleton,
     StatusChip,
@@ -103,6 +106,13 @@ export class RuleSetDetail {
   private readonly revision = signal(0);
   protected readonly dirty = signal(false);
   protected readonly saving = signal(false);
+  protected readonly history = inject(NavigationHistory);
+  /** Descartar o rascunho (irreversível) fica no "Mais ações" (ux.md §12.2); "Descartar alterações" (não salvas) continua no cabeçalho. */
+  protected readonly moreActions = computed<MoreAction[]>(() =>
+    this.canManage() && this.current()?.status === 'DRAFT' && !this.dirty()
+      ? [{ id: 'discard', label: 'Descartar rascunho', icon: 'trash3', danger: true, run: () => this.discardDraft() }]
+      : [],
+  );
   protected readonly actionError = signal<string | null>(null);
 
   protected readonly editable = computed(() => this.current()?.status === 'DRAFT' && this.canManage());

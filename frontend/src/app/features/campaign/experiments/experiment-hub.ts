@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -33,9 +35,10 @@ function toExperimentCampaignFilter(v: { creditor: string[]; status: string }): 
  */
 @Component({
   selector: 'app-experiment-hub',
-  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Testes A/B" subtitle="Variantes da régua comparadas com um grupo de controle, com intervalo de confiança por braço." />
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar campanhas">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -49,6 +52,7 @@ function toExperimentCampaignFilter(v: { creditor: string[]; status: string }): 
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
     <app-data-table
       caption="Campanhas e testes A/B"
       [rows]="query.rows()"
@@ -160,4 +164,7 @@ export class ExperimentHub {
     const map = this.latestByCampaign();
     return map.has(campaignId) ? map.get(campaignId)! : undefined;
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

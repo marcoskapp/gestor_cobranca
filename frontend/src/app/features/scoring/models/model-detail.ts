@@ -8,6 +8,8 @@ import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs'
 import { NotificationService } from '../../../core/notification/notification.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { Icon } from '../../../shared/components/icon/icon';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -52,7 +54,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
  */
 @Component({
   selector: 'app-model-detail',
-  imports: [Icon, RouterLink, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, BarChart, KpiCard, ScopeNotice, InfoHint],
+  imports: [Icon, RouterLink, AppDatePipe, EmptyState, MoreActions, PageHeader, Skeleton, StatusChip, BarChart, KpiCard, ScopeNotice, InfoHint],
   templateUrl: './model-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './model-detail.scss'],
 })
@@ -105,6 +107,11 @@ export class ModelDetail {
       ? modelActions(m, { userId: this.auth.user()?.id ?? null, canManage: this.auth.hasPermission(Permission.SCORING_MANAGE), allCreditors: this.allCreditors() })
       : null;
   });
+  protected readonly history = inject(NavigationHistory);
+  /** Rejeitar o modelo (definitivo, com motivo no diálogo de decisão) fica no "Mais ações" (ux.md §12.2). */
+  protected readonly moreActions = computed<MoreAction[]>(() =>
+    this.actions()?.reject ? [{ id: 'reject', label: 'Rejeitar modelo', icon: 'x-circle', danger: true, run: () => this.decide('REJECT') }] : [],
+  );
   protected readonly validation = computed(() => this.model()?.metrics.validation ?? null);
   protected readonly comparison = computed(() => {
     const m = this.model();

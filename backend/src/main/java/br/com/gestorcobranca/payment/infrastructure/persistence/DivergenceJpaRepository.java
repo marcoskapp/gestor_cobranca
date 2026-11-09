@@ -31,8 +31,9 @@ interface DivergenceJpaRepository extends JpaRepository<Divergence, UUID>, JpaSp
     }
 
     @Override
-    default Page<Divergence> search(Set<UUID> creditorIds, Set<DivergenceStatus> statuses, DivergenceType type,
-                                    Pageable pageable) {
+    default Page<Divergence> search(Set<UUID> creditorIds, Criteria c, Pageable pageable) {
+        Set<DivergenceStatus> statuses = c.statuses();
+        DivergenceType type = c.type();
         Specification<Divergence> spec = Specification.unrestricted();
         if (creditorIds != null) {
             spec = spec.and((root, query, cb) -> creditorIds.isEmpty() ? cb.disjunction()
@@ -43,6 +44,15 @@ interface DivergenceJpaRepository extends JpaRepository<Divergence, UUID>, JpaSp
         }
         if (type != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("type"), type));
+        }
+        if (c.creditorId() != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("creditorId"), c.creditorId()));
+        }
+        if (c.openedFrom() != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), c.openedFrom()));
+        }
+        if (c.openedBefore() != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThan(root.get("createdAt"), c.openedBefore()));
         }
         return findAll(spec, pageable);
     }

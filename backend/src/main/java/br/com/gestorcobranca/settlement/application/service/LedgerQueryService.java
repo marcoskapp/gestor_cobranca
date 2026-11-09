@@ -3,8 +3,10 @@ package br.com.gestorcobranca.settlement.application.service;
 import br.com.gestorcobranca.settlement.application.port.in.CommissionLedgerQueries;
 import br.com.gestorcobranca.settlement.domain.model.RatingStatus;
 import br.com.gestorcobranca.settlement.domain.model.Receipt;
+import br.com.gestorcobranca.settlement.domain.model.ReceiptKind;
 import br.com.gestorcobranca.settlement.domain.repository.CommissionEntryRepository;
 import br.com.gestorcobranca.settlement.domain.repository.ReceiptRepository;
+import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
@@ -53,8 +55,12 @@ class LedgerQueryService implements CommissionLedgerQueries {
         Set<UUID> allowed = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());
         RatingStatus status = f.ratingStatus() == null ? null
                 : SettlementAccess.parse(RatingStatus.class, f.ratingStatus(), "receipt.rating_status_invalid");
-        Page<Receipt> found = receipts.search(allowed, f.creditorId(), f.agreementId(), f.from(), f.to(), status,
-                f.inStatement(), page.toPageable(Sort.by(Sort.Direction.DESC, "competenceDate").and(Sort.by("id"))));
+        Guard.require(f.from() == null || f.to() == null || !f.to().isBefore(f.from()), "receipt.period_invalid",
+                "O fim do período deve ser igual ou posterior ao início");
+        ReceiptKind kind = f.kind() == null ? null
+                : SettlementAccess.parse(ReceiptKind.class, f.kind(), "receipt.kind_invalid");
+        Page<Receipt> found = receipts.search(allowed, new ReceiptRepository.Criteria(f.creditorId(), f.portfolioId(),
+                f.agreementId(), f.from(), f.to(), status, f.inStatement(), kind), page.toPageable(Sort.by(Sort.Direction.DESC, "competenceDate").and(Sort.by("id"))));
         return pages.of(found);
     }
 

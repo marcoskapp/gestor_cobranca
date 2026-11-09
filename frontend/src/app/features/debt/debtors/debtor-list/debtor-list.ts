@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../../shared/data/filter-count';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -55,7 +57,7 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
 
 @Component({
   selector: 'app-debtor-list',
-  imports: [ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, DocumentDisplay, HasPermission, AppDatePipe, Icon, NgbTooltip, ...FORM_FIELD],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, DocumentDisplay, HasPermission, AppDatePipe, Icon, NgbTooltip, ...FORM_FIELD],
   template: `
     <app-page-header title="Devedores" subtitle="Pessoas e empresas com títulos em cobrança nas carteiras do seu escopo.">
       <button class="btn btn-primary" type="button" *appHasPermission="permission.DEBTOR_MANAGE" (click)="create()">
@@ -64,6 +66,7 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
       </button>
     </app-page-header>
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Buscar devedores" (ngSubmit)="query.reload()">
       <app-field class="app-filters__wide" label="Nome, CPF ou CNPJ" [hint]="searchHint()">
         <div class="input-group">
@@ -78,6 +81,7 @@ export function parseDebtorQuery(text: string, creditorId: string | null, portfo
         <app-entity-picker [control]="filters.controls.portfolio" [source]="portfolioSource" label="Carteira" [single]="true" />
       </div>
     </form>
+    </app-filter-bar>
 
     <app-data-table
       caption="Devedores"
@@ -204,4 +208,7 @@ export class DebtorList {
         return this.api.search({ q: filter.q, creditorId: filter.creditorId, portfolioId: filter.portfolioId }, page);
     }
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

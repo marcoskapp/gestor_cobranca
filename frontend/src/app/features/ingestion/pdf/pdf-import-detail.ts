@@ -13,6 +13,7 @@ import { Amount } from '../../../shared/components/amount/amount';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { Icon } from '../../../shared/components/icon/icon';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -39,7 +40,7 @@ const POLL_MS = 3000;
  */
 @Component({
   selector: 'app-pdf-import-detail',
-  imports: [RouterLink, DecimalPipe, Amount, EmptyState, Icon, PageHeader, Skeleton, StatusChip, AppDatePipe, PdfMapEditor, PdfPageViewer, PdfRecordsTable, InfoHint],
+  imports: [RouterLink, DecimalPipe, Amount, EmptyState, Icon, MoreActions, PageHeader, Skeleton, StatusChip, AppDatePipe, PdfMapEditor, PdfPageViewer, PdfRecordsTable, InfoHint],
   template: `
     @if (resource.isLoading() && !current()) {
       <app-skeleton variant="card" [rows]="6" />
@@ -57,9 +58,7 @@ const POLL_MS = 3000;
         @if (canExecute() && editable() && v.textLayer && v.status !== 'MAPPING') {
           <button class="btn btn-outline-secondary" type="button" (click)="newMap(v)" [disabled]="busy()"><app-icon name="robot" /> Pedir novo mapa à IA</button>
         }
-        @if (canExecute() && open()) {
-          <button class="btn btn-outline-danger" type="button" (click)="discard(v)" [disabled]="busy()"><app-icon name="x-circle" /> Descartar</button>
-        }
+        <app-more-actions [actions]="moreActions()" />
       </app-page-header>
 
       <div class="pd-status" role="status" aria-live="polite" data-tour="pdf-status">
@@ -395,6 +394,14 @@ export class PdfImportDetail {
 
   protected readonly editing = signal(false);
   protected readonly busy = signal(false);
+  /** Ação irreversível no "Mais ações" (ux.md §12.2): descartar pede o motivo, como antes. */
+  protected readonly moreActions = computed<MoreAction[]>(() => {
+    const v = this.current();
+    if (!v || !this.canExecute() || !this.open()) {
+      return [];
+    }
+    return [{ id: 'discard', label: 'Descartar importação', icon: 'x-circle', danger: true, disabled: this.busy(), run: () => this.discard(v) }];
+  });
   protected readonly page = signal(1);
   protected readonly highlight = signal<readonly RegionView[]>([]);
   protected readonly justification = signal('');

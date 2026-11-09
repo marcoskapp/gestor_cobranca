@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -32,7 +34,7 @@ function toSegmentFilter(v: { creditor: string[]; active: string }): SegmentFilt
 /** Segmentos salvos por credor (ou da assessoria), com resumo dos filtros. */
 @Component({
   selector: 'app-segment-list',
-  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Segmentos" subtitle="Públicos salvos com filtros combinados sobre os casos de cobrança, usados pelas campanhas.">
       @if (canRebuild()) {
@@ -48,6 +50,7 @@ function toSegmentFilter(v: { creditor: string[]; active: string }): SegmentFilt
         </a>
       }
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar segmentos">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" hint="Vazio: todos, inclusive os da assessoria." />
@@ -60,6 +63,7 @@ function toSegmentFilter(v: { creditor: string[]; active: string }): SegmentFilt
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
     <app-data-table
       caption="Segmentos"
       [rows]="query.rows()"
@@ -156,4 +160,7 @@ export class SegmentList {
       })
       .subscribe(() => this.api.rebuildAudience(creditorId).subscribe(() => this.notifications.success('Atualização da audiência iniciada.')));
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -35,7 +37,7 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
  */
 @Component({
   selector: 'app-template-list',
-  imports: [
+  imports: [FilterBar, 
     ReactiveFormsModule,
     NgbDropdownModule,
     ...FORM_FIELD,
@@ -55,6 +57,7 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
       </button>
     </app-page-header>
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar templates">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -79,6 +82,7 @@ export function toTemplateFilter(v: { creditor: string[]; code: string; channel:
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
 
     @if (preview(); as p) {
       <section class="app-card mb-3" aria-labelledby="tl-preview-title" role="region">
@@ -291,4 +295,7 @@ export class TemplateList {
   protected showPreview(t: TemplateView): void {
     this.api.preview(t.id, exampleValues(t)).subscribe((p) => this.preview.set({ name: `${t.code} · v${t.templateVersion}`, subject: p.subject, body: p.body }));
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

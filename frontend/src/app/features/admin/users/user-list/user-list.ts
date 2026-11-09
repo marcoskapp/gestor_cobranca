@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -30,7 +32,7 @@ function toUserFilter(v: { q: string; status: string; roleId: string }): UserFil
 
 @Component({
   selector: 'app-user-list',
-  imports: [NgbTooltip, ...FORM_FIELD, Icon,
+  imports: [FilterBar, NgbTooltip, ...FORM_FIELD, Icon,
     ReactiveFormsModule,
     RouterLink,
     DataTable,
@@ -104,4 +106,7 @@ export class UserList {
         }
       });
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

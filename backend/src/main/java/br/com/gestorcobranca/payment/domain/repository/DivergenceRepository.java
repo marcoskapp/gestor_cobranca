@@ -6,6 +6,7 @@ import br.com.gestorcobranca.payment.domain.model.DivergenceType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -21,8 +22,17 @@ public interface DivergenceRepository {
     boolean existsByTypeAndProviderReference(DivergenceType type, String providerReference);
 
     /**
-     * @param creditorIds          credores permitidos (nulo = todos, inclusive divergências sem credor)
-     * @param statuses             situações (vazio = todas)
+     * @param creditorIds credores permitidos (nulo = todos, inclusive divergências sem credor)
      */
-    Page<Divergence> search(Set<UUID> creditorIds, Set<DivergenceStatus> statuses, DivergenceType type, Pageable pageable);
+    Page<Divergence> search(Set<UUID> creditorIds, Criteria criteria, Pageable pageable);
+
+    /**
+     * @param statuses      situações (vazio ou nulo = todas)
+     * @param creditorId    credor escolhido (nulo = qualquer)
+     * @param openedFrom    abertas a partir do instante (inclusive); nulo = sem limite
+     * @param openedBefore  abertas antes do instante (exclusivo); nulo = sem limite
+     */
+    record Criteria(Set<DivergenceStatus> statuses, DivergenceType type, UUID creditorId, Instant openedFrom,
+                    Instant openedBefore) {
+    }
 }

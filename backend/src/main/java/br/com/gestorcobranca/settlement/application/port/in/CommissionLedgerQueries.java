@@ -25,11 +25,14 @@ public interface CommissionLedgerQueries {
     int ratePending(UUID creditorId);
 
     /**
+     * @param from         competência a partir de (data do pagamento; no estorno, a data do estorno)
      * @param ratingStatus PENDING_RULES ou RATED
      * @param inStatement  verdadeiro = já prestados; falso = ainda não
+     * @param portfolioId  carteira do recebimento (drill-down do painel de recuperação por carteira)
+     * @param kind         PAYMENT (recebimentos) ou REVERSAL (estornos); nulo = os dois
      */
     record ReceiptFilter(UUID creditorId, UUID agreementId, LocalDate from, LocalDate to, String ratingStatus,
-                         Boolean inStatement) {
+                         Boolean inStatement, UUID portfolioId, String kind) {
     }
 
     /**

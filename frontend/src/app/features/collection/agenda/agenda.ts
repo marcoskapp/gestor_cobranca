@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -58,7 +60,7 @@ export function agendaFilter(
 /** Agenda de retornos do operador (ou de outro operador, com `CASE_ASSIGN`), no horário de Brasília. */
 @Component({
   selector: 'app-agenda',
-  imports: [ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, Icon, NgbTooltip, NgbInputDatepicker, ...FORM_FIELD],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, Icon, NgbTooltip, NgbInputDatepicker, ...FORM_FIELD],
   template: `
     <app-page-header title="Agenda de retornos" subtitle="Retornos e acompanhamentos combinados, no horário de Brasília. Retorno atrasado continua com você e volta como próxima ação.">
       <a class="btn btn-primary" routerLink="/cobranca/fila">
@@ -67,6 +69,7 @@ export function agendaFilter(
       </a>
     </app-page-header>
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar agenda">
       <div class="ag-period">
         <span class="form-label d-block" id="ag-period-label">Período</span>
@@ -115,6 +118,7 @@ export function agendaFilter(
         </div>
       }
     </form>
+    </app-filter-bar>
 
     <app-data-table
       caption="Agenda de retornos"
@@ -274,4 +278,7 @@ export class AgendaPage {
         }),
       );
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters, { ignore: ['from', 'to'] });
 }

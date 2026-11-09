@@ -18,6 +18,7 @@ import br.com.gestorcobranca.payment.domain.repository.PaymentRepository;
 import br.com.gestorcobranca.payment.domain.repository.BankStatementRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
+import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Guard;
@@ -212,12 +213,21 @@ class ReconciliationService implements ReconciliationUseCases {
     @Transactional(readOnly = true)
     public PageResponse<DivergenceView> divergences(DivergenceFilter filter, PageQuery page) {
         accessScope.requirePermission(Permission.RECONCILIATION_MANAGE);
-        DivergenceFilter f = filter == null ? new DivergenceFilter(null, null) : filter;
+        DivergenceFilter f = filter == null ? new DivergenceFilter(null, null, null, null, null) : filter;
+        if (f.creditorId() != null) {
+            accessScope.requireCreditor(f.creditorId());
+        }
+        Guard.require(f.openedFrom() == null || f.openedTo() == null || !f.openedTo().isBefore(f.openedFrom()),
+                "divergence.period_invalid", "O fim do período deve ser igual ou posterior ao início");
         Set<DivergenceStatus> statuses = PaymentEnums.parseSet(DivergenceStatus.class,
                 f.status() == null ? List.of() : List.of(f.status()), "divergence.status_invalid", "Situação");
         DivergenceType type = PaymentEnums.parseOptional(DivergenceType.class, f.type(), "divergence.type_invalid", "Tipo");
         Set<UUID> creditors = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());
-        return PageResponse.of(divergences.search(creditors, statuses, type,
+        Instant openedFrom = f.openedFrom() == null ? null : f.openedFrom().atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
+        Instant openedBefore = f.openedTo() == null ? null
+                : f.openedTo().plusDays(1).atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
+        return PageResponse.of(divergences.search(creditors, new DivergenceRepository.Criteria(statuses, type,
+                f.creditorId(), openedFrom, openedBefore),
                 page.toPageable(Sort.by("createdAt").and(Sort.by("id")))), this::view);
     }
 

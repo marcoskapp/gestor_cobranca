@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -35,9 +37,10 @@ interface QueueFilter {
  */
 @Component({
   selector: 'app-assistant-review-queue',
-  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, Icon, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, NgbTooltip, Icon, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Revisão do assistente" subtitle="Turnos amostrados para avaliação humana: nota, veredito, etiquetas e comentário." />
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar revisões">
       <div>
         <span class="form-label d-block" id="rq-status">Situação</span>
@@ -52,6 +55,7 @@ interface QueueFilter {
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
     </form>
+    </app-filter-bar>
     <div class="alert alert-info d-flex align-items-start gap-2" role="note" data-tour="review-segregation">
       <app-icon name="people" />
       <span>Quem configura não avalia: turnos de políticas que <strong>você publicou</strong> aparecem sem a ação de revisar (o sistema recusa). Abrir um turno registra o acesso ao conteúdo.</span>
@@ -148,4 +152,7 @@ export class AssistantReviewQueue {
     const v = this.filters.getRawValue();
     return { status: v.status, creditorId: v.creditor[0] ?? null };
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

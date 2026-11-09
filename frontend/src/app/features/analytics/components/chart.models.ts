@@ -1,3 +1,5 @@
+import { DrillTarget } from '../data/drill-down';
+
 /** Dados dos gráficos: valores numéricos para a geometria e textos já formatados para leitura. */
 export interface ChartSeries {
   name: string;
@@ -12,4 +14,6 @@ export interface ChartRow {
   display: string[];
   /** Linha secundária opcional na tabela e na dica (ex.: taxa com denominador). */
   note?: string;
+  /** Lista com a base da linha (drill-down); o rótulo vira link. */
+  link?: DrillTarget | null;
 }

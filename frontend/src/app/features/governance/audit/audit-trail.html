@@ -14,6 +14,7 @@
   }
 }
 
+<app-filter-bar [activeCount]="activeFilters()">
 <form class="app-filters" data-tour="filters" [formGroup]="filters" (ngSubmit)="apply()" role="search" aria-label="Filtrar trilha de auditoria">
   <app-field label="De">
     <div class="input-group">
@@ -63,6 +64,7 @@
     <div class="invalid-feedback d-block w-100" role="alert">A data final não pode ser anterior à inicial.</div>
   }
 </form>
+</app-filter-bar>
 
 <app-data-table
   caption="Trilha de auditoria"

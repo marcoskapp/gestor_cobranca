@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -30,7 +32,7 @@ interface LayoutFilter {
 /** Layout padrão (colunas canônicas) e layouts próprios dos credores, versionados. */
 @Component({
   selector: 'app-layout-list',
-  imports: [NgbTooltip, Icon, ReactiveFormsModule, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
+  imports: [FilterBar, NgbTooltip, Icon, ReactiveFormsModule, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Layouts de importação" subtitle="Como as colunas do arquivo de cada credor correspondem aos campos do sistema.">
       @if (canExecute()) {
@@ -59,6 +61,7 @@ interface LayoutFilter {
       </ul>
     </section>
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters ll-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar layouts">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -68,6 +71,7 @@ interface LayoutFilter {
         <label class="form-check-label" for="ll-inactive">Incluir versões desativadas</label>
       </div>
     </form>
+    </app-filter-bar>
 
     <app-data-table
       caption="Layouts dos credores"
@@ -216,4 +220,7 @@ export class LayoutList {
         }),
       );
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

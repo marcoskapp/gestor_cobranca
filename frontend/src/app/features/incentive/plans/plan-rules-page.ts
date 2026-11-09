@@ -1,3 +1,4 @@
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -88,6 +89,8 @@ type Optional = 'recoveryRate' | 'fixedPerAgreement' | 'goal' | 'teamPool' | 'ea
   `,
 })
 export class PlanRulesPage {
+  /** Retorno à lista com os filtros, a página e a rolagem de quando o usuário saiu dela (ux.md §16). */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
   private readonly api = inject(CommissionPlansApi);
   private readonly notifications = inject(NotificationService);

@@ -77,7 +77,7 @@ export const MANUAL: ModuleManual = {
     {
       id: 'collection.cases',
       title: 'Casos de cobrança',
-      objective: 'Consulte casos por credor, situação, fila, responsável e elegibilidade para encontrar exceções e redistribuir.',
+      objective: 'Consulte casos por credor, carteira, situação, fila, responsável e elegibilidade para encontrar exceções e redistribuir.',
       purpose: [
         'Visão de gestão dos casos: quais estão sem responsável, inelegíveis (com o motivo) ou parados. Atribua um caso a um operador ou a uma equipe pela linha.',
       ],

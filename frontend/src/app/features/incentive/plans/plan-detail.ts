@@ -9,6 +9,8 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { Icon } from '../../../shared/components/icon/icon';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -31,14 +33,14 @@ import { SimulationDialog, VigencyDialog, VigencyDialogData } from './plan-dialo
  */
 @Component({
   selector: 'app-incentive-plan-detail',
-  imports: [RouterLink, AppDatePipe, EmptyState, Icon, PageHeader, PlanRulesSummary, Skeleton, StatusChip],
+  imports: [RouterLink, AppDatePipe, EmptyState, Icon, MoreActions, PageHeader, PlanRulesSummary, Skeleton, StatusChip],
   template: `
     @if (resource.isLoading() && !plan()) {
       <div aria-busy="true" aria-label="Carregando plano"><app-skeleton variant="card" [rows]="6" /></div>
     } @else if (resource.status() === 'error') {
       <app-empty-state icon="sliders" tone="error" title="Não foi possível abrir o plano." message="A versão pode ter sido descartada. Volte à lista e tente de novo.">
         <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
-        <a class="btn btn-link" routerLink="/remuneracao/planos">Voltar para planos</a>
+        <a class="btn btn-link" [routerLink]="history.linkTo('/remuneracao/planos')">Voltar para planos</a>
       </app-empty-state>
     }
     @if (plan(); as p) {
@@ -49,12 +51,6 @@ import { SimulationDialog, VigencyDialog, VigencyDialogData } from './plan-dialo
             <app-icon name="calculator" />
             Simular
           </button>
-        }
-        @if (act.discard) {
-          <button class="btn btn-outline-danger" type="button" (click)="discard()" [disabled]="busy()">Descartar rascunho</button>
-        }
-        @if (act.retire) {
-          <button class="btn btn-outline-danger" type="button" (click)="retire()" [disabled]="busy()">Aposentar</button>
         }
         @if (act.newVersion) {
           <button class="btn btn-outline-secondary" type="button" (click)="newVersion()" [disabled]="busy()">
@@ -74,6 +70,7 @@ import { SimulationDialog, VigencyDialog, VigencyDialogData } from './plan-dialo
             Publicar
           </button>
         }
+        <app-more-actions [actions]="moreActions()" />
       </app-page-header>
 
       <div class="in-status">
@@ -162,6 +159,19 @@ export class PlanDetail {
   });
   protected readonly users = nameMap(inject(UserNames), () => [this.plan()?.publishedBy], { batch: USER_NAMES_BATCH });
   protected readonly busy = signal(false);
+  protected readonly history = inject(NavigationHistory);
+  /** Descartar o rascunho e aposentar a versão (irreversíveis) ficam no "Mais ações" (ux.md §12.2), com a confirmação de sempre. */
+  protected readonly moreActions = computed<MoreAction[]>(() => {
+    const act = this.actions();
+    const out: MoreAction[] = [];
+    if (act?.discard) {
+      out.push({ id: 'discard', label: 'Descartar rascunho', icon: 'trash3', danger: true, disabled: this.busy(), run: () => this.discard() });
+    }
+    if (act?.retire) {
+      out.push({ id: 'retire', label: 'Aposentar versão', icon: 'archive', danger: true, disabled: this.busy(), run: () => this.retire() });
+    }
+    return out;
+  });
   protected readonly error = signal<string | null>(null);
 
   constructor() {

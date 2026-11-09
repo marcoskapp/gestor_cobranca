@@ -1239,11 +1239,11 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'payment.statement',
-    version: 3,
+    version: 4,
     title: 'Extrato importado',
     summary: 'Indicadores do lote e o tratamento de cada linha.',
     steps: [
-      { anchor: 'statement-cancel', title: 'Cancelar processamento', body: 'Para a importação onde está, com motivo. As linhas e baixas já gravadas ficam valendo.' },
+      { anchor: 'statement-cancel', title: 'Cancelar processamento', body: 'Em "Mais ações": para a importação onde está, com motivo. As linhas e baixas já gravadas ficam valendo.' },
       { anchor: 'statement-retry', title: 'Tentar novamente', body: 'Na importação com falha ou cancelada: continua de onde parou, sem baixa repetida.' },
       { anchor: 'statement-indicators', title: 'Indicadores', body: 'Taxa de conciliação sobre os créditos; débitos e repetidas são ignorados.' },
       { anchor: 'data-table', title: 'Linhas', body: 'Cada linha com o tratamento e o pagamento vinculado.', placement: 'above' },
@@ -1284,14 +1284,14 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'publicapi.token',
-    version: 2,
+    version: 3,
     title: 'Token de integração',
     summary: 'Uso, rotação sem parada e revogação imediata.',
     steps: [
       { anchor: 'token-paused', title: 'Pausado pela plataforma', body: 'As chamadas estão sendo recusadas, sem cobrança. Veja o motivo e a retomada; só a plataforma retoma, mas você pode revogar.' },
       { anchor: 'token-usage', title: 'Uso e proteção', body: 'Último uso e IP, limite por minuto e IPs permitidos. O consumo detalhado fica em Consumo da API.' },
       { anchor: 'token-rotate', title: 'Rotacionar', body: 'Gera novo segredo e mantém o anterior durante a carência, para o credor trocar sem parar a integração.' },
-      { anchor: 'token-revoke', title: 'Revogar', body: 'Imediato e definitivo, com motivo. Use em vazamento ou quando a integração for desligada.' },
+      { anchor: 'token-revoke', title: 'Revogar', body: 'Em "Mais ações": imediato e definitivo, com motivo. Use em vazamento ou quando a integração for desligada.' },
     ],
   },
   {

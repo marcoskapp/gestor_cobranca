@@ -10,6 +10,7 @@ import { flushAll, page, tick } from '../../../../testing/campaign-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
 import { DisputeReport, ProductivityReport, Ratio, RecoveryReport, ReportMeta } from '../data/analytics.models';
+import { todayIso } from '../data/drill-down';
 import { DisputesPanel } from './disputes-panel';
 import { ProductivityPanel } from './productivity-panel';
 import { RecoveryPanel } from './recovery-panel';
@@ -127,6 +128,29 @@ describe('painéis de analytics', () => {
     expect([...el(fixture).querySelectorAll('button')].some((b) => b.textContent?.includes('Exportar'))).toBe(true);
   });
 
+  it('recuperação: drill-down leva ao razão com o período e o credor da linha; sem permissão do razão, só texto', async () => {
+    permissions.set(['REPORT_VIEW', 'SETTLEMENT_VIEW', 'PERFORMANCE_VIEW_ALL']);
+    const fixture = await render(RecoveryPanel, { '/api/v1/analytics/recovery': recovery });
+    const hrefs = [...el(fixture).querySelectorAll('a.app-drill-link')].map((a) => decodeURIComponent(a.getAttribute('href') ?? ''));
+    expect(hrefs).toContain('/prestacao-de-contas/razao?pago-de=2026-06-01&pago-ate=2026-06-30');
+    expect(hrefs).toContain('/prestacao-de-contas/razao?pago-de=2026-06-01&pago-ate=2026-06-30&tipo=REVERSAL');
+    expect(hrefs).toContain('/prestacao-de-contas/razao?credor=c-1&pago-de=2026-06-01&pago-ate=2026-06-30');
+    expect(hrefs).toContain('/prestacao-de-contas/razao?credor=c-2&pago-de=2026-06-01&pago-ate=2026-06-30&tipo=PAYMENT');
+    fixture.destroy();
+
+    permissions.set(['REPORT_VIEW', 'PERFORMANCE_VIEW_ALL']);
+    const restricted = await render(RecoveryPanel, { '/api/v1/analytics/recovery': recovery });
+    expect(el(restricted).querySelectorAll('a.app-drill-link')).toHaveLength(0);
+    expect(text(el(restricted))).toContain('=Banco Alfa');
+  });
+
+  it('recuperação: com operador no filtro o razão não representa a base (sem link)', async () => {
+    permissions.set(['REPORT_VIEW', 'SETTLEMENT_VIEW', 'PERFORMANCE_VIEW_ALL']);
+    query.next(convertToParamMap({ de: '2026-06-01', ate: '2026-06-30', agrupar: 'CREDITOR', operador: '11111111-1111-1111-1111-111111111111' }));
+    const fixture = await render(RecoveryPanel, { '/api/v1/analytics/recovery': recovery });
+    expect(el(fixture).querySelectorAll('a.app-drill-link')).toHaveLength(0);
+  });
+
   it('mudar o agrupamento grava na URL (filtros persistidos)', async () => {
     permissions.set(['REPORT_VIEW', 'PERFORMANCE_VIEW_ALL']);
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
@@ -202,6 +226,20 @@ describe('painéis de analytics', () => {
     const backlog = el(fixture).querySelector('[data-tour="analytics-disputes-backlog"]')!;
     expect(text(backlog)).toContain('Ana Analista');
     expect(backlog.querySelector('a')?.getAttribute('href')).toBe('/cobranca/contestacoes?responsavel=supervisao');
+    // "em aberto agora" só vira link quando o período chega a hoje (a fila é a situação atual)
+    expect(el(fixture).querySelectorAll('a.app-drill-link')).toHaveLength(0);
+  });
+
+  it('contestações: período até hoje → "em aberto agora" e a linha do credor levam à fila', async () => {
+    permissions.set(['DISPUTE_MANAGE']);
+    const iso = todayIso();
+    query.next(convertToParamMap({ de: '2026-06-01', ate: iso }));
+    const row = { opened: 1, resolved: 0, upheld: 0, upheldRate: ratio(null, 0, 0, 'no_base'), withinDeadline: ratio(null, 0, 0, 'no_base'), averageResolutionDays: null, openNow: 1, overdueNow: 0, creditorRequestsAnswered: 0, averageCreditorResponseHours: null };
+    const totals = { opened: 1, resolved: 0, withdrawn: 0, openNow: 1, overdueNow: 0, averageResolutionDays: null, withinDeadline: ratio(null, 0, 0), upheldRate: ratio(null, 0, 0), creditorRequestsSent: 0, creditorRequestsAnswered: 0, averageCreditorResponseHours: null, creditorAwaitingNow: 0, creditorOverdueNow: 0 };
+    const report = { meta: meta({ groupBy: 'NONE' }), referenceDate: iso, totals, byType: [], byOrigin: [], byCreditor: [{ key: 'c-1', label: 'Banco Alfa', ...row }], backlog: [] } as unknown as DisputeReport;
+    const fixture = await render(DisputesPanel, { '/api/v1/analytics/disputes': report });
+    const hrefs = [...el(fixture).querySelectorAll('a.app-drill-link')].map((a) => a.getAttribute('href'));
+    expect(hrefs).toEqual(['/cobranca/contestacoes', '/cobranca/contestacoes?credor=c-1']);
   });
 
   it('painel aberto pelo menu (sem filtro na URL) herda o período do último painel', async () => {

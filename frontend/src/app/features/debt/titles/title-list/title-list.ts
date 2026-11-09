@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -58,7 +60,7 @@ export function toTitleFilter(v: {
 /** Consulta de títulos por credor, carteira, situação, faixa de atraso e vencimento. */
 @Component({
   selector: 'app-title-list',
-  imports: [ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, Amount, AppDatePipe, OverdueBadge, Icon, NgbTooltip, ...FORM_FIELD, NgbInputDatepicker],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, Amount, AppDatePipe, OverdueBadge, Icon, NgbTooltip, ...FORM_FIELD, NgbInputDatepicker],
   templateUrl: './title-list.html',
   styles: `
     .title-list__flag {
@@ -159,4 +161,7 @@ export class TitleList {
   protected clear(): void {
     this.filters.reset();
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

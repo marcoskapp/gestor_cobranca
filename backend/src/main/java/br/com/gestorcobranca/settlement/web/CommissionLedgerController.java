@@ -38,9 +38,12 @@ class CommissionLedgerController {
                                      @RequestParam(required = false) LocalDate to,
                                      @RequestParam(required = false) String ratingStatus,
                                      @RequestParam(required = false) Boolean inStatement,
+                                     @RequestParam(required = false) UUID portfolioId,
+                                     @RequestParam(required = false) String kind,
                                      @RequestParam(required = false) Integer page,
                                      @RequestParam(required = false) Integer size) {
-        return ledger.receipts(new ReceiptFilter(creditorId, agreementId, from, to, ratingStatus, inStatement),
+        return ledger.receipts(new ReceiptFilter(creditorId, agreementId, from, to, ratingStatus, inStatement,
+                        portfolioId, kind),
                 PageQuery.of(page, size));
     }
 

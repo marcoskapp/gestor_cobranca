@@ -17,7 +17,9 @@ import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, num, percent, ratioDetail } from '../data/analytics.format';
 import { CASE_STATUS_LABELS, DELAY_BUCKET_LABELS } from '../data/analytics.labels';
-import { PortfolioRow } from '../data/analytics.models';
+import { CaseStatusRow, PortfolioRow, QueueRow } from '../data/analytics.models';
+import { DrillTarget, casesTarget, drillAccess, ledgerTarget } from '../data/drill-down';
+import { DrillLink } from '../components/drill-link';
 import { urlFilter } from '../data/url-filter';
 
 /**
@@ -27,7 +29,7 @@ import { urlFilter } from '../data/url-filter';
  */
 @Component({
   selector: 'app-operational-panel',
-  imports: [Amount, EmptyState, Skeleton, AppDatePipe, AnalyticsFilters, BarChart, InfoHint, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AppDatePipe, AnalyticsFilters, BarChart, DrillLink, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Painel operacional" subtitle="Carteira, saldos, casos e fila de trabalho da operação."
                      report="portfolio" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()"
@@ -54,14 +56,14 @@ import { urlFilter } from '../data/url-filter';
             <app-amount [value]="t.eligibleBalance" [compact]="true" />
           </app-kpi-card>
           <app-kpi-card label="Casos em aberto" info="analytics.portfolio.open-cases" [detail]="count(t.eligibleCases) + ' elegíveis para cobrança'">
-            {{ count(t.openCases) }}
+            <app-drill-link [to]="links().openCases">{{ count(t.openCases) }}</app-drill-link>
           </app-kpi-card>
           <app-kpi-card label="Fila pendente" info="analytics.portfolio.pending-queue" data-tour="kpi-queue" [detail]="percent(t.pendingQueueShare) + ' · ' + ratioDetail(t.pendingQueueShare) + ' casos elegíveis'">
-            {{ count(t.pendingQueueCases) }}
+            <app-drill-link [to]="links().pendingQueue">{{ count(t.pendingQueueCases) }}</app-drill-link>
           </app-kpi-card>
           @if (recoveryReport(); as rec) {
             <app-kpi-card label="Recuperado no período" info="analytics.portfolio.recovered-period" [detail]="'Taxa ' + percent(rec.totals.recoveryRate) + ' · ' + ratioDetail(rec.totals.recoveryRate, 'money')">
-              <app-amount [value]="rec.totals.recoveredNet" [compact]="true" />
+              <app-drill-link [to]="links().recovered"><app-amount [value]="rec.totals.recoveredNet" [compact]="true" /></app-drill-link>
             </app-kpi-card>
           }
         </section>
@@ -86,13 +88,13 @@ import { urlFilter } from '../data/url-filter';
               <table class="pn__table">
                 <thead><tr><th scope="col">Estado</th><th scope="col" class="num">Casos</th><th scope="col" class="num">Elegíveis</th><th scope="col" class="num">Saldo em aberto</th><th scope="col" class="num">Saldo elegível <app-info-hint indicator="analytics.portfolio.eligible" label="Saldo elegível" /></th></tr></thead>
                 <tbody>
-                  @for (s of r.casesByStatus; track s.status) {
+                  @for (s of statusRows(); track s.row.status) {
                     <tr>
-                      <th scope="row">{{ statusLabels[s.status] ?? s.status }}</th>
-                      <td class="num app-numeric">{{ count(s.cases) }}</td>
-                      <td class="num app-numeric">{{ count(s.eligibleCases) }}</td>
-                      <td class="num"><app-amount [value]="s.openBalance" /></td>
-                      <td class="num"><app-amount [value]="s.eligibleBalance" /></td>
+                      <th scope="row"><app-drill-link [to]="s.all">{{ statusLabels[s.row.status] ?? s.row.status }}</app-drill-link></th>
+                      <td class="num app-numeric"><app-drill-link [to]="s.all">{{ count(s.row.cases) }}</app-drill-link></td>
+                      <td class="num app-numeric"><app-drill-link [to]="s.eligible">{{ count(s.row.eligibleCases) }}</app-drill-link></td>
+                      <td class="num"><app-amount [value]="s.row.openBalance" /></td>
+                      <td class="num"><app-amount [value]="s.row.eligibleBalance" /></td>
                     </tr>
                   } @empty {
                     <tr><td colspan="5">Nenhum caso em aberto.</td></tr>
@@ -108,8 +110,8 @@ import { urlFilter } from '../data/url-filter';
               <table class="pn__table">
                 <thead><tr><th scope="col">Fila</th><th scope="col" class="num">Casos</th><th scope="col" class="num">Saldo elegível</th></tr></thead>
                 <tbody>
-                  @for (q of r.pendingQueue; track q.queueId) {
-                    <tr><th scope="row">{{ q.label }}</th><td class="num app-numeric">{{ count(q.cases) }}</td><td class="num"><app-amount [value]="q.eligibleBalance" /></td></tr>
+                  @for (q of queueRows(); track q.row.queueId) {
+                    <tr><th scope="row"><app-drill-link [to]="q.link">{{ q.row.label }}</app-drill-link></th><td class="num app-numeric"><app-drill-link [to]="q.link">{{ count(q.row.cases) }}</app-drill-link></td><td class="num"><app-amount [value]="q.row.eligibleBalance" /></td></tr>
                   } @empty {
                     <tr><td colspan="3">Nenhum caso aguardando na fila.</td></tr>
                   }
@@ -140,6 +142,38 @@ export class OperationalPanel {
     stream: ({ params }) => (params.allowed ? this.api.recovery({ ...params.filter, groupBy: null }) : of(undefined)),
   });
   protected readonly recoveryReport = valueOr(this.recovery, undefined);
+
+  /**
+   * Drill-down (data/drill-down.ts): casos não encerrados e na fila (sem negociador) vão à lista de casos; o recuperado,
+   * ao razão (mesma base). Sem link: valor da carteira, saldo vencido e as barras por credor e faixa (títulos; a lista
+   * ainda não filtra "em cobrança" nem as faixas do painel) e o saldo elegível (soma do saldo elegível por título dos
+   * casos; a elegibilidade da lista é do caso inteiro — outra base).
+   */
+  private readonly access = drillAccess();
+  protected readonly links = computed(() => {
+    const f = this.state.filter();
+    const cases = (extra: Record<string, string>, label: string) => this.access(casesTarget(f, extra, label));
+    return {
+      openCases: cases({}, 'ver os casos em aberto na lista de casos'),
+      pendingQueue: cases({ elegivel: 'true', atendimento: 'QUEUE' }, 'ver os casos elegíveis aguardando na fila'),
+      recovered: this.access(ledgerTarget(f, {}, 'ver os recebimentos e estornos do período no razão')),
+    };
+  });
+  protected readonly statusRows = computed<{ row: CaseStatusRow; all: DrillTarget | null; eligible: DrillTarget | null }[]>(() => {
+    const f = this.state.filter();
+    return (this.report()?.casesByStatus ?? []).map((row) => ({
+      row,
+      all: this.access(casesTarget(f, { situacao: row.status }, 'ver os casos nesta situação')),
+      eligible: this.access(casesTarget(f, { situacao: row.status, elegivel: 'true' }, 'ver os casos elegíveis nesta situação')),
+    }));
+  });
+  protected readonly queueRows = computed<{ row: QueueRow; link: DrillTarget | null }[]>(() => {
+    const f = this.state.filter();
+    return (this.report()?.pendingQueue ?? []).map((row) => ({
+      row,
+      link: row.queueId === '-' ? null : this.access(casesTarget(f, { fila: row.queueId, elegivel: 'true', atendimento: 'QUEUE' }, 'ver os casos desta fila')),
+    }));
+  });
 
   protected readonly creditorRows = computed<ChartRow[]>(() =>
     (this.report()?.byCreditor ?? []).slice(0, 10).map((r) => ({

@@ -87,9 +87,10 @@ class SystemSettlementSources implements SettlementSources {
         return system(() -> {
             List<OpenDivergence> result = new ArrayList<>();
             for (int page = 0; page < MAX_DIVERGENCE_PAGES; page++) {
-                PageResponse<DivergenceView> views = reconciliation.divergences(new DivergenceFilter("OPEN", null),
-                        PageQuery.of(page, PageQuery.MAX_SIZE));
-                views.content().stream().filter(d -> creditorId.equals(d.creditorId()))
+                // o filtro de credor fica no banco: só as divergências do credor do demonstrativo são lidas
+                PageResponse<DivergenceView> views = reconciliation.divergences(
+                        new DivergenceFilter("OPEN", null, creditorId, null, null), PageQuery.of(page, PageQuery.MAX_SIZE));
+                views.content().stream()
                         .map(d -> new OpenDivergence(d.id(), d.type(), d.paymentId(), d.amount(), d.occurredOn()))
                         .forEach(result::add);
                 if (page + 1 >= views.totalPages()) {

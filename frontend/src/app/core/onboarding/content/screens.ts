@@ -8,7 +8,7 @@ import { ScreenGuide } from '../onboarding.models';
 export const SCREENS: readonly ScreenGuide[] = [
   {
     key: 'app.home',
-    version: 3,
+    version: 4,
     path: '/',
     changes: [
       { version: 2, items: ['Indicadores da operação na página inicial, com atalho para os painéis.'] },
@@ -19,27 +19,30 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Sem o "Acesso rápido" (o menu já leva a todas as telas) e sem avisos repetidos: o aviso de verificação em duas etapas e o convite do tour só aparecem quando os primeiros passos não os trazem.',
         ],
       },
+      { version: 4, items: ['Em "Operação", a fila pendente e o recuperado em 30 dias levam à lista que forma o número (Casos e Razão de comissão), quando o seu perfil abre essas listas.'] },
     ],
   },
   {
     key: 'analytics.operational',
-    version: 4,
+    version: 5,
     path: '/paineis',
     tourId: 'analytics.operational',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
       { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
       { version: 4, items: ['Os painéis saíram das abas e ficam só no menu, em Painéis; o período escolhido acompanha você de um painel para outro.'] },
+      { version: 5, items: ['Números sublinhados levam à lista que forma o número, com o mesmo credor, carteira e período (ex.: casos em aberto → Casos; recuperado → Razão de comissão). Sem a lista no seu perfil, ou com um recorte que a lista não tem, o número fica só como texto.'] },
     ],
   },
   {
     key: 'analytics.recovery',
-    version: 3,
+    version: 4,
     path: '/paineis/recuperacao',
     tourId: 'analytics.recovery',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
       { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+      { version: 4, items: ['Recuperado, estornos e cada linha por credor, carteira, mês, semana ou dia levam ao Razão de comissão com o mesmo período e recorte (recebimentos, estornos ou os dois). Com filtro de pessoa ou canal não há link: o razão não tem esses recortes.'] },
     ],
   },
   {
@@ -62,24 +65,37 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
     ],
   },
-  { key: 'analytics.disputes', version: 2, path: '/paineis/contestacoes', tourId: 'analytics.disputes', changes: [{ version: 2, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] }] },
+  {
+    key: 'analytics.disputes',
+    version: 3,
+    path: '/paineis/contestacoes',
+    tourId: 'analytics.disputes',
+    changes: [
+      { version: 2, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+      { version: 3, items: ['Com o período até hoje, "Em aberto agora" e o número em aberto de cada credor levam à fila de contestações filtrada.'] },
+    ],
+  },
   {
     key: 'analytics.reliability',
-    version: 3,
+    version: 4,
     path: '/paineis/confiabilidade',
     tourId: 'analytics.reliability',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
       { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+      { version: 4, items: ['Divergências em aberto, abertas no período e por tipo levam à lista de divergências com o mesmo credor e período.'] },
     ],
   },
   { key: 'scoring.models', version: 1, path: '/score/modelos', tourId: 'scoring.models' },
   {
     key: 'scoring.model',
-    version: 2,
+    version: 3,
     path: '/score/modelos/:id',
     tourId: 'scoring.model',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
+      { version: 3, items: ['"Rejeitar modelo" foi para o menu "Mais ações" (⋯), separado das demais ações; a confirmação com motivo continua.'] },
+    ],
   },
   { key: 'scoring.runs', version: 1, path: '/score/execucoes' },
   { key: 'scoring.run', version: 1, path: '/score/execucoes/:id' },
@@ -288,10 +304,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.cases',
-    version: 2,
+    version: 3,
     path: '/cobranca/casos',
     tourId: 'collection.cases',
-    changes: [{ version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Saldo, atraso e próxima ação.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] }],
+    changes: [
+      { version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Saldo, atraso e próxima ação.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] },
+      { version: 3, items: ['Filtro por carteira. Os números do painel operacional abrem esta lista já filtrada.', 'No celular, os filtros ficam no botão "Filtros (n)", com quantos estão aplicados.'] },
+    ],
   },
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
   {
@@ -442,16 +461,23 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.reconciliation', version: 1, path: '/pagamentos/conciliacao', tourId: 'payment.reconciliation' },
   {
     key: 'payment.statement',
-    version: 4,
+    version: 5,
     path: '/pagamentos/conciliacao/:id',
     tourId: 'payment.statement',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
       { version: 3, items: ['Botão "Tentar novamente" na importação com falha: continua de onde parou, sem baixa repetida.', 'A falha mostra a linha do arquivo onde o problema apareceu.'] },
       { version: 4, items: ['Botão "Cancelar processamento" na importação na fila ou em processamento: para onde está, com motivo, e o que já foi gravado fica valendo.', 'A importação cancelada aceita "Tentar novamente", que continua de onde parou.'] },
+      { version: 5, items: ['"Cancelar processamento" foi para o menu "Mais ações" (⋯), separado das demais ações.'] },
     ],
   },
-  { key: 'payment.divergences', version: 1, path: '/pagamentos/divergencias', tourId: 'payment.divergences' },
+  {
+    key: 'payment.divergences',
+    version: 2,
+    path: '/pagamentos/divergencias',
+    tourId: 'payment.divergences',
+    changes: [{ version: 2, items: ['Filtros por credor e por data de abertura ("Aberta de" e "Aberta até"). O painel de confiabilidade abre esta lista já filtrada.'] }],
+  },
   {
     key: 'payment.pix-accounts',
     version: 2,
@@ -469,10 +495,10 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'publicapi.token',
-    version: 3,
+    version: 4,
     path: '/integracoes/tokens/:id',
     tourId: 'publicapi.token',
-    changes: [{ version: 2, items: ['Aviso de pausa pela plataforma, com motivo e retomada agendada; você continua podendo editar, rotacionar e revogar.', 'Revogação feita pela plataforma identificada na ficha.'] }, { version: 3, items: ['Editar e Rotacionar só aparecem se o seu perfil tem as permissões de todos os escopos do token (as mesmas exigidas para criá-lo); Revogar continua disponível.'] }],
+    changes: [{ version: 2, items: ['Aviso de pausa pela plataforma, com motivo e retomada agendada; você continua podendo editar, rotacionar e revogar.', 'Revogação feita pela plataforma identificada na ficha.'] }, { version: 3, items: ['Editar e Rotacionar só aparecem se o seu perfil tem as permissões de todos os escopos do token (as mesmas exigidas para criá-lo); Revogar continua disponível.'] }, { version: 4, items: ['"Revogar token" foi para o menu "Mais ações" (⋯), separado das demais ações; continua imediato, com motivo.'] }],
   },
   {
     key: 'publicapi.usage',
@@ -501,8 +527,20 @@ export const SCREENS: readonly ScreenGuide[] = [
     ],
   },
   { key: 'settlement.rules', version: 1, path: '/prestacao-de-contas/regras', tourId: 'settlement.rules' },
-  { key: 'settlement.rule-set', version: 1, path: '/prestacao-de-contas/regras/:id', tourId: 'settlement.rule-set' },
-  { key: 'settlement.ledger', version: 1, path: '/prestacao-de-contas/razao', tourId: 'settlement.ledger' },
+  {
+    key: 'settlement.rule-set',
+    version: 2,
+    path: '/prestacao-de-contas/regras/:id',
+    tourId: 'settlement.rule-set',
+    changes: [{ version: 2, items: ['"Descartar rascunho" foi para o menu "Mais ações" (⋯); "Descartar alterações" (o que não foi salvo) continua no cabeçalho.'] }],
+  },
+  {
+    key: 'settlement.ledger',
+    version: 2,
+    path: '/prestacao-de-contas/razao',
+    tourId: 'settlement.ledger',
+    changes: [{ version: 2, items: ['Filtros por carteira e por lançamento (recebimentos, estornos ou os dois). Os painéis de recuperação e operacional abrem esta lista já filtrada.'] }],
+  },
   { key: 'settlement.statements', version: 1, path: '/prestacao-de-contas/demonstrativos', tourId: 'settlement.statements' },
   {
     key: 'settlement.statement',
@@ -531,7 +569,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'incentive.statement', version: 1, path: '/remuneracao/extratos/:id', tourId: 'incentive.statement' },
   { key: 'incentive.ledger', version: 1, path: '/remuneracao/lancamentos' },
   { key: 'incentive.plans', version: 1, path: '/remuneracao/planos', tourId: 'incentive.plans' },
-  { key: 'incentive.plan', version: 1, path: '/remuneracao/planos/:id', tourId: 'incentive.plan' },
+  {
+    key: 'incentive.plan',
+    version: 2,
+    path: '/remuneracao/planos/:id',
+    tourId: 'incentive.plan',
+    changes: [{ version: 2, items: ['"Descartar rascunho" e "Aposentar versão" foram para o menu "Mais ações" (⋯), separados das demais ações; a confirmação continua.'] }],
+  },
   { key: 'incentive.plan-rules', version: 2, path: '/remuneracao/planos/:id/regras', tourId: 'incentive.plan-rules', changes: [{ version: 2, items: ['Botão "Ficha do plano" no cabeçalho para voltar ao plano.'] }] },
   {
     key: 'incentive.goals',
@@ -581,10 +625,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'assistant.policies', version: 1, path: '/assistente/politicas', tourId: 'assistant.policies' },
   {
     key: 'assistant.policy',
-    version: 2,
+    version: 3,
     path: '/assistente/politicas/:id',
     tourId: 'assistant.policy',
-    changes: [{ version: 2, items: ['O perfil de alçada é escolhido por quem gerencia alçadas; sem essa permissão, a tela só informa o perfil e "Publicar" não aparece na versão com perfil próprio.'] }],
+    changes: [
+      { version: 2, items: ['O perfil de alçada é escolhido por quem gerencia alçadas; sem essa permissão, a tela só informa o perfil e "Publicar" não aparece na versão com perfil próprio.'] },
+      { version: 3, items: ['"Aposentar versão" foi para o menu "Mais ações" (⋯), separado das demais ações.'] },
+    ],
   },
   { key: 'assistant.reviews', version: 1, path: '/assistente/revisao', tourId: 'assistant.reviews' },
   { key: 'assistant.turn', version: 1, path: '/assistente/turnos/:id', tourId: 'assistant.turn' },
@@ -692,7 +739,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'ingestion.pdf-start', version: 1, path: '/importacao/pdf/nova', tourId: 'ingestion.pdf-start' },
   {
     key: 'ingestion.pdf-import',
-    version: 2,
+    version: 3,
     path: '/importacao/pdf/:id',
     tourId: 'ingestion.pdf-import',
     changes: [
@@ -703,14 +750,18 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Excluir do lote e reincluir em massa, com motivo único; títulos de confiança baixa continuam confirmados um a um.',
         ],
       },
+      { version: 3, items: ['"Descartar importação" foi para o menu "Mais ações" (⋯), separado das demais ações; o motivo continua obrigatório.'] },
     ],
   },
   {
     key: 'ingestion.review',
-    version: 2,
+    version: 3,
     path: '/importacao/conferencias/:id',
     tourId: 'ingestion.review',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
+      { version: 3, items: ['"Cancelar conferência" foi para o menu "Mais ações" (⋯).'] },
+    ],
   },
   {
     key: 'ingestion.batch-detail',

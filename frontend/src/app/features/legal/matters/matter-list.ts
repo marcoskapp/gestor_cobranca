@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -39,7 +41,7 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
 /** Casos jurídicos com fase, via principal, responsável, valores e sinalizações (prescrição, custo × benefício). */
 @Component({
   selector: 'app-matter-list',
-  imports: [
+  imports: [FilterBar, 
     NgbTooltip,
     ...FORM_FIELD,
     Icon,
@@ -63,6 +65,7 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
       </div>
     }
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar casos jurídicos">
       @if (canSeeCreditor()) {
         <div class="app-filters__wide">
@@ -87,6 +90,7 @@ export function toMatterFilter(v: { creditor: string[]; stage: string; responsib
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
 
     <app-data-table
       caption="Casos jurídicos"
@@ -206,4 +210,7 @@ export class MatterList {
   protected warn(flag: string): boolean {
     return WARNING_FLAGS.includes(flag);
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

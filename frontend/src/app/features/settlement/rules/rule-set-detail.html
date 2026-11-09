@@ -6,7 +6,7 @@
 } @else if (resource.status() === 'error') {
   <app-empty-state icon="percent" tone="error" title="Não foi possível abrir a versão." message="A versão pode não existir ou o credor estar fora do seu escopo.">
     <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a class="btn btn-link" routerLink="/prestacao-de-contas/regras">Voltar para regras</a>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/prestacao-de-contas/regras')">Voltar para regras</a>
   </app-empty-state>
 }
 
@@ -21,7 +21,6 @@
             Salvar rascunho
           </button>
         } @else {
-          <button class="btn btn-outline-secondary" type="button" (click)="discardDraft()">Descartar rascunho</button>
           <button class="btn btn-primary"
            
             type="button"
@@ -41,6 +40,7 @@
         </button>
       }
     }
+    <app-more-actions [actions]="moreActions()" />
   </app-page-header>
 
   <div class="st-status" data-tour="rules-status">

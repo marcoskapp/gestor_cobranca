@@ -13,6 +13,8 @@ import { count, percent, ratioDetail } from '../data/analytics.format';
 import { AnalyticsFilter } from '../data/analytics.models';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { Icon } from '../../../shared/components/icon/icon';
+import { casesTarget, drillAccess, ledgerTarget } from '../data/drill-down';
+import { DrillLink } from './drill-link';
 
 /**
  * Resumo da operação na página inicial (carregado sob demanda): carteira, saldo vencido, fila
@@ -20,7 +22,7 @@ import { Icon } from '../../../shared/components/icon/icon';
  */
 @Component({
   selector: 'app-home-kpis',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, KpiCard],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, DrillLink, KpiCard],
   template: `
     <section class="hk" aria-labelledby="hk-title">
       <div class="hk__head">
@@ -34,9 +36,9 @@ import { Icon } from '../../../shared/components/icon/icon';
         <div class="app-kpi-grid" data-tour="home-kpis">
           <app-kpi-card label="Valor da carteira" info="analytics.portfolio.amount" [detail]="count(p.totals.openTitles) + ' títulos'"><app-amount [value]="p.totals.portfolioAmount" [compact]="true" /></app-kpi-card>
           <app-kpi-card label="Saldo vencido" info="analytics.portfolio.overdue" [detail]="percent(p.totals.overdueShare) + ' da carteira'"><app-amount [value]="p.totals.overdueAmount" [compact]="true" /></app-kpi-card>
-          <app-kpi-card label="Fila pendente" info="analytics.portfolio.pending-queue" [detail]="ratioDetail(p.totals.pendingQueueShare) + ' elegíveis'">{{ count(p.totals.pendingQueueCases) }}</app-kpi-card>
+          <app-kpi-card label="Fila pendente" info="analytics.portfolio.pending-queue" [detail]="ratioDetail(p.totals.pendingQueueShare) + ' elegíveis'"><app-drill-link [to]="queueLink">{{ count(p.totals.pendingQueueCases) }}</app-drill-link></app-kpi-card>
           @if (recovery(); as r) {
-            <app-kpi-card label="Recuperado em 30 dias" info="analytics.home.recovered-30d" [detail]="'Taxa ' + percent(r.totals.recoveryRate)"><app-amount [value]="r.totals.recoveredNet" [compact]="true" /></app-kpi-card>
+            <app-kpi-card label="Recuperado em 30 dias" info="analytics.home.recovered-30d" [detail]="'Taxa ' + percent(r.totals.recoveryRate)"><app-drill-link [to]="recoveredLink"><app-amount [value]="r.totals.recoveredNet" [compact]="true" /></app-drill-link></app-kpi-card>
           }
         </div>
         @if (p.meta.dataUntil) {
@@ -70,6 +72,10 @@ export class HomeKpis {
     channels: [],
     groupBy: null,
   };
+  /** Drill-down (mesmas regras dos painéis): fila pendente → casos; recuperado em 30 dias → razão. */
+  private readonly access = drillAccess();
+  protected readonly queueLink = this.access(casesTarget(this.filter, { elegivel: 'true', atendimento: 'QUEUE' }, 'ver os casos elegíveis aguardando na fila'));
+  protected readonly recoveredLink = this.access(ledgerTarget(this.filter, {}, 'ver os recebimentos e estornos dos últimos 30 dias no razão'));
   private readonly canRecovery = computed(() => this.auth.hasPermission(Permission.REPORT_VIEW));
   protected readonly portfolioData = rxResource({ stream: () => this.api.portfolio(this.filter) });
   protected readonly portfolio = valueOr(this.portfolioData, undefined);

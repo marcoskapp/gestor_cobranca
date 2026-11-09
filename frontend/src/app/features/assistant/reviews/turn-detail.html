@@ -3,7 +3,7 @@
 } @else if (resource.status() === 'error') {
   <app-empty-state icon="robot" tone="error" title="Não foi possível abrir o turno." message="Ele pode não existir ou o credor da conversa estar fora do seu escopo.">
     <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a class="btn btn-link" routerLink="/assistente/revisao">Voltar para a revisão</a>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/assistente/revisao')">Voltar para a revisão</a>
   </app-empty-state>
 }
 
