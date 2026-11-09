@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -19,9 +21,10 @@ import { monthOptions } from '../data/incentive.rules';
  */
 @Component({
   selector: 'app-incentive-ledger-list',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, EntityPicker, LedgerTable, PageHeader],
+  imports: [FilterBar, ReactiveFormsModule, ...FORM_FIELD, EntityPicker, LedgerTable, PageHeader],
   template: `
     <app-page-header title="Lançamentos de comissão" subtitle="Pagamentos creditados ao negociador, com peso de crédito, carência e período de competência." />
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="form" role="search" aria-label="Filtrar lançamentos">
       <app-field label="Período de competência">
         <select appInput formControlName="period">
@@ -37,6 +40,7 @@ import { monthOptions } from '../data/incentive.rules';
         </div>
       }
     </form>
+    </app-filter-bar>
     <app-ledger-table [userId]="userId()" [period]="period()" />
   `,
 })
@@ -64,4 +68,7 @@ export class LedgerList {
     this.value();
     return this.form.getRawValue().user[0] ?? null;
   });
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.form);
 }

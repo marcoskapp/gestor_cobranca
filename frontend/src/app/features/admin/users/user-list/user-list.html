@@ -5,6 +5,7 @@
   </button>
 </app-page-header>
 
+<app-filter-bar [activeCount]="activeFilters()">
 <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar usuários" (ngSubmit)="query.reload()">
   <app-field class="app-filters__wide" label="Nome ou e-mail">
   <div class="input-group">
@@ -32,6 +33,7 @@
     <button class="btn btn-link" type="button" (click)="clearFilters()">Limpar filtros</button>
   </div>
 </form>
+</app-filter-bar>
 
 <app-data-table
   caption="Usuários"

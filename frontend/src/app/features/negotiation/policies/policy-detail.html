@@ -6,7 +6,7 @@
 } @else if (policy.status() === 'error') {
   <app-empty-state icon="shield-check" tone="error" title="Não foi possível abrir a política." message="A versão pode não existir ou o credor estar fora do seu escopo.">
     <button class="btn btn-outline-primary" type="button" (click)="policy.reload()">Tentar novamente</button>
-    <a class="btn btn-link" routerLink="/negociacao/politicas">Voltar para políticas</a>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/negociacao/politicas')">Voltar para políticas</a>
   </app-empty-state>
 }
 

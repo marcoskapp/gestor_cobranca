@@ -13,6 +13,8 @@ import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { Icon } from '../../../shared/components/icon/icon';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -34,23 +36,18 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
 /** Resultado de um extrato importado: indicadores do lote e o tratamento de cada linha. */
 @Component({
   selector: 'app-statement-detail',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, PageHeader, Skeleton, StatusChip, KpiCard],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EmptyState, MoreActions, PageHeader, Skeleton, StatusChip, KpiCard],
   template: `
     @if (resource.isLoading() && !statement()) {
       <app-skeleton variant="card" [rows]="5" />
     } @else if (resource.status() === 'error' && !statement()) {
       <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o extrato." message="Verifique a conexão e tente novamente.">
         <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+        <a class="btn btn-link" [routerLink]="history.linkTo('/pagamentos/conciliacao')">Voltar para extratos</a>
       </app-empty-state>
     } @else if (statement(); as s) {
       @let ind = indicators()!;
       <app-page-header [title]="s.fileName ?? 'Extrato importado'" [subtitle]="'Importado em ' + (s.createdAt | appDate) + ' por ' + users.name(s.requestedBy) + ' · ' + (s.creditorId ? creditors.name(s.creditorId) : 'todos os credores')">
-        @if (running() && canManage()) {
-          <button class="btn btn-outline-danger d-inline-flex align-items-center gap-2" type="button" data-tour="statement-cancel" [disabled]="cancelling()" (click)="cancel(s)">
-            <app-icon name="stop-circle" />
-            {{ cancelling() ? 'Cancelando…' : 'Cancelar processamento' }}
-          </button>
-        }
         @if (retryable(s) && canManage()) {
           <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" data-tour="statement-retry" [disabled]="retrying()" (click)="retry(s)">
             <app-icon name="arrow-clockwise" />
@@ -63,6 +60,7 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
             Tratar divergências
           </a>
         }
+        <app-more-actions [actions]="moreActions()" data-tour="statement-cancel" />
       </app-page-header>
       <div class="sd-status">
         <app-status-chip domain="statementImport" [status]="s.status" />
@@ -201,6 +199,7 @@ export class StatementDetail {
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.RECONCILIATION_MANAGE));
   protected readonly retrying = signal(false);
   protected readonly cancelling = signal(false);
+  protected readonly history = inject(NavigationHistory);
   protected readonly processingFailed = 'statement.processing_failed';
   protected readonly size = sizeText;
   protected readonly directions = DIRECTION_LABELS;
@@ -209,6 +208,15 @@ export class StatementDetail {
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.getImport(params) });
   protected readonly statement = valueOr<StatementImportView | undefined>(this.resource, undefined);
   protected readonly running = computed(() => (this.statement() ? isImportRunning(this.statement()!) : false));
+  /** Cancelar o processamento (irreversível para o que não foi conciliado; pede motivo) fica no "Mais ações" (ux.md §12.2). */
+  protected readonly moreActions = computed<MoreAction[]>(() => {
+    const s = this.statement();
+    if (!s || !this.running() || !this.canManage()) {
+      return [];
+    }
+    const label = this.cancelling() ? 'Cancelando…' : 'Cancelar processamento';
+    return [{ id: 'cancel', label, icon: 'stop-circle', danger: true, disabled: this.cancelling(), run: () => this.cancel(s) }];
+  });
   protected readonly indicators = computed(() => (this.statement() ? importIndicators(this.statement()!) : null));
   /** Recarrega as linhas quando o lote termina. */
   private readonly linesKey = computed(() => ({ id: this.id(), done: !this.running() }));

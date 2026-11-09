@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -31,7 +33,7 @@ import { expirationText, instructionTarget } from '../data/payment.rules';
 /** Instruções de pagamento (Pix) geradas, com a situação no PSP e a validade. */
 @Component({
   selector: 'app-instruction-list',
-  imports: [Icon, NgbTooltip, ...FORM_FIELD, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [FilterBar, Icon, NgbTooltip, ...FORM_FIELD, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Instruções de pagamento" subtitle="Cobranças Pix enviadas aos devedores: QR Code, validade e se já foram pagas.">
       @if (canCreate()) {
@@ -41,6 +43,7 @@ import { expirationText, instructionTarget } from '../data/payment.rules';
         </button>
       }
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar instruções">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -59,6 +62,7 @@ import { expirationText, instructionTarget } from '../data/payment.rules';
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
     <app-data-table
       caption="Instruções de pagamento"
       [rows]="query.rows()"
@@ -168,4 +172,7 @@ export class InstructionList {
     const v = this.filters.getRawValue();
     return { creditorId: v.creditor[0] ?? null, debtorId: v.debtor[0] ?? null, agreementId: null, titleId: null, status: v.status || null };
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

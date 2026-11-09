@@ -270,6 +270,10 @@ export interface StatementLineView {
 export interface DivergenceFilter {
   status: string | null;
   type: string | null;
+  creditorId?: string | null;
+  /** Abertas a partir do dia / até o dia (`yyyy-MM-dd`, fuso de operação). */
+  openedFrom?: string | null;
+  openedTo?: string | null;
 }
 
 export interface ResolveRequest {

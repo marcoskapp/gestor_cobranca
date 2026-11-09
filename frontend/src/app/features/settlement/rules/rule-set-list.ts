@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -33,7 +35,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
  */
 @Component({
   selector: 'app-rule-set-list',
-  imports: [NgbTooltip, ...FORM_FIELD, Icon, ReactiveFormsModule, RouterLink, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [FilterBar, NgbTooltip, ...FORM_FIELD, Icon, ReactiveFormsModule, RouterLink, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Regras de comissão" subtitle="Quanto a assessoria recebe do credor: percentuais por carteira, atraso e forma de pagamento, valor fixo e honorários, por contrato de serviço.">
       @if (canManage()) {
@@ -43,6 +45,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
         </button>
       }
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar regras de comissão">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -56,6 +59,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
     <div class="alert alert-info d-flex align-items-start gap-2" role="note" data-tour="rules-segregation">
       <app-icon name="people" />
       <span>Transcrever um contrato é ponto sensível: <strong>quem editou as regras por último não publica</strong>. Versões publicadas não mudam; recebimentos já apurados nunca trocam de regra.</span>
@@ -197,4 +201,7 @@ export class RuleSetList {
         },
       });
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

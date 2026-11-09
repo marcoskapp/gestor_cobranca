@@ -27,6 +27,8 @@ import { cloneSettings, scopeOf, settingsProblems } from '../data/assistant.rule
 import { DisablePortfolioData, DisablePortfolioDialog } from './policy-dialogs';
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { Icon } from '../../../shared/components/icon/icon';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 
@@ -48,6 +50,7 @@ const DAYS: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY
     Icon,
     AppDatePipe,
     EmptyState,
+    MoreActions,
     PageHeader,
     Skeleton,
     StatusChip,
@@ -106,6 +109,13 @@ export class AssistantPolicyDetail {
   private readonly revision = signal(0);
   protected readonly dirty = signal(false);
   protected readonly saving = signal(false);
+  protected readonly history = inject(NavigationHistory);
+  /** Aposentar a versão publicada (o assistente deixa de usá-la) fica no "Mais ações" (ux.md §12.2), com a confirmação de sempre. */
+  protected readonly moreActions = computed<MoreAction[]>(() =>
+    this.canManage() && this.policy()?.status === 'PUBLISHED'
+      ? [{ id: 'retire', label: 'Aposentar versão', icon: 'archive', danger: true, run: () => this.retire() }]
+      : [],
+  );
   protected readonly actionError = signal<string | null>(null);
 
   protected readonly editable = computed(() => this.policy()?.status === 'DRAFT' && this.canManage());

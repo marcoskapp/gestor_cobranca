@@ -6,7 +6,7 @@
 } @else if (resource.status() === 'error') {
   <app-empty-state icon="receipt" tone="error" title="Não foi possível abrir o extrato." message="Ele pode não existir ou estar fora do seu escopo (próprio, equipe ou todos).">
     <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a class="btn btn-link" routerLink="/remuneracao/extratos">Voltar para extratos</a>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/remuneracao/extratos')">Voltar para extratos</a>
   </app-empty-state>
 }
 

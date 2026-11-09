@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -134,7 +136,7 @@ export class CampaignCreate {
 /** Campanhas por credor e situação, com finalidade, prioridade, grupo e versão da régua. */
 @Component({
   selector: 'app-campaign-list',
-  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Icon, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Campanhas" subtitle="Réguas automáticas por credor: quem alcançar, em que ordem, por qual canal e com que prioridade.">
       @if (canManage()) {
@@ -144,6 +146,7 @@ export class CampaignCreate {
         </button>
       }
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar campanhas">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -157,6 +160,7 @@ export class CampaignCreate {
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
     <app-data-table
       caption="Campanhas"
       [rows]="query.rows()"
@@ -261,4 +265,7 @@ export class CampaignList {
         }
       });
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

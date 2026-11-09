@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -30,7 +32,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
 /** Demonstrativos de prestação de contas por credor, do rascunho à resposta do credor. */
 @Component({
   selector: 'app-statement-list',
-  imports: [NgbTooltip, ...FORM_FIELD, Icon, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [FilterBar, NgbTooltip, ...FORM_FIELD, Icon, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Demonstrativos" subtitle="Prestação de contas ao credor: o que foi recebido, quanto a assessoria fica e o líquido a repassar, por período.">
       @if (canClose()) {
@@ -40,6 +42,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
         </button>
       }
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar demonstrativos">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -53,6 +56,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
     <app-data-table
       caption="Demonstrativos de prestação de contas"
       [rows]="query.rows()"
@@ -156,4 +160,7 @@ export class StatementList {
         }
       });
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

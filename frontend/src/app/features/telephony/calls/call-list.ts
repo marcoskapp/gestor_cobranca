@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -38,9 +40,10 @@ import { RecordingDialog, RecordingDialogData } from './recording-dialog';
  */
 @Component({
   selector: 'app-call-list',
-  imports: [ReactiveFormsModule, RouterLink, NgbInputDatepicker, NgbTooltip, ...FORM_FIELD, Icon, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, NgbInputDatepicker, NgbTooltip, ...FORM_FIELD, Icon, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Chamadas e gravações" subtitle="Clique para ligar, discador e chamadas recebidas do seu escopo, com o resultado, a tabulação e a gravação." />
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar chamadas">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -73,6 +76,7 @@ import { RecordingDialog, RecordingDialogData } from './recording-dialog';
         </div>
       </app-field>
     </form>
+    </app-filter-bar>
     @if (!canListen()) {
       <p class="alert alert-secondary d-flex gap-2" role="note"><app-icon name="lock" /><span>Seu perfil não ouve gravações (permissão própria, com finalidade declarada e registro de acesso).</span></p>
     }
@@ -225,4 +229,7 @@ export class CallList {
       to: this.filters.controls.to.valid ? endOfDayInstant(fromLocalDate(v.to)) : null,
     };
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

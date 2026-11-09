@@ -1,3 +1,4 @@
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -47,6 +48,8 @@ import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
   styleUrl: './execution-page.scss',
 })
 export class ExecutionPage {
+  /** Retorno à lista com os filtros, a página e a rolagem de quando o usuário saiu dela (ux.md §16). */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
 
   private readonly campaigns = inject(CampaignsApi);

@@ -101,7 +101,7 @@ class SettlementFlowIT extends SettlementTestSupport {
                 + "and kind = 'PAYMENT' and rating_status = 'RATED'", allocation) == 1);
 
         ReceiptView receipt = asFinance1(() -> ledger.receipts(new ReceiptFilter(creditorA, agreement.id(), null, null,
-                null, null), PageQuery.of(0, 10))).content().getFirst();
+                null, null, null, null), PageQuery.of(0, 10))).content().getFirst();
         BigDecimal honorarium = receipt.honorarium();
         BigDecimal commission = amount.subtract(honorarium).multiply(new BigDecimal("0.12"))
                 .setScale(2, RoundingMode.HALF_EVEN);
@@ -269,6 +269,17 @@ class SettlementFlowIT extends SettlementTestSupport {
                 + "and kind = 'REVERSAL' and rating_status = 'RATED'", allocation) == 1);
         assertThat(count("select count(*) from shared.business_event where event_type = 'commission.reversed' "
                 + "and tenant_id = ?", tenant)).isEqualTo(1);
+        // filtros do razão usados pelo drill-down do painel de recuperação: tipo (recebimento × estorno) e carteira
+        assertThat(asFinance1(() -> ledger.receipts(new ReceiptFilter(creditorA, agreement.id(), null, null, null, null,
+                null, "REVERSAL"), PageQuery.of(0, 10))).content()).extracting(ReceiptView::kind).containsExactly("REVERSAL");
+        assertThat(asFinance1(() -> ledger.receipts(new ReceiptFilter(creditorA, agreement.id(), null, null, null, null,
+                receipt.portfolioId(), "PAYMENT"), PageQuery.of(0, 10))).content()).extracting(ReceiptView::kind)
+                .containsExactly("PAYMENT");
+        assertThat(asFinance1(() -> ledger.receipts(new ReceiptFilter(creditorA, agreement.id(), null, null, null, null,
+                UUID.randomUUID(), null), PageQuery.of(0, 10))).content()).isEmpty();
+        assertThatThrownBy(() -> asFinance1(() -> ledger.receipts(new ReceiptFilter(creditorA, null, today, today.minusDays(1),
+                null, null, null, null), PageQuery.of(0, 10)))).isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("fim do período");
         clock.shift(Duration.ofDays(2));
         StatementView next = asFinance1(() -> statements.create(new CreateStatementCommand(creditorA, today,
                 today.plusDays(1))));

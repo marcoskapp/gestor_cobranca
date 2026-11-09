@@ -1,3 +1,4 @@
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { Component, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -39,6 +40,8 @@ import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
   styleUrl: '../incentive.scss',
 })
 export class StatementDetailPage {
+  /** Retorno à lista com os filtros, a página e a rolagem de quando o usuário saiu dela (ux.md §16). */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
 
   private readonly api = inject(CommissionStatementsApi);

@@ -6,7 +6,7 @@
 } @else if (source.status() === 'error') {
   <app-empty-state icon="funnel" tone="error" title="Não foi possível abrir o segmento." message="O segmento pode não existir ou o credor estar fora do seu escopo.">
     <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" (click)="source.reload()">Tentar novamente</button>
-    <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/campanhas/segmentos">Voltar para segmentos</a>
+    <a class="btn btn-link d-inline-flex align-items-center gap-2" [routerLink]="history.linkTo('/campanhas/segmentos')">Voltar para segmentos</a>
   </app-empty-state>
 } @else {
   <app-page-header

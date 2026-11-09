@@ -1,3 +1,4 @@
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -50,6 +51,8 @@ const PAUSE_RULES: readonly { fact: string; pause: string; resume: string }[] = 
   styleUrl: './campaign-detail.scss',
 })
 export class CampaignDetail {
+  /** Retorno à lista com os filtros, a página e a rolagem de quando o usuário saiu dela (ux.md §16). */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
 
   private readonly api = inject(CampaignsApi);

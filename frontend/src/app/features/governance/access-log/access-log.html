@@ -3,6 +3,7 @@
   subtitle="Eventos de autenticação, sessão, negação de acesso e visualização de dados sensíveis."
 />
 
+<app-filter-bar [activeCount]="activeFilters()">
 <form class="app-filters" data-tour="filters" [formGroup]="filters" (ngSubmit)="apply()" role="search" aria-label="Filtrar log de acesso">
   <app-field label="De">
     <div class="input-group">
@@ -51,6 +52,7 @@
     <div class="invalid-feedback d-block w-100" role="alert">A data final não pode ser anterior à inicial.</div>
   }
 </form>
+</app-filter-bar>
 
 <app-data-table
   caption="Log de acesso"

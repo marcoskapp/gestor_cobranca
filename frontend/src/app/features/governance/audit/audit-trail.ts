@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -27,7 +29,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Trilha de auditoria append-only com verificação do encadeamento de hash. */
 @Component({
   selector: 'app-audit-trail',
-  imports: [NgbTooltip, ...FORM_FIELD, Icon,
+  imports: [FilterBar, NgbTooltip, ...FORM_FIELD, Icon,
     ReactiveFormsModule,
     NgbInputDatepicker,
     DataTable,
@@ -136,4 +138,7 @@ export class AuditTrail {
       .pipe(finalize(() => this.checking.set(false)))
       .subscribe((report) => this.integrity.set(report));
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

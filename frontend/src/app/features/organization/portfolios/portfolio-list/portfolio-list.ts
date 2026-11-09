@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -37,7 +39,7 @@ function toPortfolioFilter(v: { creditor: string[]; status: string; q: string })
 
 @Component({
   selector: 'app-portfolio-list',
-  imports: [NgbTooltip, ...FORM_FIELD, Icon,
+  imports: [FilterBar, NgbTooltip, ...FORM_FIELD, Icon,
     ReactiveFormsModule,
     DataTable,
     CellDef,
@@ -130,4 +132,7 @@ export class PortfolioList {
       .afterClosed()
       .subscribe((saved) => saved && this.query.reload());
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

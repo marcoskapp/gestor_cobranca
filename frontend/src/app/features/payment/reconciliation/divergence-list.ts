@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,9 +7,12 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
+import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
 import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
@@ -19,7 +22,9 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
-import { CreditorNames } from '../../organization/data/organization.lookups';
+import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
+import { isoDate, toDateStruct } from '../../../shared/models/dates';
+import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { ReconciliationApi } from '../data/payment.api';
 import { DIVERGENCE_TYPE_LABELS, RESOLUTION_LABELS } from '../data/payment.labels';
 import { DivergenceFilter, DivergenceType, DivergenceView } from '../data/payment.models';
@@ -40,7 +45,7 @@ export const divergenceStatusParam: UrlCodec<string> = {
 /** Fila de divergências da conciliação por tipo, com resolução auditada (justificativa obrigatória). */
 @Component({
   selector: 'app-divergence-list',
-  imports: [Icon, ...FORM_FIELD, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, PageHeader, StatusChip],
+  imports: [Icon, ...FORM_FIELD, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, FilterBar, NgbInputDatepicker, PageHeader, StatusChip],
   template: `
     <app-page-header title="Divergências de conciliação" subtitle="Créditos que o sistema não conseguiu conciliar sozinho. Cada decisão fica registrada com a justificativa.">
       <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/pagamentos/conciliacao">
@@ -48,6 +53,7 @@ export const divergenceStatusParam: UrlCodec<string> = {
         Extratos
       </a>
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar divergências">
       <div class="d-flex flex-wrap gap-2 app-control-offset" role="group" aria-label="Tipo de divergência">
         <input type="radio" class="btn-check" formControlName="type" value="" id="dl-type-all" />
@@ -57,6 +63,9 @@ export const divergenceStatusParam: UrlCodec<string> = {
           <label class="btn btn-outline-primary" [for]="'dl-type-' + t[0]">{{ t[1] }}</label>
         }
       </div>
+      <div class="app-filters__wide">
+        <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+      </div>
       <app-field label="Situação">
         <select appInput formControlName="status">
           <option value="">Todas</option>
@@ -65,7 +74,29 @@ export const divergenceStatusParam: UrlCodec<string> = {
           }
         </select>
       </app-field>
+      <app-field label="Aberta de">
+        <div class="input-group">
+          <input appInput ngbDatepicker #openedFrom="ngbDatepicker" formControlName="openedFrom" placeholder="dd/mm/aaaa" autocomplete="off" [maxDate]="openedToLimit()" />
+          <button type="button" class="btn btn-outline-secondary" aria-label="Abrir calendário (aberta de)" (click)="openedFrom.toggle()">
+            <app-icon name="calendar-event" />
+          </button>
+        </div>
+      </app-field>
+      <app-field label="Aberta até">
+        <div class="input-group">
+          <input appInput ngbDatepicker #openedTo="ngbDatepicker" formControlName="openedTo" placeholder="dd/mm/aaaa" autocomplete="off" [minDate]="openedFromLimit()" />
+          <button type="button" class="btn btn-outline-secondary" aria-label="Abrir calendário (aberta até)" (click)="openedTo.toggle()">
+            <app-icon name="calendar-event" />
+          </button>
+        </div>
+      </app-field>
+      @if (activeFilters()) {
+        <div class="app-filters__actions">
+          <button class="btn btn-link" type="button" (click)="filters.reset()">Limpar filtros</button>
+        </div>
+      }
     </form>
+    </app-filter-bar>
     <app-data-table
       caption="Divergências"
       [rows]="query.rows()"
@@ -134,10 +165,37 @@ export class DivergenceList {
   protected readonly asType = (t: string) => t as DivergenceType;
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  /** Filtros na URL (`?tipo=&situacao=`), preservados ao voltar e usados pelo link de "Minhas pendências". */
-  protected readonly filters = syncFormWithUrl(this.fb.group({ type: [''], status: ['OPEN'] }), {
-    type: urlParam.choice('tipo', Object.keys(DIVERGENCE_TYPE_LABELS)),
-    status: divergenceStatusParam,
+  protected readonly creditorSource = inject(CreditorLookup);
+  /**
+   * Filtros na URL (`?tipo=&situacao=&credor=&aberta-de=&aberta-ate=`), preservados ao voltar e usados pelo link de
+   * "Minhas pendências" e pelo drill-down do painel de confiabilidade (abertas no período, em aberto agora).
+   */
+  protected readonly filters = syncFormWithUrl(
+    this.fb.group({
+      type: [''],
+      status: ['OPEN'],
+      creditor: this.fb.control<string[]>([]),
+      openedFrom: this.fb.control<string | null>(null),
+      openedTo: this.fb.control<string | null>(null),
+    }),
+    {
+      type: urlParam.choice('tipo', Object.keys(DIVERGENCE_TYPE_LABELS)),
+      status: divergenceStatusParam,
+      creditor: urlParam.ids('credor'),
+      openedFrom: urlParam.date('aberta-de'),
+      openedTo: urlParam.date('aberta-ate'),
+    },
+  );
+  protected readonly activeFilters = activeFilterCount(this.filters);
+  private readonly dates = toSignal(this.filters.valueChanges.pipe(startWith(null)), { initialValue: null });
+  /** O intervalo não se inverte: "de" ≤ "até" (limites dos calendários). */
+  protected readonly openedFromLimit = computed(() => {
+    this.dates();
+    return toDateStruct(this.filters.controls.openedFrom.value || '1900-01-01');
+  });
+  protected readonly openedToLimit = computed(() => {
+    this.dates();
+    return toDateStruct(this.filters.controls.openedTo.value || '2100-12-31');
   });
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
@@ -174,6 +232,12 @@ export class DivergenceList {
 
   private current(): DivergenceFilter {
     const v = this.filters.getRawValue();
-    return { type: v.type || null, status: v.status || null };
+    return {
+      type: v.type || null,
+      status: v.status || null,
+      creditorId: v.creditor[0] ?? null,
+      openedFrom: isoDate(v.openedFrom),
+      openedTo: isoDate(v.openedTo),
+    };
   }
 }

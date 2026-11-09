@@ -234,9 +234,10 @@ describe('regras de tela do módulo collection', () => {
 
   describe('gestão', () => {
     it('filtros de casos e contestações', () => {
-      const v = { creditor: [], debtor: [], status: 'ACTIVE', queueId: '', assignee: 'me', user: [], ownerType: '', eligible: 'false' };
+      const v = { creditor: [], portfolio: [], debtor: [], status: 'ACTIVE', queueId: '', assignee: 'me', user: [], ownerType: '', eligible: 'false' };
       expect(toCaseFilter(v)).toEqual({
         creditorId: null,
+        portfolioId: null,
         debtorId: null,
         status: 'OPEN,IN_NEGOTIATION,PROMISE,AGREEMENT,DISPUTED,SUSPENDED,LEGAL',
         queueId: null,
@@ -246,6 +247,7 @@ describe('regras de tela do módulo collection', () => {
       });
       expect(toCaseFilter({ ...v, status: '', assignee: 'user', user: ['u-3'], eligible: '' })).toMatchObject({ status: null, assignee: 'u-3', eligible: null });
       expect(toCaseFilter({ ...v, debtor: ['d-1'] }).debtorId).toBe('d-1');
+      expect(toCaseFilter({ ...v, portfolio: ['p-1'] }).portfolioId).toBe('p-1');
     });
 
     it('critérios da fila em texto e faixas mínimo ≤ máximo', () => {

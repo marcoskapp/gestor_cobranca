@@ -123,7 +123,7 @@ Métricas: `settlement.position.duration{cache}`, `settlement.position.requests{
 | Recurso | Métodos |
 | --- | --- |
 | `/rule-sets` · `/rule-sets/{id}` · `/{id}/publish` · `/{id}/discard` · `/rule-sets/simulate` | `GET`/`POST` · `GET`/`PUT` · `POST` · `POST` · `POST` |
-| `/receipts` · `/receipts/{id}` · `/receipts/rate-pending?creditorId=` | `GET` · `GET` · `POST` |
+| `/receipts` (filtros: `creditorId`, `portfolioId`, `agreementId`, `from`/`to` da competência, `kind` = `PAYMENT`/`REVERSAL`, `ratingStatus`, `inStatement`) · `/receipts/{id}` · `/receipts/rate-pending?creditorId=` | `GET` · `GET` · `POST` |
 | `/statements` · `/statements/period-suggestion` · `/statements/{id}` · `/{id}/receipts` · `/{id}/expenses` | `GET`/`POST` · `GET` · `GET` · `GET` · `GET` |
 | `/statements/{id}/calculate` · `/review` · `/approve` · `/send` · `/acknowledge` · `/contest` · `/cancel` | `POST` |
 | `/statements/{id}/adjustments` · `/adjustments/{id}/approve` · `/adjustments/{id}/reject` | `GET`/`POST` · `POST` · `POST` |

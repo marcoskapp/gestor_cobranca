@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -31,7 +33,7 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
  */
 @Component({
   selector: 'app-token-list',
-  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, CellDef, DataTable, EntityPicker, Icon, PageHeader, AppDatePipe],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, CellDef, DataTable, EntityPicker, Icon, PageHeader, AppDatePipe],
   template: `
     <app-page-header title="Tokens de integração" subtitle="Credenciais dos sistemas dos credores para a API pública. Cada token enxerga um único credor, só com os escopos concedidos.">
       <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="/public-api/docs" target="_blank" rel="noopener">
@@ -45,6 +47,7 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
         </button>
       }
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar tokens">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -58,6 +61,7 @@ import { TokenDialog, TokenDialogData } from './token-dialog';
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
     <app-data-table
       caption="Tokens de integração"
       [rows]="query.rows()"
@@ -165,4 +169,7 @@ export class TokenList {
     const v = this.filters.getRawValue();
     return { creditorId: v.creditor[0] ?? null, status: v.status || null };
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

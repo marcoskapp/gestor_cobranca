@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../../shared/data/filter-count';
 import { Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -33,7 +35,7 @@ function toCreditorFilter(v: { q: string; status: string }): CreditorFilter {
 
 @Component({
   selector: 'app-creditor-list',
-  imports: [NgbTooltip, ...FORM_FIELD, Icon,
+  imports: [FilterBar, NgbTooltip, ...FORM_FIELD, Icon,
     ReactiveFormsModule,
     RouterLink,
     DataTable,
@@ -51,6 +53,7 @@ function toCreditorFilter(v: { q: string; status: string }): CreditorFilter {
       </button>
     </app-page-header>
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar credores" (ngSubmit)="query.reload()">
       <app-field class="app-filters__wide" label="Nome, documento ou código">
   <div class="input-group">
@@ -67,6 +70,7 @@ function toCreditorFilter(v: { q: string; status: string }): CreditorFilter {
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
 
     <app-data-table
       caption="Credores"
@@ -130,4 +134,7 @@ export class CreditorList {
       .afterClosed()
       .subscribe((created) => created && void this.router.navigate(['/organizacao/credores', created.id]));
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

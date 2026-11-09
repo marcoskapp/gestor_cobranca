@@ -1,3 +1,4 @@
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -41,6 +42,8 @@ import { RulesEditor } from './rules-editor';
   styleUrl: './policy-detail.scss',
 })
 export class PolicyDetail {
+  /** Retorno à lista com os filtros, a página e a rolagem de quando o usuário saiu dela (ux.md §16). */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
 
   private readonly api = inject(PoliciesApi);

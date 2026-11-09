@@ -73,7 +73,13 @@ public interface ReconciliationUseCases {
                              UUID paymentId) {
     }
 
-    record DivergenceFilter(String status, String type) {
+    /**
+     * Filtros da lista de divergências (todos opcionais).
+     *
+     * @param creditorId credor (no escopo de quem consulta)
+     * @param openedFrom abertas a partir do dia (inclusive, fuso de operação); {@code openedTo}, até o dia (inclusive)
+     */
+    record DivergenceFilter(String status, String type, UUID creditorId, LocalDate openedFrom, LocalDate openedTo) {
     }
 
     record ResolveCommand(String resolution, UUID paymentId, String note) {

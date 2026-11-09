@@ -2,6 +2,7 @@ import { Component, computed, input, signal } from '@angular/core';
 import { ChartRow, ChartSeries } from './chart.models';
 import { Icon } from '../../../shared/components/icon/icon';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { DrillLink } from './drill-link';
 
 let nextId = 0;
 
@@ -12,7 +13,7 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-bar-chart',
-  imports: [Icon, InfoHint],
+  imports: [Icon, InfoHint, DrillLink],
   template: `
     <figure class="bc" [attr.aria-labelledby]="id + '-t'" [attr.aria-describedby]="id + '-s'">
       <div class="bc__head">
@@ -54,7 +55,7 @@ let nextId = 0;
             <tbody>
               @for (r of rows(); track r.key) {
                 <tr>
-                  <th scope="row">{{ r.label }}</th>
+                  <th scope="row"><app-drill-link [to]="r.link ?? null">{{ r.label }}</app-drill-link></th>
                   @for (d of r.display; track $index) {
                     <td class="num app-numeric">{{ d }}</td>
                   }
@@ -70,7 +71,7 @@ let nextId = 0;
         <ol class="bc__rows" (pointerleave)="hover.set(null)">
           @for (r of rows(); track r.key) {
             <li class="bc__row">
-              <span class="bc__label" [title]="r.label">{{ r.label }}</span>
+              <span class="bc__label" [title]="r.label"><app-drill-link [to]="r.link ?? null">{{ r.label }}</app-drill-link></span>
               <span class="bc__bars">
                 @for (v of r.values; track $index; let i = $index) {
                   <span

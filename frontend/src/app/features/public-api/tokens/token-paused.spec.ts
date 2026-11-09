@@ -60,14 +60,16 @@ describe('token pausado pela plataforma (visão da assessoria)', () => {
     expect(text).toContain('laço de chamadas');
     expect(text).toContain('Volta a valer automaticamente');
     const labels = [...el.querySelectorAll('button')].map((b) => b.textContent?.trim());
-    expect(labels).toEqual(expect.arrayContaining(['Editar', 'Rotacionar', 'Revogar']));
+    expect(labels).toEqual(expect.arrayContaining(['Editar', 'Rotacionar', 'Revogar token']));
+    // destrutiva no "Mais ações" (ux.md §12.2), em vermelho
+    expect(el.querySelector('app-more-actions .dropdown-item.text-danger-emphasis')?.textContent?.trim()).toBe('Revogar token');
     expect(labels.some((l) => l?.includes('Retomar'))).toBe(false);
   });
 
   it('sem as permissões dos escopos do token, Editar e Rotacionar ficam ocultos e Revogar continua (decisão 850)', async () => {
     const el = await render(token({ state: 'ACTIVE' }), ['PUBLIC_API_TOKEN_VIEW', 'PUBLIC_API_TOKEN_MANAGE']);
     const labels = [...el.querySelectorAll('button')].map((b) => b.textContent?.trim());
-    expect(labels).toContain('Revogar');
+    expect(labels).toContain('Revogar token');
     expect(labels).not.toContain('Editar');
     expect(labels).not.toContain('Rotacionar');
   });

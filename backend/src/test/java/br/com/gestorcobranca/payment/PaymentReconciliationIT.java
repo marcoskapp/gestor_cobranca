@@ -11,9 +11,12 @@ import br.com.gestorcobranca.payment.application.port.in.ReconciliationUseCases.
 import br.com.gestorcobranca.payment.application.port.in.ReconciliationUseCases.ResolveCommand;
 import br.com.gestorcobranca.payment.application.port.in.ReconciliationUseCases.StatementImportView;
 import br.com.gestorcobranca.payment.application.port.in.ReconciliationUseCases.StatementUpload;
+import br.com.gestorcobranca.identity.domain.model.DefaultRoles;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.security.CreditorScope;
+import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -22,10 +25,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * Conciliação (F15) contra PostgreSQL real: arquivo de retorno confirma instrução sem webhook (e o
@@ -116,10 +121,27 @@ class PaymentReconciliationIT extends PaymentTestSupport {
         assertThat(overlap.divergentLines()).isEqualTo(1);
         assertThat(count("select count(*) from payment.payment")).isEqualTo(3);
 
-        List<DivergenceView> open = asFinance2(() -> reconciliation.divergences(new DivergenceFilter("OPEN", null),
+        List<DivergenceView> open = asFinance2(() -> reconciliation.divergences(new DivergenceFilter("OPEN", null, null, null, null),
                 PageQuery.of(0, 20))).content();
         assertThat(open).extracting(DivergenceView::type)
                 .containsExactlyInAnyOrder("UNMATCHED", "AMOUNT_MISMATCH", "UNMATCHED");
+        // filtros do drill-down do painel de confiabilidade: abertas no período (dia no fuso de operação) e credor
+        assertThat(asFinance2(() -> reconciliation.divergences(new DivergenceFilter("OPEN", null, null, today, today),
+                PageQuery.of(0, 20))).content()).hasSize(3);
+        assertThat(asFinance2(() -> reconciliation.divergences(new DivergenceFilter("OPEN", null, null,
+                today.minusDays(3), today.minusDays(1)), PageQuery.of(0, 20))).content()).isEmpty();
+        // com credor: só as desse credor (as sem credor identificado ficam de fora); a de valor diferente é do DOC-1 (credor B)
+        assertThat(asFinance2(() -> reconciliation.divergences(new DivergenceFilter("OPEN", null, creditorB, null, null),
+                PageQuery.of(0, 20))).content()).extracting(DivergenceView::type, DivergenceView::creditorId)
+                .containsExactly(tuple("AMOUNT_MISMATCH", creditorB));
+        assertThat(asFinance2(() -> reconciliation.divergences(new DivergenceFilter("OPEN", null, creditorA, null, null),
+                PageQuery.of(0, 20))).content()).isEmpty();
+        // credor fora do escopo de quem consulta: recusado
+        assertThatThrownBy(() -> as(finance1, DefaultRoles.FINANCEIRO, CreditorScope.of(Set.of(creditorB)),
+                () -> reconciliation.divergences(new DivergenceFilter(null, null, creditorA, null, null), PageQuery.of(0, 20))))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThatThrownBy(() -> asFinance2(() -> reconciliation.divergences(new DivergenceFilter(null, null, null,
+                today, today.minusDays(1)), PageQuery.of(0, 20)))).isInstanceOf(BusinessRuleException.class);
         DivergenceView unidentified = open.stream().filter(d -> d.type().equals("UNMATCHED")
                 && d.amount().compareTo(new BigDecimal("77.00")) == 0).findFirst().orElseThrow();
         assertThat(unidentified.description()).doesNotContain("529.982.247-25").contains("CREDITO NAO IDENTIFICADO");

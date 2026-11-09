@@ -1,3 +1,4 @@
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -40,6 +41,8 @@ import { CriteriaEditor } from './criteria-editor';
   styleUrl: './segment-editor.scss',
 })
 export class SegmentEditor {
+  /** Retorno à lista com os filtros, a página e a rolagem de quando o usuário saiu dela (ux.md §16). */
+  protected readonly history = inject(NavigationHistory);
   /** Segmento aberto (ausente em `/novo`). */
   readonly id = input<string>();
   /** `?copiar=<id>`: novo segmento a partir de outro. */

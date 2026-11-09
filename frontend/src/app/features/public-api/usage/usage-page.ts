@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -37,7 +39,7 @@ function isoDay(date: Date): string {
  */
 @Component({
   selector: 'app-public-api-usage',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, BarChart, ColumnChart, EmptyState, EntityPicker, Icon, KpiCard, PageHeader, Skeleton],
+  imports: [FilterBar, ReactiveFormsModule, ...FORM_FIELD, BarChart, ColumnChart, EmptyState, EntityPicker, Icon, KpiCard, PageHeader, Skeleton],
   template: `
     <app-page-header title="Consumo da API pública" subtitle="Requisições, dados trafegados e registros processados pelos tokens dos credores. Base do extrato mensal.">
       @if (canExport()) {
@@ -47,6 +49,7 @@ function isoDay(date: Date): string {
         </button>
       }
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar consumo">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -63,6 +66,7 @@ function isoDay(date: Date): string {
         </div>
       }
     </form>
+    </app-filter-bar>
 
     @if (report.isLoading() && !data()) {
       <app-skeleton variant="card" [rows]="5" />
@@ -181,4 +185,8 @@ export class UsagePage {
     const v = this.filters.getRawValue();
     return { from: v.from, to: v.to, creditorId: v.creditor[0] ?? null, tokenId: v.token || null };
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  /** O token pode vir da URL (atalho da ficha do token): o padrão da tela é sem token, então ele conta como filtro. */
+  protected readonly activeFilters = activeFilterCount(this.filters, { defaults: { token: '' } });
 }

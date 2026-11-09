@@ -3,7 +3,7 @@
 } @else if (resource.status() === 'error') {
   <app-empty-state icon="telephone-forward" tone="error" title="Não foi possível abrir a campanha." message="Ela pode não existir ou estar fora do seu escopo de credores.">
     <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a class="btn btn-link" routerLink="/telefonia/campanhas">Voltar para campanhas</a>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/telefonia/campanhas')">Voltar para campanhas</a>
   </app-empty-state>
 }
 

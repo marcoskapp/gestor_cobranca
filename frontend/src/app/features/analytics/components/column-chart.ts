@@ -2,6 +2,7 @@ import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, i
 import { ChartRow, ChartSeries } from './chart.models';
 import { Icon } from '../../../shared/components/icon/icon';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { DrillLink } from './drill-link';
 
 let nextId = 0;
 
@@ -17,7 +18,7 @@ const AXIS_COUNT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
  */
 @Component({
   selector: 'app-column-chart',
-  imports: [Icon, InfoHint],
+  imports: [Icon, InfoHint, DrillLink],
   template: `
     <figure class="cc" [attr.aria-labelledby]="id + '-t'" [attr.aria-describedby]="id + '-s'">
       <div class="cc__head">
@@ -43,7 +44,7 @@ const AXIS_COUNT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
             </thead>
             <tbody>
               @for (r of rows(); track r.key) {
-                <tr><th scope="row">{{ r.label }}</th><td class="num app-numeric">{{ r.display[0] }}</td>@if (hasNotes()) {<td>{{ r.note ?? '' }}</td>}</tr>
+                <tr><th scope="row"><app-drill-link [to]="r.link ?? null">{{ r.label }}</app-drill-link></th><td class="num app-numeric">{{ r.display[0] }}</td>@if (hasNotes()) {<td>{{ r.note ?? '' }}</td>}</tr>
               }
             </tbody>
           </table>

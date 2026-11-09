@@ -6,22 +6,18 @@
 } @else if (resource.status() === 'error') {
   <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o modelo." message="Verifique a conexão e tente novamente.">
     <button class="btn btn-outline-secondary" type="button" (click)="resource.reload()">Tentar novamente</button>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/score/modelos')">Voltar para modelos</a>
   </app-empty-state>
 } @else if (model(); as m) {
   @let act = actions()!;
   <app-page-header [title]="title()" [subtitle]="m.description ?? 'Desfecho: pagamento confirmado em até ' + m.outcomeDays + ' dias'">
-    @if (act.reject) {
-      <button type="button" class="btn btn-outline-danger d-inline-flex align-items-center gap-2" (click)="decide('REJECT')" data-tour="scoring-reject">
-        <app-icon name="x-circle" />
-        Rejeitar
-      </button>
-    }
     @if (act.promote) {
       <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2" (click)="decide('PROMOTE')" data-tour="scoring-promote">
         <app-icon name="patch-check" />
         Promover a campeão
       </button>
     }
+    <app-more-actions [actions]="moreActions()" data-tour="scoring-reject" />
   </app-page-header>
 
   <div class="pd-status">

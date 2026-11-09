@@ -41,6 +41,15 @@ public interface ReceiptRepository {
     /**
      * @param creditorIds credores visíveis; {@code null} = todos
      */
-    Page<Receipt> search(Collection<UUID> creditorIds, UUID creditorId, UUID agreementId, LocalDate from, LocalDate to,
-                         RatingStatus ratingStatus, Boolean inStatement, Pageable pageable);
+    Page<Receipt> search(Collection<UUID> creditorIds, Criteria criteria, Pageable pageable);
+
+    /**
+     * Filtros da consulta do razão (todos opcionais).
+     *
+     * @param from competência a partir de (inclusive); {@code to}, até (inclusive)
+     * @param kind recebimentos ou estornos; {@code null} = os dois
+     */
+    record Criteria(UUID creditorId, UUID portfolioId, UUID agreementId, LocalDate from, LocalDate to,
+                    RatingStatus ratingStatus, Boolean inStatement, ReceiptKind kind) {
+    }
 }

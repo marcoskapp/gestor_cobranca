@@ -9,6 +9,9 @@ import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
+import { clearOnChange } from '../../../shared/data/dependent-filter';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { nameMap } from '../../../shared/data/name-map';
@@ -20,7 +23,7 @@ import { statusOptions } from '../../../shared/status/status';
 import { UserLookup } from '../../admin/data/user.lookup';
 import { OverdueBadge } from '../../debt/components/overdue-badge';
 import { DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
-import { CreditorLookup, CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
+import { CreditorLookup, CreditorNames, PortfolioLookup, PortfolioNames } from '../../organization/data/organization.lookups';
 import { CasesApi } from '../data/collection.api';
 import { OWNER_LABELS, eligibilityText } from '../data/collection.labels';
 import { QueueNames, UserNames } from '../data/collection.lookups';
@@ -34,6 +37,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
 
 interface CaseFormValue {
   creditor: string[];
+  portfolio: string[];
   debtor: string[];
   status: string;
   queueId: string;
@@ -47,6 +51,7 @@ interface CaseFormValue {
 export function toCaseFilter(v: CaseFormValue): CaseFilter {
   return {
     creditorId: v.creditor[0] ?? null,
+    portfolioId: v.portfolio[0] ?? null,
     debtorId: v.debtor[0] ?? null,
     status: v.status === 'ACTIVE' ? 'OPEN,IN_NEGOTIATION,PROMISE,AGREEMENT,DISPUTED,SUSPENDED,LEGAL' : v.status || null,
     queueId: v.queueId || null,
@@ -59,7 +64,7 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
 /** Consulta de casos para supervisão: filtros por credor, fila, responsável e elegibilidade, com atribuição manual. */
 @Component({
   selector: 'app-case-list',
-  imports: [ReactiveFormsModule, RouterLink, Amount, CellDef, DataTable, EntityPicker, OverdueBadge, PageHeader, StatusChip, Icon, NgbTooltip, ...FORM_FIELD],
+  imports: [ReactiveFormsModule, RouterLink, Amount, CellDef, DataTable, EntityPicker, FilterBar, OverdueBadge, PageHeader, StatusChip, Icon, NgbTooltip, ...FORM_FIELD],
   template: `
     <app-page-header title="Casos de cobrança" subtitle="Casos por devedor e carteira, com situação, elegibilidade e responsável pelo atendimento.">
       @if (canQueues()) {
@@ -70,6 +75,7 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
       }
     </app-page-header>
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar casos">
       @if (canSearchDebtors()) {
         <div class="app-filters__wide">
@@ -78,6 +84,9 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
       }
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+      </div>
+      <div class="app-filters__wide">
+        <app-entity-picker [control]="filters.controls.portfolio" [source]="portfolioSource" label="Carteira" [single]="true" />
       </div>
       <app-field label="Situação">
         <select appInput formControlName="status">
@@ -126,6 +135,7 @@ export function toCaseFilter(v: CaseFormValue): CaseFilter {
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
 
     <app-data-table
       caption="Casos de cobrança"
@@ -199,6 +209,7 @@ export class CaseList {
   protected readonly filters = syncFormWithUrl(
     this.fb.group({
       creditor: this.fb.control<string[]>([]),
+      portfolio: this.fb.control<string[]>([]),
       debtor: this.fb.control<string[]>([]),
       status: ['ACTIVE'],
       queueId: [''],
@@ -209,6 +220,7 @@ export class CaseList {
     }),
     {
       creditor: urlParam.ids('credor'),
+      portfolio: urlParam.ids('carteira'),
       debtor: urlParam.ids('devedor'),
       status: urlParam.text('situacao'),
       queueId: urlParam.id('fila'),
@@ -218,6 +230,15 @@ export class CaseList {
       eligible: urlParam.choice('elegivel', ['true', 'false']),
     },
   );
+
+  /** "Filtros (n)" no celular; o operador escolhido conta junto com "Responsável". */
+  protected readonly activeFilters = activeFilterCount(this.filters, { ignore: ['user'] });
+  protected readonly portfolioSource = inject(PortfolioLookup).source(() => this.filters.controls.creditor.value[0] ?? null);
+
+  constructor() {
+    // a carteira é do credor: trocar o credor limpa a carteira escolhida
+    clearOnChange(this.filters.controls.creditor, this.filters.controls.portfolio, [] as string[]);
+  }
 
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(

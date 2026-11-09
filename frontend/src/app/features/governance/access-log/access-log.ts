@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -23,7 +25,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
 /** Consulta do log de acesso (autenticação, sessões, negações e acessos a dados sensíveis). */
 @Component({
   selector: 'app-access-log',
-  imports: [NgbTooltip, ...FORM_FIELD, Icon,
+  imports: [FilterBar, NgbTooltip, ...FORM_FIELD, Icon,
     ReactiveFormsModule,
     NgbInputDatepicker,
     DataTable,
@@ -118,4 +120,7 @@ export class AccessLog {
     this.filters.reset();
     this.apply();
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

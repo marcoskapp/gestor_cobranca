@@ -26,6 +26,7 @@ import { SummaryStep } from './summary-step';
 import { TotalsStep } from './totals-step';
 import { ValidationStep } from './validation-step';
 import { Icon } from '../../../shared/components/icon/icon';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
 
 /**
  * Conferência da importação em seis passos (`docs/tecnico/desenho/importacao.md`), com o estado salvo no servidor:
@@ -37,6 +38,7 @@ import { Icon } from '../../../shared/components/icon/icon';
     RouterLink,
     Icon,
     EmptyState,
+    MoreActions,
     PageHeader,
     Skeleton,
     StatusChip,
@@ -58,9 +60,7 @@ import { Icon } from '../../../shared/components/icon/icon';
     }
     @if (current(); as r) {
       <app-page-header title="Conferência da importação" [subtitle]="(r.batch.fileName || 'Registros') + ' · ' + creditors.name(r.creditorId) + ' · ' + portfolios.name(r.portfolioId)">
-        @if (canExecute() && (r.status === 'OPEN' || r.status === 'AWAITING_APPROVAL')) {
-          <button class="btn btn-outline-secondary" type="button" (click)="cancel(r)"><app-icon name="x-circle" /> Cancelar conferência</button>
-        }
+        <app-more-actions [actions]="moreActions()" />
       </app-page-header>
 
       <div class="rw-status" role="status" aria-live="polite">
@@ -264,6 +264,13 @@ export class ReviewWizard {
 
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.resource, undefined);
+  /** Cancelar a conferência (o lote não é gravado) fica no "Mais ações" (ux.md §12.2), com a confirmação de sempre. */
+  protected readonly moreActions = computed<MoreAction[]>(() => {
+    const r = this.current();
+    return r && this.canExecute() && (r.status === 'OPEN' || r.status === 'AWAITING_APPROVAL')
+      ? [{ id: 'cancel', label: 'Cancelar conferência', icon: 'x-circle', danger: true, run: () => this.cancel(r) }]
+      : [];
+  });
   protected readonly reachable = computed(() => (this.current() ? reachableSteps(this.current()!) : [1]));
   protected readonly creditors = nameMap(inject(CreditorNames), () => [this.current()?.creditorId]);
   protected readonly portfolios = nameMap(inject(PortfolioNames), () => [this.current()?.portfolioId]);

@@ -3,7 +3,7 @@
 } @else if (resource.status() === 'error') {
   <app-empty-state icon="sliders" tone="error" title="Não foi possível abrir as regras do plano." message="A versão pode ter sido descartada.">
     <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a class="btn btn-link" routerLink="/remuneracao/planos">Voltar para planos</a>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/remuneracao/planos')">Voltar para planos</a>
   </app-empty-state>
 } @else if (plan(); as p) {
   @if (p.status !== 'DRAFT') {

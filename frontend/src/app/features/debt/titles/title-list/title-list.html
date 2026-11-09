@@ -1,5 +1,6 @@
 <app-page-header title="Títulos" subtitle="Dívidas em cobrança e o histórico das já encerradas, nos credores do seu escopo." />
 
+<app-filter-bar [activeCount]="activeFilters()">
 <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar títulos" (ngSubmit)="query.reload()">
   <div class="app-filters__wide">
     <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -49,6 +50,7 @@
     <button class="btn btn-link" type="button" (click)="clear()">Limpar filtros</button>
   </div>
 </form>
+</app-filter-bar>
 
 <app-data-table
   caption="Títulos"

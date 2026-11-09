@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -30,7 +32,7 @@ import { monthLabel, monthOptions } from '../data/incentive.rules';
  */
 @Component({
   selector: 'app-incentive-statement-list',
-  imports: [ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Amount, CellDef, DataTable, EntityPicker, Icon, PageHeader, StatusChip],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, NgbTooltip, ...FORM_FIELD, Amount, CellDef, DataTable, EntityPicker, Icon, PageHeader, StatusChip],
   template: `
     <app-page-header title="Extratos de comissão" subtitle="Remuneração variável apurada por período, com memória de cálculo, contestação e aprovação.">
       <a class="btn btn-outline-secondary" routerLink="/remuneracao/extratos/previa" data-tour="statement-preview">
@@ -38,6 +40,7 @@ import { monthLabel, monthOptions } from '../data/incentive.rules';
         Prévia do período atual
       </a>
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar extratos">
       <app-field label="Período">
         <select appInput formControlName="period">
@@ -61,6 +64,7 @@ import { monthLabel, monthOptions } from '../data/incentive.rules';
         </div>
       }
     </form>
+    </app-filter-bar>
     <app-data-table
       caption="Extratos de comissão"
       [rows]="query.rows()"
@@ -155,4 +159,7 @@ export class StatementList {
     const v = this.filters.getRawValue();
     return { period: v.period || null, status: v.status || null, userId: v.user[0] ?? null };
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

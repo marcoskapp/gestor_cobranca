@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -31,7 +33,7 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
 /** Pagamentos recebidos (Pix integrado, extrato e informados), filtráveis por situação, origem, credor e período. */
 @Component({
   selector: 'app-payment-list',
-  imports: [
+  imports: [FilterBar, 
     Icon,
     NgbInputDatepicker,
     NgbTooltip,
@@ -55,6 +57,7 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
         </button>
       }
     </app-page-header>
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar pagamentos">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -108,6 +111,7 @@ import { PaymentFilter, PaymentView } from '../data/payment.models';
         <button class="btn btn-link" type="button" (click)="clear()">Limpar filtros</button>
       </div>
     </form>
+    </app-filter-bar>
     <app-data-table
       caption="Pagamentos"
       [rows]="query.rows()"
@@ -254,4 +258,7 @@ export class PaymentList {
       withBalance: v.withBalance || null,
     };
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

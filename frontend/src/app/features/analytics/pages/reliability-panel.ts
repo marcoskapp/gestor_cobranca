@@ -14,6 +14,8 @@ import { AnalyticsApi } from '../data/analytics.api';
 import { count, decimal, percent, ratioDetail, seconds } from '../data/analytics.format';
 import { CountRow } from '../data/analytics.models';
 import { urlFilter } from '../data/url-filter';
+import { divergencesTarget, drillAccess } from '../data/drill-down';
+import { DrillLink } from '../components/drill-link';
 
 /**
  * Confiabilidade da operação: falhas de integração (instruções de pagamento, chamadas, extratos),
@@ -22,7 +24,7 @@ import { urlFilter } from '../data/url-filter';
  */
 @Component({
   selector: 'app-reliability-panel',
-  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, InfoHint, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, DrillLink, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Confiabilidade" subtitle="Falhas de integração, mensagens, conciliação, processamentos e importações."
                      report="reliability" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
@@ -40,7 +42,7 @@ import { urlFilter } from '../data/url-filter';
           <app-kpi-card label="Falha em instruções de pagamento" info="analytics.reliability.instruction-failures" data-tour="kpi-instructions" [detail]="ratioDetail(r.integrations.instructionFailureRate) + ' geradas'">{{ percent(r.integrations.instructionFailureRate) }}</app-kpi-card>
           <app-kpi-card label="Mensagens com falha" info="analytics.reliability.message-failures" data-tour="kpi-messages" [detail]="ratioDetail(r.messages.failureRate) + ' enviadas'">{{ percent(r.messages.failureRate) }}</app-kpi-card>
           <app-kpi-card label="Chamadas com falha" info="analytics.reliability.call-failures" [detail]="ratioDetail(r.integrations.callFailureRate) + ' chamadas'">{{ percent(r.integrations.callFailureRate) }}</app-kpi-card>
-          <app-kpi-card label="Divergências em aberto" info="analytics.reliability.divergences" data-tour="kpi-divergences" [detail]="count(r.reconciliation.opened) + ' abertas no período'">{{ count(r.reconciliation.openNow) }}</app-kpi-card>
+          <app-kpi-card label="Divergências em aberto" info="analytics.reliability.divergences" data-tour="kpi-divergences" [detail]="count(r.reconciliation.opened) + ' abertas no período'"><app-drill-link [to]="divergenceLinks().openNow">{{ count(r.reconciliation.openNow) }}</app-drill-link></app-kpi-card>
           @if (r.jobs; as j) {
             <app-kpi-card label="Processamentos em falha (DEAD)" info="analytics.reliability.dead-jobs" [detail]="percent(j.deadRate) + ' dos concluídos no período'">{{ count(j.deadNow) }}</app-kpi-card>
           }
@@ -62,11 +64,11 @@ import { urlFilter } from '../data/url-filter';
             <h2 class="app-card__title" id="rl-rec">Conciliação e duplicidades <app-info-hint indicator="analytics.reliability.divergences" label="Divergências de conciliação" /></h2>
             <table class="pn__table">
               <tbody>
-                <tr><th scope="row">Divergências abertas no período</th><td class="num app-numeric">{{ count(r.reconciliation.opened) }}</td></tr>
+                <tr><th scope="row">Divergências abertas no período</th><td class="num app-numeric"><app-drill-link [to]="divergenceLinks().opened">{{ count(r.reconciliation.opened) }}</app-drill-link></td></tr>
                 @for (d of r.reconciliation.openedByType; track d.key) {
-                  <tr><th scope="row">&nbsp;&nbsp;{{ divergenceLabels[d.key] ?? d.key }}</th><td class="num app-numeric">{{ count(d.count) }}</td></tr>
+                  <tr><th scope="row">&nbsp;&nbsp;{{ divergenceLabels[d.key] ?? d.key }}</th><td class="num app-numeric"><app-drill-link [to]="openedOfType(d.key)">{{ count(d.count) }}</app-drill-link></td></tr>
                 }
-                <tr><th scope="row">Em aberto agora</th><td class="num">{{ count(r.reconciliation.openNow) }} · <app-amount [value]="r.reconciliation.openNowAmount" /></td></tr>
+                <tr><th scope="row">Em aberto agora</th><td class="num"><app-drill-link [to]="divergenceLinks().openNow">{{ count(r.reconciliation.openNow) }}</app-drill-link> · <app-amount [value]="r.reconciliation.openNowAmount" /></td></tr>
                 <tr><th scope="row">Resolvidas no período (mediana)</th><td class="num">{{ count(r.reconciliation.resolved) }} · {{ decimal(r.reconciliation.medianResolutionHours) }} h</td></tr>
                 <tr><th scope="row">Linhas de extrato duplicadas <app-info-hint indicator="analytics.reliability.duplicate-lines" label="Linhas de extrato duplicadas" /></th><td class="num">{{ percent(r.messages.duplicateLineRate) }}<span class="sub">{{ ratioDetail(r.messages.duplicateLineRate) }}</span></td></tr>
                 <tr><th scope="row">Extratos com falha <app-info-hint indicator="analytics.reliability.statement-failures" label="Extratos com falha" /></th><td class="num app-numeric">{{ count(r.integrations.statementImportsFailed) }} de {{ count(r.integrations.statementImports) }}</td></tr>
@@ -117,6 +119,26 @@ export class ReliabilityPanel {
   protected readonly data = rxResource({ params: () => this.state.filter(), stream: ({ params }) => this.api.reliability(params) });
   protected readonly report = valueOr(this.data, undefined);
   protected readonly empty = computed(() => !this.report());
+
+  /**
+   * Drill-down às divergências de conciliação (em aberto agora e abertas no período, por tipo). Instruções, chamadas,
+   * mensagens, extratos, processamentos e importações não têm lista com o mesmo recorte (período de criação e situação
+   * do painel): sem link — ver docs/tecnico/desenho/analytics.md.
+   */
+  private readonly access = drillAccess();
+  protected readonly divergenceLinks = computed(() => {
+    const f = this.state.filter();
+    const period = { situacao: 'todas', 'aberta-de': f.from, 'aberta-ate': f.to };
+    return {
+      openNow: this.access(divergencesTarget(f, {}, 'ver as divergências em aberto')),
+      opened: this.access(divergencesTarget(f, period, 'ver as divergências abertas no período')),
+      byType: new Map(Object.keys(this.divergenceLabels).map((type) => [type, this.access(divergencesTarget(f, { ...period, tipo: type }, 'ver as divergências deste tipo abertas no período'))])),
+    };
+  });
+
+  protected openedOfType(type: string) {
+    return this.divergenceLinks().byType.get(type) ?? null;
+  }
 
   protected countRows(rows: CountRow[]): ChartRow[] {
     return rows.slice(0, 10).map((r) => ({ key: r.key, label: r.label, values: [r.count], display: [count(r.count)] }));

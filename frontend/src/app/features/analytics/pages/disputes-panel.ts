@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -16,6 +16,8 @@ import { AnalyticsApi } from '../data/analytics.api';
 import { count, days, decimal, num, percent, ratioDetail } from '../data/analytics.format';
 import { DisputeRow } from '../data/analytics.models';
 import { urlFilter } from '../data/url-filter';
+import { DrillTarget, disputesTarget, drillAccess, todayIso, withRow } from '../data/drill-down';
+import { DrillLink } from '../components/drill-link';
 
 const TYPE_LABELS: Record<string, string> = {
   NOT_RECOGNIZED: 'Não reconhece a dívida',
@@ -40,7 +42,7 @@ const ORIGIN_LABELS: Record<string, string> = {
  */
 @Component({
   selector: 'app-disputes-panel',
-  imports: [RouterLink, EmptyState, Skeleton, AnalyticsFilters, BarChart, InfoHint, KpiCard, PanelFrame],
+  imports: [RouterLink, EmptyState, Skeleton, AnalyticsFilters, BarChart, DrillLink, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Contestações" subtitle="Volume, prazos, procedência, retorno do credor e fila por responsável."
                      report="disputes" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
@@ -56,7 +58,7 @@ const ORIGIN_LABELS: Record<string, string> = {
         @let t = r.totals;
         <section class="app-kpi-grid" aria-label="Indicadores de contestações" data-tour="analytics-kpis">
           <app-kpi-card label="Abertas no período" info="analytics.disputes.opened" [detail]="count(t.resolved) + ' resolvidas · ' + count(t.withdrawn) + ' desistências'">{{ count(t.opened) }}</app-kpi-card>
-          <app-kpi-card label="Em aberto agora" info="analytics.disputes.open-now" data-tour="kpi-disputes-open" [detail]="count(t.overdueNow) + ' com prazo de resposta vencido'">{{ count(t.openNow) }}</app-kpi-card>
+          <app-kpi-card label="Em aberto agora" info="analytics.disputes.open-now" data-tour="kpi-disputes-open" [detail]="count(t.overdueNow) + ' com prazo de resposta vencido'"><app-drill-link [to]="openNowLink()">{{ count(t.openNow) }}</app-drill-link></app-kpi-card>
           <app-kpi-card label="Resolvidas no prazo" info="analytics.disputes.within-deadline" data-tour="kpi-disputes-deadline" [detail]="ratioDetail(t.withinDeadline) + ' resolvidas'">{{ percent(t.withinDeadline) }}</app-kpi-card>
           <app-kpi-card label="Tempo médio de resolução" info="analytics.disputes.resolution-time" [detail]="'sobre ' + count(t.resolved) + ' resolvidas'">{{ days(t.averageResolutionDays) }}</app-kpi-card>
           <app-kpi-card label="Procedência" info="analytics.disputes.upheld-rate" data-tour="kpi-disputes-upheld" [detail]="ratioDetail(t.upheldRate) + ' resolvidas'">{{ percent(t.upheldRate) }}</app-kpi-card>
@@ -97,7 +99,7 @@ const ORIGIN_LABELS: Record<string, string> = {
                   <td class="num">{{ percent(row.withinDeadline) }}<span class="sub">{{ ratioDetail(row.withinDeadline) }}</span></td>
                   <td class="num">{{ percent(row.upheldRate) }}<span class="sub">{{ ratioDetail(row.upheldRate) }}</span></td>
                   <td class="num">{{ days(row.averageResolutionDays) }}</td>
-                  <td class="num app-numeric">{{ count(row.openNow) }} ({{ count(row.overdueNow) }})</td>
+                  <td class="num app-numeric"><app-drill-link [to]="creditorLinks().get(row.key) ?? null">{{ count(row.openNow) }}</app-drill-link> ({{ count(row.overdueNow) }})</td>
                   <td class="num">{{ hours(row.averageCreditorResponseHours) }}<span class="sub">{{ count(row.creditorRequestsAnswered) }} respondidos</span></td>
                 </tr>
               } @empty {
@@ -160,6 +162,23 @@ export class DisputesPanel {
 
   protected readonly data = rxResource({ params: () => this.state.filter(), stream: ({ params }) => this.api.disputes(params) });
   protected readonly report = valueOr(this.data, undefined);
+
+  /**
+   * Drill-down à fila de contestações (situação atual: abertas ou em análise), só quando o "agora" do painel é hoje e
+   * sem carteira (a fila não filtra carteira). Abertas, resolvidas e procedência são do período, que a fila não filtra:
+   * sem link.
+   */
+  private readonly access = drillAccess();
+  protected readonly openNowLink = computed(() => this.access(disputesTarget(this.state.filter(), todayIso(), {}, 'ver as contestações em aberto na fila')));
+  protected readonly creditorLinks = computed(() => {
+    const f = this.state.filter();
+    const out = new Map<string, DrillTarget | null>();
+    for (const row of this.report()?.byCreditor ?? []) {
+      const scoped = withRow(f, 'CREDITOR', row.key);
+      out.set(row.key, scoped ? this.access(disputesTarget(scoped, todayIso(), {}, 'ver as contestações em aberto deste credor na fila')) : null);
+    }
+    return out;
+  });
 
   protected hours(value: string | number | null): string {
     return value === null ? '—' : `${decimal(value)} h`;

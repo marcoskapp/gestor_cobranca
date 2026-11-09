@@ -10,6 +10,8 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { Icon } from '../../../shared/components/icon/icon';
+import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
+import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { nameMap } from '../../../shared/data/name-map';
@@ -29,13 +31,14 @@ import { SCOPE_PERMISSIONS, TokenDialog, TokenDialogData } from './token-dialog'
  */
 @Component({
   selector: 'app-token-detail',
-  imports: [RouterLink, AppDatePipe, EmptyState, Icon, PageHeader, Skeleton],
+  imports: [RouterLink, AppDatePipe, EmptyState, Icon, MoreActions, PageHeader, Skeleton],
   template: `
     @if (resource.isLoading() && !token()) {
       <app-skeleton variant="card" [rows]="6" />
     } @else if (resource.status() === 'error') {
       <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o token." message="Verifique a conexão e tente novamente.">
         <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
+        <a class="btn btn-link" [routerLink]="history.linkTo('/integracoes/tokens')">Voltar para tokens</a>
       </app-empty-state>
     } @else if (token(); as t) {
       <app-page-header [title]="t.name" [subtitle]="creditors.name(t.creditorId) + ' · ' + t.prefix">
@@ -50,13 +53,9 @@ import { SCOPE_PERMISSIONS, TokenDialog, TokenDialogData } from './token-dialog'
               Rotacionar
             </button>
           }
-          <button class="btn btn-outline-danger d-inline-flex align-items-center gap-2" type="button" (click)="revoke(t)" [disabled]="busy()" data-tour="token-revoke">
-            <app-icon name="slash-circle" />
-            Revogar
-          </button>
         }
+        <app-more-actions [actions]="moreActions()" data-tour="token-revoke" />
       </app-page-header>
-      <p><a routerLink="/integracoes/tokens">← Tokens de integração</a></p>
       @if (t.state === 'PAUSED') {
         <div class="alert alert-warning d-flex gap-2 align-items-start" role="status" data-tour="token-paused">
           <app-icon name="pause-circle" />
@@ -161,6 +160,15 @@ export class TokenDetail {
   protected readonly stateLabels = TOKEN_STATE_LABELS;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.PUBLIC_API_TOKEN_MANAGE));
   protected readonly busy = signal(false);
+  protected readonly history = inject(NavigationHistory);
+  /** Revogar (imediato e definitivo, com motivo) fica no "Mais ações" (ux.md §12.2). */
+  protected readonly moreActions = computed<MoreAction[]>(() => {
+    const t = this.token();
+    if (!t || !this.canManage() || (t.state !== 'ACTIVE' && t.state !== 'PAUSED')) {
+      return [];
+    }
+    return [{ id: 'revoke', label: 'Revogar token', icon: 'slash-circle', danger: true, disabled: this.busy(), run: () => this.revoke(t) }];
+  });
 
   /**
    * Editar e rotacionar só para quem poderia conceder todos os escopos do token (o servidor recusa o resto, decisão 850):

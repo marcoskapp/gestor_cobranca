@@ -15,8 +15,17 @@ import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, days, num, percent, ratioDetail, unavailable } from '../data/analytics.format';
 import { GROUP_BY_LABELS, groupLabel } from '../data/analytics.labels';
+import { AnalyticsFilter } from '../data/analytics.models';
 import { urlFilter } from '../data/url-filter';
+import { DrillTarget, bucketPeriod, drillAccess, ledgerTarget, withRow } from '../data/drill-down';
+import { DrillLink } from '../components/drill-link';
 import { peopleGroupBy } from './people-scope';
+
+interface Links {
+  all: DrillTarget | null;
+  payments: DrillTarget | null;
+  reversals: DrillTarget | null;
+}
 
 const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL', 'ORIGIN', 'DELAY_BUCKET'];
 
@@ -27,7 +36,7 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
  */
 @Component({
   selector: 'app-recovery-panel',
-  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, ColumnChart, InfoHint, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, ColumnChart, DrillLink, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Recuperação" subtitle="Valor efetivamente pago (confirmado, líquido de estornos), taxa, tempo e custo."
                      report="recovery" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
@@ -45,13 +54,13 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
         @let t = r.totals;
         <section class="app-kpi-grid" aria-label="Indicadores de recuperação" data-tour="analytics-kpis">
           <app-kpi-card label="Recuperado líquido" info="analytics.recovery.net" data-tour="kpi-recovered" [detail]="count(t.receipts) + ' recebimentos confirmados'">
-            <app-amount [value]="t.recoveredNet" [compact]="true" />
+            <app-drill-link [to]="totalLinks().all"><app-amount [value]="t.recoveredNet" [compact]="true" /></app-drill-link>
           </app-kpi-card>
           <app-kpi-card label="Taxa de recuperação" info="analytics.recovery.rate" data-tour="kpi-rate" [detail]="rateDetail()">
             {{ percent(t.recoveryRate) }}
           </app-kpi-card>
           <app-kpi-card label="Estornos" info="analytics.recovery.reversals" [detail]="percent(t.reversalShare) + ' do recebido bruto (' + money(t.recoveredGross) + ')'">
-            <app-amount [value]="t.reversed" [compact]="true" />
+            <app-drill-link [to]="totalLinks().reversals"><app-amount [value]="t.reversed" [compact]="true" /></app-drill-link>
           </app-kpi-card>
           <app-kpi-card label="Tempo até o 1º recebimento" info="analytics.recovery.time-to-receipt" data-tour="kpi-time" [detail]="'Mediana de ' + count(r.timeToReceipt.agreements) + ' acordos · p90 ' + days(r.timeToReceipt.p90Days)">
             {{ days(r.timeToReceipt.medianDays) }}
@@ -79,12 +88,13 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
               </thead>
               <tbody>
                 @for (row of r.rows; track row.key) {
+                  @let link = rowLinks().get(row.key);
                   <tr>
-                    <th scope="row">{{ label(row.key, row.label) }}</th>
-                    <td class="num"><app-amount [value]="row.recoveredGross" /></td>
-                    <td class="num"><app-amount [value]="row.reversed" /></td>
-                    <td class="num"><app-amount [value]="row.recoveredNet" /></td>
-                    <td class="num app-numeric">{{ count(row.receipts) }}</td>
+                    <th scope="row"><app-drill-link [to]="link?.all ?? null">{{ label(row.key, row.label) }}</app-drill-link></th>
+                    <td class="num"><app-drill-link [to]="link?.payments ?? null"><app-amount [value]="row.recoveredGross" /></app-drill-link></td>
+                    <td class="num"><app-drill-link [to]="link?.reversals ?? null"><app-amount [value]="row.reversed" /></app-drill-link></td>
+                    <td class="num"><app-drill-link [to]="link?.all ?? null"><app-amount [value]="row.recoveredNet" /></app-drill-link></td>
+                    <td class="num app-numeric"><app-drill-link [to]="link?.payments ?? null">{{ count(row.receipts) }}</app-drill-link></td>
                     @if (showRate()) {
                       <td class="num">{{ percent(row.recoveryRate) }}<span class="sub">{{ ratioDetail(row.recoveryRate, 'money') }}</span></td>
                     }
@@ -127,6 +137,7 @@ export class RecoveryPanel {
       values: [Math.max(0, num(r.recoveredNet))],
       display: [formatAmount(r.recoveredNet)],
       note: r.recoveryRate.value !== null ? `taxa ${percent(r.recoveryRate)} (${ratioDetail(r.recoveryRate, 'money')})` : undefined,
+      link: this.rowLinks().get(r.key)?.all ?? null,
     })),
   );
   protected readonly summary = computed(() => {
@@ -149,6 +160,40 @@ export class RecoveryPanel {
     }
     const reason = unavailable(cost.commissionPerReal);
     return reason ?? `${ratioDetail(cost.commissionPerReal, 'money')} · ${count(cost.statements)} extratos`;
+  });
+
+  /**
+   * Drill-down ao razão de comissão (recebimentos e estornos do settlement: a mesma base do recuperado). Linhas por
+   * credor, carteira e período levam ao razão com o recorte da linha; por operador, equipe, canal, origem e faixa de
+   * atraso não há link (o razão não tem essas dimensões, que vêm do acordo). Taxa, tempo até o 1º recebimento e
+   * comissão por real não têm lista que represente a base.
+   */
+  private readonly access = drillAccess();
+  private links(f: AnalyticsFilter | null, period?: { from: string; to: string }): Links {
+    if (!f) {
+      return { all: null, payments: null, reversals: null };
+    }
+    return {
+      all: this.access(ledgerTarget(f, {}, 'ver os recebimentos e estornos no razão', period)),
+      payments: this.access(ledgerTarget(f, { tipo: 'PAYMENT' }, 'ver os recebimentos no razão', period)),
+      reversals: this.access(ledgerTarget(f, { tipo: 'REVERSAL' }, 'ver os estornos no razão', period)),
+    };
+  }
+  protected readonly totalLinks = computed(() => this.links(this.state.filter()));
+  protected readonly rowLinks = computed(() => {
+    const f = this.state.filter();
+    const groupBy = this.groupBy();
+    const temporal = ['DAY', 'WEEK', 'MONTH'].includes(groupBy);
+    const out = new Map<string, Links>();
+    for (const row of this.report()?.rows ?? []) {
+      if (temporal) {
+        const period = bucketPeriod(groupBy, row.key, f);
+        out.set(row.key, period ? this.links(f, period) : this.links(null));
+      } else if (groupBy === 'CREDITOR' || groupBy === 'PORTFOLIO') {
+        out.set(row.key, this.links(withRow(f, groupBy, row.key)));
+      }
+    }
+    return out;
   });
 
   protected label(key: string, serverLabel: string): string {

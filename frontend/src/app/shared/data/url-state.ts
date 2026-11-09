@@ -186,6 +186,14 @@ export function injectUrlStateWriter(): UrlStateWriter {
   return writer;
 }
 
+/** Valores padrão (antes da URL) de cada formulário ligado por `syncFormWithUrl`: base da contagem de filtros ativos. */
+const FORM_DEFAULTS = new WeakMap<FormGroup, object>();
+
+/** Padrão da tela para o formulário (o valor de antes de aplicar a URL), ou `null` se ele não foi ligado à URL. */
+export function urlFormDefaults<V extends object>(form: FormGroup): V | null {
+  return (FORM_DEFAULTS.get(form) as V | undefined) ?? null;
+}
+
 /**
  * Liga um formulário de filtros à URL: lê os parâmetros ao abrir (antes de a consulta ser criada), grava cada mudança
  * (com o mesmo atraso dos filtros) e acompanha mudanças externas da URL (link com outros filtros para a mesma tela).
@@ -207,6 +215,7 @@ export function syncFormWithUrl<G extends FormGroup>(
   const writer = injectUrlStateWriter();
   const destroyRef = inject(DestroyRef);
   const defaults = form.getRawValue() as V;
+  FORM_DEFAULTS.set(form, defaults);
   const mapped = codecs as UrlCodecs<V>;
 
   const fromUrl = (params: ParamMap) => readUrlValues(params, mapped, defaults);

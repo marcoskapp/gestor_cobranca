@@ -29,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /** Conciliação: importação de extratos/arquivos de retorno e fila de divergências. */
@@ -89,9 +90,13 @@ class ReconciliationController {
     @GetMapping("/divergences")
     PageResponse<DivergenceView> divergences(@RequestParam(required = false) String status,
                                              @RequestParam(required = false) String type,
+                                             @RequestParam(required = false) UUID creditorId,
+                                             @RequestParam(required = false) LocalDate openedFrom,
+                                             @RequestParam(required = false) LocalDate openedTo,
                                              @RequestParam(required = false) Integer page,
                                              @RequestParam(required = false) Integer size) {
-        return reconciliation.divergences(new DivergenceFilter(status, type), PageQuery.of(page, size));
+        return reconciliation.divergences(new DivergenceFilter(status, type, creditorId, openedFrom, openedTo),
+                PageQuery.of(page, size));
     }
 
     @GetMapping("/divergences/{id}")

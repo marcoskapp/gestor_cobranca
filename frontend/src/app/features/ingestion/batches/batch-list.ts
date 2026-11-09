@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { DecimalPipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -39,7 +41,7 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
 /** Lotes de importação de carteira com progresso dos que estão em andamento e as conferências abertas. */
 @Component({
   selector: 'app-batch-list',
-  imports: [
+  imports: [FilterBar, 
     ReactiveFormsModule,
     RouterLink,
     NgbDropdownModule,
@@ -116,6 +118,7 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
       </section>
     }
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar lotes">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -140,6 +143,7 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
 
     <app-data-table
       caption="Lotes de importação"
@@ -305,4 +309,7 @@ export class BatchList {
   protected stepLabel(r: ReviewSummaryView): string {
     return REVIEW_STEPS.find((s) => s.step === r.currentStep)?.label ?? '';
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

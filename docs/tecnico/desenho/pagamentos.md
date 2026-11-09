@@ -204,7 +204,7 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 | `/payments/external` (multipart `payment` + `evidence`, `Idempotency-Key`) | `POST` |
 | `/payments/review-queue` · `/payments/{id}/approve` · `/reject` | `GET` · `POST` |
 | `/payments/{id}/reverse` · `/payments/pending-reallocation` · `/payments/{id}/reallocations` | `POST` · `GET` · `POST` |
-| `/reconciliation/statements` · `/{id}` · `/{id}/retry` · `/{id}/lines` · `/reconciliation/divergences` · `/{id}` · `/{id}/resolve` | `POST`/`GET` · `GET` · `POST` · `GET` · `GET` · `GET` · `POST` |
+| `/reconciliation/statements` · `/{id}` · `/{id}/retry` · `/{id}/lines` · `/reconciliation/divergences` (filtros: `status`, `type`, `creditorId` no escopo, `openedFrom`/`openedTo` = dia da abertura no fuso de operação) · `/{id}` · `/{id}/resolve` | `POST`/`GET` · `GET` · `POST` · `GET` · `GET` · `GET` · `POST` |
 | `/pix-accounts` · `/{id}` · `/{id}/credentials` · `/{id}/webhook` · `/{id}/activate` · `/deactivate` | CRUD |
 | `/settings` · `/settings/external-review` | `GET`, `PUT` · `GET` (`PAYMENT_REGISTER_EXTERNAL`) |
 | `/sandbox/instructions/{id}/pay` · `/sandbox/pix/refund` | `POST` (só com sandbox) |

@@ -178,7 +178,7 @@ class PaymentPixFlowIT extends PaymentTestSupport {
         SimulatedNotification partial = simulateRefund(paidAgain.endToEndId(), new BigDecimal("10.00"));
         assertThat(postWebhook(partial.routingKey(), partial.body(), partial.signature())).isEqualTo(200);
         settle();
-        assertThat(asFinance1(() -> reconciliation.divergences(new DivergenceFilter("OPEN", "PARTIAL_REFUND"),
+        assertThat(asFinance1(() -> reconciliation.divergences(new DivergenceFilter("OPEN", "PARTIAL_REFUND", null, null, null),
                 PageQuery.of(0, 10))).content()).singleElement()
                 .satisfies(d -> assertThat(d.amount()).isEqualByComparingTo("10.00"));
         assertThat(count("select count(*) from payment.payment where status = 'RECONCILED'")).isEqualTo(1);
@@ -206,7 +206,7 @@ class PaymentPixFlowIT extends PaymentTestSupport {
         awaitConsumed("negotiation.payment-confirmed", 2);
         settle();
         assertThat(count("select count(*) from payment.payment where instruction_id = ?", pix.id())).isEqualTo(2);
-        assertThat(asFinance1(() -> reconciliation.divergences(new DivergenceFilter("OPEN", "DUPLICATE_PAYMENT"),
+        assertThat(asFinance1(() -> reconciliation.divergences(new DivergenceFilter("OPEN", "DUPLICATE_PAYMENT", null, null, null),
                 PageQuery.of(0, 10))).content()).hasSize(1);
         // o segundo pagamento não fica na parcela já paga: vai para a seguinte (entrada ≠ demais parcelas → parcial)
         awaitTrue("segunda parcela parcialmente paga", () -> {

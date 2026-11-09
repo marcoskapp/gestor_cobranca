@@ -3,7 +3,7 @@
 } @else if (resource.status() === 'error') {
   <app-empty-state icon="robot" tone="error" title="Não foi possível abrir a política." message="Ela pode não existir ou estar fora do seu escopo de credores.">
     <button class="btn btn-outline-primary" type="button" (click)="resource.reload()">Tentar novamente</button>
-    <a class="btn btn-link" routerLink="/assistente/politicas">Voltar para políticas</a>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/assistente/politicas')">Voltar para políticas</a>
   </app-empty-state>
 }
 
@@ -30,15 +30,13 @@
           </button>
         }
       } @else {
-        @if (p.status === 'PUBLISHED') {
-          <button class="btn btn-outline-secondary" type="button" (click)="retire()">Aposentar</button>
-        }
         <button class="btn btn-primary" type="button" (click)="newVersion()" [disabled]="hasDraft()" [ngbTooltip]="hasDraft() ? 'Já existe um rascunho desta política' : 'Copia os parâmetros para um novo rascunho'">
           <app-icon name="copy" />
           Nova versão
         </button>
       }
     }
+    <app-more-actions [actions]="moreActions()" />
   </app-page-header>
 
   <div class="as-status">

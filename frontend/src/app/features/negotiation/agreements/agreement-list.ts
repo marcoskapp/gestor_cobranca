@@ -1,3 +1,5 @@
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
 import { Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { manualPhrase } from '../../../core/onboarding/manual/manual-parameters.service';
@@ -36,7 +38,7 @@ export function toAgreementFilter(v: { creditor: string[]; debtor: string[]; sta
 /** Acordos formalizados com progresso do cronograma e situação (em pagamento, quitado, quebrado…). */
 @Component({
   selector: 'app-agreement-list',
-  imports: [
+  imports: [FilterBar, 
     Icon,
     NgbTooltip,
     ...FORM_FIELD,
@@ -53,6 +55,7 @@ export function toAgreementFilter(v: { creditor: string[]; debtor: string[]; sta
   template: `
     <app-page-header title="Acordos" subtitle="Acordos formalizados, parcelas pagas e em aberto. Quebra e quitação são atualizadas automaticamente." />
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar acordos">
       @if (canSearchDebtors()) {
         <div class="app-filters__wide">
@@ -71,6 +74,7 @@ export function toAgreementFilter(v: { creditor: string[]; debtor: string[]; sta
         </select>
       </app-field>
     </form>
+    </app-filter-bar>
 
     <app-data-table
       caption="Acordos"
@@ -216,4 +220,7 @@ export class AgreementList {
   protected summary(a: AgreementView) {
     return scheduleSummary(a);
   }
+
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
 }

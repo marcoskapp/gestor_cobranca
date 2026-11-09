@@ -68,7 +68,7 @@ class SettlementTitlesAndScopeIT extends SettlementTestSupport {
         RuleSetView draft = asFinance2(() -> ruleSets.createDraft(new RuleSetCommand(contractB, rules, null)));
         asFinance1(() -> ruleSets.publish(draft.id(), LocalDate.of(2026, 1, 1)));
         ReceiptView rated = asFinance1(() -> ledger.receipts(new ReceiptFilter(creditorB, null, null, null, "RATED",
-                null), PageQuery.of(0, 10))).content().getFirst();
+                null, null, null), PageQuery.of(0, 10))).content().getFirst();
         assertThat(rated.allocationId()).isEqualTo(allocation);
         assertThat(rated.receivedBy()).isEqualTo("CREDITOR");
         assertThat(rated.titleReference()).isEqualTo("B-1/1");
@@ -130,7 +130,7 @@ class SettlementTitlesAndScopeIT extends SettlementTestSupport {
                 .isInstanceOf(ScopeAccessDeniedException.class);
         assertThat(asFinanceB(() -> statements.search(new StatementFilter(null, null), PageQuery.of(0, 20))).content())
                 .extracting(StatementView::creditorId).containsOnly(creditorB);
-        assertThat(asFinanceB(() -> ledger.receipts(new ReceiptFilter(null, null, null, null, null, null),
+        assertThat(asFinanceB(() -> ledger.receipts(new ReceiptFilter(null, null, null, null, null, null, null, null),
                 PageQuery.of(0, 50))).content()).extracting(ReceiptView::creditorId).containsOnly(creditorB);
         assertThatThrownBy(() -> asFinanceB(() -> ruleSets.list(creditorA, null)))
                 .isInstanceOf(ResourceNotFoundException.class);

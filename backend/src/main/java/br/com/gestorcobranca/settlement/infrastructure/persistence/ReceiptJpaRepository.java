@@ -1,6 +1,5 @@
 package br.com.gestorcobranca.settlement.infrastructure.persistence;
 
-import br.com.gestorcobranca.settlement.domain.model.RatingStatus;
 import br.com.gestorcobranca.settlement.domain.model.Receipt;
 import br.com.gestorcobranca.settlement.domain.repository.ReceiptRepository;
 import org.springframework.data.domain.Page;
@@ -29,31 +28,36 @@ interface ReceiptJpaRepository extends JpaRepository<Receipt, UUID>, JpaSpecific
     }
 
     @Override
-    default Page<Receipt> search(Collection<UUID> creditorIds, UUID creditorId, UUID agreementId, LocalDate from,
-                                 LocalDate to, RatingStatus ratingStatus, Boolean inStatement, Pageable pageable) {
+    default Page<Receipt> search(Collection<UUID> creditorIds, Criteria c, Pageable pageable) {
         Specification<Receipt> spec = Specification.unrestricted();
         if (creditorIds != null) {
             spec = spec.and((root, q, cb) -> creditorIds.isEmpty() ? cb.disjunction()
                     : root.get("creditorId").in(creditorIds));
         }
-        if (creditorId != null) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("creditorId"), creditorId));
+        if (c.creditorId() != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("creditorId"), c.creditorId()));
         }
-        if (agreementId != null) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("agreementId"), agreementId));
+        if (c.portfolioId() != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("portfolioId"), c.portfolioId()));
         }
-        if (from != null) {
-            spec = spec.and((root, q, cb) -> cb.greaterThanOrEqualTo(root.get("competenceDate"), from));
+        if (c.agreementId() != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("agreementId"), c.agreementId()));
         }
-        if (to != null) {
-            spec = spec.and((root, q, cb) -> cb.lessThanOrEqualTo(root.get("competenceDate"), to));
+        if (c.from() != null) {
+            spec = spec.and((root, q, cb) -> cb.greaterThanOrEqualTo(root.get("competenceDate"), c.from()));
         }
-        if (ratingStatus != null) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("ratingStatus"), ratingStatus));
+        if (c.to() != null) {
+            spec = spec.and((root, q, cb) -> cb.lessThanOrEqualTo(root.get("competenceDate"), c.to()));
         }
-        if (inStatement != null) {
-            spec = spec.and((root, q, cb) -> inStatement ? cb.isNotNull(root.get("statementId"))
+        if (c.ratingStatus() != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("ratingStatus"), c.ratingStatus()));
+        }
+        if (c.inStatement() != null) {
+            spec = spec.and((root, q, cb) -> c.inStatement() ? cb.isNotNull(root.get("statementId"))
                     : cb.isNull(root.get("statementId")));
+        }
+        if (c.kind() != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("kind"), c.kind()));
         }
         return findAll(spec, pageable);
     }

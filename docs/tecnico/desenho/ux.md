@@ -422,15 +422,15 @@ Revisão de produto 2026-11 (V2): as fichas tinham 5–7 contornos azuis do mesm
 1. **No máximo uma ação primária** (`.btn-primary`) — a próxima ação natural do estado (Aprovar, Renegociar, Editar dados, Reativar).
 2. **Até duas secundárias** em `.btn-outline-secondary` (atalhos e ações frequentes: Ficha do devedor, Corrigir valor, Baixar termo).
 3. **O resto em `app-more-actions`** (⋯ "Mais ações"), sempre com a **destrutiva** (cancelar, estornar, inativar) por último, separada e em vermelho; ela continua pedindo confirmação (`ConfirmService`).
-4. **Sem "← Voltar" no cabeçalho** para a lista: a trilha (`app-breadcrumbs`) já leva ao nível de cima, **com os filtros, a página e a rolagem de quando o usuário saiu da lista** (§16), e mostra "← Voltar para <origem>" quando ele veio de outra tela. Esse retorno contextual é um `.btn-sm.btn-outline-secondary` na linha da trilha, fora do cabeçalho, nunca concorrendo com a ação primária. Atalhos para **outro** módulo (ex.: o acordo a partir da atribuição) continuam. Estados de erro das fichas de dívida e importação ("Voltar para devedores") usam `history.linkTo('/lista')`, para voltar com os filtros; as demais ainda usam o link simples (migrar ao tocar na tela).
+4. **Sem "← Voltar" no cabeçalho** para a lista: a trilha (`app-breadcrumbs`) já leva ao nível de cima, **com os filtros, a página e a rolagem de quando o usuário saiu da lista** (§16), e mostra "← Voltar para <origem>" quando ele veio de outra tela. Esse retorno contextual é um `.btn-sm.btn-outline-secondary` na linha da trilha, fora do cabeçalho, nunca concorrendo com a ação primária. Atalhos para **outro** módulo (ex.: o acordo a partir da atribuição) continuam. Estados de erro e retornos das fichas ("Voltar para devedores", "Voltar para planos") usam `history.linkTo('/lista')`, para voltar com os filtros: dívida, importação (lote, conferência, PDF), credor, usuário, política de cobrança, conjunto de regras de comissão, plano e regras do plano, extrato de remuneração, campanha do discador, telas de campanha (campanha, cadência, execução, segmento, teste A/B), política e turno do assistente, token da API pública, extrato da conciliação e modelo do score. Faltam o demonstrativo (ficha da frente D) e a solicitação do titular (compliance, frente G) — mesma troca de uma linha. Tela nova: nunca o link simples para a lista.
 5. Ações sem permissão ficam ocultas (o menu inteiro some quando não sobra ação). No celular o rótulo "Mais ações" vira só o ícone (com `aria-label`).
 6. Ao escolher um item, o menu fecha e o foco volta ao botão "Mais ações" **antes** de a ação abrir o diálogo (o menu fica no `body`; o diálogo devolveria o foco a um item escondido). Itens que só existem num tamanho de tela são renderizados com `@if`, nunca escondidos por CSS (a navegação por setas do `ngbDropdown` contaria o item invisível) — ex.: "Chat de suporte" no menu do usuário abaixo de 600 px.
 
-Aplicado em: título, devedor, acordo, proposta, pagamento, demonstrativo, credor, usuário, solicitação do titular e caso jurídico; nos demais cabeçalhos, as secundárias passaram a `.btn-outline-secondary`.
+Aplicado em: título, devedor, acordo, proposta, pagamento, demonstrativo, credor, usuário, solicitação do titular e caso jurídico; nos demais cabeçalhos, as secundárias passaram a `.btn-outline-secondary`. Ações irreversíveis que ainda estavam soltas no cabeçalho foram para o "Mais ações" (revisão 11/2026): descartar a importação PDF, cancelar a conferência da importação, revogar o token da API pública, cancelar o processamento do extrato (conciliação), descartar o rascunho e aposentar a versão do plano de remuneração, descartar o rascunho das regras de comissão, aposentar a política do assistente e rejeitar o modelo do score. O passo do tour que apontava para o botão aponta para o "Mais ações". Fica pendente o "Cancelar" do lote de importação (ficha da frente D). "Descartar alterações" (edição não salva) e "Desligar carteira" do assistente (reversível) continuam no cabeçalho.
 
 ### 12.3 Celular: filtros e listas
 
-- **Filtros** abaixo de 768 px: `app-filter-bar` recolhe os campos num botão "Filtros (n)" e abre um painel lateral; os números e a lista aparecem na primeira tela (nos painéis, os indicadores vêm logo depois do botão).
+- **Filtros** abaixo de 768 px: `app-filter-bar` recolhe os campos num botão "Filtros (n)" e abre um painel lateral; os números e a lista aparecem na primeira tela (nos painéis, os indicadores vêm logo depois do botão). Nas listas, a contagem vem de `activeFilterCount(form, { ignore })` (`shared/data/filter-count.ts`): campos diferentes do padrão da tela (o valor de antes da URL, guardado por `syncFormWithUrl`); `ignore` para campo dependente (o operador escolhido conta junto com "Responsável"; o período personalizado da agenda conta junto com "Período"). Aplicado nos painéis e nas listas com dois filtros ou mais: casos, devedores, títulos, acordos, pagamentos, instruções de pagamento, divergências, razão de comissão, demonstrativos, regras de comissão, lotes de importação, layouts, auditoria, log de acesso, usuários, credores, carteiras, políticas de cobrança, campanhas, segmentos, testes A/B, templates, agenda, chamadas, casos jurídicos, revisão do assistente, extratos e lançamentos da remuneração, tokens e consumo da API pública. Faltam propostas (frente E), contestações e as listas do compliance (frente G) — mesmo padrão.
 - **Listas** abaixo de 576 px: `app-data-table` em lista empilhada (§12); a paginação some quando tudo cabe numa página. Rótulos de indicador podem ocupar 2 linhas.
 - **Botão "Filtros"** informa `aria-expanded`; ao alargar a tela com o painel aberto, os filtros voltam para a linha.
 - **Cabeçalho** abaixo de 600 px: menu, marca, busca, pendências, ajuda e avatar; o chat de suporte e o tema ficam no menu do usuário.
@@ -704,8 +704,12 @@ Também guarda de onde o usuário veio e o último endereço de cada tela (só e
 **Trilha e retorno** (`breadcrumbs.ts`): seção some quando tem o nome do item; fichas mostram o nome do registro
 (`recordLabel(() => …)`); o link da lista na trilha volta com os filtros (e é o "voltar" do navegador quando a lista é a
 origem, com rolagem); "← Voltar para <origem>" aparece quando a origem é outra tela (ex.: da estação para a ficha do
-devedor). Não há "← Lista" no cabeçalho das fichas (§12.2, item 4); nos estados de erro, as fichas de dívida e importação
-voltam com `history.linkTo('/lista')` e as demais ainda com o link simples.
+devedor). Não há "← Lista" no cabeçalho das fichas (§12.2, item 4); nos estados de erro e retornos, as fichas voltam com
+`history.linkTo('/lista')` (lista em §12.2, item 4; faltam o demonstrativo e a solicitação do titular).
+
+**Drill-down dos painéis** (J6): o número do painel leva à lista com a base do indicador pelos mesmos parâmetros de URL
+(`credor`, `carteira`, `situacao`, `elegivel`, `atendimento`, `fila`, `pago-de`/`pago-ate`, `tipo`, `aberta-de`/`aberta-ate`);
+regras e mapa de indicadores com e sem link em `analytics.md` §7.1.
 
 **Menu por tarefa** (`core/layout/navigation.ts`, `docs/negocio/perfis-de-acesso.md`): `permissions` = quem tem a tarefa;
 `alsoRequires` = exigidas todas, além de uma da tarefa (área de consulta + consulta dos dados; rota: `data.allPermissions` no `permissionGuard`); `openedFrom` = quem abre a tela por outro caminho (a rota aceita as duas listas; `navigation-routes.spec.ts` confere e
@@ -716,4 +720,40 @@ de um painel para outro (`urlFilter`, em memória).
 
 **Para telas novas:** lista principal com `syncFormWithUrl` + `pagedQuery({ url: true })`; colunas ordenáveis só com lista
 branca no servidor; abas com `urlTab`; ficha com `recordLabel`; item de menu pela tarefa do perfil.
+
+### 16.1 Índices das ordenações (medição de 08/11/2026, decisão 954 / RC-06)
+
+**Como foi medido.** O sandbox tem poucas centenas de registros por assessoria (232 casos: 0,3 ms com seq scan — não
+mede nada). As tabelas foram copiadas (estrutura e os registros fictícios do sandbox, lidos sem escrita) para um
+PostgreSQL 16 descartável com a mesma configuração (`shared_buffers` 128 MB, `work_mem` 4 MB) e multiplicadas numa
+assessoria: 300 mil casos (94% em aberto), 500 mil títulos, 105 mil propostas, 120 mil acordos, 200 mil pagamentos e
+18 mil lotes. Cada consulta é a da lista (filtro da assessoria como o RLS aplica, situações "Ativos" nos casos,
+`order by <coluna>, id limit 20`), medida com `EXPLAIN (ANALYZE, BUFFERS)` na segunda execução (cache quente), para
+quem vê todos os credores — o pior caso, porque os índices existentes começam por credor, carteira, devedor ou situação.
+
+| Lista · ordem | Sem índice | Com (assessoria, coluna, id) |
+| --- | --- | --- |
+| Casos · padrão (abertura ↓) / saldo ↓ / atraso ↓ / próxima ação ↑ | 42 / 45 / 38 / 72 ms, ~11,9 mil buffers, seq scan + top-N heapsort | 0,1–0,2 ms, 23–33 buffers |
+| Títulos · padrão (vencimento ↑) / saldo ↓ / em cobrança, saldo ↓ | 40 / 48 / 80 ms, ~17 mil buffers | 0,1–0,2 ms, 23–34 buffers |
+| Propostas · padrão (criação ↓) / valor ↓ | 23 / 23 ms, ~11,7 mil buffers | 0,1–0,2 ms |
+| Acordos · padrão (formalização ↓) / valor ↓ | 17 / 20 ms, ~11,6 mil buffers | 0,2 ms |
+| Pagamentos · padrão (pagamento ↓) / valor ↓ | 28 / 23 ms, ~11,7 mil buffers | 0,2 ms |
+| Lotes · padrão (criação ↓) | 0,2 ms (já usa `ix_import_batch_created`) | — |
+| Lotes · linhas lidas ↓ | 14 ms, 4,5 mil buffers (18 mil lotes) | 0,2 ms |
+| Contagem da página (casos / títulos) | 22–56 ms / 26–38 ms (seq scan) | não muda — o índice de ordenação não ajuda o `count` |
+
+**Decisão.** Criados 12 índices `(tenant_id, coluna, id)` — a ordem decrescente lê o índice de trás para a frente com
+Incremental Sort no desempate, então um índice por coluna serve às duas direções: casos `V0607` (abertura, saldo,
+vencimento mais antigo, próxima ação), títulos `V0306` (vencimento, saldo), propostas e acordos `V0755` (criação /
+formalização e valor), pagamentos `V0808` (pagamento e valor). Inclui a ordem **padrão** de cada lista, que também
+fazia seq scan para quem vê todos os credores. **Não criado:** lotes por linhas lidas (tabela pequena por assessoria,
+14 ms em 18 mil lotes; criar quando o volume pedir). Custo de escrita medido nos casos (saldo e próxima ação mudam a
+cada pagamento e interação): 20 mil atualizações em 1,2 s sem os dois índices e 1,9 s com eles (~0,03 ms por
+atualização) e ~17–19 MB por índice a cada 300 mil casos — aceito pelo ganho de leitura. Nos títulos, o saldo muda a
+cada pagamento e correção de valor: o custo de escrita **não foi medido** — estimado igual ao dos casos (~0,03 ms por
+atualização; ~28–30 MB por índice a cada 500 mil títulos, medido); medir com volume real e rever se a carga de
+pagamentos pesar. Propostas, acordos e pagamentos: valor e data não mudam depois de gravados (sem custo de atualização,
+só de inclusão). **Fica em aberto** a
+contagem total de cada página (seq scan proporcional à assessoria, ~50% do tempo da lista depois dos índices): avaliar
+contagem estimada ou "mais de N" quando o volume real pedir.
 

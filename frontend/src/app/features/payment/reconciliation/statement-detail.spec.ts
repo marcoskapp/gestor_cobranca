@@ -77,7 +77,9 @@ describe('StatementDetail', () => {
   const el = (f: ComponentFixture<unknown>) => f.nativeElement as HTMLElement;
   const retryButton = (f: ComponentFixture<unknown>) => [...el(f).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Tentar novamente') && b.closest('app-page-header'));
 
-  const cancelButton = (f: ComponentFixture<unknown>) => [...el(f).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Cancelar processamento') && b.closest('app-page-header'));
+  /** Ação irreversível no "Mais ações" do cabeçalho (ux.md §12.2). */
+  const cancelButton = (f: ComponentFixture<unknown>) =>
+    [...el(f).querySelectorAll<HTMLButtonElement>('app-page-header app-more-actions .dropdown-item.text-danger-emphasis')].find((b) => b.textContent?.includes('Cancelar processamento'));
 
   const interrupted = statementImport({ status: 'FAILED', failureCode: 'statement.processing_failed', failureLine: 502, totalLines: 500, finishedAt: '2026-10-23T10:05:00Z' });
 

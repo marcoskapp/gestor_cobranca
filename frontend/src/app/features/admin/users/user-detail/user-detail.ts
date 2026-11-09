@@ -1,3 +1,4 @@
+import { NavigationHistory } from '../../../../core/layout/breadcrumbs/navigation-history';
 import { Component, Type, computed, inject, input } from '@angular/core';
 import { recordLabel } from '../../../../core/layout/breadcrumbs/breadcrumbs';
 import { rxResource } from '@angular/core/rxjs-interop';
@@ -39,6 +40,8 @@ import { MoreAction, MoreActions } from '../../../../shared/components/more-acti
   templateUrl: './user-detail.html',
 })
 export class UserDetail {
+  /** Retorno à lista com os filtros, a página e a rolagem de quando o usuário saiu dela (ux.md §16). */
+  protected readonly history = inject(NavigationHistory);
   readonly id = input.required<string>();
 
   private readonly api = inject(UsersApi);
