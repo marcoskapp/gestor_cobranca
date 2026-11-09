@@ -18,6 +18,7 @@
 
 @if (current(); as d) {
   <app-page-header [title]="d.name" [subtitle]="personTypes[d.personType] + (d.createdAt ? ' · cadastrado em ' + (d.createdAt | appDate: 'date') : '')">
+    <app-vulnerability-badge [debtorId]="d.id" />
     <a class="btn btn-outline-secondary" routerLink="/titulos" [queryParams]="{ devedor: d.id }">
       <app-icon name="file-earmark-text" />
       Títulos

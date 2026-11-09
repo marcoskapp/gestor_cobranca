@@ -258,7 +258,13 @@ export const SCREENS: readonly ScreenGuide[] = [
     changes: [{ version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Saldo, atraso e próxima ação.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] }],
   },
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
-  { key: 'collection.queues', version: 1, path: '/cobranca/filas', tourId: 'collection.queues' },
+  {
+    key: 'collection.queues',
+    version: 2,
+    path: '/cobranca/filas',
+    tourId: 'collection.queues',
+    changes: [{ version: 2, items: ['Critério "Só devedores com marcador de vulnerabilidade": crie uma fila de atendimento cuidadoso para esses casos.'] }],
+  },
   {
     key: 'collection.tabulations',
     version: 2,
@@ -268,7 +274,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'collection.settings', version: 1, path: '/cobranca/parametros' },
   {
     key: 'collection.disputes',
-    version: 4,
+    version: 5,
     path: '/cobranca/contestacoes',
     tourId: 'collection.disputes',
     changes: [
@@ -282,6 +288,13 @@ export const SCREENS: readonly ScreenGuide[] = [
         ],
       },
       { version: 4, items: ['Filtro "Resposta por e-mail a confirmar" e pendência das respostas do credor recebidas por e-mail.'] },
+      {
+        version: 5,
+        items: [
+          'Contestação feita pelo devedor no portal entra sozinha na fila, com o prazo de resposta contando do pedido no portal.',
+          'No celular, os filtros ficam no botão "Filtros".',
+        ],
+      },
     ],
   },
   {
@@ -676,6 +689,15 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
     ],
   },
+  { key: 'compliance.vulnerability', version: 1, path: '/compliance/vulnerabilidade', tourId: 'compliance.vulnerability' },
+  { key: 'compliance.complaints', version: 1, path: '/compliance/reclamacoes', tourId: 'compliance.complaints' },
+  {
+    key: 'compliance.complaint-config',
+    version: 1,
+    path: '/compliance/reclamacoes/configuracao',
+    tourId: 'compliance.complaint-config',
+  },
+  { key: 'compliance.complaint-detail', version: 1, path: '/compliance/reclamacoes/:id', tourId: 'compliance.complaint-detail' },
   { key: 'organization.creditors', version: 1, path: '/organizacao/credores', tourId: 'organization.creditors' },
   {
     key: 'organization.creditor-detail',

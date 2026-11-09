@@ -196,7 +196,7 @@ abstract class ScoringTestSupport extends IntegrationTest {
         manager2 = user("Gestor H", "h", roleIds.get(DefaultRoles.GESTOR), true, Set.of());
         team = system(() -> teams.create(new TeamCommand("Equipe 1", null, manager, Set.of(operatorX))).id());
         queueA = asManager(manager, () -> queues.create(new QueueCommand("BANCO_A", "Fila A", null, 10, creditorA, null,
-                null, null, null, null, null, null, "HIGHEST_SCORE", "PULL", null, Set.of(team))).id());
+                null, null, null, null, null, null, "HIGHEST_SCORE", "PULL", null, Set.of(team), null)).id());
         awaitTrue("catálogo de tabulações", () -> count("select count(*) from collection.tabulation") >= 12);
     }
 

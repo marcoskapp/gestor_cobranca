@@ -10,6 +10,7 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
 import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
@@ -27,7 +28,7 @@ import { DisputesApi } from '../data/collection.api';
 import { DISPUTE_ORIGIN_LABELS, DISPUTE_TYPE_LABELS } from '../data/collection.labels';
 import { DisputeFilter, DisputeView } from '../data/collection.models';
 import { daysBetween, zonedNow } from '../data/collection.rules';
-import { DISPUTE_FORM_DEFAULTS, DISPUTE_URL_CODECS, canWorkDispute, dueTone, isPending, nearestDue, toDisputeFilter } from './dispute.rules';
+import { DISPUTE_FORM_DEFAULTS, DISPUTE_URL_CODECS, activeDisputeFilters, canWorkDispute, dueTone, isPending, nearestDue, toDisputeFilter } from './dispute.rules';
 
 export { toDisputeFilter } from './dispute.rules';
 
@@ -38,7 +39,7 @@ export { toDisputeFilter } from './dispute.rules';
  */
 @Component({
   selector: 'app-dispute-list',
-  imports: [ReactiveFormsModule, RouterLink, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe, Icon, NgbTooltip, ...FORM_FIELD],
+  imports: [ReactiveFormsModule, RouterLink, CellDef, DataTable, EntityPicker, FilterBar, PageHeader, StatusChip, AppDatePipe, Icon, NgbTooltip, ...FORM_FIELD],
   template: `
     <app-page-header title="Contestações" subtitle="Dívidas contestadas pelo devedor, credor ou jurídico. Contestação bloqueante suspende cobrança e contato até a resolução.">
       @if (canManage()) {
@@ -75,6 +76,7 @@ export { toDisputeFilter } from './dispute.rules';
       </button>
     </section>
 
+    <app-filter-bar [activeCount]="activeFilters()">
     <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar contestações">
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
@@ -134,6 +136,7 @@ export { toDisputeFilter } from './dispute.rules';
         </div>
       </div>
     </form>
+    </app-filter-bar>
 
     <app-data-table
       caption="Contestações, do prazo mais próximo ao mais distante"
@@ -296,6 +299,11 @@ export class DisputeList {
     ),
     { initialValue: toDisputeFilter(this.filters.getRawValue(), this.today), equal: sameValue },
   );
+  /** Filtros aplicados (botão "Filtros (n)" no celular). */
+  private readonly formValue = toSignal(this.filters.valueChanges.pipe(map(() => this.filters.getRawValue())), {
+    initialValue: this.filters.getRawValue(),
+  });
+  protected readonly activeFilters = computed(() => activeDisputeFilters(this.formValue()));
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((d) => d.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((d) => d.creditorId));

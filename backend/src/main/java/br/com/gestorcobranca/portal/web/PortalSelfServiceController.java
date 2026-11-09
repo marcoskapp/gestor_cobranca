@@ -74,7 +74,7 @@ class PortalSelfServiceController {
     }
 
     record ServiceRequestBody(@NotBlank @Size(max = 20) String reason, @NotBlank @Size(max = 20) String preferredChannel,
-                              UUID portfolioId, @Size(max = 500) String note) {
+                              UUID portfolioId, @Size(max = 500) String note, @Size(max = 20) String disputeType) {
     }
 
     @GetMapping("/session")
@@ -155,7 +155,7 @@ class PortalSelfServiceController {
     ResponseEntity<ServiceRequestView> requestService(@Valid @RequestBody ServiceRequestBody body) {
         return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore())
                 .body(selfService.requestService(new ServiceRequestCommand(body.reason(), body.preferredChannel(),
-                        body.portfolioId(), body.note())));
+                        body.portfolioId(), body.note(), body.disputeType())));
     }
 
     @GetMapping("/service-requests")

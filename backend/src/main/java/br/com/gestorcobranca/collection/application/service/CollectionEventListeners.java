@@ -5,6 +5,7 @@ import br.com.gestorcobranca.shared.events.TenantEventListener;
 import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.compliance.ContactPolicyPublished;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
+import br.com.gestorcobranca.shared.events.compliance.VulnerabilityMarkerChanged;
 import br.com.gestorcobranca.shared.events.debt.PortfolioLoaded;
 import br.com.gestorcobranca.shared.events.debt.TitleStatusChanged;
 import br.com.gestorcobranca.shared.events.identity.TenantProvisioned;
@@ -72,6 +73,12 @@ class CollectionEventListeners extends TenantEventListener {
     @TransactionalEventListener
     void on(ContactRestrictionChanged event) {
         handleOnce(event, "collection.contact-restriction", () -> reactions.contactRestrictionChanged(event));
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(VulnerabilityMarkerChanged event) {
+        handleOnce(event, "collection.vulnerability-marker", () -> reactions.vulnerabilityMarkerChanged(event));
     }
 
     @Async(AsyncConfig.EVENT_EXECUTOR)

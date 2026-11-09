@@ -13,14 +13,16 @@
  *       {@code PORTAL}) — o mesmo {@code NegotiationGuard} dos humanos e do assistente —, aceite com
  *       termo (canal PORTAL, IP, agente, instante, hash), formalização e Pix da entrada.</li>
  *   <li><b>Operação</b>: pedidos que fogem do portal viram conversa na fila humana
- *       ({@code HandoffRequested}); funil {@code portal.*}; configuração por credor ({@code PORTAL_MANAGE}).</li>
+ *       ({@code HandoffRequested}); a contestação do devedor também vira contestação no collection
+ *       ({@code DisputeIntakeUseCases}, job {@code portal.dispute_intake} — o prazo do CDC conta do pedido); funil
+ *       {@code portal.*}; configuração por credor ({@code PORTAL_MANAGE}).</li>
  * </ul>
  * Dependências: {@code negotiation}, {@code payment}, {@code communication}, {@code debt},
- * {@code organization} (interfaces {@code usecases}).
+ * {@code organization} e {@code collection} (interfaces {@code usecases}).
  */
 @ApplicationModule(displayName = "Portal",
         allowedDependencies = {"shared", "negotiation :: usecases", "payment :: usecases", "communication :: usecases",
-                "debt :: usecases", "organization :: usecases"})
+                "debt :: usecases", "organization :: usecases", "collection :: usecases"})
 package br.com.gestorcobranca.portal;
 
 import org.springframework.modulith.ApplicationModule;

@@ -187,6 +187,7 @@ describe('CollectionStation', () => {
     if (url === '/api/v1/negotiation/proposals') return req.flush(page([]));
     if (url === '/api/v1/negotiation/agreements') return req.flush(page([]));
     if (url === '/api/v1/negotiation/authority/me') return req.flush({ profile: { canFormalize: true } });
+    if (url.startsWith('/api/v1/compliance/vulnerability/debtors/')) return req.flush({ debtorId: 'd-1', vulnerable: false, categories: [], paymentCapacity: null, pendingSuggestion: null, markers: [], canRegister: false, canManage: false });
     throw new Error(`requisição inesperada: ${req.request.method} ${url}`);
   }
 

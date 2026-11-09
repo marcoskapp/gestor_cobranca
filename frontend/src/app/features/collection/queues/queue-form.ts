@@ -91,6 +91,11 @@ const num = (v: number | null | string) => (v === null || v === '' || v === unde
           <app-field label="Score máximo">
             <input appInput type="number" formControlName="maxScore" />
           </app-field>
+          <div class="form-check form-switch app-span-all">
+            <input class="form-check-input" type="checkbox" role="switch" id="queue-vulnerable" formControlName="vulnerableOnly" />
+            <label class="form-check-label" for="queue-vulnerable">Só devedores com marcador de vulnerabilidade (fila de atendimento cuidadoso)</label>
+            <div class="form-text">Use com prioridade menor que a das demais filas do credor para que esses casos caiam aqui primeiro.</div>
+          </div>
           @if (form.errors?.['range']) {
             <p class="app-field-error app-span-all" role="alert">O mínimo de cada faixa não pode passar do máximo.</p>
           }
@@ -157,6 +162,7 @@ export class QueueForm {
       strategy: this.fb.control<QueueStrategy>(this.data?.strategy ?? 'PULL'),
       maxCasesPerUser: this.fb.control<number | null>(this.data?.maxCasesPerUser ?? null, [Validators.min(1)]),
       teams: this.fb.control<string[]>(this.data?.teamIds ?? []),
+      vulnerableOnly: this.fb.control<boolean>(this.data?.vulnerableOnly ?? false),
     },
     {
       validators: [
@@ -195,6 +201,7 @@ export class QueueForm {
       strategy: v.strategy,
       maxCasesPerUser: num(v.maxCasesPerUser),
       teamIds: v.teams,
+      vulnerableOnly: v.vulnerableOnly,
     };
     this.saving.set(true);
     this.errors.set([]);

@@ -3,6 +3,7 @@ import { readUrlValues, urlParamsOf } from '../../../shared/data/url-state';
 import {
   DISPUTE_FORM_DEFAULTS,
   DISPUTE_URL_CODECS,
+  activeDisputeFilters,
   adjustmentShortcut,
   canWorkDispute,
   disputeActions,
@@ -91,5 +92,11 @@ describe('regras de tela das contestações', () => {
     expect(protocolOf('0a1b2c3d-0000-0000-0000-000000000000')).toBe('0A1B2C3D');
     expect(unresolvedPlaceholders('Ver {{link_evidencias}} até {{validade_link}}')).toEqual([]);
     expect(unresolvedPlaceholders('Olá {{credor}} {{ titulos }}')).toEqual(['credor', 'titulos']);
+  });
+
+  it('conta os filtros aplicados para o botão "Filtros (n)" do celular', () => {
+    expect(activeDisputeFilters(DISPUTE_FORM_DEFAULTS)).toBe(0);
+    expect(activeDisputeFilters({ ...DISPUTE_FORM_DEFAULTS, creditor: ['c-1'], awaiting: true })).toBe(2);
+    expect(activeDisputeFilters({ ...DISPUTE_FORM_DEFAULTS, status: '' })).toBe(1);
   });
 });

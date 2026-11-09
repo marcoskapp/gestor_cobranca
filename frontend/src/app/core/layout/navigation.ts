@@ -303,6 +303,13 @@ export const NAVIGATION: readonly NavSection[] = [
       },
       { label: 'Bases legais', icon: 'shield', route: '/compliance/bases-legais', permissions: [P.DATA_SUBJECT_REQUEST_MANAGE] },
       { label: 'Retenção de dados', icon: 'trash3', route: '/compliance/retencao', permissions: [P.RETENTION_MANAGE] },
+      { label: 'Reclamações', icon: 'exclamation-triangle', route: '/compliance/reclamacoes', permissions: [P.COMPLAINT_REGISTER, P.COMPLAINT_MANAGE] },
+      {
+        label: 'Vulnerabilidade',
+        icon: 'person-hearts',
+        route: '/compliance/vulnerabilidade',
+        permissions: [P.VULNERABILITY_REGISTER, P.VULNERABILITY_MANAGE],
+      },
     ],
   },
   {

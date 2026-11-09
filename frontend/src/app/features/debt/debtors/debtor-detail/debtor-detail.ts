@@ -48,6 +48,7 @@ import { MoreAction, MoreActions } from '../../../../shared/components/more-acti
 import { FORM_FIELD } from '../../../../shared/forms/field';
 import { NgbTooltip, NgbDropdownModule, NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { TabsMore } from '../../../../shared/components/tabs-more/tabs-more';
+import { VulnerabilityBadge } from '../../../compliance/vulnerability/vulnerability-badge';
 
 /**
  * Ficha do devedor: dados cadastrais (documento mascarado, revelação auditada), posição por
@@ -56,7 +57,7 @@ import { TabsMore } from '../../../../shared/components/tabs-more/tabs-more';
  */
 @Component({
   selector: 'app-debtor-detail',
-  imports: [TabsMore, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions],
+  imports: [TabsMore, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions, VulnerabilityBadge],
   templateUrl: './debtor-detail.html',
   styleUrl: '../../debt.scss',
 })

@@ -51,6 +51,12 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * desligamento por carteira ({@code ASSISTANT_MANAGE}); supervisor e gestor revisam a trilha dos
  * turnos, avaliam a amostra e acompanham a qualidade ({@code ASSISTANT_REVIEW}).
  * <p>
+ * Conformidade da operação (docs/tecnico/desenho/conformidade.md): o operador registra o marcador de vulnerabilidade
+ * ({@code VULNERABILITY_REGISTER}, inclusive confirmando a sugestão do assistente) e as reclamações recebidas
+ * ({@code COMPLAINT_REGISTER}); supervisor, gestor e compliance retiram marcadores e configuram os efeitos na oferta
+ * ({@code VULNERABILITY_MANAGE}) e tratam as reclamações ({@code COMPLAINT_MANAGE}); só gestor e compliance (e o
+ * administrador) veem a categoria do marcador ({@code VULNERABILITY_SENSITIVE_VIEW}, inclui saúde).
+ * <p>
  * Menu por tarefa (docs/negocio/perfis-de-acesso.md, "Áreas de consulta"): ver um dado em outra tela não abre a área
  * que o administra. O operador vê o score no caso ({@code SCORING_VIEW}), usa a política no simulador
  * ({@code POLICY_VIEW}) e os nomes de credor e carteira nas listas ({@code CREDITOR_VIEW}, {@code PORTFOLIO_VIEW}),
@@ -103,14 +109,14 @@ public final class DefaultRoles {
                 NEGOTIATION_SIMULATE, NEGOTIATION_PROPOSE, AGREEMENT_VIEW, AGREEMENT_FORMALIZE,
                 PAYMENT_VIEW, PAYMENT_INSTRUCTION_CREATE, PAYMENT_REGISTER_EXTERNAL,
                 MESSAGE_SEND, INBOX_VIEW, TELEPHONY_USE, ASSISTANT_USE, SCORING_VIEW, PERFORMANCE_VIEW_OWN,
-                DISPUTE_WORK);
+                DISPUTE_WORK, VULNERABILITY_REGISTER, COMPLAINT_REGISTER);
 
         Set<Permission> supervisor = EnumSet.copyOf(operador);
         supervisor.addAll(EnumSet.of(USER_VIEW, TEAM_MANAGE, CASE_ASSIGN, CASE_MANAGE, QUEUE_MANAGE, DISPUTE_MANAGE,
                 NEGOTIATION_APPROVE, AGREEMENT_CANCEL, INBOX_MANAGE, CONTACT_RESTRICTION_MANAGE,
                 CAMPAIGN_VIEW, DASHBOARD_VIEW, REPORT_VIEW, DEBTOR_MANAGE, IMPORT_VIEW, PERFORMANCE_VIEW_TEAM,
                 QUALITY_EVALUATE, LEGAL_VIEW, TELEPHONY_SUPERVISE, CALL_RECORDING_LISTEN, ASSISTANT_REVIEW,
-                POLICY_AREA_VIEW));
+                POLICY_AREA_VIEW, VULNERABILITY_MANAGE, COMPLAINT_MANAGE));
 
         Set<Permission> gestor = EnumSet.copyOf(supervisor);
         gestor.addAll(EnumSet.of(CREDITOR_MANAGE, CONTRACT_MANAGE, PORTFOLIO_MANAGE, POLICY_MANAGE, IMPORT_EXECUTE,
@@ -122,7 +128,7 @@ public final class DefaultRoles {
                 LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, TELEPHONY_MANAGE, SETTLEMENT_APPROVE,
                 ASSISTANT_MANAGE, IMPORT_APPROVE,
                 PUBLIC_API_TOKEN_VIEW, PUBLIC_API_TOKEN_MANAGE, PUBLIC_API_USAGE_VIEW, PUBLIC_API_BILLING_MANAGE,
-                ORGANIZATION_AREA_VIEW, SCORING_AREA_VIEW));
+                ORGANIZATION_AREA_VIEW, SCORING_AREA_VIEW, VULNERABILITY_SENSITIVE_VIEW));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,
@@ -170,7 +176,8 @@ public final class DefaultRoles {
         Set<Permission> compliance = EnumSet.of(
                 USER_VIEW, CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, DEBTOR_SENSITIVE_VIEW, CASE_VIEW,
                 CONTACT_RESTRICTION_MANAGE, DATA_SUBJECT_REQUEST_MANAGE, RETENTION_MANAGE,
-                ACCESS_LOG_VIEW, AUDIT_VIEW, INBOX_VIEW, DASHBOARD_VIEW, REPORT_VIEW, ORGANIZATION_AREA_VIEW,
+                VULNERABILITY_REGISTER, VULNERABILITY_MANAGE, VULNERABILITY_SENSITIVE_VIEW, COMPLAINT_REGISTER,
+                COMPLAINT_MANAGE, ACCESS_LOG_VIEW, AUDIT_VIEW, INBOX_VIEW, DASHBOARD_VIEW, REPORT_VIEW, ORGANIZATION_AREA_VIEW,
                 POLICY_AREA_VIEW);
 
         // Integrações técnicas: canais, provedores e cargas automáticas; sem dados de devedores.
@@ -197,7 +204,7 @@ public final class DefaultRoles {
                 new Definition(QUALIDADE, "Monitoria e qualidade",
                         "Avaliação de atendimentos, revisão do assistente de IA e escuta de gravações", qualidade),
                 new Definition(COMPLIANCE, "Compliance e privacidade",
-                        "Restrições de contato, solicitações de titulares (LGPD), retenção e trilhas de auditoria",
+                        "Restrições de contato, titulares (LGPD), vulnerabilidade, reclamações, retenção e trilhas",
                         compliance),
                 new Definition(INTEGRACAO, "Integrações",
                         "Canais, provedores e cargas automáticas, sem acesso a dados de devedores", integracao));

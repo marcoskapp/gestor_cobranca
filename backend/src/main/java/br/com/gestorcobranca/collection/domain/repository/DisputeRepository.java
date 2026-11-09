@@ -20,6 +20,9 @@ public interface DisputeRepository {
 
     List<Dispute> findByCaseIdOrderByOpenedAtDesc(UUID caseId);
 
+    /** Contestações abertas a partir de um pedido externo (ex.: {@code portal_request:<id>}), em todos os casos. */
+    List<Dispute> findByOriginReference(String originReference);
+
     /** Há contestação aberta e bloqueante no caso. */
     boolean existsBlockingByCaseId(UUID caseId);
 

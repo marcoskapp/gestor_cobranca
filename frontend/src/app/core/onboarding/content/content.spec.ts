@@ -76,7 +76,7 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/assistente', ASSISTANT_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(64);
+    expect(items.length).toBe(66);
     for (const item of items) {
       expect([...routePermissionsOf(item)].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }

@@ -34,6 +34,7 @@ import { CHANNEL_ICONS, CHANNEL_LABELS, DISPUTE_TYPE_LABELS, TASK_TYPE_LABELS, e
 import { CaseSheet, PromiseView, SheetContact, SheetTitle, TabulationView, TaskView } from '../data/collection.models';
 import { formatLocalDateTime, taskLate, zonedNow } from '../data/collection.rules';
 import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
+import { VulnerabilityBadge } from '../../compliance/vulnerability/vulnerability-badge';
 
 /** Abas da ficha na ordem dos atalhos `Alt + 1…7`. */
 export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação', 'Conversas'] as const;
@@ -84,6 +85,7 @@ export function tabFromSlug(slug: string | null | undefined): number | null {
     CaseScoreCard,
     CaseDealCard,
     PaymentReviewAlert,
+    VulnerabilityBadge,
   ],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',

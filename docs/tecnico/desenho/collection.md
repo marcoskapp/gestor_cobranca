@@ -98,7 +98,8 @@ Mudança de elegibilidade publica `CaseStatusChanged` (campo `eligible`) e regis
 
 ### 3.1 Filas
 
-`CollectionQueue`: critérios opcionais (credor, carteira, faixa de atraso, faixa de saldo, faixa de score), prioridade,
+`CollectionQueue`: critérios opcionais (credor, carteira, faixa de atraso, faixa de saldo, faixa de score, **só devedores
+com marcador de vulnerabilidade** — `vulnerable_only`, [conformidade.md](conformidade.md) §1.3), prioridade,
 ordem de entrega (`OLDEST_OVERDUE`, `HIGHEST_BALANCE`, `LOWEST_BALANCE`, `LEAST_RECENTLY_WORKED`, `HIGHEST_SCORE`),
 estratégia (`PULL`, `ROUND_ROBIN`, `LEAST_LOADED`), capacidade por operador e equipes que a atendem (vazio = qualquer
 operador). O caso pertence à **primeira fila ativa por prioridade** (empate pelo código) cujos critérios satisfaz
@@ -263,6 +264,13 @@ valor contestado, prazo de resposta (informado ou `disputeResponseDays`, padrão
   interno vêm das regras de prazo (§7.2) quando não informados.
 
 Publica `DisputeStatusChanged` em cada mudança.
+
+**Contestação do portal (I14).** `DisputeIntakeUseCases#openFromPortal` (job `portal.dispute_intake`, ator de sistema)
+abre, por caso ativo do devedor nas carteiras do pedido, a contestação com origem `DEBTOR`, bloqueante, descrição com o
+protocolo e o relato, e **`opened_at` e base dos prazos = instante do pedido no portal**. Idempotente por
+`dispute.origin_reference = portal_request:<id>` (índice único por caso); caso com contestação em aberto não ganha outra.
+Resultado `OPENED`/`ALREADY_OPEN`/`NO_CASE`/`NO_TITLES` (métrica `collection.disputes.portal_intake`). Ver
+[conformidade.md](conformidade.md) §2.
 
 **Views.** `DisputeView.titles` traz os dados mínimos de cada título contestado (número, parcela, vencimento, valor original
 e saldo), lidos no debt uma vez por devedor (`DebtTitleUseCases#listByDebtor`, com o escopo do ator; na ficha, dos títulos
@@ -476,6 +484,7 @@ evento (pendência registrada lá).
 ## 10. Eventos consumidos
 
 `TitleStatusChanged`, `PortfolioLoaded`, `PortfolioStatusChanged`, `ContactRestrictionChanged`, `ContactPolicyPublished`,
+`VulnerabilityMarkerChanged` (indicador `collection_case.vulnerable` e nova fila dos casos ativos do devedor),
 `PaymentConfirmed`, `PaymentReversed`, `AgreementStatusChanged`, `CaseScoreChanged`, `TenantProvisioned` — consumidores
 `collection.<reacao>` idempotentes (`shared.consumed_event`), com lock consultivo por devedor antes de carregar o caso (os
 comandos de usuário obtêm o mesmo lock), o que evita abertura duplicada e colisões de lock otimista entre consumo e

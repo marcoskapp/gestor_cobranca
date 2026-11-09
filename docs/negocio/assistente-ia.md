@@ -64,6 +64,8 @@ O assistente tem um **perfil de alçada** próprio, como qualquer negociador, co
 ### Camada 3 — transferência obrigatória para humano
 Contestação ou "não reconheço"; suspeita de fraude; falecimento; sinais de vulnerabilidade (doença grave, desemprego, idoso em dificuldade, superendividamento); menção a advogado, Procon ou processo; agressividade; pedido explícito por humano; duas falhas seguidas de entendimento; identidade não confirmada; condição pedida acima da alçada (encaminhada a quem tem alçada suficiente).
 
+Nos sinais de vulnerabilidade, além de transferir, o assistente deixa uma **sugestão** de marcador de atenção especial (só a referência da conversa, sem o texto nem a categoria presumida). Uma pessoa confirma a categoria — superendividamento, pessoa idosa, saúde, dificuldade de compreensão ou outra — ou dispensa; o assistente nunca marca sozinho ([conformidade.md](../tecnico/desenho/conformidade.md) §1).
+
 Os gatilhos obrigatórios não podem ser desligados; outros gatilhos podem ser adicionados por carteira.
 
 ## 5. Perfis de negociador e o assistente

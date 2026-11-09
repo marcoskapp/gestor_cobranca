@@ -45,6 +45,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails, transferência para humano e Pix da parcela na conversa (pela interface do `payment`, ADR-0009) — ver `docs/tecnico/desenho/assistente.md` | F24 |
 | `analytics` | Read models e relatórios (painel operacional, recuperação, conversão, produtividade, confiabilidade, exportação) por views `security_invoker` e snapshots por assessoria — ver `docs/tecnico/desenho/analytics.md` | F11, F18 |
 | `incentive` | Métricas operacionais dos negociadores, atribuição de crédito (humano × assistente), planos de comissão versionados, apuração, extrato, contestação e aprovação — ver `docs/tecnico/desenho/remuneracao-variavel.md` | remuneração variável |
+| `complaint` | Reclamações de canais externos (Procon, consumidor.gov.br, Banco Central/ouvidoria, Reclame Aqui): protocolo, prazo por canal, responsável, resposta, evidências em quarentena, vínculo ao devedor/caso/credor e indicador por credor — ver `docs/tecnico/desenho/conformidade.md` §3 | conformidade (I5) |
 | `pendingwork` | "Minhas pendências": agrega o que o usuário da sessão pode fazer agora (aprovações, prazos, filas) a partir das fontes que cada módulo dono implementa (`shared.pendingwork.PendingWorkSource`) — ver `docs/tecnico/desenho/pendencias.md` | pendências |
 | `helpdesk` | Chat de suporte com IA para o usuário interno: manual contextual como base de conhecimento, consultas somente leitura como o próprio usuário (permissão, escopo e trilha de acesso), chamado no GitHub com texto mascarado e confirmação; parâmetros da configuração citados no manual (`GET /helpdesk/manual-parameters`, agregados de `shared.manual.ManualParameterSource` que cada módulo dono implementa) — ver `docs/tecnico/desenho/chat-suporte.md` e `ux.md` §8.7 | suporte |
 | `publicapi` | API pública de integração dos credores: tokens por credor com escopos, cadeia de segurança própria em `/public-api/**`, endpoints v1 que chamam os casos de uso dos módulos donos, medição de consumo e extrato por ciclo com os preços do contrato do credor, cobrança da plataforma às assessorias pelo consumo de todos os seus tokens (política da plataforma por assessoria, independente), contrato OpenAPI versionado e changelog — ver `docs/tecnico/desenho/api-publica.md` | integração |
@@ -61,7 +62,7 @@ shared ◄── organization ◄── identity
               │       │        ▲
               ├── collection ──┘  (collection → debt, organization, identity, compliance)
               │       ▲
-              ├── negotiation        (→ collection, debt, organization, identity)
+              ├── negotiation        (→ collection, compliance [salvaguarda de oferta], debt, organization, identity)
               │       ▲
               ├── payment            (→ negotiation [usecases e spi, ADR-0010], debt, organization)
               │       ▲
@@ -69,7 +70,8 @@ shared ◄── organization ◄── identity
               ├── communication      (→ collection [usecases e spi, ADR-0010], debt, compliance, organization)
               ├── campaign           (→ communication, collection, negotiation, portal [link de acesso], debt, compliance, organization)
               ├── telephony          (→ collection, compliance, debt, organization)
-              ├── portal             (→ negotiation, payment, communication, debt, organization)
+              ├── portal             (→ negotiation, payment, communication, collection [contestação do devedor], debt, organization)
+              ├── complaint          (→ collection, debt, identity, organization)
               ├── scoring            (→ collection, debt, payment, organization)
               ├── assistant          (→ negotiation, communication, collection, compliance, debt, payment [ADR-0009], organization)
               ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation e réguas do campaign por evento)
@@ -192,6 +194,7 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V2100–V2199 | publicapi |
 | V2200–V2299 | sandbox (reservada, sem uso — decisão 630) |
 | V2300–V2399 | ingestion — importação PDF inteligente |
+| V2400–V2499 | complaint — reclamações de canais externos |
 
 Como as faixas são por módulo, uma migration nova de faixa baixa pode chegar depois de versões maiores já aplicadas; o Flyway roda com `out-of-order: true` (a validação de checksum continua ativa) — ver `MigrationOrderIT`.
 

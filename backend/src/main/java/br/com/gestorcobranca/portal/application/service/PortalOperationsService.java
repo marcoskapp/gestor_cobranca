@@ -9,8 +9,10 @@ import br.com.gestorcobranca.portal.domain.model.AccessLink;
 import br.com.gestorcobranca.portal.domain.model.PortalChannel;
 import br.com.gestorcobranca.portal.domain.model.PortalConfiguration;
 import br.com.gestorcobranca.portal.domain.model.ServiceRequest;
+import br.com.gestorcobranca.portal.domain.model.ServiceRequestDispute;
 import br.com.gestorcobranca.portal.domain.model.ServiceRequestStatus;
 import br.com.gestorcobranca.portal.domain.repository.PortalConfigurationRepository;
+import br.com.gestorcobranca.portal.domain.repository.ServiceRequestDisputeRepository;
 import br.com.gestorcobranca.portal.domain.repository.ServiceRequestRepository;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Guard;
@@ -39,6 +41,7 @@ class PortalOperationsService implements PortalOperationsUseCases {
 
     private final PortalConfigurationRepository configurations;
     private final ServiceRequestRepository serviceRequests;
+    private final ServiceRequestDisputeRepository requestDisputes;
     private final PortalDebts debts;
     private final MessageUseCases messages;
     private final AccessScope accessScope;
@@ -48,11 +51,12 @@ class PortalOperationsService implements PortalOperationsUseCases {
     private final CurrentActor currentActor;
 
     PortalOperationsService(PortalConfigurationRepository configurations, ServiceRequestRepository serviceRequests,
-                            PortalDebts debts, MessageUseCases messages, AccessScope accessScope,
+                            ServiceRequestDisputeRepository requestDisputes, PortalDebts debts, MessageUseCases messages, AccessScope accessScope,
                             AccessLinkIssuer issuer, PortalProperties properties, AccessLogger accessLogger,
                             CurrentActor currentActor) {
         this.configurations = configurations;
         this.serviceRequests = serviceRequests;
+        this.requestDisputes = requestDisputes;
         this.debts = debts;
         this.messages = messages;
         this.accessScope = accessScope;
@@ -100,8 +104,12 @@ class PortalOperationsService implements PortalOperationsUseCases {
         ServiceRequestStatus st = status == null || status.isBlank() ? null
                 : PortalSelfServiceService.parse(ServiceRequestStatus.class, status, "portal.request_status_invalid");
         List<UUID> allowed = accessScope.hasAllCreditors() ? null : List.copyOf(accessScope.restrictCreditors(List.of()));
-        return PageResponse.of(serviceRequests.search(allowed, creditorId, st,
-                page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))), PortalOperationsService::summary);
+        var found = serviceRequests.search(allowed, creditorId, st,
+                page.toPageable(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id"))));
+        Map<UUID, ServiceRequestDispute> intake = new java.util.HashMap<>();
+        requestDisputes.findByRequestIdIn(found.stream().map(ServiceRequest::getId).toList())
+                .forEach(d -> intake.put(d.getRequestId(), d));
+        return PageResponse.of(found, r -> summary(r, intake.get(r.getId())));
     }
 
     /**
@@ -120,13 +128,14 @@ class PortalOperationsService implements PortalOperationsUseCases {
             accessLogger.log(AccessEvent.of(AccessEventType.SENSITIVE_DATA_VIEWED, currentActor.get(), Map.of(
                     "resource", RESOURCE, "resourceId", requestId.toString(), "field", "note")));
         }
-        return new ServiceRequestDetail(summary(r), note);
+        return new ServiceRequestDetail(summary(r, requestDisputes.findByRequestId(r.getId()).orElse(null)), note);
     }
 
     /** Listagem sem a mensagem do devedor (minimização): só se ela existe. */
-    private static ServiceRequestSummary summary(ServiceRequest r) {
+    private static ServiceRequestSummary summary(ServiceRequest r, ServiceRequestDispute intake) {
         return new ServiceRequestSummary(r.getId(), r.getProtocol(), r.getCreditorId(), r.getPortfolioId(), r.getDebtorId(),
                 r.getReason().name(), r.getPreferredChannel().name(), r.getStatus().name(), r.hasNote(),
-                r.getConversationId(), r.getFailureCode(), r.getCreatedAt(), r.getForwardedAt());
+                r.getConversationId(), r.getFailureCode(), r.getCreatedAt(), r.getForwardedAt(), r.getDisputeType(),
+                intake == null ? null : intake.getStatus(), intake == null ? null : intake.getDisputesOpened());
     }
 }

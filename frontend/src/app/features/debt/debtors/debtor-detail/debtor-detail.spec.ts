@@ -94,7 +94,14 @@ describe('DebtorDetail', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  /** Selo de atenção especial (compliance) no cabeçalho da ficha: sem marcador. */
+  const noMarker = (debtorId: string) => ({ debtorId, vulnerable: false, categories: [], paymentCapacity: null, pendingSuggestion: null, markers: [], canRegister: false, canManage: false });
+
+  afterEach(() => {
+    // na troca de devedor, o selo do segundo devedor (o do primeiro já foi conferido em render())
+    http.match('/api/v1/compliance/vulnerability/debtors/d-2').filter((r) => !r.cancelled).forEach((r) => r.flush(noMarker('d-2')));
+    http.verify();
+  });
 
   /** Responde às cargas da ficha e à resolução de nomes (credor/carteira). */
   async function render(): Promise<ComponentFixture<DebtorDetail>> {
@@ -106,6 +113,9 @@ describe('DebtorDetail', () => {
     http.expectOne('/api/v1/debtors/d-1/titles').flush([title]);
     http.expectOne('/api/v1/debtors/d-1/contacts').flush([contact]);
     await settle(fixture);
+    // exatamente uma consulta do selo por ficha
+    http.expectOne('/api/v1/compliance/vulnerability/debtors/d-1').flush(noMarker('d-1'));
+    fixture.detectChanges();
     return fixture;
   }
 

@@ -80,6 +80,11 @@ class CollectionMetrics {
         registry.counter("collection.disputes", "status", status).increment();
     }
 
+    /** Contestação aberta pelo devedor no portal: OPENED, ALREADY_OPEN, NO_CASE ou NO_TITLES. */
+    void portalDisputeIntake(String outcome) {
+        registry.counter("collection.disputes.portal_intake", "outcome", outcome).increment();
+    }
+
     void disputeOverdue(String type) {
         registry.counter("collection.disputes.overdue", "type", type).increment();
     }

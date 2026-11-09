@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "7c4ff86bbac6feb6",
+ "contentVersion": "a9173a9cdb8894c6",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -749,7 +749,8 @@
    "overview": [
     "O compliance garante que a cobrança respeita a lei e a vontade do devedor. Antes de qualquer contato, por pessoa, régua, discador ou assistente, o sistema responde \"Posso contatar agora?\" para cada canal.",
     "A resposta considera restrições de contato (pedidos de não contato, bloqueios do credor, contatos inválidos), a política de contato com horários, dias e limites de tentativas, e os feriados.",
-    "O módulo também cuida da LGPD: base legal do tratamento por credor, atendimento aos pedidos dos titulares dentro do prazo legal e retenção com anonimização ao fim do prazo de guarda."
+    "O módulo também cuida da LGPD: base legal do tratamento por credor, atendimento aos pedidos dos titulares dentro do prazo legal e retenção com anonimização ao fim do prazo de guarda.",
+    "E cuida da conduta da operação: o marcador de atenção especial (vulnerabilidade e superendividamento) e as reclamações recebidas por Procon, consumidor.gov.br, Banco Central, ouvidoria e Reclame Aqui, com prazo de resposta e responsável."
    ],
    "connections": [
     {
@@ -782,7 +783,10 @@
     "A política do credor prevalece canal a canal; canais sem regra seguem a da assessoria. Cada publicação cria uma versão com vigência.",
     "O prazo legal de um pedido do titular conta a partir do recebimento, por qualquer canal: registre no mesmo dia.",
     "Eliminação de dados pede confirmação reforçada e não pode ser desfeita.",
-    "Políticas de retenção nascem desabilitadas; simule antes de executar."
+    "Políticas de retenção nascem desabilitadas; simule antes de executar.",
+    "Atenção especial guarda só a categoria, a base legal e quem registrou: nunca escreva diagnóstico ou relato. A categoria só aparece para compliance e gestão; os demais veem \"atenção especial\".",
+    "O assistente de IA só sugere o marcador; uma pessoa confirma a categoria ou dispensa.",
+    "Reclamação: o prazo informado pelo canal prevalece; sem ele, vale o prazo do canal configurado pela assessoria."
    ],
    "terms": [
     "porteiro-de-contato",
@@ -790,7 +794,10 @@
     "politica-de-contato",
     "base-legal",
     "titular",
-    "anonimizacao"
+    "anonimizacao",
+    "atencao-especial",
+    "minimo-existencial",
+    "reclamacao"
    ]
   },
   {
@@ -5700,6 +5707,169 @@
    }
   },
   {
+   "id": "compliance.vulnerability",
+   "module": "compliance",
+   "title": "Vulnerabilidade e superendividamento",
+   "objective": "Sugestões do assistente a confirmar, marcadores de atenção especial e os efeitos do marcador na oferta.",
+   "purpose": [
+    "Confirme a categoria da sugestão do assistente ou dispense. O marcador também é registrado no selo da ficha do devedor e da estação.",
+    "Em \"Efeitos na oferta\" (quem tem acesso a todos os credores), a assessoria decide se bloqueia parcela acima da capacidade declarada e se portal, assistente e integrações deixam de negociar com o devedor marcado."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "GESTOR",
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Sugestões do assistente de IA e declarações do devedor no atendimento."
+   ],
+   "outputs": [
+    "Atendimento cuidadoso, fila própria quando configurada e ofertas que preservam o mínimo existencial."
+   ],
+   "related": [
+    {
+     "screen": "collection.queues",
+     "why": "Fila só de devedores com marcador."
+    },
+    {
+     "screen": "debt.debtors",
+     "why": "Selo na ficha do devedor."
+    }
+   ],
+   "terms": [
+    "atencao-especial",
+    "minimo-existencial"
+   ],
+   "path": "/compliance/vulnerabilidade",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "VULNERABILITY_REGISTER",
+     "VULNERABILITY_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.complaints",
+   "module": "compliance",
+   "title": "Reclamações",
+   "objective": "Reclamações do Procon, consumidor.gov.br, Banco Central, ouvidoria do credor e Reclame Aqui, com prazo de resposta e responsável.",
+   "purpose": [
+    "Registre no dia do recebimento, com o protocolo do canal e o prazo informado. Vencidas aparecem em vermelho; perto do prazo, em amarelo.",
+    "Clique num indicador para filtrar. As que estão perto do prazo aparecem também em \"Minhas pendências\"."
+   ],
+   "profiles": [
+    "OPERADOR",
+    "SUPERVISOR",
+    "COMPLIANCE",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Notificações dos órgãos e canais, com protocolo e prazo."
+   ],
+   "outputs": [
+    "Respostas no prazo e indicador por credor."
+   ],
+   "related": [
+    {
+     "screen": "compliance.complaint-config",
+     "why": "Prazos por canal e indicador."
+    },
+    {
+     "screen": "collection.disputes",
+     "why": "Contestação da dívida."
+    }
+   ],
+   "terms": [
+    "reclamacao"
+   ],
+   "path": "/compliance/reclamacoes",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "COMPLAINT_REGISTER",
+     "COMPLAINT_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.complaint-detail",
+   "module": "compliance",
+   "title": "Reclamação",
+   "objective": "Tratamento de uma reclamação: responsável, resposta ao canal, evidências e encerramento.",
+   "purpose": [
+    "Comece o tratamento, registre a resposta enviada ao canal e encerre com o resultado. Respondida até o prazo conta como no prazo.",
+    "Anexe a notificação e a resposta protocolada em PDF ou imagem; os arquivos passam por verificação antes de ficar disponíveis."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "COMPLIANCE",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Reclamação registrada e a notificação do canal."
+   ],
+   "outputs": [
+    "Resposta registrada, evidências e resultado."
+   ],
+   "related": [
+    {
+     "screen": "compliance.complaints",
+     "why": "Fila de reclamações."
+    }
+   ],
+   "terms": [
+    "reclamacao"
+   ],
+   "path": "/compliance/reclamacoes/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "COMPLAINT_REGISTER",
+     "COMPLAINT_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.complaint-config",
+   "module": "compliance",
+   "title": "Prazos e indicador de reclamações",
+   "objective": "Prazo de resposta por canal e indicador por credor: recebidas, respondidas no prazo e fora do prazo.",
+   "purpose": [
+    "Os prazos são da assessoria e podem ser ajustados; o prazo informado pelo canal no registro sempre prevalece.",
+    "O indicador mostra, por credor, quantas foram respondidas no prazo no período e quantas estão vencidas agora."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "COMPLIANCE",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Prazos combinados com os canais e os credores."
+   ],
+   "outputs": [
+    "Prazos aplicados às novas reclamações e acompanhamento por credor."
+   ],
+   "related": [
+    {
+     "screen": "compliance.complaints",
+     "why": "Fila de reclamações."
+    }
+   ],
+   "terms": [
+    "reclamacao"
+   ],
+   "path": "/compliance/reclamacoes/configuracao",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "COMPLAINT_REGISTER",
+     "COMPLAINT_MANAGE"
+    ]
+   }
+  },
+  {
    "id": "analytics.operational",
    "module": "paineis",
    "title": "Painel operacional",
@@ -6828,6 +6998,21 @@
    "id": "titular",
    "term": "Titular dos dados",
    "definition": "A pessoa a quem os dados pessoais se referem. Pode pedir acesso, correção, portabilidade ou eliminação, com prazo legal."
+  },
+  {
+   "id": "atencao-especial",
+   "term": "Atenção especial (vulnerabilidade)",
+   "definition": "Marcador do devedor que pede atendimento cuidadoso: superendividamento, pessoa idosa, saúde, dificuldade de compreensão ou outra situação. Guarda só a categoria, nunca o relato."
+  },
+  {
+   "id": "minimo-existencial",
+   "term": "Mínimo existencial",
+   "definition": "Parte da renda que a pessoa superendividada precisa para viver (Lei 14.181/2021). Nenhuma condição de acordo deve comprometê-la."
+  },
+  {
+   "id": "reclamacao",
+   "term": "Reclamação",
+   "definition": "Queixa do consumidor registrada num órgão ou canal externo (Procon, consumidor.gov.br, Banco Central, ouvidoria do credor, Reclame Aqui), com prazo de resposta."
   },
   {
    "id": "anonimizacao",

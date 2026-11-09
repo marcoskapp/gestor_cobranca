@@ -110,7 +110,7 @@ Antes de revelar a dívida: 3 primeiros dígitos do CPF (ou o CPF completo, do q
 | `PAYMENT_CLAIM` | "já paguei", "tenho o comprovante" | `SENIOR` |
 | `FRAUD_SUSPECTED` | "golpe", "fraude", "usaram meus dados" | `SUPERVISOR` |
 | `DECEASED` | "faleceu", "óbito" | `SUPERVISOR` |
-| `VULNERABILITY` | desemprego, doença, internação, superendividamento, idoso, mínimo existencial | `SENIOR` |
+| `VULNERABILITY` | desemprego, doença, internação, superendividamento, idoso, mínimo existencial | `SENIOR` — e deixa uma **sugestão** de marcador de vulnerabilidade no compliance (só a referência da conversa; uma pessoa confirma a categoria — [conformidade.md](conformidade.md) §1.3) |
 | `LEGAL_MENTION` | advogado, Procon, processo, justiça, defensoria | `SUPERVISOR` |
 | `COMPLAINT` | Reclame Aqui, ouvidoria, Banco Central | `SUPERVISOR` |
 | `ABUSIVE` | xingamento, ameaça | `SUPERVISOR` |

@@ -40,6 +40,9 @@ Pedido do responsável: *"apresentar ao usuário logado o que ele pode fazer (it
 | `incentive.statement_disputes` | `COMMISSION_STATEMENT_MANAGE` | contestação `OPEN` aberta por outra pessoa | idade | `…?situacao=DISPUTED` |
 | `incentive.adjustment_approval` | `COMMISSION_STATEMENT_MANAGE` | ajuste pendente pedido por outra pessoa, fora do próprio extrato | idade | extratos |
 | `compliance.data_subject_requests` | `DATA_SUBJECT_REQUEST_MANAGE` + todos os credores | solicitação aberta com prazo legal até o fim da janela | prazo legal (`due_at`) | `/compliance/solicitacoes-titulares[?vencidas=true]` |
+| `compliance.vulnerability_suggestions` | `VULNERABILITY_REGISTER` ou `VULNERABILITY_MANAGE` (credor da sugestão no escopo) | sugestão de marcador do assistente pendente | — (sem prazo; idade pela mais antiga) | `/compliance/vulnerabilidade?aba=sugestoes` |
+| `complaint.mine_due` | `COMPLAINT_MANAGE` | reclamação do próprio responsável aguardando resposta, com o aviso do canal iniciado ou vencida | prazo da reclamação | `/compliance/reclamacoes?responsavel=me&prazo=soon` |
+| `complaint.unassigned_due` | `COMPLAINT_MANAGE` | idem, sem responsável | prazo da reclamação | `/compliance/reclamacoes?sem-responsavel=1&prazo=soon` |
 | `debt.amount_adjustment_approvals` | `TITLE_AMOUNT_APPROVE` | correções de valor `PENDING_APPROVAL` pedidas por **outra pessoa**, no escopo | idade | `/titulos/correcoes-de-valor?aba=aprovacoes` (1 item: o título) |
 | `debt.amount_threshold_proposal` | `TITLE_AMOUNT_APPROVE` + todos os credores | aumento do limite de correção de valor proposto por **outra pessoa**, aguardando confirmação | idade | `/titulos/correcoes-de-valor?aba=limite` |
 | `debt.amount_divergences` | `TITLE_AMOUNT_ADJUST` | divergências `OPEN` entre o valor corrigido e a carga do credor, no escopo | idade | `/titulos/correcoes-de-valor?aba=divergencias` (1 item: o título) |
