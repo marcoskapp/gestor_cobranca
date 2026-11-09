@@ -34,6 +34,8 @@ const sameTabs = (a: readonly HiddenTab[], b: readonly HiddenTab[]) =>
   imports: [NgbDropdownModule, NgbTooltip, Icon],
   host: {
     class: 'app-tabs-more',
+    // oculto junto com o `li` quando nenhuma aba está recolhida (o `li` é alternado no `layout()`)
+    '[class.d-none]': '!hidden().length',
     // as teclas do menu não sobem para o `ngbNav` (que levaria o foco para a primeira aba)
     '(keydown)': 'keepMenuKeys($event)',
   },
