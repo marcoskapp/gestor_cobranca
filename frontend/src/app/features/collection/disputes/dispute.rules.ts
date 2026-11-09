@@ -111,10 +111,6 @@ export const DISPUTE_FORM_DEFAULTS: DisputeListFormValue = {
   mailReplyPending: false,
 };
 
-/**
- * Filtros aplicados (diferentes do padrão da fila), para o botão "Filtros (n)" do `app-filter-bar` no celular
- * (docs/tecnico/desenho/ux.md §12.3).
- */
 /** Opção do formulário ↔ valor curto em português na URL. */
 function mappedParam(param: string, values: Record<string, string>): UrlCodec<string> {
   return {

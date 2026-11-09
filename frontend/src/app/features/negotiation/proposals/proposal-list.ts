@@ -57,7 +57,8 @@ export function toProposalFilter(v: { creditor: string[]; debtor: string[]; stat
  */
 @Component({
   selector: 'app-proposal-list',
-  imports: [FilterBar, 
+  imports: [
+    FilterBar,
     Icon,
     NgbTooltip,
     ...FORM_FIELD,

@@ -171,6 +171,6 @@ export class TitleList {
     this.filters.reset();
   }
 
-  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
-  protected readonly activeFilters = activeFilterCount(this.filters);
+  /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3); devedor e lote são chips de contexto fora do botão (decisão 1070). */
+  protected readonly activeFilters = activeFilterCount(this.filters, { ignore: ['debtorId', 'importBatchId'] });
 }
