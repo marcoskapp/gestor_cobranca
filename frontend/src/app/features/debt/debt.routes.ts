@@ -39,6 +39,14 @@ export const TITLE_ROUTES: Routes = [
     loadComponent: () => import('./titles/title-amount/title-amount-page').then((m) => m.TitleAmountPage),
   },
   {
+    // decisão aberta pela fila: contador "1 de N", "Aprovar e abrir a próxima" e volta à fila com o filtro
+    path: 'correcoes-de-valor/:id',
+    title: 'Aprovação de correção de valor',
+    canActivate: [permissionGuard],
+    data: { permissions: [Permission.TITLE_AMOUNT_APPROVE] },
+    loadComponent: () => import('./titles/title-amount/title-amount-approval').then((m) => m.TitleAmountApproval),
+  },
+  {
     path: ':id',
     title: 'Título',
     canActivate: [permissionGuard],

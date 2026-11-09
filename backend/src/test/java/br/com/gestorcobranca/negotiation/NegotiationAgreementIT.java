@@ -12,6 +12,7 @@ import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulati
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.SimulateCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.AcceptCommand;
+import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.ApprovalQueueFilter;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.CreateProposalCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.ProposalFilter;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.ProposalView;
@@ -165,11 +166,50 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
                 .isInstanceOf(ScopeAccessDeniedException.class);
 
         // fila do gestor (alçada suficiente)
-        assertThat(asManager(() -> proposals.approvalQueue(PageQuery.of(0, 20))).content())
+        assertThat(asManager(() -> proposals.approvalQueue(ApprovalQueueFilter.ALL, PageQuery.of(0, 20))).content())
                 .extracting(ProposalView::id).containsExactly(pending.id());
+        // filtro de credor da fila (origem): o credor da proposta mantém; outro credor do escopo esvazia
+        assertThat(asManager(() -> proposals.approvalQueue(new ApprovalQueueFilter(creditorA), PageQuery.of(0, 20)))
+                .content()).extracting(ProposalView::id).containsExactly(pending.id());
+        assertThat(asManager(() -> proposals.approvalQueue(new ApprovalQueueFilter(creditorB), PageQuery.of(0, 20)))
+                .content()).isEmpty();
+        // quanto passa da alçada: júnior (nível 1) pediu nível 2; o gestor cobre; quem propôs vê sem limite de aprovador
+        ProposalUseCases.ApprovalAssessmentView assessment = asManager(() -> proposals.approvalAssessment(pending.id()));
+        assertThat(assessment.proposerProfileCode()).isEqualTo("JUNIOR");
+        assertThat(assessment.proposerProfileName()).isEqualTo("Negociador júnior");
+        assertThat(assessment.approverProfileCode()).isEqualTo("GESTOR");
+        assertThat(assessment.approverCanApprove()).isTrue();
+        assertThat(assessment.withinApproverAuthority()).isTrue();
+        assertThat(assessment.ownProposal()).isFalse();
+        assertThat(assessment.gaps()).extracting(ProposalUseCases.AuthorityGapView::dimension)
+                .contains("LEVEL", "DISCOUNT_SHARE");
+        assertThat(assessment.gaps()).filteredOn(g -> g.dimension().equals("LEVEL")).singleElement().satisfies(g -> {
+            assertThat(g.requested()).isEqualByComparingTo("2");
+            assertThat(g.proposerLimit()).isEqualByComparingTo("1");
+            assertThat(g.approverCovers()).isTrue();
+        });
+        assertThat(assessment.gaps()).allMatch(ProposalUseCases.AuthorityGapView::approverCovers);
+        ProposalUseCases.ApprovalAssessmentView own = asOperator(() -> proposals.approvalAssessment(pending.id()));
+        assertThat(own.ownProposal()).isTrue();
+        assertThat(own.approverProfileCode()).isNull();
+        assertThat(own.gaps()).isNotEmpty().allSatisfy(g -> assertThat(g.approverLimit()).isNull());
+        // sem permissão de aprovar, só a própria proposta: o colega operador recebe 404; o jurídico (sem propor nem
+        // aprovar) é recusado
+        assertThatThrownBy(() -> as(Ids.newId(), DefaultRoles.OPERADOR, CreditorScope.ALL,
+                () -> proposals.approvalAssessment(pending.id()))).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> as(Ids.newId(), DefaultRoles.JURIDICO, CreditorScope.ALL,
+                () -> proposals.approvalAssessment(pending.id()))).isInstanceOf(ScopeAccessDeniedException.class);
+        // escopo: filtro de credor fora do escopo → 403; proposta de credor fora do escopo → 404 (fila e avaliação)
+        assertThatThrownBy(() -> as(manager, DefaultRoles.GESTOR, CreditorScope.of(Set.of(creditorB)),
+                () -> proposals.approvalQueue(new ApprovalQueueFilter(creditorA), PageQuery.of(0, 20))))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThat(as(manager, DefaultRoles.GESTOR, CreditorScope.of(Set.of(creditorB)),
+                () -> proposals.approvalQueue(ApprovalQueueFilter.ALL, PageQuery.of(0, 20))).content()).isEmpty();
+        assertThatThrownBy(() -> as(manager, DefaultRoles.GESTOR, CreditorScope.of(Set.of(creditorB)),
+                () -> proposals.approvalAssessment(pending.id()))).isInstanceOf(ResourceNotFoundException.class);
         ProposalView approved = asManager(() -> proposals.approve(pending.id(), "Cliente antigo"));
         assertThat(approved.status()).isEqualTo("APPROVED");
-        assertThat(asManager(() -> proposals.approvalQueue(PageQuery.of(0, 20))).content()).isEmpty();
+        assertThat(asManager(() -> proposals.approvalQueue(ApprovalQueueFilter.ALL, PageQuery.of(0, 20))).content()).isEmpty();
 
         // aceite: evidência + termo PDF com hash
         ProposalView accepted = asOperator(() -> proposals.accept(pending.id(), new AcceptCommand("PHONE", "call-1", null,
@@ -339,7 +379,7 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
         ProposalView handoff = asAssistantProposer(policy, () -> proposals.create(new CreateProposalCommand(sim, 0, null,
                 new PlanInput(12, null, null), null, null, false, null)));
         assertThat(handoff.status()).isEqualTo("HANDED_OFF");
-        assertThat(asManager(() -> proposals.approvalQueue(PageQuery.of(0, 20))).content()).isEmpty();
+        assertThat(asManager(() -> proposals.approvalQueue(ApprovalQueueFilter.ALL, PageQuery.of(0, 20))).content()).isEmpty();
         assertThat(count("select count(*) from shared.business_event where event_type = 'proposal.handoff_requested'"))
                 .isEqualTo(1);
         // transferência pelo contrato do communication (consumido como communication.handoff-requested)

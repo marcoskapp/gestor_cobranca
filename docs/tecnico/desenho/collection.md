@@ -429,6 +429,28 @@ painel abre. Só em memória (no máximo 20 casos, limpos na troca de
 usuário): a observação pode conter dado pessoal e não vai para `localStorage`/`sessionStorage`; recarregar a página
 recomeça o atendimento. O acordo fecha sem sair do caso (`negociacao-e-alcadas.md` §10.13).
 
+### 8.2.1 Endereço único do caso e modo consulta (revisão de produto 11/2026, J9)
+
+* **Endereço canônico**: `/cobranca/casos/:id[?aba=]`. Duas rotas com o mesmo caminho (`collection.routes.ts`): a primeira
+  tem `canMatch` com `CASE_WORK` e abre a **estação** (fila "Meus casos", cronômetro, janela de contato e registro), com
+  `data.menuRoute = '/cobranca/fila'` — menu e trilha marcam "Estação de cobrança" (`menuRouteOf` em
+  `core/layout/navigation.ts`, usado pelo shell e pela trilha); a segunda abre a **ficha em modo consulta**
+  (`features/collection/case/case-consult.ts`) para quem só tem `CASE_VIEW` (jurídico, gestor, auditoria, financeiro), com
+  menu e trilha em "Casos". O endereço antigo `/cobranca/fila?caso=<id>[&aba=]` redireciona (guard `legacyCaseRedirect`,
+  `UrlTree`, antes do `permissionGuard`, para valer também a quem só consulta) para o canônico, mantendo a aba e os demais
+  parâmetros; a estação passou a navegar sempre para `/cobranca/casos/:id` ao abrir um caso
+  ("Meus casos", "Próximo caso"), e a `/cobranca/fila` sem caso continua como a estação vazia.
+* **Modo consulta**: os mesmos dados e abas da ficha (`CaseSheetPanel`), sem fila, cronômetro, janela de contato nem
+  registro de interação (essas consultas nem são feitas). Cabeçalho "Caso · <devedor>", "Ficha do devedor" (com
+  `DEBTOR_VIEW`) e "Mais ações" só com o que o perfil faz: simular (`NEGOTIATION_SIMULATE`, abre o simulador com o caso),
+  atribuir (`CASE_ASSIGN`), atualizar a posição dos títulos e mudar a situação (`CASE_MANAGE`). "Fechar acordo" numa
+  proposta pronta abre a proposta. O servidor continua conferindo cada comando.
+* **Selos do caso**: a área `sp-head__chips` (`data-tour="case-badges"`) do cabeçalho da ficha é a mesma nos dois modos —
+  é onde entram marcadores como o de vulnerabilidade.
+* **Avaliar o atendimento**: no histórico, quem tem `QUALITY_EVALUATE` vê "Avaliar" em cada interação registrada por outra
+  pessoa (não o assistente nem o sistema), que abre a monitoria com o negociador, o caso e a data preenchidos
+  (`remuneracao-variavel.md` §2.4.1).
+
 ### 8.3 "Seu dia" no início
 
 `GET /my-day` (`CASE_WORK` ou `CASE_ASSIGN`), `MyDayQueries`: só contagens, sem dado de devedor, no escopo de credores do

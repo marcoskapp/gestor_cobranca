@@ -77,3 +77,17 @@ A divergência é decidida por quem tem `TITLE_AMOUNT_ADJUST`, sempre com motivo
 ## 7. Contestação procedente
 
 Quando a contestação sugere **corrigir o valor**, o atalho abre a correção no título já com o motivo "Contestação procedente" e o vínculo com a contestação. A pendência de ajuste da contestação é concluída quando o saldo do título mudar, seja pela correção ou por uma carga do credor com o valor corrigido ([contestacoes.md §6](contestacoes.md#6-ajuste-sugerido-no-título)).
+
+## Aprovação no padrão único das filas (revisão de produto 11/2026, item 3.1)
+
+Quem decide vê por que o pedido precisa de segunda pessoa e quanto ele passa do limite: **aumento** de componente (sempre
+segunda pessoa), **redução acima do limite** sozinha ou **somada às reduções** já aplicadas sem segunda pessoa no título na
+janela do limite acumulado, com o excesso em valor e %. O limite e as reduções recentes do momento do pedido passam a ser
+gravados no pedido (`request_threshold`, `request_recent_reductions`, `V0306`); pedidos anteriores usam o limite atual e
+reduções recentes zero. `GET /title-amount-adjustments/{id}/approval` (`TITLE_AMOUNT_APPROVE`, credor no escopo) devolve o
+pedido e o motivo (`TitleAmountAdjustment#approvalTrigger`); pedido aplicado dentro do limite → `422
+title_amount.not_dual_control`. A fila (`GET /title-amount-adjustments/pending?creditorId=`) filtra por credor; a tela
+`/titulos/correcoes-de-valor` lista os pedidos (pedida em, título e credor, motivo, saldo antes → depois, diferença) e
+"Revisar" abre `/titulos/correcoes-de-valor/:id`, com "Aprovar e abrir a próxima", o contador "1 de N" e a volta à fila. As
+regras (quem pede não decide, saldo inalterado desde o pedido) continuam no domínio e no banco. Teste:
+`TitleAmountAdjustmentIT.aboveTheLimitNeedsEvidenceAndAnotherPersonToApprove`.

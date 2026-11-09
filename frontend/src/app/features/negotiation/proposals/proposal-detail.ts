@@ -32,6 +32,10 @@ import { ConcessionReason } from '../data/negotiation.models';
 import { AcceptDialog, AcceptDialogData } from './accept-dialog';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
+import { ApprovalDecision, ApprovalParty } from '../../../shared/approval/approval-decision';
+import { approvalQueue } from '../../../shared/approval/approval-queue';
+import { authorityProfileText } from '../data/agreement.labels';
+import { authorityGapReasons, discountShare, unmeasuredViolations } from './proposal-approval';
 
 const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse().join('/') : '—');
 
@@ -43,12 +47,14 @@ const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse()
  */
 @Component({
   selector: 'app-proposal-detail',
-  imports: [Icon, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, InfoHint, KpiCard],
+  imports: [Icon, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, InfoHint, KpiCard, ApprovalDecision],
   templateUrl: './proposal-detail.html',
   styleUrl: '../detail-page.scss',
 })
 export class ProposalDetail {
   readonly id = input.required<string>();
+  /** Aberta pela fila de aprovação (`/negociacao/aprovacoes/:id`, dado da rota): contador, próxima e volta à fila. */
+  readonly queue = input(false);
 
   private readonly api = inject(ProposalsApi);
   private readonly simulations = inject(SimulationApi);
@@ -117,6 +123,60 @@ export class ProposalDetail {
   });
   protected readonly debtorName = computed(() => this.debtorView()?.name ?? null);
 
+  // ------------------------------------------------------------------ aprovação (padrão único das filas, ux.md §18)
+
+  protected readonly canApprove = computed(() => this.auth.hasPermission(Permission.NEGOTIATION_APPROVE));
+  /** Bloco de decisão: proposta aguardando aprovação vista por quem aprova (pela fila ou pela lista de propostas). */
+  protected readonly deciding = computed(() => this.proposal()?.status === 'PENDING_APPROVAL' && this.canApprove());
+  /** Fila filtrada de onde a proposta foi aberta (`?credor=` vem da lista). */
+  protected readonly approvals = approvalQueue({
+    path: '/negociacao/aprovacoes',
+    filterParams: ['credor'],
+    load: (f, size) => this.api.approvalQueue({ page: 0, size }, { creditorId: f['credor'] ?? null }),
+    currentId: () => this.id(),
+    enabled: () => this.queue(),
+  });
+  private readonly assessmentResource = rxResource({
+    params: () => (this.deciding() ? this.id() : undefined),
+    stream: ({ params }) => this.api.approvalAssessment(params).pipe(catchError(() => of(null))),
+  });
+  protected readonly assessment = valueOr(this.assessmentResource, null);
+  protected readonly approvalReasons = computed(() => {
+    const a = this.assessment();
+    return a ? authorityGapReasons(a) : [];
+  });
+  protected readonly approvalNotes = computed(() => {
+    const p = this.proposal();
+    return p ? unmeasuredViolations(p, this.assessment()) : [];
+  });
+  protected readonly discountPercent = computed(() => {
+    const p = this.proposal();
+    return p ? discountShare(p) : 0;
+  });
+  protected readonly requester = computed<ApprovalParty>(() => {
+    const p = this.proposal()!;
+    const a = this.assessment();
+    return { name: this.actorName(p.actor.type, p.actor.id), role: a ? `alçada ${authorityProfileText(a.proposerProfileCode, a.proposerProfileName)}` : null };
+  });
+  protected readonly approverParty = computed<ApprovalParty | null>(() => {
+    const a = this.assessment();
+    return a?.approverProfileCode ? { name: 'Você', role: `alçada ${authorityProfileText(a.approverProfileCode, a.approverProfileName)}` } : null;
+  });
+  /** Por que esta pessoa não decide esta proposta (segregação, perfil, alçada, validade); o servidor confere de novo. */
+  protected readonly blockedReason = computed(() => {
+    const a = this.assessment();
+    if (a?.ownProposal) {
+      return 'Você não pode decidir a própria proposta (segregação de funções): ela fica para outra pessoa com alçada.';
+    }
+    if (a && !a.approverCanApprove) {
+      return 'O seu perfil de alçada não aprova propostas de outras pessoas.';
+    }
+    if (this.lapsed()) {
+      return 'A validade terminou: a proposta não pode mais ser aprovada. O negociador simula de novo.';
+    }
+    return null;
+  });
+
   constructor() {
     effect(() => this.breadcrumbs.setCurrentLabel(this.debtorName()));
   }
@@ -164,7 +224,7 @@ export class ProposalDetail {
         reasonLabel: 'Observação (opcional)',
         details: this.impact(p),
       })
-      .subscribe((note) => this.run(this.api.approve(p.id, note || null), 'Proposta aprovada.'));
+      .subscribe((note) => this.decide(this.api.approve(p.id, note || null), 'Proposta aprovada.'));
   }
 
   protected reject(): void {
@@ -181,7 +241,7 @@ export class ProposalDetail {
         reason: 'required',
         details: this.impact(p),
       })
-      .subscribe((reason) => this.run(this.api.reject(p.id, reason), 'Proposta reprovada.'));
+      .subscribe((reason) => this.decide(this.api.reject(p.id, reason), 'Proposta reprovada.'));
   }
 
   protected accept(): void {
@@ -271,6 +331,33 @@ export class ProposalDetail {
     if (p) {
       this.api.downloadTerm(p.id).subscribe((name) => this.notifications.success(`Termo baixado: ${name}`));
     }
+  }
+
+  /** Alçada de quem consulta não cobre as condições: o servidor recusa aprovar, mas permite reprovar. */
+  protected readonly approveBlockedReason = computed(() =>
+    this.assessment() && !this.assessment()!.withinApproverAuthority
+      ? 'As condições passam também da sua alçada: aprovar fica para quem tem alçada maior; você ainda pode reprovar com motivo.'
+      : null,
+  );
+
+  /** Decisão: na fila, abre a próxima (ou volta à fila); fora dela, recarrega a proposta. */
+  private decide(call: ReturnType<ProposalsApi['approve']>, message: string): void {
+    if (!this.queue()) {
+      this.run(call, message);
+      return;
+    }
+    // ocupado até a próxima abrir (ou a fila voltar): evita decidir duas vezes enquanto a fila é relida
+    this.busy.set(true);
+    call.subscribe({
+      next: () => {
+        this.notifications.success(message);
+        void this.approvals.advance().finally(() => this.busy.set(false));
+      },
+      error: () => {
+        this.busy.set(false);
+        this.resource.reload();
+      },
+    });
   }
 
   private run(call: ReturnType<ProposalsApi['approve']>, message: string): void {

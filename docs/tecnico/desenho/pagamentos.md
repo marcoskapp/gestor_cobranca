@@ -74,6 +74,20 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
 - **Revisão conforme risco**: valor ≤ `externalReviewThreshold` (padrão R$ 500,00, por assessoria) → confirmado no registro (`AUTO_LOW_RISK`); acima → `INFORMED` até aprovação por **outra pessoa** com `PAYMENT_REVIEW` (`DUAL_CONTROL`); a fila de revisão não mostra ao revisor os próprios pagamentos e o domínio recusa `payment.self_review`. Recusa exige motivo (`REJECTED`, sem baixa). A `PaymentView` traz o **destino solicitado** (`requestedTarget`: tipo, acordo, parcelas/títulos em ordem e estratégia) do pagamento externo, para quem aprova ver para onde o valor vai antes de a confirmação gerar as alocações (nulo nos integrados).
 - **Aviso antecipado na tela** (decisão do responsável à 856; decisão 893): `GET /payment/settings/external-review` (`PAYMENT_REGISTER_EXTERNAL`, `PaymentSettingsUseCases.externalReviewLimit`) devolve só `externalReviewThreshold` — nada mais dos parâmetros, que seguem exigindo `PAYMENT_VIEW` ou `ORG_SETTINGS_MANAGE`. O diálogo "Informar pagamento" (lista de pagamentos, acordo, contestação) consulta esse endpoint para todos que registram e avisa acima do limite; o aviso é só antecipação: o registro no servidor continua decidindo, inclusive pelos limites acumulados, que a tela não mostra. Teste: `PaymentExternalIT.registerOnlyProfileReceivesJustTheSecondReviewThreshold`.
 - `Idempotency-Key` (escopo `payment.external`): mesma chave e conteúdo → mesmo pagamento.
+- **Quanto passa do limite** (revisão de produto 11/2026, item 3.1; `ux.md` §18): o registro grava no pagamento por que ele
+  foi para a aprovação — `review_reason` (`AMOUNT`, `DESTINATION_CUMULATIVE`, `INFORMER_CUMULATIVE`), `review_limit` (o
+  limite ultrapassado) e `review_considered_amount` (o pagamento ou a soma da janela com ele), `V0808`, com `check` de
+  coerência; `ExternalReviewPolicy.Decision` passou a carregar limite e valor considerado. `GET /payment/payments/{id}/review-assessment`
+  (`PAYMENT_REVIEW`, credor no escopo; `PaymentUseCases#reviewAssessment`) devolve motivo, limite, valor considerado,
+  excesso, janela atual em horas, limite atual por pagamento e se o pagamento é de quem consulta. Pagamentos anteriores à
+  `V0808` vêm sem motivo: a tela compara o valor com o limite atual por pagamento e diz isso. Pagamento que não passou pela
+  revisão → `422 payment.review_not_required`.
+- **Fila filtrada**: `GET /payment/payments/review-queue?creditorId=&origin=` (`PaymentUseCases#reviewQueue(ReviewQueueFilter, PageQuery)`;
+  credor no escopo; fonte inválida → 422 `payment.origin_invalid`). Tela `/pagamentos/aprovacoes` com `?credor=&origem=` →
+  "Revisar" abre `/pagamentos/aprovacoes/:id` (`PaymentApproval`, `features/payment/approvals`): quanto passa do limite,
+  quem informou × quem aprova, o que foi informado, destino solicitado, comprovante, suspensão da quebra,
+  "Aprovar e abrir a próxima"/"Recusar e abrir a próxima" e volta à fila com os filtros; a ficha completa continua em
+  `/pagamentos/:id`. Teste: `PaymentExternalIT.evidenceDualControlTitlesLedgerLeftoverRefundAndManualReversal`.
 
 ### 5.1 Situação de revisão no acordo e no caso (decisões 430–438, 540–549)
 

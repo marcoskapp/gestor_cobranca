@@ -3,7 +3,7 @@
  * revalida tudo (guard, alçada, escopo e situação) a cada comando.
  */
 import type { IconName } from '../../../shared/components/icon/icon-names';
-import { ACCEPTANCE_CHANNEL_LABELS, ACTOR_TYPE_LABELS, AUTHORITY_VIOLATION_LABELS, ELIGIBILITY_VIOLATION_LABELS } from './agreement.labels';
+import { ACCEPTANCE_CHANNEL_LABELS, ACTOR_TYPE_LABELS, AUTHORITY_VIOLATION_LABELS, ELIGIBILITY_VIOLATION_LABELS, authorityProfileText } from './agreement.labels';
 import { AcceptanceChannel, AgreementStatus, AgreementView, InstallmentView, ProposalStatus, ProposalView } from './agreement.models';
 import { ValidationOutcome } from './negotiation.models';
 
@@ -116,7 +116,7 @@ export function proposalTimeline(p: ProposalView, name: (actorType: string, id: 
       at: p.createdAt,
       icon: p.actor.type === 'ASSISTANT' ? 'robot' : 'pencil-square',
       title: p.handoffProposalId ? 'Proposta criada a partir da sugestão do assistente' : 'Proposta criada',
-      detail: `${name(p.actor.type, p.actor.id)}${p.actor.profileCode ? ` · alçada ${p.actor.profileCode}` : ''}`,
+      detail: `${name(p.actor.type, p.actor.id)}${p.actor.profileCode ? ` · alçada ${authorityProfileText(p.actor.profileCode)}` : ''}`,
     },
   ];
   if (p.decision) {
@@ -124,7 +124,7 @@ export function proposalTimeline(p: ProposalView, name: (actorType: string, id: 
       at: p.decision.decidedAt,
       icon: p.status === 'REJECTED' ? 'slash-circle' : 'patch-check',
       title: p.status === 'REJECTED' ? 'Reprovada' : 'Aprovada',
-      detail: [name('USER', p.decision.decidedBy), p.decision.profileCode ? `alçada ${p.decision.profileCode}` : null, p.decision.note].filter(Boolean).join(' · '),
+      detail: [name('USER', p.decision.decidedBy), p.decision.profileCode ? `alçada ${authorityProfileText(p.decision.profileCode)}` : null, p.decision.note].filter(Boolean).join(' · '),
     });
   }
   if (p.acceptance) {

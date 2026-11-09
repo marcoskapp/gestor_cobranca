@@ -334,3 +334,36 @@ proposta — nenhuma regra nova no frontend; o servidor revalida tudo (guard, al
 Contagem de cliques do caso aberto até o Pix gerado (sandbox, 1366×768): antes cerca de 20 cliques e 4 trocas de tela
 (estação → simulador → proposta → acordo → caso); agora 7 cliques (Simular, Propor esta oferta, Propor, Registrar aceite e
 formalizar, Gerar Pix, gerar no diálogo de Pix, fechar), mais digitar `FORMALIZAR`, sem trocar de tela.
+
+### 10.14 Aprovação: quanto passa da alçada e a fila filtrada (revisão de produto 11/2026, J8 e T9)
+
+A fila e a tela de decisão seguem o padrão único das aprovações (`ux.md` §18). As regras de alçada continuam todas no
+servidor; o que mudou é o que ele **mostra** a quem decide:
+
+* `GET /negotiation/proposals/approval-queue?creditorId=` — `ProposalUseCases#approvalQueue(ApprovalQueueFilter, PageQuery)`:
+  o filtro de credor (exige o credor no escopo; fora dele → 403) entra na consulta ao banco, antes do limite de
+  varredura, sobre a mesma fila de antes (`ProposalApprovalQueue`, pendentes
+  que cabem na alçada de quem consulta, sem as próprias, das mais antigas para as mais novas). "Minhas pendências" usa a
+  fila sem filtro.
+* `GET /negotiation/proposals/{id}/approval-assessment` — `ProposalUseCases#approvalAssessment`: `NEGOTIATION_APPROVE`
+  (qualquer proposta visível no escopo) ou `NEGOTIATION_PROPOSE` (só a própria — a de outra pessoa responde 404, como fora
+  do escopo); sem nenhuma das duas → 403; recusado ao assistente e ao devedor no portal. Compara a exigência gravada na proposta
+  (`ProposalTerms.AuthorityRequirement`: nível, fração do desconto máximo, pagamentos, valor, entrada e renegociação — a
+  mesma que roteia a fila) com o perfil de **quem negociou** (pelo código gravado na criação, com os parâmetros atuais do
+  perfil) e com o perfil de **quem consulta** (resolvido para o credor da proposta; só para usuário com
+  `NEGOTIATION_APPROVE`). Devolve, por ponto excedido (`AuthorityGapView`): pedido, limite de quem negociou, limite de quem
+  consulta e se ele cobre; e o nome dos perfis, se o perfil de quem consulta aprova, se as condições cabem nele, se a
+  proposta é de quem consulta (segregação) e o desconto em % da dívida atualizada. Regra pura em
+  `ProposalTerms.AuthorityRequirement#gaps`/`#withinLimits` (testes em `ProposalTermsTest`). Só informa: aprovar e
+  reprovar revalidam tudo pelo `NegotiationGuard` (`proposal.approver_authority_insufficient` etc.). Perfil de quem negociou
+  removido: lista vazia, e a tela mostra os motivos gravados (`authorityViolations`) traduzidos. Leitura sem dado pessoal:
+  sem auditoria nem log de acesso; sem evento ou métrica nova.
+* Tela: `/negociacao/aprovacoes` (fila com filtro de credor em `?credor=`, colunas valor, desconto %, prazo — validade da
+  proposta, "vence hoje" — e alçada de quem negociou) → "Revisar" abre `/negociacao/aprovacoes/:id?credor=` (a mesma
+  `ProposalDetail`, com `data.queue`): menu e trilha marcam **Aprovações**, contador "Proposta 1 de N", "Aprovar e abrir a
+  próxima"/"Reprovar e abrir a próxima" e volta à fila com o filtro. Fora da fila (`/negociacao/propostas/:id`), o mesmo
+  quadro aparece para quem aprova, sem contador. Quando a alçada de quem decide não cobre as condições, só "Aprovar" some
+  (com o motivo): reprovar continua disponível, como o servidor permite. Códigos de alçada traduzidos (`AUTHORITY_PROFILE_LABELS`: "alçada
+  Negociador júnior", nunca "alçada JUNIOR").
+* Teste: `NegotiationAgreementIT.fullFlowApprovalAcceptanceTermFormalizationAndSettlementInTheTitleLedger` (filtro de
+  credor, gaps do júnior × gestor, quem propôs vê sem limite de aprovador).

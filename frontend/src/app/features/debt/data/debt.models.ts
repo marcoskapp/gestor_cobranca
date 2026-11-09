@@ -380,6 +380,21 @@ export interface AmountAdjustmentView {
   titleLabel: string | null;
 }
 
+/** `TitleAmountAdjustmentUseCases.ApprovalView` (tela de aprovação da correção). */
+export interface AmountAdjustmentApproval {
+  adjustment: AmountAdjustmentView;
+  /** Aumento de componente (sempre segunda pessoa), redução acima do limite ou somada às reduções recentes. */
+  reason: 'INCREASE' | 'REDUCTION_ABOVE_LIMIT' | 'CUMULATIVE_ABOVE_LIMIT';
+  increases: number;
+  decreases: number;
+  recentReductions: number;
+  /** Limite no pedido (pedido antigo: o limite atual). */
+  threshold: number;
+  excess: number;
+  cumulativeWindowDays: number;
+  ownRequest: boolean;
+}
+
 export interface AmountDivergenceView {
   id: string;
   titleId: string;

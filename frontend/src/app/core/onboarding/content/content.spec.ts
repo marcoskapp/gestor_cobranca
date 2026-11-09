@@ -213,9 +213,19 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/assistente/turnos/t-1?revisao=r-1')?.tourId).toBe('assistant.turn');
     expect(findScreen('/assistente/qualidade')?.tourId).toBe('assistant.quality');
     // estação: atendimento guardado por caso, painel lateral e acordo sem sair do caso (revisão de 2026-11); v9: aba "Mais" com seta e contagem
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(9);
+    // v10: endereço único do caso (J9)
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(10);
     expect(findTour('collection.station')?.version).toBe(4);
-    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(2);
+    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(3);
+    // aprovações no padrão único (revisão 11/2026, 3.1): decisão da fila antes do detalhe (":id" casaria o caminho)
+    expect(findScreen('/pagamentos/aprovacoes/pay-1')?.key).toBe('payment.approval');
+    expect(findScreen('/titulos/correcoes-de-valor/aj-1')?.key).toBe('debt.title-amount-approval');
+    expect(findScreen('/negociacao/aprovacoes/p-1?credor=c-1')?.key).toBe('negotiation.approval');
+    for (const url of ['/pagamentos/aprovacoes/pay-1', '/titulos/correcoes-de-valor/aj-1', '/negociacao/aprovacoes/p-1']) {
+      expect(findTour(findScreen(url)!.tourId!)?.id, url).toBe('approval.decision');
+    }
+    expect(findScreen('/pagamentos/p-1')?.key).toBe('payment.detail');
+    expect(findScreen('/titulos/t-1')?.key).toBe('debt.title-detail');
     // decisões do responsável às 856 e 873: aviso da segunda conferência para quem informa e nova tentativa do extrato
     expect(findScreen('/pagamentos')?.changes?.find((c) => c.version === 2)).toBeDefined();
     expect(findScreen('/negociacao/acordos/a-1')?.changes?.find((c) => c.version === 3)).toBeDefined();

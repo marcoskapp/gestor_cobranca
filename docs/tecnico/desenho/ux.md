@@ -396,6 +396,7 @@ Contraste conferido (WCAG 2.2 AA): texto secundário 6,9:1 (claro) e 8,4:1 (escu
 | `app-data-table` | `shared/components/data-table/` | Mesma API (+ `sortable`/`sort`/`sortChange`, `info` e `mobile` por coluna, opcionais): tabela responsiva do Bootstrap, cabeçalho fixo, `ngb-pagination` + quantidade por página + faixa "1 – 20 de 135", esqueleto/vazio/erro. **Paginador só com mais de uma página** (e o rodapé inteiro some quando o total não passa da menor quantidade por página). **Celular (< 576 px): lista empilhada** — a primeira coluna é o título, a coluna `status` é o selo à direita, as três seguintes viram metadados com rótulo; `TableColumn.mobile` (`title`, `meta`, `badge`, `hidden`) ajusta a distribuição — as listas principais (devedores, títulos, casos, pagamentos, acordos, propostas, contestações, alertas da revisão, títulos e contatos da ficha do devedor) declaram os papéis. Com o título declarado (`mobile: 'title'`) e um link nele, a linha inteira fica clicável (mesmo recurso do `.stretched-link`); metadados, selo e ações ficam acima dessa camada (texto selecionável, controles alcançáveis). Ordenação no celular: ainda não (frente de listas). Nomes com link nas linhas na cor do texto (azul só para ação). |
 | `app-kpi-card` + `.app-kpi-grid` | `shared/components/kpi-card/`, `styles.scss` | **Cartão de indicador único** (substitui as implementações por tela): rótulo em uma linha em *sentence case* (reticências e texto completo no `title`), valor 18–28 px/600 que acompanha a largura do cartão (`cqi`), detalhe 12 px; `info` (catálogo §8.6, exigido pelo `hints:check`) ou `record` (valor do próprio registro ou contagem direta, sem cálculo a explicar), `tone` (`warning`/`danger`), `emphasis` (total de um resumo), `variant="text"` e conteúdo extra com `appKpiExtra` (ex.: medidor). Dentro de `.app-card` vira a forma embutida (fundo terciário, sem borda). Grade `.app-kpi-grid`: `auto-fit` (mín. 180 px), linhas equilibradas para 4/6/7/8/9 cartões (4×1, 3×2, 4×2, 3×3) e 2 colunas no celular. |
 | `app-more-actions` | `shared/components/more-actions/` | Menu "Mais ações" (⋯) das fichas, a partir de uma lista `MoreAction` (`label`, `icon`, `hint`, `danger`, `disabled`, `run`): a destrutiva vai por último, separada e em vermelho. Recebe as ações como dados porque o `ngbDropdownMenu` só navega por teclado entre itens do próprio template. Sem ações, não renderiza. Padrão de uso: §12.2. |
+| `app-approval-decision` + `approvalQueue()` | `shared/approval/` | Padrão único das filas de aprovação (§18): quadro de decisão (por que precisa de aprovação com quanto passa do limite, quem pediu × quem decide, "Aprovar/Reprovar e abrir a próxima") e navegação na fila filtrada (contador "1 de N", próxima, volta com os filtros da URL). |
 | `app-filter-bar` | `shared/components/filter-bar/` | Filtros na linha em telas largas; abaixo de 768 px, botão "Filtros (n)" que abre um `NgbOffcanvas` com os mesmos campos (projetados uma vez, estado no formulário da tela) e "Ver resultados". `activeCount` = filtros aplicados. Padrão: §12.3. |
 | `ConfirmService`/`ConfirmDialog` | `shared/components/confirm-dialog/` | Mesma API; `alertdialog` quando destrutivo, foco inicial em "Cancelar", motivo e palavra de confirmação com `app-field`. |
 | `DetailDialog` (`openDetail`) | `shared/components/detail-dialog/` | Ficha somente leitura (lista de definições + JSON), para log de acesso/auditoria nas próximas ondas. |
@@ -764,3 +765,23 @@ atendimento fica guardado por caso, §16).
 cada pagamento aplicado (data) e o devedor; recebimento do demonstrativo (e do razão de comissão) → pagamento de origem;
 pagamento → devedor. Todos só com a permissão da tela de destino.
 
+
+## 18. Aprovações num padrão único (revisão de produto 11/2026 — J8, T9, telas 15 e 18)
+
+**Problema:** cada fila de aprovação (propostas, pagamentos informados, correções de valor) tinha um leiaute; a decisão não
+dizia **quanto** passava da alçada ou do limite, não havia "próxima" nem volta à fila (a trilha marcava "Propostas"), a
+lista não tinha desconto nem prazo e a tela mostrava códigos ("alçada JUNIOR").
+
+| Peça | Contrato |
+| --- | --- |
+| Fila (lista) | Filtros na URL com os mesmos nomes da decisão (`credor`, e `origem` nos pagamentos); colunas úteis (valor, desconto em %, prazo — "vence hoje" —, quem pediu e alçada); "Revisar" (`btn-sm btn-outline-primary`) e a data da linha abrem a decisão com os filtros |
+| Decisão (`<fila>/:id`) | Rota própria sob a fila: menu e trilha marcam a fila. `app-approval-decision` no topo: "Voltar para <fila>" com os filtros, contador "<Item> 1 de N", **Por que precisa de aprovação** (critério, pedido, limite de quem pediu, **passa em** valor e %, alçada de quem decide com ✓/✗), motivos sem medida em lista, **Pedido por** × **Decide**, e as ações; detalhes (condições, memória de cálculo, comprovante, componentes) projetados abaixo |
+| Ações | "Aprovar e abrir a próxima" (primária) e "Reprovar/Recusar e abrir a próxima"; na última, "… e voltar à fila". A confirmação (motivo, resumo do impacto) continua na tela, pelo `ConfirmService`. Decidido, `approvalQueue().advance()` (Promise) relê a fila filtrada e abre o item que vinha depois (ou o primeiro que sobrar), senão volta à fila; a tela fica ocupada até a navegação terminar. Erro na decisão: a tela recarrega o item |
+| Não pode decidir este item | Segregação (pedido próprio) ou perfil que não aprova: as ações somem e o motivo aparece no lugar (`blockedReason`; o servidor recusa de qualquer forma). Alçada insuficiente para as condições: só "Aprovar" some, com o motivo (`approveBlockedReason`) — reprovar continua, como o servidor permite. Sem a permissão de decidir, nem o motivo |
+| Fora da fila | A ficha do registro (ex.: `/negociacao/propostas/:id`) mostra o mesmo quadro para quem decide, sem contador e com "Aprovar"/"Reprovar" simples |
+
+O "quanto passa" vem do módulo dono, nunca é calculado na tela: `GET /negotiation/proposals/{id}/approval-assessment`
+(`negociacao-e-alcadas.md` §10.14), `GET /payment/payments/{id}/review-assessment` (`pagamentos.md` §5) e
+`GET /title-amount-adjustments/{id}/approval` (`docs/negocio/correcao-de-valor.md`). A fila lida pela decisão é a primeira
+página de até 200 itens (`APPROVAL_QUEUE_WINDOW`); com mais que isso, o total vem do servidor e a próxima continua
+funcionando dentro da janela.

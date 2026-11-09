@@ -90,6 +90,9 @@ describe('regras de propostas e acordos', () => {
     expect(t.map((e) => e.title)).toEqual(['Proposta criada', 'Aprovada', 'Aceite do devedor registrado', 'Acordo formalizado']);
     expect(t[0].detail).toBe('Assistente');
     expect(t[1].detail).toContain('Usuário u-9');
+    // código interno da alçada traduzido (T9)
+    expect(t[1].detail).toContain('alçada Supervisor');
+    expect(t[1].detail).not.toContain('SUPERVISOR');
     expect(t[2].detail).toContain('por WhatsApp');
     expect(t[2].detail).toContain('registrado por Você');
   });

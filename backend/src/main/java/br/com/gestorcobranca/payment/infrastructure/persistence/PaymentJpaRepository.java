@@ -4,6 +4,7 @@ import br.com.gestorcobranca.shared.paging.ChangeQuery;
 import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
 
 import br.com.gestorcobranca.payment.domain.model.Payment;
+import br.com.gestorcobranca.payment.domain.model.ExternalOrigin;
 import br.com.gestorcobranca.payment.domain.model.PaymentAllocation;
 import br.com.gestorcobranca.payment.domain.model.PaymentMethod;
 import br.com.gestorcobranca.payment.domain.model.PaymentSource;
@@ -119,6 +120,10 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
                         cb.equal(a.get("agreementId"), agreementId));
                 return cb.or(cb.equal(root.get("targetAgreementId"), agreementId), cb.exists(allocated));
             });
+        }
+        if (c.externalOrigin() != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("externalOrigin"),
+                    ExternalOrigin.valueOf(c.externalOrigin())));
         }
         if (c.excludeInformedBy() != null) {
             spec = spec.and((root, query, cb) -> cb.or(cb.isNull(root.get("informedBy")),

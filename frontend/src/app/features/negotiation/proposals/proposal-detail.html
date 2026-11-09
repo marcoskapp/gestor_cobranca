@@ -19,15 +19,6 @@
         Ver acordo
       </a>
     }
-    @if (a.reject) {
-      <button class="btn btn-outline-secondary" type="button" (click)="reject()" [disabled]="busy()">Reprovar</button>
-    }
-    @if (a.approve) {
-      <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="approve()" [disabled]="busy()" data-tour="proposal-decide">
-        <app-icon name="patch-check" />
-        Aprovar
-      </button>
-    }
     @if (a.accept) {
       <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="accept()" [disabled]="busy()" data-tour="proposal-accept">
         <app-icon name="person-check" />
@@ -64,6 +55,29 @@
     }
   </div>
 
+  <!-- decisão no padrão único das filas de aprovação: quanto passa da alçada, quem pediu × quem decide, "e abrir a próxima" -->
+  @if (deciding()) {
+    <app-approval-decision
+      class="pd-decision"
+      [queueLink]="queue() ? approvals.path : null"
+      [queueParams]="approvals.filters()"
+      queueLabel="Voltar para Aprovações"
+      itemLabel="Proposta"
+      [position]="approvals.position()"
+      [hasNext]="approvals.hasNext()"
+      [reasons]="approvalReasons()"
+      [notes]="approvalNotes()"
+      [requester]="requester()"
+      [approver]="approverParty()"
+      [canDecide]="a.approve || a.reject"
+      [blockedReason]="blockedReason()"
+      [approveBlockedReason]="approveBlockedReason()"
+      [busy]="busy()"
+      (approve)="approve()"
+      (reject)="reject()"
+    />
+  }
+
   @switch (p.status) {
     @case ('HANDED_OFF') {
       <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
@@ -72,15 +86,17 @@
       </div>
     }
     @case ('PENDING_APPROVAL') {
-      <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
-        <app-icon name="hourglass-top" />
-        <span>
-          Aguardando quem tem alçada para estas condições.
-          @if (!a.approve && actorName(p.actor.type, p.actor.id) === 'Você') {
-            Você não pode decidir a própria proposta.
-          }
-        </span>
-      </div>
+      @if (!deciding()) {
+        <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+          <app-icon name="hourglass-top" />
+          <span>
+            Aguardando quem tem alçada para estas condições.
+            @if (!a.approve && actorName(p.actor.type, p.actor.id) === 'Você') {
+              Você não pode decidir a própria proposta.
+            }
+          </span>
+        </div>
+      }
     }
     @case ('REJECTED') {
       <div class="alert alert-danger d-flex gap-2 align-items-start" role="note">
@@ -103,7 +119,7 @@
         <div class="app-kpi-grid">
           <app-kpi-card label="Total a pagar" info="negotiation.sim.offer-total"><app-amount [value]="p.totalAmount" /></app-kpi-card>
           <app-kpi-card label="Dívida atualizada" info="negotiation.sim.updated-debt"><app-amount [value]="p.updatedAmount" /></app-kpi-card>
-          <app-kpi-card label="Desconto" info="negotiation.sim.discount"><app-amount [value]="p.discountAmount" /></app-kpi-card>
+          <app-kpi-card label="Desconto" info="negotiation.sim.discount" [detail]="percent(discountPercent()) + ' da dívida atualizada'"><app-amount [value]="p.discountAmount" /></app-kpi-card>
           <app-kpi-card label="Forma" record variant="text">{{ plan(p) }}</app-kpi-card>
         </div>
         <dl class="app-definition-list">
@@ -220,14 +236,15 @@
           <dt>Uso do desconto máximo <app-info-hint indicator="negotiation.proposal.envelope-usage" label="Uso do desconto máximo" /></dt>
           <dd>{{ p.envelopeUsage !== null ? percent(p.envelopeUsage) : '—' }}</dd>
         </dl>
-        @if (p.authorityViolations.length) {
+        <!-- aguardando a sua decisão, os motivos (com quanto passa) ficam no quadro de decisão -->
+        @if (!deciding() && p.authorityViolations.length) {
           <h3 class="app-section-title">Por que precisa de aprovação</h3>
           <ul class="pd-violations">
             @for (v of p.authorityViolations; track v) {
               <li>{{ violationText(v) }}</li>
             }
           </ul>
-        } @else {
+        } @else if (!p.authorityViolations.length) {
           <p class="app-muted">Dentro da alçada de quem negociou.</p>
         }
       </section>

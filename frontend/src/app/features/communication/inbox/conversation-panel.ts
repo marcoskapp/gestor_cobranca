@@ -29,6 +29,7 @@ import { InboxStream } from '../data/inbox-stream';
 import { AssignConversationDialog, ConversationDialogData, IdentifyDialog } from './conversation-dialogs';
 import { Composer } from './composer';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { EvaluationLauncher, attendanceDate } from '../../incentive/quality/evaluation-launcher';
 
 /** Intervalo de atualização da conversa aberta sem tempo real (sem som; anúncio discreto para leitores de tela). */
 export const CONVERSATION_REFRESH_MS = 15_000;
@@ -42,6 +43,16 @@ export const TIMELINE_PAGE_SIZE = 100;
  * ícone **e** texto, assistente identificado por texto), rascunhos do assistente para revisão,
  * resposta e comandos de dono (assumir, devolver, atribuir, encerrar, identificar devedor).
  */
+/**
+ * A conversa tem dono pessoa e a última resposta foi enviada depois que ele assumiu (`ownerSince <= lastOutboundAt`):
+ * só então a avaliação vai para quem de fato respondeu, e não para quem acabou de receber a conversa.
+ */
+export function answeredByCurrentOwner(c: Pick<ConversationView, 'ownerType' | 'ownerUserId' | 'ownerSince' | 'lastOutboundAt'>): boolean {
+  return (
+    c.ownerType === 'USER' && !!c.ownerUserId && !!c.lastOutboundAt && !!c.ownerSince && Date.parse(c.ownerSince) <= Date.parse(c.lastOutboundAt)
+  );
+}
+
 @Component({
   selector: 'app-conversation-panel',
   imports: [
@@ -61,6 +72,27 @@ export const TIMELINE_PAGE_SIZE = 100;
   styleUrl: './conversation-panel.scss',
 })
 export class ConversationPanel {
+  private readonly evaluations = inject(EvaluationLauncher);
+
+  /** "Avaliar atendimento": a última resposta é do dono atual (pessoa, não o assistente), que não é quem avalia. */
+  protected evaluable(c: ConversationView): boolean {
+    return answeredByCurrentOwner(c) && this.evaluations.canEvaluate(c.ownerUserId);
+  }
+
+  protected evaluate(c: ConversationView): void {
+    const at = c.lastOutboundAt ?? c.lastMessageAt ?? c.createdAt;
+    this.evaluations
+      .open({
+        userId: c.ownerUserId!,
+        userName: this.users.name(c.ownerUserId),
+        referenceType: 'CONVERSATION',
+        referenceId: c.id,
+        evaluatedOn: attendanceDate(at),
+        label: `conversa por ${CHANNEL_LABELS[c.channel] ?? c.channel}${c.debtorId ? ' · ' + this.debtors.name(c.debtorId) : ''}`,
+      })
+      .subscribe();
+  }
+
   readonly conversationId = input.required<string>();
   /** A conversa mudou de dono ou situação: a lista recarrega. */
   readonly changed = output<void>();

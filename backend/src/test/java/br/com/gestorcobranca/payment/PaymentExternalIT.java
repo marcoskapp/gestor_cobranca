@@ -1,8 +1,12 @@
 package br.com.gestorcobranca.payment;
 
+import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.identity.domain.model.DefaultRoles;
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ReviewQueueFilter;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentSettingsUseCases;
 import br.com.gestorcobranca.payment.application.port.in.PaymentSettingsUseCases.SettingsCommand;
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.AllocationView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.EvidenceContent;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.EvidenceUpload;
@@ -109,12 +113,12 @@ class PaymentExternalIT extends PaymentTestSupport {
         assertThat(big.status()).isEqualTo("INFORMED");
         assertThat(big.reviewThresholdExceeded()).isTrue();
         assertThat(system(() -> debtTitles.get(titleB)).paidTotal()).isEqualByComparingTo("100.00");
-        assertThat(asFinance1(() -> payments.reviewQueue(PageQuery.of(0, 10))).content()).isEmpty();
-        assertThat(asFinance2(() -> payments.reviewQueue(PageQuery.of(0, 10))).content()).extracting(PaymentView::id)
+        assertThat(asFinance1(() -> payments.reviewQueue(ReviewQueueFilter.ALL, PageQuery.of(0, 10))).content()).isEmpty();
+        assertThat(asFinance2(() -> payments.reviewQueue(ReviewQueueFilter.ALL, PageQuery.of(0, 10))).content()).extracting(PaymentView::id)
                 .containsExactly(big.id());
         // quem aprova vê o destino solicitado antes de existir alocação (na fila e no detalhe)
         assertThat(big.allocations()).isEmpty();
-        assertThat(asFinance2(() -> payments.reviewQueue(PageQuery.of(0, 10))).content().getFirst().requestedTarget())
+        assertThat(asFinance2(() -> payments.reviewQueue(ReviewQueueFilter.ALL, PageQuery.of(0, 10))).content().getFirst().requestedTarget())
                 .satisfies(t -> {
                     assertThat(t.kind()).isEqualTo("TITLES");
                     assertThat(t.agreementId()).isNull();
@@ -122,6 +126,33 @@ class PaymentExternalIT extends PaymentTestSupport {
                     assertThat(t.strategy()).isEqualTo("OLDEST_FIRST");
                 });
         assertThat(asFinance2(() -> payments.get(big.id())).requestedTarget().itemIds()).containsExactly(titleB);
+        // filtros da fila (credor e fonte) e quanto passa do limite: R$ 900,00 contra R$ 500,00 por pagamento
+        assertThat(asFinance2(() -> payments.reviewQueue(new ReviewQueueFilter(creditorB, "AGENCY_ACCOUNT"),
+                PageQuery.of(0, 10))).content()).extracting(PaymentView::id).containsExactly(big.id());
+        assertThat(asFinance2(() -> payments.reviewQueue(new ReviewQueueFilter(null, "CREDITOR_DIRECT"),
+                PageQuery.of(0, 10))).content()).isEmpty();
+        assertThatThrownBy(() -> asFinance2(() -> payments.reviewQueue(new ReviewQueueFilter(null, "XPTO"),
+                PageQuery.of(0, 10)))).isInstanceOf(BusinessRuleException.class);
+        PaymentUseCases.ReviewAssessmentView assessment = asFinance2(() -> payments.reviewAssessment(big.id()));
+        assertThat(assessment.reason()).isEqualTo("AMOUNT");
+        assertThat(assessment.limit()).isEqualByComparingTo("500.00");
+        assertThat(assessment.consideredAmount()).isEqualByComparingTo("900.00");
+        assertThat(assessment.excess()).isEqualByComparingTo("400.00");
+        assertThat(assessment.ownPayment()).isFalse();
+        assertThat(asFinance1(() -> payments.reviewAssessment(big.id())).ownPayment()).isTrue();
+        assertThatThrownBy(() -> asFinance2(() -> payments.reviewAssessment(small.id())))
+                .isInstanceOf(BusinessRuleException.class);
+        // escopo e permissão: credor fora do escopo no filtro → 403; pagamento fora do escopo → 404; sem PAYMENT_REVIEW
+        // (operador) → recusado
+        assertThatThrownBy(() -> as(finance2, DefaultRoles.FINANCEIRO, CreditorScope.of(Set.of(creditorA)),
+                () -> payments.reviewQueue(new ReviewQueueFilter(creditorB, null), PageQuery.of(0, 10))))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThat(as(finance2, DefaultRoles.FINANCEIRO, CreditorScope.of(Set.of(creditorA)),
+                () -> payments.reviewQueue(ReviewQueueFilter.ALL, PageQuery.of(0, 10))).content()).isEmpty();
+        assertThatThrownBy(() -> as(finance2, DefaultRoles.FINANCEIRO, CreditorScope.of(Set.of(creditorA)),
+                () -> payments.reviewAssessment(big.id()))).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> asOperator(() -> payments.reviewAssessment(big.id())))
+                .isInstanceOf(ScopeAccessDeniedException.class);
         assertThatThrownBy(() -> asFinance1(() -> payments.approve(big.id(), null)))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("não pode revisá-lo");
         assertThatThrownBy(() -> asOperator(() -> payments.approve(big.id(), null)))

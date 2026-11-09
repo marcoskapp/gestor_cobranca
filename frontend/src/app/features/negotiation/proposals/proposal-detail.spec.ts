@@ -11,7 +11,7 @@ import { provideAppLocale } from '../../../core/config/app-locale';
 import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
-import { ProposalView } from '../data/agreement.models';
+import { ApprovalAssessmentView, ProposalView } from '../data/agreement.models';
 import { ProposalDetail } from './proposal-detail';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -21,6 +21,19 @@ describe('ProposalDetail', () => {
   let permissions: string[];
 
   beforeEach(() => {
+    assessment = {
+      proposalId: 'p-1',
+      proposerProfileCode: 'JUNIOR',
+      proposerProfileName: null,
+      approverProfileCode: 'SUPERVISOR',
+      approverProfileName: 'Supervisor',
+      approverCanApprove: true,
+      withinApproverAuthority: true,
+      ownProposal: false,
+      discountPercent: 12.5,
+      gaps: [{ dimension: 'DISCOUNT_SHARE', requested: 72, proposerLimit: 50, approverLimit: 100, approverCovers: true }],
+    };
+    queue = [];
     // a proposta de exemplo vale até 28/10/2026: a data do teste fica fixa para ela não expirar com o calendário
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-23T12:00:00-03:00'));
@@ -59,10 +72,17 @@ describe('ProposalDetail', () => {
     }
   }
 
+  let assessment: ApprovalAssessmentView;
+  let queue: ProposalView[];
+
   function answer(req: TestRequest, view: ProposalView): void {
     const url = req.request.url;
     if (url === `/api/v1/negotiation/proposals/${view.id}`) {
       req.flush(view);
+    } else if (url === `/api/v1/negotiation/proposals/${view.id}/approval-assessment`) {
+      req.flush(assessment);
+    } else if (url === '/api/v1/negotiation/proposals/approval-queue') {
+      req.flush({ content: queue, page: 0, size: 200, totalElements: queue.length, totalPages: 1 });
     } else if (url === '/api/v1/debtors/d-1') {
       req.flush({ id: 'd-1', name: 'Ana Paula Ribeiro', maskedDocument: '***.982.247-**' });
     } else if (url === '/api/v1/creditors/c-1') {
@@ -90,12 +110,20 @@ describe('ProposalDetail', () => {
   const button = (f: ComponentFixture<unknown>, label: string) =>
     [...el(f).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim().startsWith(label) || b.textContent?.includes(label));
 
-  it('pendente de aprovação: aprovador vê as condições, a justificativa e decide', async () => {
+  it('pendente de aprovação: aprovador vê quanto passa da alçada, quem pediu × quem decide e decide', async () => {
     const fixture = await render(proposal({ status: 'PENDING_APPROVAL', authorityViolations: ['authority.discount_exceeded'] }));
     const text = el(fixture).textContent ?? '';
     expect(text).toContain('Proposta · Ana Paula Ribeiro');
     expect(text).toContain('Aguardando aprovação');
-    expect(text).toContain('Desconto acima da alçada');
+    // quanto passa: 72% pedido × 50% do júnior = +22 p.p. (44% acima); a alçada de quem decide cobre
+    expect(text).toContain('Por que precisa de aprovação');
+    expect(text).toContain('+22 p.p. (44% acima)');
+    expect(text).toContain('alçada Negociador júnior');
+    expect(text).toContain('alçada Supervisor');
+    expect(text).not.toContain('JUNIOR');
+    expect(text).toContain('3,79% da dívida atualizada');
+    // fora da fila: sem contador e sem "e abrir a próxima"
+    expect(el(fixture).querySelector('[data-testid="approval-position"]')).toBeNull();
     expect(text).toContain('Capacidade de pagamento abaixo da oferta');
     expect(text).toContain('Carla Mendes');
     expect(button(fixture, 'Aprovar')).toBeDefined();
@@ -115,9 +143,58 @@ describe('ProposalDetail', () => {
   });
 
   it('o autor não decide a própria proposta', async () => {
+    assessment = { ...assessment, ownProposal: true };
     const fixture = await render(proposal({ status: 'PENDING_APPROVAL', actor: { type: 'USER', id: 'u-1', profileId: null, profileCode: 'JUNIOR' } }));
     expect(button(fixture, 'Aprovar')).toBeUndefined();
-    expect(el(fixture).textContent).toContain('Você não pode decidir a própria proposta.');
+    expect(el(fixture).textContent).toContain('Você não pode decidir a própria proposta');
+  });
+
+  it('alçada de quem decide não cobre: reprovar continua (como no servidor), aprovar some com o motivo', async () => {
+    assessment = { ...assessment, withinApproverAuthority: false };
+    const fixture = await render(proposal({ status: 'PENDING_APPROVAL', authorityViolations: ['authority.discount_exceeded'] }));
+    expect(el(fixture).querySelector('[data-testid="approval-approve"]')).toBeNull();
+    expect(el(fixture).querySelector('[data-testid="approval-reject"]')).not.toBeNull();
+    expect(el(fixture).textContent).toContain('você ainda pode reprovar');
+  });
+
+  it('aberta pela fila: "1 de N", aprovar abre a próxima com o filtro de credor e, na última, volta à fila', async () => {
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/negociacao/aprovacoes/p-1?credor=c-1');
+    queue = [proposal({ id: 'p-1', status: 'PENDING_APPROVAL' }), proposal({ id: 'p-9', status: 'PENDING_APPROVAL' })];
+    const fixture = TestBed.createComponent(ProposalDetail);
+    fixture.componentRef.setInput('id', 'p-1');
+    fixture.componentRef.setInput('queue', true);
+    const view = proposal({ status: 'PENDING_APPROVAL', authorityViolations: ['authority.discount_exceeded'] });
+    for (let i = 0; i < 4; i++) {
+      fixture.detectChanges();
+      await tick();
+      for (const req of http.match((r) => r.method === 'GET')) {
+        if (req.request.url.endsWith('/approval-queue')) {
+          expect(req.request.params.get('creditorId')).toBe('c-1');
+        }
+        answer(req, view);
+      }
+    }
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('[data-testid="approval-position"]')?.textContent).toContain('Proposta 1 de 2');
+    expect(button(fixture, 'Aprovar e abrir a próxima')).toBeDefined();
+    expect(button(fixture, 'Reprovar e abrir a próxima')).toBeDefined();
+
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    vi.spyOn(TestBed.inject(ConfirmService), 'confirm').mockReturnValue(of(''));
+    button(fixture, 'Aprovar e abrir a próxima')!.click();
+    http.expectOne('/api/v1/negotiation/proposals/p-1/approve').flush(proposal({ status: 'APPROVED' }));
+    // a fila relida já sem a decidida: abre a próxima mantendo o filtro
+    http.expectOne((r) => r.url === '/api/v1/negotiation/proposals/approval-queue').flush({ content: [queue[1]], page: 0, size: 200, totalElements: 1, totalPages: 1 });
+    expect(navigate).toHaveBeenCalledWith(['/negociacao/aprovacoes', 'p-9'], { queryParams: { credor: 'c-1' } });
+
+    // última da fila: reprovar volta à fila com o filtro
+    navigate.mockClear();
+    button(fixture, 'Reprovar')!.click();
+    http.expectOne('/api/v1/negotiation/proposals/p-1/reject').flush(proposal({ status: 'REJECTED' }));
+    http.expectOne((r) => r.url === '/api/v1/negotiation/proposals/approval-queue').flush({ content: [], page: 0, size: 200, totalElements: 0, totalPages: 0 });
+    expect(navigate).toHaveBeenCalledWith(['/negociacao/aprovacoes'], { queryParams: { credor: 'c-1' } });
+    http.match(() => true).forEach((r) => r.flush([]));
   });
 
   it('formalização pede o resumo do impacto e a palavra de confirmação', async () => {

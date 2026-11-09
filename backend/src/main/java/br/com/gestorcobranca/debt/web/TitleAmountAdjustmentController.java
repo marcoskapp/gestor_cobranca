@@ -4,6 +4,8 @@ import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCa
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.AdjustmentCommand;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.AdjustmentContext;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.AdjustmentView;
+import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.ApprovalView;
+import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.PendingFilter;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.DivergenceView;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.SettingsView;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.TitleAmountHistory;
@@ -114,9 +116,16 @@ class TitleAmountAdjustmentController {
 
     @GetMapping("/title-amount-adjustments/pending")
     @PreAuthorize(APPROVE)
-    PageResponse<AdjustmentView> pending(@RequestParam(required = false) Integer page,
+    PageResponse<AdjustmentView> pending(@RequestParam(required = false) UUID creditorId,
+                                         @RequestParam(required = false) Integer page,
                                          @RequestParam(required = false) Integer size) {
-        return adjustments.pendingApprovals(PageQuery.of(page, size));
+        return adjustments.pendingApprovals(new PendingFilter(creditorId), PageQuery.of(page, size));
+    }
+
+    @GetMapping("/title-amount-adjustments/{adjustmentId}/approval")
+    @PreAuthorize(APPROVE)
+    ApprovalView approval(@PathVariable UUID adjustmentId) {
+        return adjustments.approval(adjustmentId);
     }
 
     @GetMapping("/title-amount-adjustments/{adjustmentId}/evidence")

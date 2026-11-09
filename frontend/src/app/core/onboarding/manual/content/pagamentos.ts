@@ -87,13 +87,33 @@ export const MANUAL: ModuleManual = {
       title: 'Aprovação de pagamentos',
       objective: 'Pagamentos informados acima do limite da assessoria, aguardando a conferência de uma segunda pessoa.',
       purpose: [
-        'Confira o comprovante e para onde o valor vai antes de aprovar. Os pagamentos que você informou não aparecem aqui.',
+        'Confira o comprovante e para onde o valor vai antes de aprovar. Os pagamentos que você informou não aparecem aqui. Filtre por credor e por onde o pagamento entrou; "Revisar" abre a decisão na mesma fila.',
         'Enquanto o pagamento aguarda, a quebra do acordo fica suspensa. O selo mostra até quando; com o prazo vencido, a quebra já voltou a valer e o pagamento aparece em destaque.',
       ],
       profiles: ['FINANCEIRO', 'SUPERVISOR'],
       inputs: ['Pagamentos informados acima do limite definido em Parâmetros de pagamentos.'],
       outputs: ['Pagamento confirmado e alocado, ou recusado com motivo.'],
-      related: [{ screen: 'payment.settings', why: 'Limite que exige aprovação.' }],
+      related: [
+        { screen: 'payment.settings', why: 'Limite que exige aprovação.' },
+        { screen: 'payment.approval', why: 'Decidir um pagamento.' },
+      ],
+      terms: ['pagamento-informado', 'quatro-olhos'],
+    },
+    {
+      id: 'payment.approval',
+      title: 'Aprovação de pagamento',
+      objective: 'Decida um pagamento informado vendo por que ele passou do limite e quanto passa.',
+      purpose: [
+        'Mostra o limite ultrapassado no registro: o do pagamento sozinho, a soma do devedor no credor ou a soma de quem informou nas últimas horas, com o excesso em valor e %. Embaixo, o que foi informado, o destino solicitado e o comprovante.',
+        '"Aprovar e abrir a próxima" e "Recusar e abrir a próxima" seguem na mesma fila filtrada, com o contador "1 de N". Quem informou não aprova, inclusive administradores.',
+      ],
+      profiles: ['FINANCEIRO', 'SUPERVISOR'],
+      inputs: ['Pagamento informado com comprovante e destino solicitado.'],
+      outputs: ['Pagamento confirmado e alocado, ou recusado com motivo.'],
+      related: [
+        { screen: 'payment.review', why: 'Voltar para a fila.' },
+        { screen: 'payment.detail', why: 'Ficha completa do pagamento.' },
+      ],
       terms: ['pagamento-informado', 'quatro-olhos'],
     },
     {

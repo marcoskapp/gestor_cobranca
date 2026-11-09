@@ -64,7 +64,10 @@ export const MANUAL: ModuleManual = {
       id: 'negotiation.proposal-detail',
       title: 'Proposta',
       objective: 'Condições, memória de cálculo, alçada, aceite do devedor e formalização de uma proposta.',
-      purpose: ['O próximo passo muda conforme a situação: aprovar, registrar o aceite com evidência ou formalizar o acordo.'],
+      purpose: [
+        'O próximo passo muda conforme a situação: aprovar, registrar o aceite com evidência ou formalizar o acordo.',
+        'Aguardando a sua aprovação, o quadro de decisão mostra quanto as condições passam da alçada de quem negociou (valor e %), a sua alçada em cada ponto e quem pediu × quem decide; as alçadas aparecem pelo nome.',
+      ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'AUDITOR'],
       inputs: ['Simulação validada e a versão da política usada.'],
       outputs: ['Acordo formalizado, com termo e cronograma de parcelas.'],
@@ -75,11 +78,34 @@ export const MANUAL: ModuleManual = {
       id: 'negotiation.approvals',
       title: 'Aprovações de propostas',
       objective: 'Propostas acima da alçada de quem negociou e dentro da sua, aguardando a sua decisão.',
-      purpose: ['Nunca aparecem as suas próprias propostas. Abra para ver condições, justificativa e o motivo de cada concessão.'],
+      purpose: [
+        'Nunca aparecem as suas próprias propostas. A lista mostra valor, desconto em % da dívida, prazo (validade da proposta) e a alçada de quem negociou; filtre por credor.',
+        '"Revisar" abre a decisão na mesma fila filtrada: ao aprovar ou reprovar, a próxima abre sozinha e, na última, você volta para a fila com o filtro.',
+      ],
       profiles: ['SUPERVISOR', 'GESTOR'],
       inputs: ['Propostas enviadas com "Pedir aprovação".'],
       outputs: ['Propostas aprovadas, prontas para o aceite, ou rejeitadas com motivo.'],
-      related: [{ screen: 'negotiation.authority', why: 'Quem aprova o quê.' }],
+      related: [
+        { screen: 'negotiation.authority', why: 'Quem aprova o quê.' },
+        { screen: 'negotiation.approval', why: 'Decidir uma proposta.' },
+      ],
+      terms: ['alcada', 'quatro-olhos', 'escada-de-concessoes'],
+    },
+    {
+      id: 'negotiation.approval',
+      title: 'Aprovação de proposta',
+      objective: 'Decida uma proposta da fila vendo quanto ela passa da alçada de quem negociou e se cabe na sua.',
+      purpose: [
+        'O quadro "Por que precisa de aprovação" mostra, para cada ponto (nível, desconto, pagamentos, valor, entrada, renegociações), o pedido, o limite de quem negociou, quanto passa e a sua alçada. Abaixo, condições, cronograma e memória de cálculo.',
+        '"Aprovar e abrir a próxima" e "Reprovar e abrir a próxima" seguem na mesma fila, com o contador "1 de N". A sua própria proposta, ou uma acima da sua alçada, aparece sem as ações e com o motivo.',
+      ],
+      profiles: ['SUPERVISOR', 'GESTOR'],
+      inputs: ['Proposta pendente de aprovação, com a justificativa do negociador.'],
+      outputs: ['Proposta aprovada, pronta para o aceite, ou reprovada com motivo.'],
+      related: [
+        { screen: 'negotiation.approvals', why: 'Voltar para a fila.' },
+        { screen: 'collection.case', why: 'Caso da proposta.' },
+      ],
       terms: ['alcada', 'quatro-olhos', 'escada-de-concessoes'],
     },
     {

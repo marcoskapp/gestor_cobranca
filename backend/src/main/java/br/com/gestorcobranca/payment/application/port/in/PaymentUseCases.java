@@ -40,7 +40,38 @@ public interface PaymentUseCases {
     PaymentView registerExternal(ExternalPaymentCommand command, EvidenceUpload evidence, String idempotencyKey);
 
     /** Pagamentos informados aguardando revisão, exceto os informados pelo próprio revisor. */
-    PageResponse<PaymentView> reviewQueue(PageQuery page);
+    PageResponse<PaymentView> reviewQueue(ReviewQueueFilter filter, PageQuery page);
+
+    /**
+     * Por que o pagamento informado foi para a aprovação e quanto passa do limite (tela de aprovação).
+     * {@code PAYMENT_REVIEW} e credor no escopo; 422 {@code payment.review_not_required} se não passou pela aprovação.
+     */
+    ReviewAssessmentView reviewAssessment(UUID paymentId);
+
+    /**
+     * @param creditorId só deste credor (nulo = todos os do escopo)
+     * @param origin     fonte do pagamento externo: AGENCY_ACCOUNT, CREDITOR_DIRECT, CREDITOR_REPORT ou OTHER (nulo = todas)
+     */
+    record ReviewQueueFilter(UUID creditorId, String origin) {
+
+        public static final ReviewQueueFilter ALL = new ReviewQueueFilter(null, null);
+    }
+
+    /**
+     * @param reason         AMOUNT (o pagamento sozinho), DESTINATION_CUMULATIVE (soma do devedor no credor na janela) ou
+     *                       INFORMER_CUMULATIVE (soma de quem informou na janela); nulo em pagamento registrado antes de
+     *                       o motivo ser gravado (a tela compara o valor com o limite atual por pagamento)
+     * @param limit          limite ultrapassado no registro
+     * @param consideredAmount valor comparado com o limite (o pagamento ou a soma da janela com ele)
+     * @param excess         quanto o valor considerado passa do limite
+     * @param windowHours    janela das somas acumuladas, em horas (configuração atual)
+     * @param currentPerPaymentLimit limite atual por pagamento da assessoria
+     * @param ownPayment     informado por quem consulta (segregação: não pode decidir)
+     */
+    record ReviewAssessmentView(UUID paymentId, String reason, BigDecimal limit, BigDecimal consideredAmount,
+                                BigDecimal excess, long windowHours, BigDecimal currentPerPaymentLimit,
+                                boolean ownPayment) {
+    }
 
     PaymentView approve(UUID paymentId, String note);
 

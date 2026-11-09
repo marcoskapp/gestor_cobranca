@@ -152,7 +152,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   // "correções de valor" antes do detalhe (":id" casaria o caminho)
   {
     key: 'debt.title-amounts',
-    version: 3,
+    version: 4,
     path: '/titulos/correcoes-de-valor',
     tourId: 'debt.title-amounts',
     changes: [
@@ -170,8 +170,17 @@ export const SCREENS: readonly ScreenGuide[] = [
           'O limite vale também por título: reduções aplicadas sem segunda pessoa no mesmo título {{debt.cumulativeWindow}} somam com a nova.',
         ],
       },
+      {
+        version: 4,
+        items: [
+          '"Para aprovar" virou uma lista com filtro de credor, saldo antes → depois e a diferença; "Revisar" abre a decisão.',
+          'Na decisão: quanto o pedido passa do limite (valor e %), quem pediu × quem decide, "Aprovar e abrir a próxima" e o contador "1 de N" da mesma fila.',
+        ],
+      },
     ],
   },
+  // decisão da fila antes do detalhe do título (":id" casaria o caminho)
+  { key: 'debt.title-amount-approval', version: 1, path: '/titulos/correcoes-de-valor/:id', tourId: 'approval.decision' },
   {
     key: 'debt.title-detail',
     version: 6,
@@ -202,7 +211,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.queue',
-    version: 9,
+    version: 10,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -231,11 +240,15 @@ export const SCREENS: readonly ScreenGuide[] = [
         version: 9,
         items: ['O botão das abas recolhidas mostra a seta e quantas abas guarda ("Mais 3 ▾"); com uma delas aberta, mostra o nome curto dela e quantas outras há ("Agenda +2 ▾"); o nome completo aparece na dica.'],
       },
+      {
+        version: 10,
+        items: ['Cada caso tem um endereço só: ao abrir um caso na estação, o endereço passa a ser o do caso, que você pode copiar e compartilhar; o menu continua marcando a estação.'],
+      },
     ],
   },
   {
     key: 'collection.case',
-    version: 9,
+    version: 10,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -263,6 +276,13 @@ export const SCREENS: readonly ScreenGuide[] = [
       {
         version: 9,
         items: ['O botão das abas recolhidas mostra a seta e quantas abas guarda ("Mais 3 ▾"); com uma delas aberta, mostra o nome curto dela e quantas outras há ("Agenda +2 ▾"); o nome completo aparece na dica.'],
+      },
+      {
+        version: 10,
+        items: [
+          'Endereço único do caso: quem opera abre o caso na estação; quem só consulta (jurídico, gestor, auditoria) vê a ficha do caso sem fila, cronômetro nem registro de interação, com as ações do seu perfil em "Mais ações".',
+          'Histórico: "Avaliar" em cada atendimento de outra pessoa abre a monitoria já preenchida (para quem avalia a qualidade).',
+        ],
       },
     ],
   },
@@ -361,8 +381,24 @@ export const SCREENS: readonly ScreenGuide[] = [
     tourId: 'negotiation.proposals',
     changes: [{ version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Criação e total.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] }],
   },
-  { key: 'negotiation.proposal-detail', version: 2, path: '/negociacao/propostas/:id', tourId: 'negotiation.proposal-detail', changes: [{ version: 2, items: ['Uma ação principal em azul (aprovar, registrar aceite ou formalizar); as demais em cinza ao lado.'] }] },
-  { key: 'negotiation.approvals', version: 1, path: '/negociacao/aprovacoes', tourId: 'negotiation.approvals' },
+  {
+    key: 'negotiation.proposal-detail',
+    version: 3,
+    path: '/negociacao/propostas/:id',
+    tourId: 'negotiation.proposal-detail',
+    changes: [
+      { version: 2, items: ['Uma ação principal em azul (aprovar, registrar aceite ou formalizar); as demais em cinza ao lado.'] },
+      { version: 3, items: ['Aguardando a sua aprovação: quanto passa da alçada de quem negociou (valor e %), a sua alçada, o desconto em % da dívida e o nome das alçadas, sem códigos.'] },
+    ],
+  },
+  {
+    key: 'negotiation.approvals',
+    version: 2,
+    path: '/negociacao/aprovacoes',
+    tourId: 'negotiation.approvals',
+    changes: [{ version: 2, items: ['Filtro de credor e colunas de desconto (% da dívida), prazo ("vence hoje") e alçada de quem negociou.', '"Revisar" abre a decisão: "Aprovar e abrir a próxima", o contador "1 de N" e a volta para a fila com o filtro.'] }],
+  },
+  { key: 'negotiation.approval', version: 1, path: '/negociacao/aprovacoes/:id', tourId: 'approval.decision' },
   {
     key: 'negotiation.agreements',
     version: 2,
@@ -392,11 +428,16 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.instruction', version: 1, path: '/pagamentos/instrucoes/:id', tourId: 'payment.instruction' },
   {
     key: 'payment.review',
-    version: 2,
+    version: 3,
     path: '/pagamentos/aprovacoes',
     tourId: 'payment.review',
-    changes: [{ version: 2, items: ['Coluna "Destino solicitado": para onde o valor vai (parcelas do acordo ou títulos) antes de aprovar.'] }],
+    changes: [
+      { version: 2, items: ['Coluna "Destino solicitado": para onde o valor vai (parcelas do acordo ou títulos) antes de aprovar.'] },
+      { version: 3, items: ['Filtros de credor e de onde o pagamento entrou; "Revisar" abre a decisão com quanto passa do limite, "Aprovar e abrir a próxima" e o contador "1 de N".'] },
+    ],
   },
+  // decisão da fila antes do detalhe do pagamento (":id" casaria o caminho)
+  { key: 'payment.approval', version: 1, path: '/pagamentos/aprovacoes/:id', tourId: 'approval.decision' },
   { key: 'payment.reallocation', version: 1, path: '/pagamentos/sobras', tourId: 'payment.reallocation' },
   { key: 'payment.reconciliation', version: 1, path: '/pagamentos/conciliacao', tourId: 'payment.reconciliation' },
   {
@@ -500,7 +541,12 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   { key: 'incentive.periods', version: 1, path: '/remuneracao/periodos' },
   { key: 'incentive.exports', version: 1, path: '/remuneracao/exportacao' },
-  { key: 'incentive.evaluations', version: 1, path: '/remuneracao/qualidade/avaliacoes' },
+  {
+    key: 'incentive.evaluations',
+    version: 2,
+    path: '/remuneracao/qualidade/avaliacoes',
+    changes: [{ version: 2, items: ['Avalie a partir do atendimento: "Avaliar" em Chamadas e gravações, na conversa e no histórico do caso abre o formulário com o negociador, a referência e a data preenchidos.', 'Cada avaliação tem o link "Ver" de volta para o caso, a conversa, o acordo ou a chamada avaliada.'] }],
+  },
   { key: 'incentive.occurrences', version: 1, path: '/remuneracao/qualidade/ocorrencias' },
   { key: 'incentive.quality-forms', version: 1, path: '/remuneracao/qualidade/formularios' },
   { key: 'incentive.attribution', version: 1, path: '/remuneracao/atribuicoes/:id' },
@@ -512,7 +558,13 @@ export const SCREENS: readonly ScreenGuide[] = [
     tourId: 'telephony.campaign',
     changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] }],
   },
-  { key: 'telephony.calls', version: 1, path: '/telefonia/chamadas', tourId: 'telephony.calls' },
+  {
+    key: 'telephony.calls',
+    version: 2,
+    path: '/telefonia/chamadas',
+    tourId: 'telephony.calls',
+    changes: [{ version: 2, items: ['"Avaliar este atendimento" na linha da chamada encerrada (para quem avalia a qualidade): a monitoria abre já preenchida.'] }],
+  },
   {
     key: 'telephony.agents',
     version: 2,
@@ -548,7 +600,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'communication.inbox',
-    version: 2,
+    version: 3,
     path: '/conversas',
     tourId: 'communication.inbox',
     changes: [
@@ -556,11 +608,18 @@ export const SCREENS: readonly ScreenGuide[] = [
         version: 2,
         items: ['Sem conversas suas aguardando, a caixa abre na Fila; a aba escolhida fica no endereço (voltar do caso reabre a mesma aba) e "Minhas" vazia aponta para a Fila.'],
       },
+      { version: 3, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
     ],
   },
   { key: 'communication.templates', version: 1, path: '/conversas/templates', tourId: 'communication.templates' },
   { key: 'communication.channels', version: 1, path: '/conversas/canais' },
-  { key: 'communication.conversation', version: 1, path: '/conversas/:id', tourId: 'communication.inbox' },
+  {
+    key: 'communication.conversation',
+    version: 2,
+    path: '/conversas/:id',
+    tourId: 'communication.inbox',
+    changes: [{ version: 2, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] }],
+  },
   { key: 'campaign.list', version: 1, path: '/campanhas', tourId: 'campaign.list' },
   { key: 'campaign.segments', version: 1, path: '/campanhas/segmentos' },
   { key: 'campaign.segment-new', version: 1, path: '/campanhas/segmentos/novo', tourId: 'campaign.segment' },

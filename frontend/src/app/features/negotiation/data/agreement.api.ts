@@ -11,6 +11,7 @@ import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
   AcceptRequest,
   AgreementFilter,
+  ApprovalAssessmentView,
   AgreementPaymentView,
   AgreementView,
   CreateProposalRequest,
@@ -42,8 +43,16 @@ export class ProposalsApi {
     return this.http.get<PageResponse<ProposalView>>(this.base, { params: toHttpParams({ ...filter, page: page.page, size: page.size, sort: page.sort }) });
   }
 
-  approvalQueue(page: PageRequest): Observable<PageResponse<ProposalView>> {
-    return this.http.get<PageResponse<ProposalView>>(`${this.base}/approval-queue`, { params: toHttpParams({ page: page.page, size: page.size }) });
+  /** Fila de aprovação do usuário; `creditorId` filtra pelo credor (origem). */
+  approvalQueue(page: PageRequest, filter: { creditorId?: string | null } = {}): Observable<PageResponse<ProposalView>> {
+    return this.http.get<PageResponse<ProposalView>>(`${this.base}/approval-queue`, {
+      params: toHttpParams({ creditorId: filter.creditorId ?? null, page: page.page, size: page.size }),
+    });
+  }
+
+  /** Quanto a proposta passa da alçada de quem negociou e se cabe na de quem consulta. */
+  approvalAssessment(id: string): Observable<ApprovalAssessmentView> {
+    return this.http.get<ApprovalAssessmentView>(`${this.base}/${id}/approval-assessment`, { context: silentErrorContext() });
   }
 
   get(id: string): Observable<ProposalView> {

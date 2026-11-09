@@ -829,11 +829,22 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'negotiation.approvals',
-    version: 1,
+    version: 2,
     title: 'Fila de aprovação',
     summary: 'Propostas acima da alçada de quem negociou e dentro da sua.',
     steps: [
-      { anchor: 'data-table', title: 'Aguardando você', body: 'Só aparecem propostas que cabem na sua alçada, nunca as suas. Abra para ver condições, justificativa e motivo.' },
+      { anchor: 'filters', title: 'Filtro de credor', body: 'Filtre a fila por credor: a decisão abre na mesma fila filtrada e volta para ela.' },
+      { anchor: 'data-table', title: 'Aguardando você', body: 'Só aparecem propostas que cabem na sua alçada, nunca as suas. Veja desconto e prazo; "Revisar" abre a decisão.' },
+    ],
+  },
+  {
+    id: 'approval.decision',
+    version: 1,
+    title: 'Decidir uma aprovação',
+    summary: 'O mesmo quadro para propostas, pagamentos informados e correções de valor.',
+    steps: [
+      { anchor: 'approval-decision', title: 'Por que precisa de aprovação', body: 'O pedido, o limite de quem pediu e quanto passa, em valor e %. Embaixo, quem pediu e quem decide.' },
+      { anchor: 'approval-approve', title: 'Aprovar e abrir a próxima', body: 'Decida e siga para o próximo da mesma fila; o contador mostra onde você está. No último, volta para a fila.' },
     ],
   },
   {
@@ -1197,12 +1208,13 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'payment.review',
-    version: 2,
+    version: 3,
     title: 'Aprovação de pagamentos',
     summary: 'Segunda pessoa para pagamentos informados acima do limite.',
     steps: [
       { anchor: 'review-segregation', title: 'Quem informa não aprova', body: 'Os pagamentos que você informou não aparecem aqui; o sistema recusa a aprovação própria.' },
-      { anchor: 'data-table', title: 'Revisar', body: 'Confira o destino solicitado e o comprovante; abra o pagamento para aprovar ou recusar com motivo.', placement: 'above' },
+      { anchor: 'filters', title: 'Filtros', body: 'Filtre por credor e por onde o pagamento entrou; a decisão abre na mesma fila filtrada.' },
+      { anchor: 'data-table', title: 'Revisar', body: 'Confira o destino solicitado e o comprovante; "Revisar" mostra quanto passa do limite para aprovar ou recusar.', placement: 'above' },
     ],
   },
   {

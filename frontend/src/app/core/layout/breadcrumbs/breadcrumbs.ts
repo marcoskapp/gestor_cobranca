@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, TitleStrategy } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 import { Icon } from '../../../shared/components/icon/icon';
-import { NAVIGATION } from '../navigation';
+import { NAVIGATION, menuRouteOf } from '../navigation';
 import { NavigationHistory, pathOf } from './navigation-history';
 
 export interface Breadcrumb {
@@ -51,16 +51,19 @@ export function recordLabel(label: () => string | null | undefined): EffectRef {
  * Monta a trilha a partir do menu (seção → item) e do título da rota atual. A seção some quando tem o mesmo nome do
  * item ("Pagamentos › Pagamentos" vira "Pagamentos").
  */
-export function buildBreadcrumbs(url: string, pageTitle: string | undefined): Breadcrumb[] {
+export function buildBreadcrumbs(url: string, pageTitle: string | undefined, menuRoute: string | null = null): Breadcrumb[] {
   const path = url.split(/[?#]/)[0] || '/';
   if (path === '/') {
     return [];
   }
   const crumbs: Breadcrumb[] = [{ label: 'Início', route: '/' }];
   let best: { section: string | null; label: string; route: string } | null = null;
+  // tela com item de menu declarado (`data.menuRoute`): a trilha passa por ele, como uma tela interna do item
+  const matches = (route: string) =>
+    menuRoute ? route === menuRoute : route !== '/' && (path === route || path.startsWith(route + '/'));
   for (const section of NAVIGATION) {
     for (const item of section.items) {
-      if (item.route !== '/' && (path === item.route || path.startsWith(item.route + '/'))) {
+      if (matches(item.route)) {
         if (!best || item.route.length > best.route.length) {
           best = { section: section.label, label: item.label, route: item.route };
         }
@@ -71,7 +74,7 @@ export function buildBreadcrumbs(url: string, pageTitle: string | undefined): Br
     if (best.section && best.section !== best.label) {
       crumbs.push({ label: best.section });
     }
-    const isCurrent = path === best.route;
+    const isCurrent = path === best.route && !menuRoute;
     crumbs.push(isCurrent ? { label: best.label } : { label: best.label, route: best.route });
     if (!isCurrent && pageTitle && pageTitle !== best.label) {
       crumbs.push({ label: pageTitle });
@@ -166,7 +169,9 @@ export class Breadcrumbs {
     this.router.events.pipe(
       filter((e) => e instanceof NavigationEnd),
       startWith(null),
-      map(() => buildBreadcrumbs(this.router.url, this.titles.buildTitle(this.router.routerState.snapshot))),
+      map(() =>
+        buildBreadcrumbs(this.router.url, this.titles.buildTitle(this.router.routerState.snapshot), menuRouteOf(this.router.routerState.snapshot.root)),
+      ),
     ),
     { initialValue: [] as Breadcrumb[] },
   );

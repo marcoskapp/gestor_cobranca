@@ -10,8 +10,11 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.UUID;
 
 /** Regras puras das condições de uma proposta: impressão digital, uso do envelope, exigência de alçada, renegociação. */
@@ -90,14 +93,82 @@ public final class ProposalTerms {
                                        BigDecimal downPaymentShare, int renegotiationNumber) {
 
         public boolean satisfiedBy(AuthorityLimits l) {
-            return l.canApprove()
-                    && l.maxConcessionLevel() >= level
-                    && l.maxDiscountShare().compareTo(discountShare) >= 0
-                    && l.maxInstallments() >= installments
-                    && (l.maxAgreementAmount() == null || !totalAmount.isGreaterThan(l.maxAgreementAmount()))
-                    && (installments <= 1 || l.minDownPaymentShare().compareTo(downPaymentShare) <= 0)
-                    && l.maxRenegotiations() >= renegotiationNumber;
+            return l.canApprove() && withinLimits(l);
         }
+
+        /** As condições cabem nos limites do perfil (sem considerar se ele aprova propostas de outros). */
+        public boolean withinLimits(AuthorityLimits l) {
+            return Arrays.stream(AuthorityDimension.values()).noneMatch(d -> exceeds(d, l));
+        }
+
+        /**
+         * Onde as condições passam da alçada de quem negociou e, para cada ponto, o limite de quem decide: o que a
+         * tela de aprovação mostra como "quanto passa da alçada". A ordem segue {@link AuthorityDimension}.
+         *
+         * @param proposer limites de quem negociou
+         * @param approver limites de quem decide (nulo = sem aprovador no contexto)
+         */
+        public List<AuthorityGap> gaps(AuthorityLimits proposer, AuthorityLimits approver) {
+            List<AuthorityGap> gaps = new ArrayList<>();
+            for (AuthorityDimension d : AuthorityDimension.values()) {
+                if (exceeds(d, proposer)) {
+                    gaps.add(new AuthorityGap(d, requested(d), limit(d, proposer),
+                            approver == null ? null : limit(d, approver), approver != null && !exceeds(d, approver)));
+                }
+            }
+            return List.copyOf(gaps);
+        }
+
+        private BigDecimal requested(AuthorityDimension d) {
+            return switch (d) {
+                case LEVEL -> BigDecimal.valueOf(level);
+                case DISCOUNT_SHARE -> discountShare;
+                case INSTALLMENTS -> BigDecimal.valueOf(installments);
+                case AMOUNT -> totalAmount.amount();
+                case DOWN_PAYMENT_SHARE -> downPaymentShare;
+                case RENEGOTIATIONS -> BigDecimal.valueOf(renegotiationNumber);
+            };
+        }
+
+        /** Limite do perfil na dimensão; nulo = sem limite próprio (valor do acordo). */
+        private static BigDecimal limit(AuthorityDimension d, AuthorityLimits l) {
+            return switch (d) {
+                case LEVEL -> BigDecimal.valueOf(l.maxConcessionLevel());
+                case DISCOUNT_SHARE -> l.maxDiscountShare();
+                case INSTALLMENTS -> BigDecimal.valueOf(l.maxInstallments());
+                case AMOUNT -> l.maxAgreementAmount() == null ? null : l.maxAgreementAmount().amount();
+                case DOWN_PAYMENT_SHARE -> l.minDownPaymentShare();
+                case RENEGOTIATIONS -> BigDecimal.valueOf(l.maxRenegotiations());
+            };
+        }
+
+        private boolean exceeds(AuthorityDimension d, AuthorityLimits l) {
+            BigDecimal limit = limit(d, l);
+            return switch (d) {
+                case AMOUNT -> limit != null && totalAmount.isGreaterThan(l.maxAgreementAmount());
+                // entrada é mínimo: passa da alçada quando fica abaixo (à vista não tem entrada)
+                case DOWN_PAYMENT_SHARE -> installments > 1 && downPaymentShare.compareTo(limit) < 0;
+                default -> requested(d).compareTo(limit) > 0;
+            };
+        }
+    }
+
+    /**
+     * Pontos de alçada de uma proposta, na ordem em que a tela de aprovação os mostra. {@code DISCOUNT_SHARE} é a
+     * fração (%) do desconto máximo da política usada pelo componente mais exigente; {@code DOWN_PAYMENT_SHARE} é a
+     * entrada em % do valor negociado (limite mínimo).
+     */
+    public enum AuthorityDimension { LEVEL, DISCOUNT_SHARE, INSTALLMENTS, AMOUNT, DOWN_PAYMENT_SHARE, RENEGOTIATIONS }
+
+    /**
+     * Um ponto em que a proposta passa da alçada de quem negociou.
+     *
+     * @param proposerLimit  limite de quem negociou (nulo = sem limite próprio)
+     * @param approverLimit  limite de quem decide (nulo = sem aprovador no contexto ou sem limite próprio)
+     * @param approverCovers o limite de quem decide cobre o pedido neste ponto
+     */
+    public record AuthorityGap(AuthorityDimension dimension, BigDecimal requested, BigDecimal proposerLimit,
+                               BigDecimal approverLimit, boolean approverCovers) {
     }
 
     /**

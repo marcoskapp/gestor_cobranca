@@ -50,7 +50,14 @@ public interface ProposalUseCases {
      * condições cabem na alçada do aprovador (perfil com {@code canApprove}), excluídas as próprias,
      * das mais antigas para as mais novas.
      */
-    PageResponse<ProposalView> approvalQueue(PageQuery page);
+    PageResponse<ProposalView> approvalQueue(ApprovalQueueFilter filter, PageQuery page);
+
+    /**
+     * Quanto a proposta passa da alçada de quem negociou e se cabe na de quem consulta (tela de aprovação).
+     * {@code NEGOTIATION_APPROVE} (qualquer proposta visível no escopo) ou {@code NEGOTIATION_PROPOSE} (só a própria;
+     * as de outros → 404); o limite de quem decide só vem para usuário com {@code NEGOTIATION_APPROVE}. A aprovação continua revalidando tudo no {@code NegotiationGuard}.
+     */
+    ApprovalAssessmentView approvalAssessment(UUID proposalId);
 
     ProposalView approve(UUID proposalId, String note);
 
@@ -93,6 +100,38 @@ public interface ProposalUseCases {
         public ProposalFilter(UUID creditorId, UUID debtorId, UUID caseId, String status, String actorType) {
             this(creditorId, debtorId, caseId, status, actorType, false);
         }
+    }
+
+    /** @param creditorId só as propostas deste credor (nulo = todos os do escopo) */
+    record ApprovalQueueFilter(UUID creditorId) {
+
+        public static final ApprovalQueueFilter ALL = new ApprovalQueueFilter(null);
+    }
+
+    /**
+     * @param dimension      LEVEL, DISCOUNT_SHARE (fração % do desconto máximo da política), INSTALLMENTS, AMOUNT (total
+     *                       do acordo), DOWN_PAYMENT_SHARE (entrada em % do negociado, limite mínimo) ou RENEGOTIATIONS
+     * @param proposerLimit  limite do perfil de quem negociou (nulo = sem limite próprio)
+     * @param approverLimit  limite do perfil de quem consulta (nulo = não aprova ou sem limite próprio)
+     * @param approverCovers o perfil de quem consulta cobre o pedido neste ponto
+     */
+    record AuthorityGapView(String dimension, BigDecimal requested, BigDecimal proposerLimit, BigDecimal approverLimit,
+                            boolean approverCovers) {
+    }
+
+    /**
+     * @param proposerProfileName nome do perfil de alçada de quem negociou (nulo se o perfil não existe mais: a tela
+     *                            mostra só os motivos registrados em {@code authorityViolations})
+     * @param approverProfileCode perfil de alçada de quem consulta (nulo sem {@code NEGOTIATION_APPROVE})
+     * @param approverCanApprove  o perfil de quem consulta aprova propostas de outros
+     * @param withinApproverAuthority as condições cabem nos limites do perfil de quem consulta
+     * @param ownProposal         a proposta é de quem consulta (segregação: não pode decidir)
+     * @param discountPercent     desconto em % da dívida atualizada
+     */
+    record ApprovalAssessmentView(UUID proposalId, String proposerProfileCode, String proposerProfileName,
+                                  String approverProfileCode, String approverProfileName, boolean approverCanApprove,
+                                  boolean withinApproverAuthority, boolean ownProposal, BigDecimal discountPercent,
+                                  List<AuthorityGapView> gaps) {
     }
 
     record DecisionView(UUID decidedBy, String profileCode, Instant decidedAt, String note) {

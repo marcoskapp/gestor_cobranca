@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.payment;
 
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ReviewQueueFilter;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementBreakSuspensionUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementBreakSuspensionUseCases.BreakSuspensionView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
@@ -131,7 +132,7 @@ class PaymentBreakSuspensionIT extends PaymentTestSupport {
         assertThat(review.breakSuspension().suspensions()).extracting(BreakSuspensionView::status).containsExactly("ACTIVE");
         assertThat(asOperator(() -> reviewStatus.forDebtor(creditorA, debtor)).breakSuspension().suspensions())
                 .extracting(BreakSuspensionView::agreementId).containsExactly(agreement.id());
-        assertThat(asFinance1(() -> payments.reviewQueue(PageQuery.of(0, 20))).content())
+        assertThat(asFinance1(() -> payments.reviewQueue(ReviewQueueFilter.ALL, PageQuery.of(0, 20))).content())
                 .filteredOn(v -> v.id().equals(pending.id())).singleElement()
                 .satisfies(v -> assertThat(v.breakSuspension().suspendedUntil()).isEqualTo(breakDay.plusDays(MAX_DAYS)));
 
@@ -212,7 +213,7 @@ class PaymentBreakSuspensionIT extends PaymentTestSupport {
                 + "and attributes ->> 'reason' = 'DEADLINE'", agreement.id()) == 1);
 
         // quem revisa vê o pagamento em destaque: na fila (prazo vencido) e em "Minhas pendências" (vencido)
-        assertThat(asFinance1(() -> payments.reviewQueue(PageQuery.of(0, 20))).content())
+        assertThat(asFinance1(() -> payments.reviewQueue(ReviewQueueFilter.ALL, PageQuery.of(0, 20))).content())
                 .filteredOn(v -> v.id().equals(pending.id())).singleElement()
                 .satisfies(v -> assertThat(v.breakSuspension().endReason()).isEqualTo("DEADLINE"));
         assertThat(asFinance1(() -> pendingWork.mine()).items()).filteredOn(i -> i.type().equals("payment.external_review"))

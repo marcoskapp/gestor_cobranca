@@ -173,12 +173,31 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<AdjustmentView> pendingApprovals(PageQuery page) {
+    public PageResponse<AdjustmentView> pendingApprovals(PendingFilter filter, PageQuery page) {
         accessScope.requirePermission(Permission.TITLE_AMOUNT_APPROVE);
         Actor actor = currentActor.get();
+        UUID creditorId = filter == null ? null : filter.creditorId();
+        if (creditorId != null) {
+            accessScope.requireCreditor(creditorId);
+        }
         // a fila não mostra os próprios pedidos (o domínio também recusa a autoaprovação)
-        return PageResponse.of(adjustments.findPending(creditorFilter(), accessScope.hasAllCreditors(), actor.id(),
+        return PageResponse.of(adjustments.findPending(creditorId != null ? Set.of(creditorId) : creditorFilter(),
+                creditorId == null && accessScope.hasAllCreditors(), actor.id(),
                 PageRequest.of(page.page(), page.size())), a -> view(a, titles.findById(a.getTitleId()).orElse(null)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApprovalView approval(UUID adjustmentId) {
+        accessScope.requirePermission(Permission.TITLE_AMOUNT_APPROVE);
+        TitleAmountAdjustment adjustment = load(adjustmentId);
+        TitleAmountAdjustment.ApprovalTrigger trigger = adjustment.approvalTrigger(threshold());
+        Guard.require(trigger != null, "title_amount.not_dual_control",
+                "A correção foi aplicada dentro do limite, sem segunda pessoa");
+        return new ApprovalView(view(adjustment, titles.findById(adjustment.getTitleId()).orElse(null)),
+                trigger.reason().name(), trigger.increases().amount(), trigger.decreases().amount(),
+                trigger.recentReductions().amount(), trigger.threshold().amount(), trigger.excess().amount(),
+                cumulativeWindowDays(), currentActor.get().id().equals(adjustment.getRequestedBy()));
     }
 
     @Override

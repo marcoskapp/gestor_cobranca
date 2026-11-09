@@ -14,7 +14,8 @@
       <span class="app-muted">{{ creditors().name(cs.creditorId) }} · {{ portfolios().name(cs.portfolioId) }}</span>
     </div>
   </div>
-  <div class="sp-head__chips">
+  <!-- selos do caso (situação, elegibilidade e marcadores como o de vulnerabilidade): mesma área na estação e na consulta -->
+  <div class="sp-head__chips" data-tour="case-badges">
     <app-status-chip domain="case" [status]="cs.status" />
     @if (cs.eligible) {
       <span class="app-status app-status--success"><app-icon class="app-status__icon" name="check-circle" />Elegível</span>
@@ -195,6 +196,13 @@
                   {{ i.startedAt | appDate }} · {{ operatorText(i.operatorId, i.actorType) }}
                   @if (i.durationSeconds) {
                     · {{ i.durationSeconds }} s
+                  }
+                  <!-- monitoria de qualidade: só com QUALITY_EVALUATE, atendimento de outra pessoa -->
+                  @if (evaluable(i)) {
+                    <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" (click)="evaluate(i)" data-testid="interaction-evaluate">
+                      <app-icon name="clipboard-check" />
+                      Avaliar
+                    </button>
                   }
                 </div>
                 @if (i.note) {

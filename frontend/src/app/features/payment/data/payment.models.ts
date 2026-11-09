@@ -393,3 +393,16 @@ export interface PaymentSettingsRequest {
   pixDueValidityDays: number;
   reconciliationDateToleranceDays: number;
 }
+
+/** `PaymentUseCases.ReviewAssessmentView`: por que foi para a aprovação e quanto passa do limite. */
+export interface ReviewAssessmentView {
+  paymentId: string;
+  /** Nulo em pagamento registrado antes de o motivo ser gravado (compara com o limite atual por pagamento). */
+  reason: 'AMOUNT' | 'DESTINATION_CUMULATIVE' | 'INFORMER_CUMULATIVE' | null;
+  limit: number | null;
+  consideredAmount: number | null;
+  excess: number | null;
+  windowHours: number;
+  currentPerPaymentLimit: number;
+  ownPayment: boolean;
+}

@@ -166,7 +166,7 @@ class PaymentService implements PaymentUseCases {
                 "payment.method_invalid", "Meio de pagamento"));
         Page<Payment> result = payments.search(new PaymentRepository.Criteria(allowedCreditors(), f.creditorId(),
                 f.debtorId(), statuses, source, method, f.paidFrom(), f.paidTo(), Boolean.TRUE.equals(f.withBalance()),
-                null, f.agreementId()), page.toPageable(SEARCH_SORT, Sort.by(Sort.Direction.DESC, "paidAt").and(Sort.by("id"))));
+                null, f.agreementId(), null), page.toPageable(SEARCH_SORT, Sort.by(Sort.Direction.DESC, "paidAt").and(Sort.by("id"))));
         return views(result);
     }
 
@@ -204,10 +204,14 @@ class PaymentService implements PaymentUseCases {
             Instant now = Instant.now(clock);
             ExternalReviewPolicy.Decision decision = externalReview(command, amount, now);
             boolean reviewRequired = decision.reviewRequired();
-            Payment p = payments.save(Payment.informed(method, command.creditorId(), command.debtorId(), amount,
+            Payment informed = Payment.informed(method, command.creditorId(), command.debtorId(), amount,
                     command.paidAt(), origin, command.externalReference(), command.note(),
                     new Payment.Target(destination.kind(), destination.agreementId(), json.toJson(destination.items()),
-                            destination.strategy()), stored, currentActor.actorId(), reviewRequired, now));
+                            destination.strategy()), stored, currentActor.actorId(), reviewRequired, now);
+            if (reviewRequired) {
+                informed.reviewTriggeredBy(decision.reason().name(), decision.limit(), decision.considered());
+            }
+            Payment p = payments.save(informed);
             recorder.informed(p, decision.reason() == null ? null : decision.reason().name());
             metrics.externalReview(decision.reason() == null ? "AUTO" : decision.reason().name());
             if (!reviewRequired) {
@@ -237,10 +241,16 @@ class PaymentService implements PaymentUseCases {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<PaymentView> reviewQueue(PageQuery page) {
+    public PageResponse<PaymentView> reviewQueue(ReviewQueueFilter filter, PageQuery page) {
         accessScope.requirePermission(Permission.PAYMENT_REVIEW);
-        Page<Payment> result = payments.search(new PaymentRepository.Criteria(allowedCreditors(), null, null,
-                Set.of(PaymentStatus.INFORMED), null, null, null, null, false, currentActor.actorId(), null),
+        ReviewQueueFilter f = filter == null ? ReviewQueueFilter.ALL : filter;
+        if (f.creditorId() != null) {
+            accessScope.requireCreditor(f.creditorId());
+        }
+        String origin = PaymentEnums.name(PaymentEnums.parseOptional(ExternalOrigin.class, f.origin(),
+                "payment.origin_invalid", "Fonte do pagamento"));
+        Page<Payment> result = payments.search(new PaymentRepository.Criteria(allowedCreditors(), f.creditorId(), null,
+                Set.of(PaymentStatus.INFORMED), null, null, null, null, false, currentActor.actorId(), null, origin),
                 page.toPageable(Sort.by("informedAt").and(Sort.by("id"))));
         PageResponse<PaymentView> views = views(result);
         return new PageResponse<>(withBreakSuspensions(views.content()), views.page(), views.size(),
@@ -263,6 +273,23 @@ class PaymentService implements PaymentUseCases {
                         Function.identity()));
         return views.stream().map(v -> v.requestedTarget() == null || !PaymentStatus.INFORMED.name().equals(v.status())
                 ? v : v.withBreakSuspension(byAgreement.get(v.requestedTarget().agreementId()))).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ReviewAssessmentView reviewAssessment(UUID paymentId) {
+        accessScope.requirePermission(Permission.PAYMENT_REVIEW);
+        Payment p = loadVisible(paymentId);
+        Guard.require(p.getSource() == br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+                && p.isReviewRequired(), "payment.review_not_required", "O pagamento não passou pela aprovação");
+        Money limit = p.getReviewLimit();
+        Money considered = p.getReviewConsideredAmount();
+        PaymentProperties.ExternalReview config = properties.externalReview();
+        return new ReviewAssessmentView(p.getId(), p.getReviewReason(), limit == null ? null : limit.amount(),
+                considered == null ? null : considered.amount(),
+                limit == null || considered == null ? null : considered.minus(limit).amount(),
+                config.window().toHours(), settings.current().externalReviewThreshold().amount(),
+                currentActor.actorId().equals(p.getInformedBy()));
     }
 
     @Override

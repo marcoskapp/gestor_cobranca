@@ -124,6 +124,14 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
     @Column(name = "applied_at")
     private Instant appliedAt;
 
+    /** Limite da assessoria no pedido (nulo em pedido anterior à gravação: vale o limite atual). */
+    @Column(name = "request_threshold", precision = 19, scale = 2, updatable = false)
+    private Money requestThreshold;
+
+    /** Reduções aplicadas sem segunda pessoa no título na janela, no pedido (nulo em pedido anterior à gravação). */
+    @Column(name = "request_recent_reductions", precision = 19, scale = 2, updatable = false)
+    private Money requestRecentReductions;
+
     /** Só no pedido: a redução cabia sozinha no limite, mas não somada às recentes do título (não persistido). */
     @Transient
     private boolean cumulativeLimitReached;
@@ -201,6 +209,8 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
                             + " da assessoria: vai para aprovação de outra pessoa; anexe a evidência ou vincule a contestação"
                             : "Acima do limite ou com aumento de algum componente, anexe a evidência ou vincule a contestação");
         }
+        this.requestThreshold = threshold;
+        this.requestRecentReductions = recentReductions;
         this.titleId = title.getId();
         this.creditorId = title.getCreditorId();
         this.reasonCode = reason;
@@ -234,6 +244,50 @@ public class TitleAmountAdjustment extends TenantScopedEntity {
                                                 Money threshold) {
         return increases.isZero() && decreases.isPositive()
                 && decreases.plus(recentReductions).compareTo(threshold) <= 0;
+    }
+
+    /** Por que o pedido precisa de segunda pessoa: aumento de componente, redução acima do limite ou somada às recentes. */
+    public enum ApprovalReason { INCREASE, REDUCTION_ABOVE_LIMIT, CUMULATIVE_ABOVE_LIMIT }
+
+    /**
+     * Quanto o pedido passa da alçada de quem corrige (tela de aprovação).
+     *
+     * @param increases        soma dos aumentos de componente (qualquer aumento exige segunda pessoa)
+     * @param decreases        soma das reduções de componente (não o líquido)
+     * @param recentReductions reduções já aplicadas sem segunda pessoa no título na janela, no pedido
+     * @param threshold        limite da assessoria no pedido
+     * @param excess           quanto as reduções (com as recentes) passam do limite; zero quando o motivo é só aumento
+     */
+    public record ApprovalTrigger(ApprovalReason reason, Money increases, Money decreases, Money recentReductions,
+                                  Money threshold, Money excess) {
+    }
+
+    /**
+     * Motivo e excesso do pedido que foi para a segunda pessoa, com o limite e as reduções recentes gravados no pedido
+     * (pedido anterior à gravação: {@code currentThreshold} e reduções recentes zero). Nulo para pedido aplicado dentro
+     * do limite.
+     */
+    public ApprovalTrigger approvalTrigger(Money currentThreshold) {
+        if (approvalMode != AmountAdjustmentMode.DUAL_CONTROL) {
+            return null;
+        }
+        Money increases = Money.ZERO;
+        Money decreases = Money.ZERO;
+        for (Line l : lines) {
+            Money change = l.newBalance.minus(l.previousBalance);
+            if (change.isPositive()) {
+                increases = increases.plus(change);
+            } else {
+                decreases = decreases.plus(change.negate());
+            }
+        }
+        Money threshold = requestThreshold != null ? requestThreshold : currentThreshold;
+        Money recent = requestRecentReductions != null ? requestRecentReductions : Money.ZERO;
+        Money excess = decreases.plus(recent).minus(threshold).max(Money.ZERO);
+        ApprovalReason reason = increases.isPositive() ? ApprovalReason.INCREASE
+                : decreases.compareTo(threshold) > 0 ? ApprovalReason.REDUCTION_ABOVE_LIMIT
+                : ApprovalReason.CUMULATIVE_ABOVE_LIMIT;
+        return new ApprovalTrigger(reason, increases, decreases, recent, threshold, excess);
     }
 
     /** A redução caberia sozinha no limite, mas não somada às recentes do título (só no pedido recém-criado). */
