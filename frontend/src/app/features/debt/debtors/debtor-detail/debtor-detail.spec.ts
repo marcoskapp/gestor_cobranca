@@ -2,9 +2,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { fakeUser } from '../../../../../testing/auth-fixtures';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { URL_STATE_EMBEDDED } from '../../../../shared/data/url-state';
+import { CaseView } from '../../../collection/data/collection.models';
 import { ContactView, DebtorSummary, DebtorView, TitleView } from '../../data/debt.models';
 import { DebtorDetail } from './debtor-detail';
 
@@ -70,6 +72,9 @@ const contact: ContactView = {
   invalidReason: null,
 };
 
+const caseOf = (id: string, status: CaseView['status'], portfolioId = 'p-1'): CaseView =>
+  ({ id, debtorId: 'd-1', creditorId: 'c-1', portfolioId, status }) as CaseView;
+
 describe('DebtorDetail', () => {
   let http: HttpTestingController;
   const permissions = signal<string[]>([]);
@@ -97,7 +102,7 @@ describe('DebtorDetail', () => {
   afterEach(() => http.verify());
 
   /** Responde às cargas da ficha e à resolução de nomes (credor/carteira). */
-  async function render(): Promise<ComponentFixture<DebtorDetail>> {
+  async function render(cases?: CaseView[]): Promise<ComponentFixture<DebtorDetail>> {
     const fixture = TestBed.createComponent(DebtorDetail);
     fixture.componentRef.setInput('id', 'd-1');
     fixture.detectChanges();
@@ -105,6 +110,9 @@ describe('DebtorDetail', () => {
     http.expectOne('/api/v1/debtors/d-1/summary').flush(summary);
     http.expectOne('/api/v1/debtors/d-1/titles').flush([title]);
     http.expectOne('/api/v1/debtors/d-1/contacts').flush([contact]);
+    if (cases) {
+      http.expectOne('/api/v1/collection/debtors/d-1/cases').flush(cases);
+    }
     await settle(fixture);
     return fixture;
   }
@@ -176,5 +184,102 @@ describe('DebtorDetail', () => {
     expect(text).toContain('Bruno Costa Lima');
     expect(text).not.toContain('529.982.247-25');
     expect(text).toContain('***.111.444-**');
+  });
+
+  it('com casos ativos: "Abrir caso" para escolher, "Simular" e "Relacionados" só com o que o perfil abre', async () => {
+    permissions.set(['DEBTOR_VIEW', 'CASE_VIEW', 'NEGOTIATION_SIMULATE']);
+    const fixture = await render([caseOf('k-1', 'IN_NEGOTIATION'), caseOf('k-2', 'OPEN', 'p-2'), caseOf('k-3', 'CLOSED')]);
+    const el = fixture.nativeElement as HTMLElement;
+    const header = el.querySelector('app-page-header') as HTMLElement;
+    expect(header.textContent).toContain('Abrir caso (2)');
+    expect(header.textContent).toContain('Simular');
+
+    const related = el.querySelector('app-related-records') as HTMLElement;
+    const links = [...related.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+    expect(links).toContain('/cobranca/casos/k-1');
+    expect(links).toContain('/cobranca/casos/k-3');
+    expect(links).toContain('/titulos?devedor=d-1');
+    // sem AGREEMENT_VIEW, PAYMENT_VIEW, LEGAL_VIEW ou INBOX_VIEW: nada buscado nem exibido desses módulos
+    expect(related.textContent).not.toContain('Acordos');
+    expect(related.textContent).not.toContain('Pagamentos');
+    // aba de interações (CASE_VIEW)
+    expect(el.querySelector('[data-tour="debtor-interactions"]')).not.toBeNull();
+  });
+
+  it('um único caso ativo abre direto; sem CASE_VIEW não há "Abrir caso" nem aba de interações', async () => {
+    permissions.set(['DEBTOR_VIEW', 'CASE_VIEW']);
+    const fixture = await render([caseOf('k-1', 'OPEN')]);
+    const open = [...(fixture.nativeElement as HTMLElement).querySelectorAll('app-page-header a')].find((a) => a.textContent?.includes('Abrir caso'));
+    expect(open?.getAttribute('href')).toBe('/cobranca/casos/k-1');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Simular');
+
+    permissions.set(['DEBTOR_VIEW']);
+    const other = await render();
+    expect((other.nativeElement as HTMLElement).querySelector('app-page-header')?.textContent).not.toContain('Abrir caso');
+    expect((other.nativeElement as HTMLElement).querySelector('[data-tour="debtor-interactions"]')).toBeNull();
+  });
+  it('aba Interações: uma chamada só, pelo devedor (todos os casos do escopo)', async () => {
+    permissions.set(['DEBTOR_VIEW', 'CASE_VIEW']);
+    const fixture = await render([caseOf('k-1', 'OPEN'), caseOf('k-2', 'CLOSED')]);
+    (fixture.nativeElement.querySelector('[data-tour="debtor-interactions"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const req = http.expectOne((r) => r.url === '/api/v1/collection/debtors/d-1/interactions');
+    expect(req.request.params.get('size')).toBe('50');
+    req.flush({ content: [], page: 0, size: 50, totalElements: 0, totalPages: 0 });
+    http.expectOne((r) => r.url === '/api/v1/collection/tabulations').flush([]);
+    http.expectNone((r) => r.url.includes('/collection/cases/'));
+    await settle(fixture);
+  });
+
+  it('?aba=interacoes sem CASE_VIEW volta para Títulos', async () => {
+    permissions.set(['DEBTOR_VIEW']);
+    await TestBed.inject(Router).navigateByUrl('/?aba=interacoes');
+    const fixture = await render();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.nav-link.active')?.textContent).toContain('Títulos');
+  });
+});
+
+describe('DebtorDetail embutida no painel da estação', () => {
+  let http: HttpTestingController;
+
+  it('não oferece "Abrir caso" nem "Simular" (o operador continua no caso atual)', async () => {
+    TestBed.configureTestingModule({
+      imports: [DebtorDetail],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: URL_STATE_EMBEDDED, useValue: true },
+        {
+          provide: AuthService,
+          useValue: { user: signal(fakeUser()), hasPermission: () => true, hasAnyPermission: () => true },
+        },
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(DebtorDetail);
+    fixture.componentRef.setInput('id', 'd-1');
+    fixture.detectChanges();
+    http.expectOne('/api/v1/debtors/d-1').flush(debtor);
+    http.expectOne('/api/v1/debtors/d-1/summary').flush(summary);
+    http.expectOne('/api/v1/debtors/d-1/titles').flush([title]);
+    http.expectOne('/api/v1/debtors/d-1/contacts').flush([contact]);
+    http.expectOne('/api/v1/collection/debtors/d-1/cases').flush([caseOf('k-1', 'OPEN')]);
+    for (let i = 0; i < 5; i++) {
+      fixture.detectChanges();
+      await Promise.resolve();
+      for (const req of http.match(() => true)) {
+        const url = req.request.url;
+        req.flush(url.includes('/disputes') ? [] : url.match(/\/(creditors|portfolios)\//) ? { id: 'x', name: 'X', tradeName: 'X' } : { content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 });
+      }
+    }
+    fixture.detectChanges();
+    const header = (fixture.nativeElement as HTMLElement).querySelector('app-page-header')?.textContent ?? '';
+    expect(header).not.toContain('Abrir caso');
+    expect(header).not.toContain('Simular');
+    // o vínculo explícito continua no "Relacionados"
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-related-records a[href="/cobranca/casos/k-1"]')).not.toBeNull();
   });
 });

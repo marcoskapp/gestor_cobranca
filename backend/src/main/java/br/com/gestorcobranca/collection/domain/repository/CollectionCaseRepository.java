@@ -30,6 +30,9 @@ public interface CollectionCaseRepository {
     /** Todos os casos do devedor, inclusive encerrados, do mais recente ao mais antigo. */
     List<CollectionCase> findByDebtorIdOrderByOpenedAtDesc(UUID debtorId);
 
+    /** Casos (ativos e encerrados) de vários devedores, do mais recente ao mais antigo (busca rápida, em lote). */
+    List<CollectionCase> findByDebtorIdInOrderByOpenedAtDesc(Collection<UUID> debtorIds);
+
     /** Ids de casos ativos em ordem de id, a partir de {@code afterId} (exclusivo; nulo = início). */
     List<UUID> findActiveIdsAfter(UUID afterId, int limit);
 

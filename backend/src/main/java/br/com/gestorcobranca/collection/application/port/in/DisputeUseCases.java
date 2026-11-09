@@ -143,18 +143,27 @@ public interface DisputeUseCases {
      * @param dueUntil   prazo (interno ou de resposta) até a data
      * @param supervision visão do supervisor: sem responsável ou com prazo vencido
      * @param mailReplyPending com resposta do credor por e-mail aguardando confirmação
+     * @param debtorId   contestações do devedor (vínculos da ficha do devedor)
      */
     record DisputeQuery(UUID creditorId, Set<String> statuses, Set<String> types, Set<String> origins, String assignee,
                         boolean unassigned, boolean mine, Boolean overdue, LocalDate dueUntil, Boolean awaitingCreditor,
                         boolean noticePending, boolean adjustmentPending, boolean supervision,
-                        boolean mailReplyPending) {
+                        boolean mailReplyPending, UUID debtorId) {
+
+        public DisputeQuery(UUID creditorId, Set<String> statuses, Set<String> types, Set<String> origins,
+                            String assignee, boolean unassigned, boolean mine, Boolean overdue, LocalDate dueUntil,
+                            Boolean awaitingCreditor, boolean noticePending, boolean adjustmentPending,
+                            boolean supervision, boolean mailReplyPending) {
+            this(creditorId, statuses, types, origins, assignee, unassigned, mine, overdue, dueUntil, awaitingCreditor,
+                    noticePending, adjustmentPending, supervision, mailReplyPending, null);
+        }
 
         public DisputeQuery(UUID creditorId, Set<String> statuses, Set<String> types, Set<String> origins,
                             String assignee, boolean unassigned, boolean mine, Boolean overdue, LocalDate dueUntil,
                             Boolean awaitingCreditor, boolean noticePending, boolean adjustmentPending,
                             boolean supervision) {
             this(creditorId, statuses, types, origins, assignee, unassigned, mine, overdue, dueUntil, awaitingCreditor,
-                    noticePending, adjustmentPending, supervision, false);
+                    noticePending, adjustmentPending, supervision, false, null);
         }
     }
 

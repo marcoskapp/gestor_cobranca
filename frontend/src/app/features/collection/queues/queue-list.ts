@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -49,7 +50,7 @@ export function criteriaText(q: QueueView): string {
  */
 @Component({
   selector: 'app-queue-list',
-  imports: [CellDef, DataTable, PageHeader, StatusChip, Icon, NgbTooltip],
+  imports: [CellDef, DataTable, PageHeader, StatusChip, Icon, NgbTooltip, RouterLink],
   template: `
     <app-page-header title="Filas de cobrança" subtitle="Critérios, prioridade, ordem de entrega e distribuição dos casos entre os operadores.">
       @if (canAssign()) {
@@ -83,7 +84,12 @@ export function criteriaText(q: QueueView): string {
     >
       <ng-template appCell="priority" [appCellOf]="rows()" let-q><span class="app-numeric">{{ q.priority }}</span></ng-template>
       <ng-template appCell="name" [appCellOf]="rows()" let-q>
-        <strong>{{ q.name }}</strong>&ngsp;<span class="app-muted app-mono">{{ q.code }}</span>
+        <!-- linha da fila → casos dessa fila (lista de casos filtrada por ?fila=) -->
+        @if (canSeeCases()) {
+          <a [routerLink]="['/cobranca/casos']" [queryParams]="{ fila: q.id }" [attr.aria-label]="'Casos da fila ' + q.name"><strong>{{ q.name }}</strong></a>
+        } @else {
+          <strong>{{ q.name }}</strong>
+        }&ngsp;<span class="app-muted app-mono">{{ q.code }}</span>
         @if (q.description) {
           <div class="app-muted">{{ q.description }}</div>
         }
@@ -130,6 +136,8 @@ export class QueueList {
   protected readonly criteria = criteriaText;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.QUEUE_MANAGE));
   protected readonly canAssign = computed(() => this.auth.hasPermission(Permission.CASE_ASSIGN));
+  /** A lista de casos exige `CASE_VIEW` (como a rota): sem ela o nome da fila não vira link. */
+  protected readonly canSeeCases = computed(() => this.auth.hasPermission(Permission.CASE_VIEW));
 
   protected readonly queues = rxResource({ stream: () => this.api.list() });
   protected readonly rows = valueOr(this.queues, []);

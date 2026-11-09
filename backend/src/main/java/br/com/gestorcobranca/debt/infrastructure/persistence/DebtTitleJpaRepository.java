@@ -5,6 +5,7 @@ import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
 
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
+import br.com.gestorcobranca.debt.domain.repository.DebtorCreditor;
 import br.com.gestorcobranca.debt.domain.repository.TitleSearchCriteria;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Limit;
@@ -119,8 +120,38 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
         if (c.dueOnOrBefore() != null) {
             spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("dueDate"), c.dueOnOrBefore()));
         }
+        if (c.importBatchId() != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("importBatchId"), c.importBatchId()));
+        }
         return findAll(spec, pageable);
     }
+
+    @Override
+    default List<UUID> findDebtorIdsByExternalId(String externalId, Collection<UUID> allowedCreditorIds, int limit) {
+        if (allowedCreditorIds == null) {
+            return debtorIdsByExternalId(externalId, Limit.of(limit));
+        }
+        return allowedCreditorIds.isEmpty() ? List.of()
+                : debtorIdsByExternalIdInCreditors(externalId, allowedCreditorIds, Limit.of(limit));
+    }
+
+    /** Usa {@code ix_debt_title_external_id (tenant_id, external_id)} (V0306). */
+    @Query("select distinct t.debtorId from DebtTitle t where t.externalId = :externalId order by t.debtorId")
+    List<UUID> debtorIdsByExternalId(String externalId, Limit limit);
+
+    @Query("""
+            select distinct t.debtorId from DebtTitle t
+             where t.externalId = :externalId and t.creditorId in :creditorIds
+             order by t.debtorId
+            """)
+    List<UUID> debtorIdsByExternalIdInCreditors(String externalId, Collection<UUID> creditorIds, Limit limit);
+
+    @Override
+    @Query("""
+            select distinct new br.com.gestorcobranca.debt.domain.repository.DebtorCreditor(t.debtorId, t.creditorId)
+              from DebtTitle t where t.debtorId in :debtorIds
+            """)
+    List<DebtorCreditor> findDebtorCreditors(Collection<UUID> debtorIds);
 
     @Override
     List<DebtTitle> findAllByIdIn(Collection<UUID> ids);

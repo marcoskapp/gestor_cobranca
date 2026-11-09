@@ -158,7 +158,13 @@
               <tbody>
                 @for (p of payments(); track p.paymentId) {
                   <tr>
-                    <td>{{ p.paidAt | appDate }}</td>
+                    <td>
+                      @if (canOpenPayment()) {
+                        <a [routerLink]="['/pagamentos', p.paymentId]">{{ p.paidAt | appDate }}</a>
+                      } @else {
+                        {{ p.paidAt | appDate }}
+                      }
+                    </td>
                     <td class="pd-end"><app-amount [value]="p.amount" /></td>
                     <td class="pd-end"><app-amount [value]="p.appliedAmount" /></td>
                     <td>{{ paymentStatus[p.status] ?? p.status }}{{ p.reversedAt ? ' em ' + (p.reversedAt | appDate: 'date') : '' }}</td>
@@ -178,7 +184,13 @@
       @if (debtorView(); as d) {
         <section class="app-card" aria-labelledby="ad-debtor">
           <h2 class="app-card__title" id="ad-debtor">Devedor</h2>
-          <p class="pd-debtor">{{ d.name }}</p>
+          <p class="pd-debtor">
+            @if (canOpenDebtor()) {
+              <a [routerLink]="['/devedores', d.id]">{{ d.name }}</a>
+            } @else {
+              {{ d.name }}
+            }
+          </p>
           <app-document [value]="d.maskedDocument" />
           <p class="app-muted">{{ creditors.name(a.creditorId) }}</p>
           @if (a.caseId) {
@@ -244,6 +256,7 @@
           }
         </ul>
       </section>
+      <app-related-records [records]="related()" />
     </aside>
   </div>
 }

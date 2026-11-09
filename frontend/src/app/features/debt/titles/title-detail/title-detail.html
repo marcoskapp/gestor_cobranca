@@ -98,6 +98,8 @@
     </dl>
   </section>
 
+  <app-related-records [records]="related()" />
+
   <section class="app-card" aria-label="Saldo, razão e titularidade">
     <ul ngbNav #tabs="ngbNav" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" class="nav-underline app-tabs" data-tour="title-tabs">
       <li [ngbNavItem]="'saldo'">

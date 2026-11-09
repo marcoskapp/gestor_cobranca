@@ -81,10 +81,11 @@ public interface DebtTitleUseCases {
      * Filtros (todos opcionais). Os filtros de atraso consideram apenas títulos em cobrança
      * (OPEN ou SUSPENDED) e a data de hoje no fuso de operação.
      *
-     * @param status OPEN, SETTLED, CANCELLED, SUSPENDED ou RETURNED
+     * @param status        OPEN, SETTLED, CANCELLED, SUSPENDED ou RETURNED
+     * @param importBatchId lote de importação que criou o título (do lote para os títulos importados)
      */
     record TitleSearch(UUID creditorId, UUID portfolioId, UUID debtorId, String status, LocalDate dueFrom,
-                       LocalDate dueTo, Integer minOverdueDays, Integer maxOverdueDays) {
+                       LocalDate dueTo, Integer minOverdueDays, Integer maxOverdueDays, UUID importBatchId) {
     }
 
     /**

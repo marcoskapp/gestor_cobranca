@@ -717,3 +717,50 @@ de um painel para outro (`urlFilter`, em memória).
 **Para telas novas:** lista principal com `syncFormWithUrl` + `pagedQuery({ url: true })`; colunas ordenáveis só com lista
 branca no servidor; abas com `urlTab`; ficha com `recordLabel`; item de menu pela tarefa do perfil.
 
+## 17. Busca de devedor e caso e vínculos entre telas (revisão de produto 11/2026 — J3, J4, T6; itens 1.3 e 1.4)
+
+**Busca rápida (Ctrl + K)** (`core/layout/command-palette`): além de telas e ações, quem tem `DEBTOR_VIEW` encontra
+devedor e caso. O texto digitado com 3+ letras ou dígitos vai, depois de 300 ms sem digitar, para
+`POST /api/v1/collection/quick-search` (`QuickSearchApi`) — **no corpo, nunca na URL**; a resposta de um termo antigo é
+descartada (e a requisição cancelada). O servidor decide o critério (nome, CPF/CNPJ ou telefone completos, código do
+título — [collection.md](collection.md) §8.4) e registra no log de acesso a busca por documento/telefone. A paleta mostra
+os grupos "Casos" (devedor · credor; situação · carteira) e "Devedores" (nome; documento mascarado · credores) **depois**
+dos destinos do menu, para a seleção do teclado não pular quando a resposta chega; "Buscando…", falha e "há mais
+resultados" ficam numa região `role="status"`. Abrir um resultado leva à ficha do caso ou do devedor.
+**Recentes** (`RecentRecords`): os últimos 10 devedores/casos abertos pela paleta, mostrados com o campo vazio; só em
+memória (sinal) — nunca `localStorage`/`sessionStorage`/servidor, porque rótulo e dica são dado pessoal — e esvaziados
+na saída ou troca de usuário. Sem `DEBTOR_VIEW`, a paleta continua só com telas e ações (sem chamada ao servidor).
+
+**Cartão "Relacionados"** (`shared/components/related-records`): `<app-related-records [records]="…" />` recebe os
+vínculos que **existem** (`RelatedRecord`: `kind`, `id`, `label`, `hint`, `queryParams`) e mostra só os que o perfil
+**pode abrir**: cada `kind` aponta para uma rota em `RELATED_TARGETS` com as mesmas permissões do `permissionGuard`
+(o `related-records.spec.ts` resolve a árvore real de rotas e falha se divergir). Ficha e lista do mesmo tipo ficam no
+mesmo grupo ("Pagamentos": os últimos e "Ver todos" → `/pagamentos?devedor=`). Sem vínculo visível, nada é renderizado.
+A tela não deve buscar dados de um destino que o perfil não abre (`RelatedRecords.canOpen(kind, has)`): evita 403 e
+"acesso negado" no log. Os vínculos vêm dos endpoints que cada módulo já expõe, com o escopo por credor do servidor
+(`features/debt/data/debtor-links.ts`: casos, acordos, pagamentos, contestações — `GET /collection/disputes?debtorId=` —,
+casos jurídicos e conversas do devedor, uma chamada por módulo e nenhuma por caso; falha num módulo esvazia só aquele
+grupo).
+
+| Ficha | Relacionados |
+| --- | --- |
+| Devedor | casos (ativos primeiro; "Ver todos" acima de 5), lista de títulos do devedor, acordos, pagamentos, contestações (dos casos), casos jurídicos, conversas |
+| Título | devedor, caso(s) da carteira, acordos que incluem o título, contestação, caso jurídico com o título, lote de importação |
+| Acordo | devedor, caso, proposta, acordo anterior/atual da renegociação, pagamentos aplicados, títulos do devedor |
+| Pagamento | devedor, acordos e títulos que receberam o pagamento |
+| Caso, contestação, caso jurídico | componente pronto; inclusão nas fichas pelas frentes donas (estação/ficha do caso; contestações e jurídico) |
+
+**Ficha do devedor com ações**: "Abrir caso" (primária; um caso em cobrança → link direto; vários → menu por
+credor · carteira), "Simular" (simulador com credor, devedor e caso; sem caso ativo, por credor dos títulos em
+cobrança), "Editar dados"; link do portal e dossiê em "Mais ações". Aba **Interações** (`CASE_VIEW`): as 50 mais recentes
+de todos os casos do devedor no escopo, numa chamada (`GET /collection/debtors/{id}/interactions`); com mais, o aviso
+remete ao histórico de cada caso. `?aba=interacoes` sem `CASE_VIEW` volta para Títulos.
+**Embutida no painel da estação** (`appUrlStateEmbedded`): sem "Abrir caso" e "Simular" — o operador já está no caso e
+simula pelo painel da própria estação; o "Relacionados" continua (ir a outro caso é uma escolha explícita, e o
+atendimento fica guardado por caso, §16).
+
+**Links pontuais**: linha da fila → `/cobranca/casos?fila=` (`CASE_VIEW`); lote de importação → "Títulos importados"
+(`/titulos?lote=`, só lote `IMPORT` com títulos criados/atualizados; filtro `lote` na lista de títulos, só id); acordo →
+cada pagamento aplicado (data) e o devedor; recebimento do demonstrativo (e do razão de comissão) → pagamento de origem;
+pagamento → devedor. Todos só com a permissão da tela de destino.
+

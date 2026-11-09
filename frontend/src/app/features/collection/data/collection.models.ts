@@ -700,6 +700,8 @@ export interface DisputeFilter {
   supervision?: boolean | null;
   /** Com resposta do credor por e-mail aguardando confirmação. */
   mailReplyPending?: boolean | null;
+  /** Contestações do devedor (vínculos da ficha do devedor; nunca vai para a URL da tela). */
+  debtorId?: string | null;
 }
 
 /** `DisputeUseCases.EvidenceView` */

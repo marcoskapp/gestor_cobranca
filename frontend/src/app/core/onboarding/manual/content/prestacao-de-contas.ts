@@ -62,6 +62,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Calcule depois do fim do período, revise e aprove. A conferência da soma mostra como se chega ao líquido.',
         'Aprovado, exporte os arquivos conciliáveis, registre o envio e o aceite ou a contestação do credor.',
+        'Na aba de recebimentos, a data de cada recebimento abre o pagamento de origem para conferir.',
       ],
       profiles: ['FINANCEIRO', 'GESTOR', 'AUDITOR'],
       inputs: ['Recebimentos apurados, pendências de conciliação, custas e ajustes.'],

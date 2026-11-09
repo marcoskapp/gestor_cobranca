@@ -45,6 +45,12 @@
       <button class="btn-close" type="button" (click)="clearDebtor()" aria-label="Remover filtro de devedor"></button>
     </span>
   }
+  @if (filters.controls.importBatchId.value) {
+    <span class="app-status app-status--info title-list__debtor">
+      Títulos do lote de importação
+      <button class="btn-close" type="button" (click)="clearBatch()" aria-label="Remover filtro de lote"></button>
+    </span>
+  }
   <div class="app-filters__actions">
     <button class="btn btn-link" type="button" (click)="clear()">Limpar filtros</button>
   </div>

@@ -185,7 +185,13 @@
         <h2 class="app-card__title" id="pm-data">Dados do pagamento</h2>
         <dl class="app-definition-list">
           <dt>Devedor</dt>
-          <dd>{{ debtorName() ?? '—' }}</dd>
+          <dd>
+            @if (canOpenDebtor()) {
+              <a [routerLink]="['/devedores', p.debtorId]">{{ debtorName() ?? 'Ficha do devedor' }}</a>
+            } @else {
+              {{ debtorName() ?? '—' }}
+            }
+          </dd>
           <dt>Credor</dt>
           <dd>{{ creditors.name(p.creditorId) }}</dd>
           <dt>Meio</dt>
@@ -257,6 +263,7 @@
           </dl>
         </section>
       }
+      <app-related-records [records]="related()" />
     </aside>
   </div>
 }

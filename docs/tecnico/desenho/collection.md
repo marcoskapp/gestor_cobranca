@@ -447,6 +447,28 @@ ator (RLS + filtro por credor), em consultas indexadas (`JdbcMyDayStore`).
 * Aprovações, conversas e prazos continuam em "Minhas pendências" (`pendencias.md`); o "Seu dia" não os repete. Leitura
   de contagens: sem auditoria nem log de acesso a dado sensível; sem métrica nova.
 
+### 8.4 Busca rápida de devedor e caso (Ctrl+K)
+
+`POST /quick-search` (`DEBTOR_VIEW`; corpo `{ "term": "…" }`, até 80 caracteres; resposta `no-store`),
+`QuickSearchQueries` → `QuickSearchService`. O termo vai no corpo, nunca na URL (ux.md §16).
+
+* Devedores pelo debt (`DebtorQuickSearch`, [debt.md](debt.md) §6): nome (3+), CPF/CNPJ completo, telefone completo ou
+  código do título; até 10, no escopo; busca por documento/telefone com `PERSONAL_DATA_SEARCHED` no log de acesso.
+* Casos desses devedores numa consulta só (`findByDebtorIdInOrderByOpenedAtDesc`, índice do devedor) só para quem tem
+  `CASE_VIEW`, filtrados pelos credores do escopo, ativos primeiro, até 20.
+* Nomes de credor e carteira resolvidos pelo organization (`getAll`, já filtrado pelo escopo), para a paleta mostrar
+  "devedor · credor" e "situação · carteira" sem outra chamada.
+* Resposta mínima: nome, documento mascarado, situação, credores; caso com credor, carteira e situação — sem saldo,
+  contato ou nascimento. Sem auditoria (leitura), sem evento e sem métrica nova.
+
+### 8.5 Vínculos da ficha do devedor
+
+* `GET /debtors/{debtorId}/interactions` (`CASE_VIEW`, paginado), `InteractionUseCases#listByDebtor`: interações do
+  devedor em todos os casos dos credores do escopo (filtro na consulta; sem credor no escopo, página vazia), da mais
+  recente à mais antiga (`ix_interaction_debtor`, **V0607**). A aba "Interações" da ficha mostra as 50 mais recentes.
+* `GET /disputes?debtorId=` (`DisputeQuery.debtorId`, `DisputeSearchCriteria.debtorId`): contestações do devedor no
+  escopo, para o "Relacionados" (`ix_dispute_debtor`, **V0607**). Ambos substituem uma consulta por caso.
+
 ## 9. Eventos de integração publicados
 
 | Evento | Quando | Campos relevantes |
@@ -516,13 +538,15 @@ descrições só no banco, criptografadas).
 | `/cases/{id}/assign` · `/release` · `/take-over` · `/assistant` | `POST` |
 | `/next-case` (200 caso / 204 vazio) · `/my-cases` | `POST` · `GET` |
 | `/my-day` | `GET` (`CASE_WORK` ou `CASE_ASSIGN`; §8.3) |
+| `/quick-search` | `POST` (`DEBTOR_VIEW`; termo no corpo; §8.4) |
+| `/debtors/{debtorId}/interactions` | `GET` (`CASE_VIEW`, paginado; §8.5) |
 | `/queues` · `/queues/{id}` · `/queues/{id}/summary` · `/queues/{id}/activate|deactivate` · `/queues/reroute` · `/queues/{id}/distribute` | CRUD + ações |
 | `/redistributions` | `POST` |
 | `/tabulations` · `/tabulations/{id}` · `/activate|deactivate` | CRUD + ações (com `followUp` e `disputeType`, §4.1) |
 | `/cases/{id}/interactions` | `GET`, `POST` (201; 200 se reenvio de integração) |
 | `/cases/{id}/tasks` · `/agenda` · `/tasks/{id}/complete|cancel|reschedule|reassign` | `GET`, `POST` |
 | `/cases/{id}/promises` · `/promises/{id}` · `/promises/{id}/cancel` | `GET`, `POST` |
-| `/cases/{id}/disputes` · `/disputes` · `/disputes/{id}` · `/review|resolve|withdraw` · `/evidences` · `/evidences/{eid}` | `GET`, `POST` (multipart) |
+| `/cases/{id}/disputes` · `/disputes` (filtro `debtorId`, §8.5) · `/disputes/{id}` · `/review|resolve|withdraw` · `/evidences` · `/evidences/{eid}` | `GET`, `POST` (multipart) |
 | `/disputes/{id}/detail` · `/assign` · `/take` · `/assignee-options` · `/disputes/redistributions` | `GET`, `POST` (§7.1) |
 | `/disputes/{id}/creditor-request-draft` · `/creditor-requests` · `/creditor-responses` (multipart `response` + `files`) | `GET`, `POST` (§7.3) |
 | `/disputes/{id}/debtor-notice-draft` · `/debtor-notices` · `/adjustment/dismiss` | `GET`, `POST` (§7.4, §7.5) |

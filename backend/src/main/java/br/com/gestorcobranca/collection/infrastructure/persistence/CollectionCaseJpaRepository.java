@@ -46,6 +46,9 @@ interface CollectionCaseJpaRepository extends JpaRepository<CollectionCase, UUID
     List<CollectionCase> findByDebtorIdOrderByOpenedAtDesc(UUID debtorId);
 
     @Override
+    List<CollectionCase> findByDebtorIdInOrderByOpenedAtDesc(Collection<UUID> debtorIds);
+
+    @Override
     default List<UUID> findActiveIdsAfter(UUID afterId, int limit) {
         return activeIdsAfter(afterId == null ? MIN_ID : afterId, Limit.of(limit));
     }

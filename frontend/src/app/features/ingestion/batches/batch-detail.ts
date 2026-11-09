@@ -83,6 +83,13 @@ export function batchActions(
     }
     @if (current(); as b) {
       <app-page-header [title]="b.fileName || 'Registros via API'" [subtitle]="creditors.name(b.creditorId) + ' · ' + portfolios.name(b.portfolioId) + ' · ' + modeLabels[b.mode]">
+        <!-- do lote para os títulos que ele criou ou atualizou (última carga de cada título) -->
+        @if (canOpenTitles() && b.mode === 'IMPORT' && b.counters.titlesCreated + b.counters.titlesUpdated > 0) {
+          <a class="btn btn-outline-secondary" routerLink="/titulos" [queryParams]="{ lote: b.id }" data-tour="batch-titles">
+            <app-icon name="file-earmark-text" />
+            Títulos importados
+          </a>
+        }
         @if (b.issuesRecorded) {
           <button class="btn btn-outline-secondary" type="button" (click)="report(b)" ngbTooltip="CSV com valores mascarados (exportação registrada)">
             <app-icon name="download" />
@@ -275,6 +282,8 @@ export class BatchDetail {
   protected readonly size = sizeText;
   protected readonly canExecute = computed(() => this.auth.hasPermission(Permission.IMPORT_EXECUTE));
   protected readonly canOriginal = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
+  /** A lista de títulos aceita `DEBTOR_VIEW` ou `CASE_VIEW` (como a rota); sem elas o link fica oculto. */
+  protected readonly canOpenTitles = computed(() => this.auth.hasAnyPermission([Permission.DEBTOR_VIEW, Permission.CASE_VIEW]));
 
   protected readonly batch = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.batch, undefined);

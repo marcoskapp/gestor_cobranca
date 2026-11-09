@@ -46,6 +46,16 @@ public interface DebtTitleRepository {
 
     Page<DebtTitle> search(TitleSearchCriteria criteria, Pageable pageable);
 
+    /**
+     * Devedores dos títulos com o código exato no credor (busca rápida), até {@code limit}.
+     *
+     * @param allowedCreditorIds credores visíveis ao ator; {@code null} = sem restrição
+     */
+    List<UUID> findDebtorIdsByExternalId(String externalId, Collection<UUID> allowedCreditorIds, int limit);
+
+    /** Pares devedor × credor dos títulos dos devedores informados (credores de vários devedores numa consulta). */
+    List<DebtorCreditor> findDebtorCreditors(Collection<UUID> debtorIds);
+
     /** Devedores distintos com títulos do credor marcados pelo lote, em ordem de id, após {@code afterDebtorId}. */
     List<UUID> findDebtorIdsByImportBatch(UUID creditorId, UUID importBatchId, UUID afterDebtorId, int limit);
 

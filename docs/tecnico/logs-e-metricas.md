@@ -203,6 +203,11 @@ Eventos do fluxo das contestações (negocio/contestacoes.md): todos levam credo
 | `dispute.adjustment_suggested` | resolução com ajuste sugerido | `action`, `outcome`; `amount` = saldo dos títulos na resolução |
 | `dispute.adjustment_closed` | ajuste feito (detectado) ou dispensado | `action`, `status` (DONE, DISMISSED), `trigger` (detected, dismissed), `daysAfterResolution` |
 
+Log de acesso da busca rápida (Ctrl+K, `POST /collection/quick-search`): `PERSONAL_DATA_SEARCHED` (`resource=debtor`,
+`purpose=QUICK_SEARCH`, `criteria` `DOCUMENT`/`PHONE` e, junto, `TITLE_CODE`/`NAME` quando aplicados, `returned`,
+`resourceIds` dos devedores devolvidos) a cada busca por CPF/CNPJ ou telefone completo, inclusive sem resultado; o termo
+nunca é gravado. Busca por nome ou código do título não vai ao log de acesso.
+
 Log de acesso: `INBOUND_MAIL_REJECTED` (e-mail do credor retido por autenticação SPF/DKIM/DMARC, vírus ou remetente fora do cadastro: e-mail, pedido, motivo, domínio do remetente e veredictos, sem conteúdo nem endereço completo), `FILE_DOWNLOADED` do original (`resource=dispute_mail_reply`, SHA-256), `MALWARE_DETECTED` (documento externo infectado: recurso, credor, SHA-256 e assinatura, sem o conteúdo), `RATE_LIMITED` com `scope=document_upload`, `FILE_DOWNLOADED` da evidência da correção de valor (`resource=title_amount_adjustment`).
 
 O porteiro de contato (compliance) passa a registrar `category` (`COLLECTION`, `TRANSACTIONAL`) em `contact.denied` e na

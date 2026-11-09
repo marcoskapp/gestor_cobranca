@@ -115,7 +115,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Resultado de um lote: contadores, ocorrências por linha e, quando cabe, importar a prévia ou reprocessar.',
       purpose: [
         'Mostra quantas linhas foram lidas, aceitas e recusadas e quantos devedores e títulos foram criados ou atualizados.',
-        'Baixe o relatório de ocorrências para devolver ao credor as linhas que precisam de correção.',
+        'Baixe o relatório de ocorrências para devolver ao credor as linhas que precisam de correção. "Títulos importados" abre a lista de títulos da carga (os que ela criou ou atualizou por último).',
         'Com a retenção de arquivos de importação ligada (Compliance → Retenção), o arquivo original é descartado no prazo: o lote, os contadores e as ocorrências ficam, sem download nem reprocessamento.',
       ],
       profiles: ['ANALISTA_CARTEIRA', 'GESTOR', 'INTEGRACAO', 'AUDITOR'],

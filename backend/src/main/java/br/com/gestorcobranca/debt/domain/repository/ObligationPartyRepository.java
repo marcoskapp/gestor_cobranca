@@ -28,6 +28,9 @@ public interface ObligationPartyRepository {
     /** Dentre as pessoas informadas, as coobrigadas vigentes de contratos de algum dos credores. */
     List<UUID> findActiveDebtorIdsInCreditors(Collection<UUID> debtorIds, Collection<UUID> creditorIds);
 
+    /** Pares devedor × credor das coobrigações vigentes dos devedores informados (em lote). */
+    List<DebtorCreditor> findActiveDebtorCreditors(Collection<UUID> debtorIds);
+
     /** A pessoa é coobrigada vigente de contrato com título em cobrança (aberto ou suspenso). */
     boolean existsActiveWithOpenTitles(UUID debtorId);
 }

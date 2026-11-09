@@ -125,15 +125,30 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.debtors', version: 1, path: '/devedores', tourId: 'debt.debtors' },
   {
     key: 'debt.debtor-detail',
-    version: 3,
+    version: 4,
     path: '/devedores/:id',
     tourId: 'debt.debtor-detail',
     changes: [
       { version: 2, items: ['Nova restrição de contato: o campo Credor lista só os credores do devedor, pedido do devedor e descadastro começam valendo para todos os credores e o quadro "Alcance" resume o que será bloqueado antes de salvar.'] },
       { version: 3, items: ['O dossiê de contato passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
+      {
+        version: 4,
+        items: [
+          '"Abrir caso" e "Simular" no cabeçalho: com um caso em cobrança, vão direto; com vários, você escolhe o credor e a carteira.',
+          'Aba "Interações": os contatos mais recentes de todos os casos do devedor, do mais recente ao mais antigo.',
+          'Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: casos, acordos, pagamentos, contestações, casos jurídicos e conversas.',
+          'O envio do link do portal passou para o menu "Mais ações" (⋯); a lista de títulos filtrada pelo devedor fica em "Relacionados".',
+        ],
+      },
     ],
   },
-  { key: 'debt.titles', version: 1, path: '/titulos', tourId: 'debt.titles' },
+  {
+    key: 'debt.titles',
+    version: 2,
+    path: '/titulos',
+    tourId: 'debt.titles',
+    changes: [{ version: 2, items: ['Vindo de um lote de importação ("Títulos importados"), a lista mostra só os títulos daquela carga; o filtro some no × ao lado.'] }],
+  },
   // "correções de valor" antes do detalhe (":id" casaria o caminho)
   {
     key: 'debt.title-amounts',
@@ -159,7 +174,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'debt.title-detail',
-    version: 5,
+    version: 6,
     path: '/titulos/:id',
     tourId: 'debt.title-detail',
     changes: [
@@ -182,6 +197,7 @@ export const SCREENS: readonly ScreenGuide[] = [
         version: 5,
         items: ['Suspender, transferir, devolver ao credor e cancelar ficam no menu "Mais ações" (⋯), com o cancelamento por último e separado; para voltar à lista, use a trilha no topo.'],
       },
+      { version: 6, items: ['Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, caso da carteira, acordos que incluem o título, contestação, caso jurídico e o lote que trouxe o título.'] },
     ],
   },
   {
@@ -258,7 +274,13 @@ export const SCREENS: readonly ScreenGuide[] = [
     changes: [{ version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Saldo, atraso e próxima ação.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] }],
   },
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
-  { key: 'collection.queues', version: 1, path: '/cobranca/filas', tourId: 'collection.queues' },
+  {
+    key: 'collection.queues',
+    version: 2,
+    path: '/cobranca/filas',
+    tourId: 'collection.queues',
+    changes: [{ version: 2, items: ['O nome da fila abre a lista de casos dessa fila.'] }],
+  },
   {
     key: 'collection.tabulations',
     version: 2,
@@ -349,13 +371,14 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'negotiation.agreement-detail',
-    version: 4,
+    version: 5,
     path: '/negociacao/acordos/:id',
     tourId: 'negotiation.agreement-detail',
     changes: [
       { version: 2, items: ['Gerar Pix por parcela (QR Code e copia e cola) e informar pagamento recebido fora do Pix.'] },
       { version: 3, items: ['Ao informar pagamento, o aviso de que o valor vai para a aprovação de outra pessoa aparece para todos que informam, mesmo sem acesso aos parâmetros de pagamentos.'] },
       { version: 4, items: ['Cancelar acordo passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
+      { version: 5, items: ['Cada pagamento aplicado abre o pagamento (data na tabela) e o nome do devedor abre a ficha dele.', 'Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, caso, proposta, pagamentos e acordos da renegociação.'] },
     ],
   },
   {
@@ -427,12 +450,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'publicapi.billing', version: 2, path: '/integracoes/extratos', tourId: 'publicapi.billing' },
   {
     key: 'payment.detail',
-    version: 3,
+    version: 4,
     path: '/pagamentos/:id',
     tourId: 'payment.detail',
     changes: [
       { version: 2, items: ['Pagamento aguardando aprovação mostra o destino solicitado por quem informou.'] },
       { version: 3, items: ['Estornar passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
+      { version: 4, items: ['O nome do devedor abre a ficha dele.', 'Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, acordos e títulos que receberam o pagamento.'] },
     ],
   },
   { key: 'settlement.rules', version: 1, path: '/prestacao-de-contas/regras', tourId: 'settlement.rules' },
@@ -441,12 +465,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'settlement.statements', version: 1, path: '/prestacao-de-contas/demonstrativos', tourId: 'settlement.statements' },
   {
     key: 'settlement.statement',
-    version: 3,
+    version: 4,
     path: '/prestacao-de-contas/demonstrativos/:id',
     tourId: 'settlement.statement',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
       { version: 3, items: ['Cancelar demonstrativo passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
+      { version: 4, items: ['Na aba de recebimentos, a data de cada recebimento abre o pagamento de origem.'] },
     ],
   },
   { key: 'settlement.transfers', version: 1, path: '/prestacao-de-contas/repasses', tourId: 'settlement.transfers' },
@@ -630,12 +655,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'ingestion.batch-detail',
-    version: 3,
+    version: 4,
     path: '/importacao/:id',
     tourId: 'ingestion.batch-detail',
     changes: [
       { version: 2, items: ['Importar a prévia ou reprocessar o arquivo passa pela conferência; a leitura aplicada aos valores aparece no recebimento.'] },
       { version: 3, items: ['Com a retenção de arquivos de importação ligada, o lote mostra quando o arquivo original foi descartado; sem ele, não há download nem reprocessamento.'] },
+      { version: 4, items: ['"Títulos importados" abre a lista de títulos desta carga (os criados ou atualizados por ela).'] },
     ],
   },
   {

@@ -52,7 +52,9 @@ describe('rótulos e regras de tela do módulo debt', () => {
       maxOverdueDays: 60,
       dueFrom: null,
       dueTo: null,
+      importBatchId: null,
     });
+    expect(toTitleFilter({ ...base, importBatchId: 'b-1' }).importBatchId).toBe('b-1');
     const open = toTitleFilter({ ...base, bucket: '361-', dueFrom: '2026-01-05', dueTo: '2026-02-28' });
     expect(open).toMatchObject({ minOverdueDays: 361, maxOverdueDays: null, dueFrom: '2026-01-05', dueTo: '2026-02-28' });
     expect(OVERDUE_BUCKETS.every((b) => b.max === null || (b.min ?? 0) <= b.max)).toBe(true);

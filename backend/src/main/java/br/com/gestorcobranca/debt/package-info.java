@@ -10,7 +10,8 @@
  * ({@code DebtorUseCases}, {@code DebtorContactUseCases}, {@code DebtTitleUseCases},
  * {@code DebtorSheetQueries}, {@code OriginContractUseCases}, {@code CollateralUseCases},
  * {@code ObligationPartyUseCases}, {@code PrescriptionRuleUseCases},
- * {@code TitlePrescriptionUseCases}) e portas internas sem endpoint ({@code DebtLedgerPort} para
+ * {@code TitlePrescriptionUseCases}), a busca rápida {@code DebtorQuickSearch} (usada pela busca de devedor e caso
+ * do collection) e portas internas sem endpoint ({@code DebtLedgerPort} para
  * pagamento/negociação, {@code DebtIngestionPort} para a importação,
  * {@code PrescriptionInterruptionPort} para o módulo legal).
  */

@@ -130,6 +130,8 @@ export interface TitleFilter {
   dueTo?: string | null;
   minOverdueDays?: number | null;
   maxOverdueDays?: number | null;
+  /** Lote de importação que criou o título. */
+  importBatchId?: string | null;
 }
 
 export type LedgerComponent = 'PRINCIPAL' | 'INTEREST' | 'FINE' | 'FEES' | 'HONORARIUM';

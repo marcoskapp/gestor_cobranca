@@ -95,6 +95,7 @@ export const ACCESS_EVENT_LABELS: Record<string, string> = {
   SCOPE_DENIED: 'Acesso fora do escopo',
   UNAUTHENTICATED: 'Requisição sem autenticação',
   SENSITIVE_DATA_VIEWED: 'Dado sensível visualizado',
+  PERSONAL_DATA_SEARCHED: 'Busca de devedor por documento ou telefone',
   DATA_EXPORTED: 'Exportação de dados',
   FILE_DOWNLOADED: 'Download de arquivo',
   WEBHOOK_REJECTED: 'Webhook rejeitado',

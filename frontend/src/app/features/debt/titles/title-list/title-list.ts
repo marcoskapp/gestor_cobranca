@@ -33,6 +33,8 @@ export function toTitleFilter(v: {
   creditor: string[];
   portfolio: string[];
   debtorId: string;
+  /** Lote de importação (do lote para os títulos importados); opcional para os chamadores antigos. */
+  importBatchId?: string;
   status: string;
   bucket: string;
   /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
@@ -49,6 +51,7 @@ export function toTitleFilter(v: {
     maxOverdueDays: bucket?.max ?? null,
     dueFrom: v.dueFrom || null,
     dueTo: v.dueTo || null,
+    importBatchId: v.importBatchId || null,
   };
 }
 
@@ -79,13 +82,14 @@ export class TitleList {
   protected readonly titleLabel = titleLabel;
   protected readonly canViewDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
 
-  /** Filtros na URL (`?credor=&carteira=&devedor=&situacao=&atraso=&venc-de=&venc-ate=`): vindos de outras telas e preservados ao voltar. */
+  /** Filtros na URL (`?credor=&carteira=&devedor=&lote=&situacao=&atraso=&venc-de=&venc-ate=`): vindos de outras telas e preservados ao voltar. */
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly filters = syncFormWithUrl(
     this.fb.group({
       creditor: this.fb.control<string[]>([]),
       portfolio: this.fb.control<string[]>([]),
       debtorId: [''],
+      importBatchId: [''],
       status: [''],
       bucket: [''],
       dueFrom: this.fb.control<string | null>(null),
@@ -95,6 +99,7 @@ export class TitleList {
       creditor: urlParam.ids('credor'),
       portfolio: urlParam.ids('carteira'),
       debtorId: urlParam.id('devedor'),
+      importBatchId: urlParam.id('lote'),
       status: urlParam.choice('situacao', statusOptions('title').map((s) => s.value)),
       bucket: urlParam.choice('atraso', OVERDUE_BUCKETS.map((b) => b.value)),
       dueFrom: urlParam.date('venc-de'),
@@ -145,6 +150,10 @@ export class TitleList {
 
   protected clearDebtor(): void {
     this.filters.controls.debtorId.setValue('');
+  }
+
+  protected clearBatch(): void {
+    this.filters.controls.importBatchId.setValue('');
   }
 
   protected clear(): void {
