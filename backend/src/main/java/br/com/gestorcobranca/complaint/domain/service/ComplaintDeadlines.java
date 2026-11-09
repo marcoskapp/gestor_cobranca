@@ -10,7 +10,7 @@ import java.util.Optional;
 
 /**
  * Prazo de resposta da reclamação: o informado pelo canal prevalece; senão a regra do canal; senão o padrão
- * ({@value #DEFAULT_DAYS} dias corridos do recebimento — decisão G7, para revisão).
+ * ({@value #DEFAULT_DAYS} dias corridos do recebimento — decisão 1051, para revisão).
  */
 public final class ComplaintDeadlines {
 

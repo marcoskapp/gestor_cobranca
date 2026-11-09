@@ -114,7 +114,7 @@ Atalhos para os fluxos existentes, com as regras e permissões deles: **cancelar
 ## 8. O que ainda depende do responsável
 
 - Ligar a verificação de malware (daemon ClamAV) dos documentos recebidos pela API e por e-mail (decisão 816).
-- Contestação do portal: confirmar se o pedido sem carteira escolhida deve abrir a contestação em **todas** as dívidas que o devedor vê no portal (como hoje) ou só pedir a escolha (decisão G9 [revisar]).
+- Contestação do portal: confirmar se o pedido sem carteira escolhida deve abrir a contestação em **todas** as dívidas que o devedor vê no portal (como hoje) ou só pedir a escolha (decisão 1053 [revisar]).
 - Leitura de e-mail: escolher o subdomínio, verificar no SES e criar o MX ([email-entrada.md §2](../tecnico/operacao/email-entrada.md)); revisar os limites (827), a cópia obrigatória ao responsável (821) e uma tela para os e-mails sem rota (831).
 
 - Revisão jurídica dos **textos padrão** dos modelos (pedido ao credor por tipo e resposta ao devedor por resultado).

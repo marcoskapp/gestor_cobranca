@@ -11,7 +11,7 @@ import jakarta.persistence.Table;
 /**
  * Prazo de resposta por canal, configurado pela assessoria (dias corridos a partir do recebimento). Os prazos reais
  * variam por órgão, convênio e credor (ex.: o Procon informa o prazo na notificação), então o sistema só traz um
- * padrão editável (decisão G7, para revisão) e o prazo informado no registro sempre prevalece.
+ * padrão editável (decisão 1051, para revisão) e o prazo informado no registro sempre prevalece.
  */
 @Entity
 @Table(name = "complaint_deadline_rule", schema = "complaint")

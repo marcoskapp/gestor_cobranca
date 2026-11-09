@@ -61,7 +61,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 ### 3.1a Atributos dos eventos do marcador de vulnerabilidade (compliance)
 
 O marcador pode ser dado sensível (saúde, LGPD art. 11): **os eventos não levam o devedor** (`debtor_id` nulo) **nem a
-categoria** (decisão G17). Referência opaca `vulnerability_marker` ou `vulnerability_suggestion`.
+categoria** (decisão 1061). Referência opaca `vulnerability_marker` ou `vulnerability_suggestion`.
 
 | Evento | Quando | Atributos |
 | --- | --- | --- |

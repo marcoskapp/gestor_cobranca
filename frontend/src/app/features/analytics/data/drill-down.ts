@@ -32,7 +32,10 @@ export const DRILL_ROUTES = {
   divergences: '/pagamentos/divergencias',
 } as const;
 
-type Scope = { credor?: string; carteira?: string };
+interface Scope {
+  credor?: string;
+  carteira?: string;
+}
 
 /** Credor e carteira do painel no formato das listas (um de cada), ou `null` quando o painel tem mais de um. */
 function scopeOf(filter: AnalyticsFilter, portfolio: boolean): Scope | null {

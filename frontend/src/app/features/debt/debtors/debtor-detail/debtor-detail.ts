@@ -68,7 +68,7 @@ import { VulnerabilityBadge } from '../../../compliance/vulnerability/vulnerabil
  *
  * Embutida no painel da estação (`appUrlStateEmbedded`): sem "Abrir caso" e "Simular" — o operador já
  * está no caso e simula pelo painel da estação; trocar de caso fica só pelo link explícito do
- * "Relacionados" (decisão [D-9]).
+ * "Relacionados" (decisão 997).
  */
 @Component({
   selector: 'app-debtor-detail',

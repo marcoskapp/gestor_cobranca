@@ -211,7 +211,7 @@ class NegotiationGuard {
                 ctx.composition().referenceDate()), new TermsEvaluator.Terms(level, justified, discounts, plan)));
         if (ctx.vulnerabilityGuarded()) {
             Money largest = plan.schedule().stream().map(p -> p.amount()).max(Money::compareTo).orElse(plan.downPayment());
-            // canal automático: portal (DEBTOR), assistente e integração (API pública) — decisão G18 [revisar]
+            // canal automático: portal (DEBTOR), assistente e integração (API pública) — decisão 1062 [revisar]
             boolean automated = ctx.actor().type() == Actor.ActorType.DEBTOR || ctx.actor().isAssistant()
                     || ctx.actor().type() == Actor.ActorType.INTEGRATION;
             vulnerability.checkOffer(ctx.debtorId(), automated, largest.amount()).forEach(b ->

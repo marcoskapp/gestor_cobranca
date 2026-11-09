@@ -25,7 +25,7 @@ Base legal e de produto: CDC art. 4º I (vulnerabilidade), 39 IV (hipervulneráv
 | `payment_capacity` | opcional e só para `SUPER_INDEBTED`: parcela mensal que o devedor pode comprometer preservando o mínimo existencial (declaração ou plano de repactuação). **Não é renda** e o sistema não calcula o mínimo existencial |
 | `status` | `ACTIVE` → `RETIRED` (motivo em código: `SITUATION_ENDED`, `REGISTERED_BY_MISTAKE`); por `CONSENT_REVOKED` ou `DATA_SUBJECT_REQUEST` o marcador é **apagado** (auditoria `vulnerability.erased`, categoria mascarada) |
 
-**Sem texto livre** em nenhum campo (decisão G2). O marcador vale para todos os credores do devedor (condição da
+**Sem texto livre** em nenhum campo (decisão 1046). O marcador vale para todos os credores do devedor (condição da
 pessoa). Na anonimização do devedor (`DebtorAnonymized`), marcadores e sugestões são apagados
 (`compliance.vulnerability-anonymized`).
 
@@ -47,7 +47,7 @@ ativo, a detecção é ignorada. Nunca vira marcador sozinha.
 - O selo (`GET /api/v1/compliance/vulnerability/debtors/{id}`) é de quem vê o devedor (`DEBTOR_VIEW`/`CASE_VIEW`). Sem
   `VULNERABILITY_SENSITIVE_VIEW`, devolve só "há atenção especial" e a capacidade de pagamento, **sem nenhuma categoria**
   (`categories` vazio; `MarkerView.category` e `sensitive` nulos); o filtro por categoria na lista também exige a
-  permissão (decisão G17 [revisar]). O supervisor retira e configura, mas não vê a categoria.
+  permissão (decisão 1061 [revisar]). O supervisor retira e configura, mas não vê a categoria.
 - Escopo: o devedor precisa estar visível ao ator (credores do ator, via `DebtorUseCases#get`); a lista de todos os
   marcadores e a configuração exigem acesso a todos os credores (403 com `SCOPE_DENIED`); sugestões só do credor no
   escopo, e sugestão sem credor de origem só para quem tem todos os credores.
@@ -73,7 +73,7 @@ ativo, a detecção é ignorada. Nunca vira marcador sozinha.
   de erro). Aparece em
   "Minhas pendências" (`compliance.vulnerability_suggestions`) e na tela Compliance → Vulnerabilidade.
 
-### 1.4 Salvaguarda de oferta (configurável, padrão desligado — decisão G4 [revisar])
+### 1.4 Salvaguarda de oferta (configurável, padrão desligado — decisão 1048 [revisar])
 
 Aplicada no `NegotiationGuard` (validação única de todas as ofertas — tela, API, portal, assistente) pela porta
 `VulnerabilityQueries#checkOffer`, só quando `offerSafeguardActive` (assessoria ligou e o devedor tem marcador ativo):
@@ -81,7 +81,7 @@ Aplicada no `NegotiationGuard` (validação única de todas as ofertas — tela,
 | Configuração | Regra | Violação (`POLICY`, nunca concedida) |
 | --- | --- | --- |
 | `offer_guard_enabled` | maior desembolso mensal da condição (entrada ou parcela; à vista = total) ≤ menor capacidade de pagamento declarada entre os marcadores ativos; sem capacidade declarada, não se aplica | `vulnerability.payment_capacity_exceeded` |
-| `automated_offers_blocked` | ator `DEBTOR` (portal), `ASSISTANT` ou `INTEGRATION` (API pública) não negocia com devedor marcado (decisão G18 [revisar]) | `vulnerability.automated_channel_blocked` |
+| `automated_offers_blocked` | ator `DEBTOR` (portal), `ASSISTANT` ou `INTEGRATION` (API pública) não negocia com devedor marcado (decisão 1062 [revisar]) | `vulnerability.automated_channel_blocked` |
 
 O sistema não fixa percentual de renda nem valor de mínimo existencial (o Decreto 11.150/2022 e suas alterações, o
 plano de repactuação e a política do credor definem); a assessoria registra a capacidade declarada.
@@ -100,7 +100,7 @@ plano de repactuação e a política do credor definem); a assessoria registra a
   títulos em cobrança do caso, prazos pela hierarquia de prazos **contados do instante do pedido no portal**
   (`opened_at` = criação do pedido), descrição com o protocolo do pedido — **o relato do devedor não é copiado**: fica
   no pedido do portal, aberto com a permissão e o log de acesso de lá (`PortalDisputeCommand.withNote` só avisa que há
-  relato; decisão G19), distribuição,
+  relato; decisão 1063), distribuição,
   auditoria (`meta.originReference`), `dispute.opened` com `trigger=portal` e `DisputeStatusChanged`.
 - **Idempotente:** `collection.dispute.origin_reference = portal_request:<id>` com índice único por caso; repetir não
   duplica. Caso que já tem contestação em aberto não ganha outra (`ALREADY_OPEN`); sem caso ativo (`NO_CASE`) ou sem
@@ -117,7 +117,7 @@ Módulo novo `br.com.gestorcobranca.complaint` (schema `complaint`, faixa de mig
 `organization`, `identity`, `debt` e `collection` (`usecases`). Não ficou no compliance porque a reclamação se vincula
 ao **caso** de cobrança e o compliance é dependência do collection (não pode depender dele de volta); nem no collection,
 porque o ciclo (canal externo, protocolo, prazo do órgão, resposta ao órgão) é de ouvidoria/compliance, não da
-operação, e o collection já é o maior módulo. A tela fica em Compliance → Reclamações (decisão G6 [revisar]).
+operação, e o collection já é o maior módulo. A tela fica em Compliance → Reclamações (decisão 1050 [revisar]).
 
 ### 3.2 Modelo e ciclo
 
@@ -133,7 +133,7 @@ resposta). Resultados: `RESOLVED`, `NOT_ACCEPTED`, `UNFOUNDED`, `CLOSED_BY_CHANN
 
 **Prazo** (`ComplaintDeadlines`): o informado pelo canal no registro prevalece; senão a regra do canal
 (`complaint.complaint_deadline_rule`: dias corridos e aviso, por assessoria); senão o padrão de 10 dias corridos com
-aviso de 3 (decisão G7 [revisar] — não é prazo legal; cada órgão informa o seu). Mudança de prazo (prorrogação) exige
+aviso de 3 (decisão 1051 [revisar] — não é prazo legal; cada órgão informa o seu). Mudança de prazo (prorrogação) exige
 motivo e é auditada. "No prazo" = resposta até o fim do dia do prazo no fuso de negócio.
 
 **Evidências** (`complaint.complaint_evidence`): PDF, PNG ou JPEG conferidos pelo conteúdo, até 10 MB e 20 por
@@ -183,11 +183,11 @@ anonimização do devedor, resumo, resposta e protocolo são substituídos e os 
 
 ## 5. Pendências e fora do escopo
 
-- **Retenção dos marcadores retirados e prova do consentimento** (decisão G20 [revisar], para o responsável e o
+- **Retenção dos marcadores retirados e prova do consentimento** (decisão 1064 [revisar], para o responsável e o
   encarregado): por quanto tempo guardar o histórico de marcadores retirados por `SITUATION_ENDED`/
   `REGISTERED_BY_MISTAKE` (hoje ficam até a anonimização do devedor) e como provar o consentimento quando a base é
   `CONSENT` (vínculo com o registro de bases legais / `legal-bases`). Não implementado.
-- **Retenção das reclamações sem devedor vinculado** (decisão G21 [revisar]): não entram na anonimização de nenhum
+- **Retenção das reclamações sem devedor vinculado** (decisão 1065 [revisar]): não entram na anonimização de nenhum
   titular; prazo de guarda e descarte a definir com o encarregado (política de retenção nova `COMPLAINTS`).
 
 - **Integração automática com consumidor.gov.br, Procon (ProConsumidor) ou RDR do Bacen:** provedor externo → issue

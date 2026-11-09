@@ -314,6 +314,12 @@ são medidos, mas o peso relativo de cada atrito é estimativa.
 | 07/11/2026 | **Jornada do operador:** atendimento preservado por caso, estação para 1366×768, simulador e ficha do devedor em painel lateral, acordo fechado sem sair do caso (de ~20 para 7 cliques), "Seu dia" no início, convite de tour uma vez, caixa de entrada na Fila | 2.1–2.5, 1.6 (T7, T8) | 964–983 (D7, D8) |
 | 07/11/2026 | **Integração:** frentes unidas; abas da estação no padrão `.app-tabs`, colunas com `mobile` e `sortable`, retorno pela trilha, ficha do devedor embutida sem mexer na aba da estação | — | 963, 984, 985 |
 
-Pendentes desta revisão: 1.3 (busca de devedor e caso no Ctrl+K), 1.4 ("Relacionados" e ações da ficha do devedor),
-3.1–3.4 (aprovações, drill-down dos painéis, avaliar a partir do atendimento, modo consulta do caso) e os índices das
-ordenações novas (medir antes de criar). Ondas A, 5 e 6 seguem como descritas.
+| 08/11/2026 | **Rodada 2 — busca e vínculos:** Ctrl+K com devedor e caso (log de acesso, sem o termo na URL), cartão "Relacionados", ficha do devedor com ações e interações, links fila → casos, lote → títulos, acordo → pagamentos, demonstrativo → pagamento | 1.3, 1.4 | 989–1004 |
+| 08/11/2026 | **Rodada 2 — supervisor:** aprovações num padrão único com "Aprovar e abrir a próxima" (fila de 3 propostas de ~12 para 7 cliques), "Avaliar este atendimento", ficha do caso em consulta e endereço único | 3.1, 3.3, 3.4 | 1005–1023 |
+| 08/11/2026 | **Rodada 2 — gestor e retoques:** drill-down dos painéis só onde a lista é a base exata, ações irreversíveis no "Mais ações", "Voltar" com filtros, "Filtros (n)" em 30 listas, 12 índices medidos | 3.2, retoques | 1024–1044 |
+| 08/11/2026 | **Rodada 2 — conformidade:** marcador de vulnerabilidade (saúde só com permissão própria), contestação do portal no collection, reclamações com prazos e indicador por credor | Onda 5 (5.1, 5.2, 5.4) | 1045–1068 |
+
+Pendentes: leitor CNAB 240 (fora por pedido do responsável), homologação de templates pela API da Meta, ação `OFFER`
+da régua, acesso do credor ao demonstrativo, devolução Pix pelo sistema, validação no servidor da referência da
+monitoria (1017), retenção dos marcadores retirados e prova do consentimento (com o encarregado), drill-down dos
+indicadores sem lista exata (anexo `analytics.md` §7.1). Ondas A e 6 seguem como descritas.

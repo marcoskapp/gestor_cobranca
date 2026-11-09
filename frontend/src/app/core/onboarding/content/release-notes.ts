@@ -3,6 +3,19 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 18,
+    date: '2026-11-08',
+    title: 'Busca de devedor, fichas ligadas, aprovações em sequência e conformidade',
+    items: [
+      { text: 'Busca rápida (Ctrl + K) encontra devedor e caso por nome, CPF/CNPJ completo, telefone completo ou código do título; as fichas mostram o cartão "Relacionados" com os registros ligados que o seu perfil pode abrir.', route: '/devedores' },
+      { text: 'Ficha do devedor com "Abrir caso", "Simular" e a aba "Interações" com os contatos de todos os casos.', route: '/devedores' },
+      { text: 'Aprovações de propostas, pagamentos informados e correções de valor no mesmo formato: quanto passa da alçada, "Aprovar e abrir a próxima" e "1 de N".', route: '/negociacao/aprovacoes' },
+      { text: '"Avaliar este atendimento" a partir da chamada, da conversa ou do histórico do caso; quem só consulta abre o caso sem a estação.', route: '/remuneracao/qualidade/avaliacoes' },
+      { text: 'Os números dos painéis abrem a lista com os mesmos filtros quando ela é a base exata do indicador; no celular, os filtros das listas ficam no botão "Filtros (n)".', route: '/paineis' },
+      { text: 'Marcador de vulnerabilidade e superendividamento, com selo na ficha e na estação e fila de atendimento cuidadoso; reclamações (Procon, consumidor.gov.br, Bacen, Reclame Aqui) com prazo e responsável; a contestação aberta pelo devedor no portal chega à fila de contestações.', route: '/compliance/reclamacoes' },
+    ],
+  },
+  {
     version: 17,
     date: '2026-11-07',
     title: 'Abas que não cabem ficam em "Mais"',

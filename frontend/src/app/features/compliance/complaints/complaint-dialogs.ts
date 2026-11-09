@@ -44,11 +44,6 @@ abstract class ComplaintDialogBase {
   }
 }
 
-const ERROR_BLOCK = `
-  @if (error()) {
-    <div class="alert alert-danger d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
-  }`;
-
 // =================================================================== responder
 
 /** Resposta enviada ao canal (texto que foi protocolado no Procon, consumidor.gov.br, ouvidoria…). */
@@ -63,7 +58,9 @@ const ERROR_BLOCK = `
     </div>
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
-        ${ERROR_BLOCK}
+        @if (error()) {
+          <div class="alert alert-danger d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
+        }
         <p class="app-dialog-message">Registre o texto que foi enviado ao canal. Respondida até o prazo conta como "no prazo" no indicador.</p>
         <app-field class="mb-3" label="Resposta" [hint]="form.controls.response.value.length + '/' + max">
           <textarea appInput formControlName="response" rows="6" [attr.maxlength]="max" ngbAutofocus></textarea>
@@ -110,7 +107,9 @@ export class AnswerComplaintDialog extends ComplaintDialogBase {
     </div>
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
-        ${ERROR_BLOCK}
+        @if (error()) {
+          <div class="alert alert-danger d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
+        }
         <app-field label="Resultado">
           <select appInput formControlName="outcome" ngbAutofocus>
             <option value="" disabled>Selecione</option>
@@ -154,7 +153,9 @@ export class CloseComplaintDialog extends ComplaintDialogBase {
     </div>
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
-        ${ERROR_BLOCK}
+        @if (error()) {
+          <div class="alert alert-danger d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
+        }
         <app-field label="Responsável" hint="Pessoas ativas que tratam reclamações e têm acesso ao credor, com as reclamações em aberto de cada uma.">
           <select appInput formControlName="assignee" ngbAutofocus>
             <option value="">Sem responsável</option>
@@ -195,7 +196,9 @@ export class AssignComplaintDialog extends ComplaintDialogBase {
     </div>
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
-        ${ERROR_BLOCK}
+        @if (error()) {
+          <div class="alert alert-danger d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
+        }
         <app-field class="mb-3" label="Novo prazo">
           <div class="input-group">
             <input appInput ngbDatepicker #due="ngbDatepicker" placeholder="dd/mm/aaaa" formControlName="dueDate" ngbAutofocus />
@@ -246,7 +249,9 @@ export class DueDateComplaintDialog extends ComplaintDialogBase {
     </div>
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
-        ${ERROR_BLOCK}
+        @if (error()) {
+          <div class="alert alert-danger d-flex gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
+        }
         <app-field class="mb-3" label="Assunto">
           <select appInput formControlName="subject" ngbAutofocus>
             @for (s of subjects; track s.value) {
