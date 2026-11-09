@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "8f8d772a913fa227",
+ "contentVersion": "19c0ae41fafd1cb0",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -1558,9 +1558,11 @@
    "id": "collection.case",
    "module": "cobranca",
    "title": "Caso de cobrança",
-   "objective": "Atendimento de um caso específico: ficha, decisão de contato e registro da interação, como na estação.",
+   "objective": "Um caso específico, num endereço só: atendimento na estação para quem opera, ficha em modo consulta para os demais.",
    "purpose": [
-    "Abre um caso escolhido em listas, agenda ou ficha do devedor, com as mesmas abas e atalhos da estação de cobrança."
+    "Abre um caso escolhido em listas, agenda, propostas, conversas ou ficha do devedor. Quem opera a cobrança trabalha o caso dentro da estação (fila, cronômetro e registro da interação), com o menu marcando a estação; o endereço antigo da estação com o caso continua funcionando.",
+    "Quem só consulta (jurídico, gestor, auditoria) vê os mesmos dados e abas sem fila, cronômetro, janela de contato nem registro de interação; as ações do seu perfil (atribuir, mudar a situação, atualizar a posição, simular) ficam em \"Mais ações\".",
+    "No histórico, quem avalia a qualidade tem \"Avaliar\" em cada atendimento de outra pessoa: a monitoria abre com o negociador, o caso e a data preenchidos."
    ],
    "profiles": [
     "OPERADOR",
@@ -2159,7 +2161,7 @@
    "title": "Correções de valor",
    "objective": "Aprove correções de valor pedidas por outra pessoa e decida as cargas do credor diferentes do valor corrigido.",
    "purpose": [
-    "Quem pede a correção nunca a aprova. A fila mostra só os pedidos de outras pessoas, com motivo, evidência e os valores antes e depois.",
+    "Quem pede a correção nunca a aprova. A fila mostra só os pedidos de outras pessoas, com motivo, evidência e os valores antes e depois; filtre por credor e use \"Revisar\" para decidir.",
     "A carga do credor não sobrescreve um valor corrigido: a divergência fica aqui até alguém manter a correção ou aceitar o valor do credor.",
     "O limite define até quanto uma redução pura (soma das reduções, sem nenhum componente subir, mais as do mesmo título {{debt.cumulativeWindow}}) é aplicada sem segunda pessoa; aumentá-lo só vale com a confirmação de outra pessoa, e a proposta sem confirmação vence {{debt.proposalValidity}}."
    ],
@@ -2181,6 +2183,10 @@
     {
      "screen": "collection.dispute",
      "why": "Ajuste sugerido por contestação procedente."
+    },
+    {
+     "screen": "debt.title-amount-approval",
+     "why": "Decidir um pedido."
     }
    ],
    "terms": [
@@ -2190,6 +2196,48 @@
    "path": "/titulos/correcoes-de-valor",
    "access": {
     "kind": "MENU",
+    "permissions": [
+     "TITLE_AMOUNT_ADJUST",
+     "TITLE_AMOUNT_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "debt.title-amount-approval",
+   "module": "cobranca",
+   "title": "Aprovação de correção de valor",
+   "objective": "Decida um pedido de correção de valor vendo quanto ele passa do limite e o que muda em cada componente.",
+   "purpose": [
+    "Mostra por que o pedido precisa de segunda pessoa: aumento de componente (sempre), redução acima do limite ou somada às reduções já aplicadas no título {{debt.cumulativeWindow}}, com o excesso em valor e %.",
+    "\"Aprovar e abrir a próxima\" e \"Recusar e abrir a próxima\" seguem na mesma fila filtrada, com o contador \"1 de N\"; no último, volta para a fila. Quem pediu não decide."
+   ],
+   "profiles": [
+    "GESTOR",
+    "FINANCEIRO"
+   ],
+   "inputs": [
+    "Pedido de correção com motivo, componentes antes e depois e evidência."
+   ],
+   "outputs": [
+    "Correção aplicada no razão do título, ou recusada com motivo."
+   ],
+   "related": [
+    {
+     "screen": "debt.title-amounts",
+     "why": "Voltar para a fila."
+    },
+    {
+     "screen": "debt.title-detail",
+     "why": "Histórico do título."
+    }
+   ],
+   "terms": [
+    "correcao-de-valor",
+    "quatro-olhos"
+   ],
+   "path": "/titulos/correcoes-de-valor/:id",
+   "access": {
+    "kind": "CONTEXT",
     "permissions": [
      "TITLE_AMOUNT_ADJUST",
      "TITLE_AMOUNT_APPROVE"
@@ -2254,7 +2302,8 @@
    "title": "Conversa",
    "objective": "Linha do tempo de uma conversa com o devedor, com as ações de assumir, responder e transferir.",
    "purpose": [
-    "Mesmo atendimento da caixa de entrada, aberto direto pelo endereço da conversa. Mensagens do assistente aparecem identificadas."
+    "Mesmo atendimento da caixa de entrada, aberto direto pelo endereço da conversa. Mensagens do assistente aparecem identificadas.",
+    "Quem avalia a qualidade tem \"Avaliar atendimento\" no cabeçalho da conversa atendida por outra pessoa: a monitoria abre já preenchida."
    ],
    "profiles": [
     "OPERADOR",
@@ -2810,7 +2859,8 @@
    "title": "Chamadas e gravações",
    "objective": "Chamadas do seu escopo com resultado, tabulação e gravação, que só é ouvida com finalidade registrada.",
    "purpose": [
-    "Inclui clique para ligar, discador e chamadas recebidas. Use para supervisão, monitoria de qualidade e atendimento a reclamações."
+    "Inclui clique para ligar, discador e chamadas recebidas. Use para supervisão, monitoria de qualidade e atendimento a reclamações.",
+    "Quem avalia a qualidade tem \"Avaliar este atendimento\" na linha da chamada encerrada de outra pessoa: a monitoria abre com o operador, a chamada e a data preenchidos."
    ],
    "profiles": [
     "SUPERVISOR",
@@ -3222,7 +3272,8 @@
    "title": "Proposta",
    "objective": "Condições, memória de cálculo, alçada, aceite do devedor e formalização de uma proposta.",
    "purpose": [
-    "O próximo passo muda conforme a situação: aprovar, registrar o aceite com evidência ou formalizar o acordo."
+    "O próximo passo muda conforme a situação: aprovar, registrar o aceite com evidência ou formalizar o acordo.",
+    "Aguardando a sua aprovação, o quadro de decisão mostra quanto as condições passam da alçada de quem negociou (valor e %), a sua alçada em cada ponto e quem pediu × quem decide; as alçadas aparecem pelo nome."
    ],
    "profiles": [
     "OPERADOR",
@@ -3263,7 +3314,8 @@
    "title": "Aprovações de propostas",
    "objective": "Propostas acima da alçada de quem negociou e dentro da sua, aguardando a sua decisão.",
    "purpose": [
-    "Nunca aparecem as suas próprias propostas. Abra para ver condições, justificativa e o motivo de cada concessão."
+    "Nunca aparecem as suas próprias propostas. A lista mostra valor, desconto em % da dívida, prazo (validade da proposta) e a alçada de quem negociou; filtre por credor.",
+    "\"Revisar\" abre a decisão na mesma fila filtrada: ao aprovar ou reprovar, a próxima abre sozinha e, na última, você volta para a fila com o filtro."
    ],
    "profiles": [
     "SUPERVISOR",
@@ -3279,6 +3331,10 @@
     {
      "screen": "negotiation.authority",
      "why": "Quem aprova o quê."
+    },
+    {
+     "screen": "negotiation.approval",
+     "why": "Decidir uma proposta."
     }
    ],
    "terms": [
@@ -3289,6 +3345,48 @@
    "path": "/negociacao/aprovacoes",
    "access": {
     "kind": "MENU",
+    "permissions": [
+     "NEGOTIATION_APPROVE"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.approval",
+   "module": "negociacao",
+   "title": "Aprovação de proposta",
+   "objective": "Decida uma proposta da fila vendo quanto ela passa da alçada de quem negociou e se cabe na sua.",
+   "purpose": [
+    "O quadro \"Por que precisa de aprovação\" mostra, para cada ponto (nível, desconto, pagamentos, valor, entrada, renegociações), o pedido, o limite de quem negociou, quanto passa e a sua alçada. Abaixo, condições, cronograma e memória de cálculo.",
+    "\"Aprovar e abrir a próxima\" e \"Reprovar e abrir a próxima\" seguem na mesma fila, com o contador \"1 de N\". A sua própria proposta, ou uma acima da sua alçada, aparece sem as ações e com o motivo."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR"
+   ],
+   "inputs": [
+    "Proposta pendente de aprovação, com a justificativa do negociador."
+   ],
+   "outputs": [
+    "Proposta aprovada, pronta para o aceite, ou reprovada com motivo."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.approvals",
+     "why": "Voltar para a fila."
+    },
+    {
+     "screen": "collection.case",
+     "why": "Caso da proposta."
+    }
+   ],
+   "terms": [
+    "alcada",
+    "quatro-olhos",
+    "escada-de-concessoes"
+   ],
+   "path": "/negociacao/aprovacoes/:id",
+   "access": {
+    "kind": "CONTEXT",
     "permissions": [
      "NEGOTIATION_APPROVE"
     ]
@@ -3831,7 +3929,7 @@
    "title": "Aprovação de pagamentos",
    "objective": "Pagamentos informados acima do limite da assessoria, aguardando a conferência de uma segunda pessoa.",
    "purpose": [
-    "Confira o comprovante e para onde o valor vai antes de aprovar. Os pagamentos que você informou não aparecem aqui.",
+    "Confira o comprovante e para onde o valor vai antes de aprovar. Os pagamentos que você informou não aparecem aqui. Filtre por credor e por onde o pagamento entrou; \"Revisar\" abre a decisão na mesma fila.",
     "Enquanto o pagamento aguarda, a quebra do acordo fica suspensa. O selo mostra até quando; com o prazo vencido, a quebra já voltou a valer e o pagamento aparece em destaque."
    ],
    "profiles": [
@@ -3848,6 +3946,10 @@
     {
      "screen": "payment.settings",
      "why": "Limite que exige aprovação."
+    },
+    {
+     "screen": "payment.approval",
+     "why": "Decidir um pagamento."
     }
    ],
    "terms": [
@@ -3857,6 +3959,47 @@
    "path": "/pagamentos/aprovacoes",
    "access": {
     "kind": "MENU",
+    "permissions": [
+     "PAYMENT_REVIEW"
+    ]
+   }
+  },
+  {
+   "id": "payment.approval",
+   "module": "pagamentos",
+   "title": "Aprovação de pagamento",
+   "objective": "Decida um pagamento informado vendo por que ele passou do limite e quanto passa.",
+   "purpose": [
+    "Mostra o limite ultrapassado no registro: o do pagamento sozinho, a soma do devedor no credor ou a soma de quem informou nas últimas horas, com o excesso em valor e %. Embaixo, o que foi informado, o destino solicitado e o comprovante.",
+    "\"Aprovar e abrir a próxima\" e \"Recusar e abrir a próxima\" seguem na mesma fila filtrada, com o contador \"1 de N\". Quem informou não aprova, inclusive administradores."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Pagamento informado com comprovante e destino solicitado."
+   ],
+   "outputs": [
+    "Pagamento confirmado e alocado, ou recusado com motivo."
+   ],
+   "related": [
+    {
+     "screen": "payment.review",
+     "why": "Voltar para a fila."
+    },
+    {
+     "screen": "payment.detail",
+     "why": "Ficha completa do pagamento."
+    }
+   ],
+   "terms": [
+    "pagamento-informado",
+    "quatro-olhos"
+   ],
+   "path": "/pagamentos/aprovacoes/:id",
+   "access": {
+    "kind": "CONTEXT",
     "permissions": [
      "PAYMENT_REVIEW"
     ]
@@ -4848,7 +4991,8 @@
    "title": "Monitoria de qualidade",
    "objective": "Avaliações de atendimento de 0 a 10; a nota média do período pode suspender o variável.",
    "purpose": [
-    "Registre a avaliação com o formulário de monitoria. O negociador vê as próprias avaliações."
+    "Avalie a partir do atendimento: \"Avaliar\" em Chamadas e gravações, na conversa e no histórico do caso abre o formulário com o negociador, a referência e a data preenchidos, sem digitar identificador.",
+    "Cada avaliação tem o link \"Ver\" de volta para o caso, a conversa, o acordo ou a chamada avaliada. Ninguém avalia o próprio atendimento, e só aparecem negociadores do seu escopo. O negociador vê as próprias avaliações."
    ],
    "profiles": [
     "QUALIDADE",
@@ -4864,7 +5008,15 @@
    "related": [
     {
      "screen": "telephony.calls",
-     "why": "Ouvir a gravação."
+     "why": "Ouvir a gravação e avaliar a chamada."
+    },
+    {
+     "screen": "communication.inbox",
+     "why": "Avaliar uma conversa."
+    },
+    {
+     "screen": "collection.case",
+     "why": "Avaliar pelo histórico do caso."
     },
     {
      "screen": "incentive.quality-forms",

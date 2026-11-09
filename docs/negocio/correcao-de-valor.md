@@ -83,7 +83,7 @@ Quando a contestação sugere **corrigir o valor**, o atalho abre a correção n
 Quem decide vê por que o pedido precisa de segunda pessoa e quanto ele passa do limite: **aumento** de componente (sempre
 segunda pessoa), **redução acima do limite** sozinha ou **somada às reduções** já aplicadas sem segunda pessoa no título na
 janela do limite acumulado, com o excesso em valor e %. O limite e as reduções recentes do momento do pedido passam a ser
-gravados no pedido (`request_threshold`, `request_recent_reductions`, `V0306`); pedidos anteriores usam o limite atual e
+gravados no pedido (`request_threshold`, `request_recent_reductions`, `V0307`); pedidos anteriores usam o limite atual e
 reduções recentes zero. `GET /title-amount-adjustments/{id}/approval` (`TITLE_AMOUNT_APPROVE`, credor no escopo) devolve o
 pedido e o motivo (`TitleAmountAdjustment#approvalTrigger`); pedido aplicado dentro do limite → `422
 title_amount.not_dual_control`. A fila (`GET /title-amount-adjustments/pending?creditorId=`) filtra por credor; a tela
