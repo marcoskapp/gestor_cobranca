@@ -114,6 +114,28 @@ class TitleAmountAdjustmentTest {
     }
 
     @Test
+    void approvalTriggerTellsWhyAndHowMuchThePendingRequestPassesTheLimit() {
+        // limite 200: redução de 300 sozinha passa 100
+        TitleAmountAdjustment alone = request("700.00", EVIDENCE);
+        var trigger = alone.approvalTrigger(Money.of("999.00"));
+        assertThat(trigger.reason()).isEqualTo(TitleAmountAdjustment.ApprovalReason.REDUCTION_ABOVE_LIMIT);
+        assertThat(trigger.threshold()).as("o limite gravado no pedido, não o atual").isEqualTo(Money.of("200.00"));
+        assertThat(trigger.decreases()).isEqualTo(Money.of("300.00"));
+        assertThat(trigger.excess()).isEqualTo(Money.of("100.00"));
+        // somada às recentes: 150 + 50,01 passa 0,01
+        var cumulative = requestAfter("150.00", "949.99", EVIDENCE).approvalTrigger(Money.ZERO);
+        assertThat(cumulative.reason()).isEqualTo(TitleAmountAdjustment.ApprovalReason.CUMULATIVE_ABOVE_LIMIT);
+        assertThat(cumulative.recentReductions()).isEqualTo(Money.of("150.00"));
+        assertThat(cumulative.excess()).isEqualTo(Money.of("0.01"));
+        // aumento: sempre segunda pessoa
+        var increase = requestMany(Map.of(LedgerComponent.FINE, Money.of("350.00")), EVIDENCE).approvalTrigger(Money.ZERO);
+        assertThat(increase.reason()).isEqualTo(TitleAmountAdjustment.ApprovalReason.INCREASE);
+        assertThat(increase.increases()).isEqualTo(Money.of("50.00"));
+        // aplicada dentro do limite: sem motivo
+        assertThat(request("800.00", null).approvalTrigger(Money.ZERO)).isNull();
+    }
+
+    @Test
     void dualControlNeedsEvidenceOrDisputeAndTheRequesterNeverApproves() {
         assertThatThrownBy(() -> request("500.00", null)).isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("evidência");

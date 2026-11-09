@@ -31,9 +31,10 @@ import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { PaymentReviewStatusApi } from '../../payment/data/review-status';
 import { InteractionsApi, PromisesApi, TasksApi } from '../data/collection.api';
 import { CHANNEL_ICONS, CHANNEL_LABELS, DISPUTE_TYPE_LABELS, TASK_TYPE_LABELS, eligibilityText } from '../data/collection.labels';
-import { CaseSheet, PromiseView, SheetContact, SheetTitle, TabulationView, TaskView } from '../data/collection.models';
+import { CaseSheet, InteractionView, PromiseView, SheetContact, SheetTitle, TabulationView, TaskView } from '../data/collection.models';
 import { formatLocalDateTime, taskLate, zonedNow } from '../data/collection.rules';
 import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
+import { EvaluationLauncher, attendanceDate } from '../../incentive/quality/evaluation-launcher';
 
 /** Abas da ficha na ordem dos atalhos `Alt + 1…7`. */
 export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação', 'Conversas'] as const;
@@ -256,6 +257,28 @@ export class CaseSheetPanel {
       return 'Operador';
     }
     return operatorId === this.userId() ? 'Você' : this.authors.name(operatorId);
+  }
+
+  private readonly evaluations = inject(EvaluationLauncher);
+
+  /** "Avaliar" no histórico: interação registrada por outra pessoa (não o assistente nem o sistema), para quem avalia. */
+  protected evaluable(i: InteractionView): boolean {
+    return i.actorType === 'USER' && this.evaluations.canEvaluate(i.operatorId);
+  }
+
+  /** Monitoria do atendimento do caso, com o negociador, o caso e a data da interação preenchidos. */
+  protected evaluate(i: InteractionView): void {
+    const outcome = this.tabulationNames().get(i.outcomeCode ?? '') ?? i.outcomeCode ?? 'sem tabulação';
+    this.evaluations
+      .open({
+        userId: i.operatorId!,
+        userName: this.authors.name(i.operatorId!),
+        referenceType: 'CASE',
+        referenceId: this.c().id,
+        evaluatedOn: attendanceDate(i.startedAt),
+        label: `${CHANNEL_LABELS[i.channel] ?? i.channel} · ${outcome} · ${this.debtor().name}`,
+      })
+      .subscribe();
   }
 
   protected revealDocument(): void {

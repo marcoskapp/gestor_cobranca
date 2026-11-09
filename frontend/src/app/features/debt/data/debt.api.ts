@@ -11,6 +11,7 @@ import {
   AmountAdjustmentHistory,
   AmountAdjustmentRequest,
   AmountAdjustmentSettings,
+  AmountAdjustmentApproval,
   AmountAdjustmentView,
   AmountDivergenceView,
   AddContactRequest,
@@ -157,8 +158,16 @@ export class TitleAmountApi {
     return this.http.post<AmountAdjustmentView>(`${API_V1}/title-amount-adjustments/${id}/cancel`, { note });
   }
 
-  pending(page: PageRequest): Observable<PageResponse<AmountAdjustmentView>> {
-    return this.http.get<PageResponse<AmountAdjustmentView>>(`${API_V1}/title-amount-adjustments/pending`, { params: toHttpParams({ page: page.page, size: page.size }) });
+  /** Fila de aprovação (pedidos de outras pessoas); `creditorId` filtra pelo credor. */
+  pending(page: PageRequest, filter: { creditorId?: string | null } = {}): Observable<PageResponse<AmountAdjustmentView>> {
+    return this.http.get<PageResponse<AmountAdjustmentView>>(`${API_V1}/title-amount-adjustments/pending`, {
+      params: toHttpParams({ creditorId: filter.creditorId ?? null, page: page.page, size: page.size }),
+    });
+  }
+
+  /** Pedido para a tela de aprovação: o pedido e quanto passa do limite de quem corrige. */
+  approval(id: string): Observable<AmountAdjustmentApproval> {
+    return this.http.get<AmountAdjustmentApproval>(`${API_V1}/title-amount-adjustments/${id}/approval`);
   }
 
   divergences(page: PageRequest): Observable<PageResponse<AmountDivergenceView>> {

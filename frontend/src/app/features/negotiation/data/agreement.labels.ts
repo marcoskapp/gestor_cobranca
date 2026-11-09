@@ -57,6 +57,25 @@ export const AUTHORITY_VIOLATION_LABELS: Record<string, string> = {
   'authority.approve_requires_formalize': 'Perfil não pode formalizar',
 };
 
+/** Perfis de alçada semeados em toda assessoria (`StandardAuthorityProfiles`): o código não aparece na tela. */
+export const AUTHORITY_PROFILE_LABELS: Record<string, string> = {
+  JUNIOR: 'Negociador júnior',
+  PLENO: 'Negociador pleno',
+  SENIOR: 'Negociador sênior',
+  SUPERVISOR: 'Supervisor',
+  GESTOR: 'Gestor',
+  ASSISTENTE_INICIAL: 'Assistente de IA (inicial)',
+  PORTAL: 'Autonegociação (portal)',
+};
+
+/** Nome do perfil de alçada: o nome vindo do servidor, o rótulo do perfil semeado ou, por último, o código. */
+export function authorityProfileText(code: string | null | undefined, name?: string | null): string {
+  if (name) {
+    return name;
+  }
+  return code ? (AUTHORITY_PROFILE_LABELS[code] ?? code) : '—';
+}
+
 /** Violações de elegibilidade que só existem para propostas (`ProposalEvaluator`), devolvidas em `details.violations`. */
 export const ELIGIBILITY_VIOLATION_LABELS: Record<string, string> = {
   'proposal.renegotiation_required':

@@ -34,10 +34,20 @@ public final class ExternalReviewPolicy {
         }
     }
 
-    /** @param reason nulo quando não exige revisão */
-    public record Decision(boolean reviewRequired, Reason reason) {
+    /**
+     * @param reason     nulo quando não exige revisão
+     * @param limit      limite que foi ultrapassado (nulo sem revisão)
+     * @param considered valor comparado com o limite: o pagamento ({@code AMOUNT}) ou a soma da janela com ele (nulo
+     *                   sem revisão) — "quanto passa do limite" na tela de aprovação
+     */
+    public record Decision(boolean reviewRequired, Reason reason, Money limit, Money considered) {
 
-        static final Decision AUTO = new Decision(false, null);
+        static final Decision AUTO = new Decision(false, null, null, null);
+
+        /** Quanto o valor considerado passa do limite (nulo sem revisão). */
+        public Money excess() {
+            return reviewRequired ? considered.minus(limit) : null;
+        }
     }
 
     private ExternalReviewPolicy() {
@@ -49,13 +59,15 @@ public final class ExternalReviewPolicy {
      */
     public static Decision decide(Money amount, Money destinationSoFar, Money informerSoFar, Limits limits) {
         if (amount.isGreaterThan(limits.perPayment())) {
-            return new Decision(true, Reason.AMOUNT);
+            return new Decision(true, Reason.AMOUNT, limits.perPayment(), amount);
         }
-        if (destinationSoFar.plus(amount).isGreaterThan(limits.perDestination())) {
-            return new Decision(true, Reason.DESTINATION_CUMULATIVE);
+        Money destination = destinationSoFar.plus(amount);
+        if (destination.isGreaterThan(limits.perDestination())) {
+            return new Decision(true, Reason.DESTINATION_CUMULATIVE, limits.perDestination(), destination);
         }
-        if (informerSoFar.plus(amount).isGreaterThan(limits.perInformer())) {
-            return new Decision(true, Reason.INFORMER_CUMULATIVE);
+        Money informer = informerSoFar.plus(amount);
+        if (informer.isGreaterThan(limits.perInformer())) {
+            return new Decision(true, Reason.INFORMER_CUMULATIVE, limits.perInformer(), informer);
         }
         return Decision.AUTO;
     }

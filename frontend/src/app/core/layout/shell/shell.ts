@@ -21,7 +21,7 @@ import { UiStateStore } from '../../preferences/ui-state.store';
 import { Breadcrumbs } from '../breadcrumbs/breadcrumbs';
 import { CommandPaletteService, PaletteCommand } from '../command-palette/command-palette.service';
 import { HelpService } from '../help/help.service';
-import { NavSection, activeNavRoute, navigationFor } from '../navigation';
+import { NavSection, activeNavRoute, menuRouteOf, navigationFor } from '../navigation';
 
 interface Choice<T> {
   value: T;
@@ -109,14 +109,19 @@ export class Shell {
     return navigationFor((permission) => this.auth.hasPermission(permission));
   });
 
+  /** Endereço atual — ou o item de menu declarado pela rota (`data.menuRoute`, ex.: caso aberto na estação). */
   private readonly url = toSignal(
     this.router.events.pipe(
       filter((event) => event instanceof NavigationEnd),
-      map(() => this.router.url),
-      startWith(this.router.url),
+      map(() => this.navUrl()),
+      startWith(this.navUrl()),
     ),
-    { initialValue: this.router.url },
+    { initialValue: this.navUrl() },
   );
+
+  private navUrl(): string {
+    return menuRouteOf(this.router.routerState.snapshot.root) ?? this.router.url;
+  }
   /** Item do menu marcado: o mais específico para o endereço atual (`activeNavRoute`). */
   protected readonly activeRoute = computed(() =>
     activeNavRoute(this.url(), this.sections().flatMap((section) => section.items.map((item) => item.route))),

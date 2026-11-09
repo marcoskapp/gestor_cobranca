@@ -193,7 +193,7 @@ describe('CollectionStation', () => {
   async function render(caso: string | null, current: CaseSheet | null = sheet()): Promise<ComponentFixture<CollectionStation>> {
     const fixture = TestBed.createComponent(CollectionStation);
     if (caso) {
-      fixture.componentRef.setInput('caso', caso);
+      fixture.componentRef.setInput('id', caso);
     }
     for (let i = 0; i < 4; i++) {
       fixture.detectChanges();
@@ -415,7 +415,7 @@ describe('CollectionStation', () => {
     permissions.set(['CASE_VIEW']);
     const urls: string[] = [];
     const fixture = TestBed.createComponent(CollectionStation);
-    fixture.componentRef.setInput('caso', 'k-1');
+    fixture.componentRef.setInput('id', 'k-1');
     for (let i = 0; i < 4; i++) {
       fixture.detectChanges();
       await new Promise((r) => setTimeout(r, 0));
@@ -454,7 +454,7 @@ describe('CollectionStation', () => {
   it('aba na URL: ?aba= abre a aba e a troca de aba grava na URL', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
     const fixture = TestBed.createComponent(CollectionStation);
-    fixture.componentRef.setInput('caso', 'k-1');
+    fixture.componentRef.setInput('id', 'k-1');
     fixture.componentRef.setInput('aba', 'negociacao');
     for (let i = 0; i < 4; i++) {
       fixture.detectChanges();

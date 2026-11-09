@@ -57,7 +57,10 @@ export const MANUAL: ModuleManual = {
       id: 'telephony.calls',
       title: 'Chamadas e gravações',
       objective: 'Chamadas do seu escopo com resultado, tabulação e gravação, que só é ouvida com finalidade registrada.',
-      purpose: ['Inclui clique para ligar, discador e chamadas recebidas. Use para supervisão, monitoria de qualidade e atendimento a reclamações.'],
+      purpose: [
+        'Inclui clique para ligar, discador e chamadas recebidas. Use para supervisão, monitoria de qualidade e atendimento a reclamações.',
+        'Quem avalia a qualidade tem "Avaliar este atendimento" na linha da chamada encerrada de outra pessoa: a monitoria abre com o operador, a chamada e a data preenchidos.',
+      ],
       profiles: ['SUPERVISOR', 'GESTOR', 'QUALIDADE', 'AUDITOR'],
       inputs: ['Chamadas registradas pelo provedor de telefonia.'],
       outputs: ['Acesso às gravações, registrado no log de acesso.'],

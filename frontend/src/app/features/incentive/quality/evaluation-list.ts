@@ -29,6 +29,9 @@ import { EvaluationView, QualityForm, ReferenceType } from '../data/incentive.mo
 import { parseDecimal, score } from '../data/incentive.rules';
 import { incentiveError } from '../statements/statement-dialogs';
 import { personRangeFilter } from './person-range-filter';
+import type { EvaluationDialogData } from './evaluation-launcher';
+import { Router, RouterLink } from '@angular/router';
+import { CallsApi } from '../../telephony/data/telephony.api';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const referenceTypes = Object.entries(REFERENCE_TYPE_LABELS) as [ReferenceType, string][];
@@ -56,6 +59,22 @@ export function weightedScore(form: QualityForm, scores: Record<string, number |
 /** Registro de monitoria: formulário, negociador avaliado, atendimento de referência e nota por critério. */
 @Component({
   selector: 'app-incentive-evaluation-dialog',
+  styles: `
+    .ev-prefill {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 32px;
+      margin: 0;
+      dt {
+        font-size: var(--app-text-xs);
+        color: var(--bs-secondary-color);
+        font-weight: var(--app-weight-semibold);
+      }
+      dd {
+        margin: 0;
+      }
+    }
+  `,
   imports: [ReactiveFormsModule, NgbInputDatepicker, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
   template: `
     <div class="modal-header">
@@ -72,17 +91,35 @@ export function weightedScore(form: QualityForm, scores: Record<string, number |
               }
             </select>
           </app-field>
-          <app-entity-picker class="app-span-all" [control]="form.controls.user" [source]="users" label="Negociador avaliado" [single]="true" />
-          <app-field label="Atendimento de referência">
-            <select appInput formControlName="referenceType">
-              @for (r of references; track r[0]) {
-                <option [ngValue]="r[0]">{{ r[1] }}</option>
-              }
-            </select>
-          </app-field>
-          <app-field label="Identificador (opcional)" hint="Da chamada, conversa, caso ou acordo" error="Identificador completo (UUID).">
-            <input appInput class="font-monospace" formControlName="referenceId" autocomplete="off" spellcheck="false" />
-          </app-field>
+          @if (prefill; as p) {
+            <!-- vindo do atendimento (chamada, conversa, histórico do caso): negociador, referência e data preenchidos -->
+            <dl class="app-span-all ev-prefill" data-testid="evaluation-prefill">
+              <div>
+                <dt>Negociador avaliado</dt>
+                <dd>{{ p.userName }}</dd>
+              </div>
+              <div>
+                <dt>Atendimento</dt>
+                <dd>{{ refLabels[p.referenceType] }} · {{ p.label }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <app-entity-picker class="app-span-all" [control]="form.controls.user" [source]="users" label="Negociador avaliado" [single]="true" />
+            <app-field label="Atendimento de referência">
+              <select appInput formControlName="referenceType">
+                @for (r of references; track r[0]) {
+                  <option [ngValue]="r[0]">{{ r[1] }}</option>
+                }
+              </select>
+            </app-field>
+            <app-field
+              label="Identificador (opcional)"
+              hint="Prefira “Avaliar” na chamada, na conversa ou no histórico do caso: a referência vem preenchida."
+              error="Identificador completo (UUID)."
+            >
+              <input appInput class="font-monospace" formControlName="referenceId" autocomplete="off" spellcheck="false" />
+            </app-field>
+          }
           <app-field label="Data do atendimento">
             <div class="input-group">
               <input appInput ngbDatepicker #d="ngbDatepicker" formControlName="evaluatedOn" placeholder="dd/mm/aaaa" [maxDate]="today" />
@@ -123,7 +160,11 @@ export function weightedScore(form: QualityForm, scores: Record<string, number |
   `,
 })
 export class EvaluationDialog {
-  protected readonly forms = inject<QualityForm[]>(DIALOG_DATA);
+  private readonly data = inject<EvaluationDialogData>(DIALOG_DATA);
+  protected readonly forms = this.data.forms;
+  /** Atendimento de origem ("Avaliar este atendimento"): os campos de referência ficam fixos. */
+  protected readonly prefill = this.data.prefill ?? null;
+  protected readonly refLabels = REFERENCE_TYPE_LABELS;
   private readonly ref = inject<DialogRef<EvaluationView>>(DialogRef);
   private readonly api = inject(QualityApi);
   protected readonly users = inject(UserLookup);
@@ -135,10 +176,10 @@ export class EvaluationDialog {
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
     formId: [this.forms[0]?.id ?? '', [Validators.required]],
-    user: this.fb.control<string[]>([]),
-    referenceType: this.fb.control<ReferenceType>('CALL'),
-    referenceId: ['', [(c: { value: unknown }) => (!c.value || UUID.test(String(c.value).trim()) ? null : { pattern: true })]],
-    evaluatedOn: this.fb.control<string | null>(toLocalDate(new Date()), [Validators.required]),
+    user: this.fb.control<string[]>(this.prefill ? [this.prefill.userId] : []),
+    referenceType: this.fb.control<ReferenceType>(this.prefill?.referenceType ?? 'CALL'),
+    referenceId: [this.prefill?.referenceId ?? '', [(c: { value: unknown }) => (!c.value || UUID.test(String(c.value).trim()) ? null : { pattern: true })]],
+    evaluatedOn: this.fb.control<string | null>(this.prefill?.evaluatedOn ?? toLocalDate(new Date()), [Validators.required]),
     comments: ['', [Validators.maxLength(4000)]],
   });
   private readonly scores = new Map<string, FormControl<string>>();
@@ -197,7 +238,7 @@ export class EvaluationDialog {
 /** Monitorias de qualidade registradas (insumo do portão de monitoria do plano). */
 @Component({
   selector: 'app-incentive-evaluation-list',
-  imports: [ReactiveFormsModule, NgbInputDatepicker, ...FORM_FIELD, AppDatePipe, CellDef, DataTable, EntityPicker, Icon, PageHeader],
+  imports: [ReactiveFormsModule, RouterLink, NgbInputDatepicker, ...FORM_FIELD, AppDatePipe, CellDef, DataTable, EntityPicker, Icon, PageHeader],
   template: `
     <app-page-header title="Monitoria de qualidade" subtitle="Avaliações de atendimento (0 a 10). A nota média do período pode suspender o variável pelo portão de monitoria do plano.">
       @if (canEvaluate()) {
@@ -243,11 +284,19 @@ export class EvaluationDialog {
       (retry)="query.reload()"
       emptyIcon="clipboard-check"
       emptyMessage="Nenhuma avaliação no período."
-      emptyHint="As avaliações registradas pela monitoria aparecem aqui."
+      emptyHint="Avalie a partir do atendimento: “Avaliar” em Chamadas e gravações, na conversa ou no histórico do caso."
     >
       <ng-template appCell="date" [appCellOf]="query.rows()" let-e>
         {{ e.evaluatedOn | appDate: 'date' }}
-        <div class="app-muted in-small">{{ refs[e.referenceType] }}{{ e.referenceId ? ' ' + e.referenceId.slice(0, 8) : '' }}</div>
+        <div class="in-small">
+          @if (referenceLink(e); as link) {
+            <a [routerLink]="link.route" [queryParams]="link.query ?? null" data-testid="evaluation-reference">Ver {{ refs[e.referenceType].toLowerCase() }}</a>
+          } @else if (canOpenCall(e)) {
+            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="openCall(e)" data-testid="evaluation-reference">Ver chamada</button>
+          } @else {
+            <span class="app-muted">{{ refs[e.referenceType] }}</span>
+          }
+        </div>
       </ng-template>
       <ng-template appCell="user" [appCellOf]="query.rows()" let-e>
         {{ names.name(e.userId) }}
@@ -267,6 +316,8 @@ export class EvaluationDialog {
 })
 export class EvaluationList {
   private readonly api = inject(QualityApi);
+  private readonly calls = inject(CallsApi);
+  private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
@@ -297,9 +348,47 @@ export class EvaluationList {
     return this.forms().find((f) => f.id === id)?.name ?? '—';
   }
 
+  /**
+   * Link de volta para o atendimento avaliado (só o que o perfil abre): caso, conversa ou acordo. A chamada não tem
+   * ficha própria: abre o histórico do caso dela (`openCall`).
+   */
+  protected referenceLink(e: EvaluationView): { route: string[]; query?: Record<string, string> } | null {
+    if (!e.referenceId) {
+      return null;
+    }
+    switch (e.referenceType) {
+      case 'CASE':
+        return this.auth.hasPermission(Permission.CASE_VIEW) ? { route: ['/cobranca/casos', e.referenceId], query: { aba: 'historico' } } : null;
+      case 'CONVERSATION':
+        return this.auth.hasPermission(Permission.INBOX_VIEW) ? { route: ['/conversas', e.referenceId] } : null;
+      case 'AGREEMENT':
+        return this.auth.hasPermission(Permission.AGREEMENT_VIEW) ? { route: ['/negociacao/acordos', e.referenceId] } : null;
+      default:
+        return null;
+    }
+  }
+
+  protected canOpenCall(e: EvaluationView): boolean {
+    return e.referenceType === 'CALL' && !!e.referenceId && this.auth.hasAnyPermission([Permission.TELEPHONY_USE, Permission.TELEPHONY_SUPERVISE]) && this.auth.hasPermission(Permission.CASE_VIEW);
+  }
+
+  /** Chamada avaliada: abre o histórico do caso em que ela aconteceu (sem caso identificado, avisa). */
+  protected openCall(e: EvaluationView): void {
+    this.calls.get(e.referenceId!).subscribe({
+      next: (call) => {
+        if (call.caseId) {
+          void this.router.navigate(['/cobranca/casos', call.caseId], { queryParams: { aba: 'historico' } });
+        } else {
+          this.notifications.info('A chamada não foi ligada a um caso (número não identificado).');
+        }
+      },
+      error: () => this.notifications.error('Não foi possível abrir a chamada: ela pode estar fora do seu escopo.'),
+    });
+  }
+
   protected create(): void {
     this.dialog
-      .open<EvaluationDialog, QualityForm[], EvaluationView>(EvaluationDialog, { data: this.activeForms(), size: 'lg' })
+      .open<EvaluationDialog, EvaluationDialogData, EvaluationView>(EvaluationDialog, { data: { forms: this.activeForms() }, size: 'lg' })
       .afterClosed()
       .subscribe((e) => {
         if (e) {

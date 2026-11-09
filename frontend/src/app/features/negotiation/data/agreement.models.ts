@@ -93,6 +93,32 @@ export interface ProposalView {
   version: number;
 }
 
+/** `ProposalUseCases.AuthorityGapView`: um ponto em que a proposta passa da alçada de quem negociou. */
+export interface AuthorityGapView {
+  dimension: 'LEVEL' | 'DISCOUNT_SHARE' | 'INSTALLMENTS' | 'AMOUNT' | 'DOWN_PAYMENT_SHARE' | 'RENEGOTIATIONS';
+  requested: number;
+  /** Nulo = sem limite próprio. */
+  proposerLimit: number | null;
+  /** Nulo = quem consulta não aprova ou não tem limite próprio. */
+  approverLimit: number | null;
+  approverCovers: boolean;
+}
+
+/** `ProposalUseCases.ApprovalAssessmentView` (tela de aprovação). */
+export interface ApprovalAssessmentView {
+  proposalId: string;
+  proposerProfileCode: string | null;
+  proposerProfileName: string | null;
+  approverProfileCode: string | null;
+  approverProfileName: string | null;
+  approverCanApprove: boolean;
+  withinApproverAuthority: boolean;
+  ownProposal: boolean;
+  /** Desconto em % da dívida atualizada. */
+  discountPercent: number;
+  gaps: AuthorityGapView[];
+}
+
 export interface ProposalFilter {
   creditorId: string | null;
   debtorId: string | null;

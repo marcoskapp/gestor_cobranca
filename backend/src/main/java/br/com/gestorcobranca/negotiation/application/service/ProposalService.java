@@ -88,6 +88,7 @@ class ProposalService implements ProposalUseCases {
     private final AgreementRepository agreements;
     private final AuthorityResolver authorityResolver;
     private final ProposalApprovalQueue approvalQueue;
+    private final ProposalApprovalAssessor approvalAssessor;
     private final AgreementRecorder recorder;
     private final TermIssuer termIssuer;
     private final NegotiationLocks locks;
@@ -105,7 +106,7 @@ class ProposalService implements ProposalUseCases {
 
     ProposalService(ProposalEvaluator evaluator, ProposalRepository proposals, SimulationRepository simulations,
                     AgreementRepository agreements, AuthorityResolver authorityResolver,
-                    ProposalApprovalQueue approvalQueue, AgreementRecorder recorder,
+                    ProposalApprovalQueue approvalQueue, ProposalApprovalAssessor approvalAssessor, AgreementRecorder recorder,
                     TermIssuer termIssuer, NegotiationLocks locks, NegotiationViews views, AccessScope accessScope,
                     CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,
                     AccessLogger accessLogger, ApplicationEventPublisher events, FileStorage fileStorage,
@@ -116,6 +117,7 @@ class ProposalService implements ProposalUseCases {
         this.agreements = agreements;
         this.authorityResolver = authorityResolver;
         this.approvalQueue = approvalQueue;
+        this.approvalAssessor = approvalAssessor;
         this.recorder = recorder;
         this.termIssuer = termIssuer;
         this.locks = locks;
@@ -341,12 +343,30 @@ class ProposalService implements ProposalUseCases {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ProposalView> approvalQueue(PageQuery page) {
-        List<Proposal> eligible = approvalQueue.eligibleFor(currentActor.get());
+    public PageResponse<ProposalView> approvalQueue(ApprovalQueueFilter filter, PageQuery page) {
+        List<Proposal> eligible = approvalQueue.eligibleFor(currentActor.get(), filter == null ? null : filter.creditorId());
         int from = Math.min(page.page() * page.size(), eligible.size());
         int to = Math.min(from + page.size(), eligible.size());
         return PageResponse.of(new PageImpl<>(eligible.subList(from, to), PageRequest.of(page.page(), page.size()),
                 eligible.size()), p -> views.proposal(p, false));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApprovalAssessmentView approvalAssessment(UUID proposalId) {
+        Actor actor = currentActor.get();
+        if (!actor.has(Permission.NEGOTIATION_APPROVE) && !actor.has(Permission.NEGOTIATION_PROPOSE)) {
+            accessScope.requirePermission(Permission.NEGOTIATION_APPROVE);
+        }
+        Guard.require(!minimized(actor), "proposal.assessment_not_available",
+                "A avaliação de alçada é da tela de aprovação");
+        Proposal p = loadVisible(proposalId);
+        // sem permissão de aprovar, só a própria proposta (quem negociou vê quanto passou da alçada)
+        if (!actor.has(Permission.NEGOTIATION_APPROVE)
+                && !("USER".equals(p.getActorType()) && actor.isUser() && actor.id().equals(p.getActorId()))) {
+            throw new ResourceNotFoundException(RESOURCE, proposalId);
+        }
+        return approvalAssessor.assess(actor, p);
     }
 
     // ------------------------------------------------------------------ aprovação (F16)

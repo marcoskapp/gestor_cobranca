@@ -59,8 +59,12 @@ export const MANUAL: ModuleManual = {
     {
       id: 'collection.case',
       title: 'Caso de cobrança',
-      objective: 'Atendimento de um caso específico: ficha, decisão de contato e registro da interação, como na estação.',
-      purpose: ['Abre um caso escolhido em listas, agenda ou ficha do devedor, com as mesmas abas e atalhos da estação de cobrança.'],
+      objective: 'Um caso específico, num endereço só: atendimento na estação para quem opera, ficha em modo consulta para os demais.',
+      purpose: [
+        'Abre um caso escolhido em listas, agenda, propostas, conversas ou ficha do devedor. Quem opera a cobrança trabalha o caso dentro da estação (fila, cronômetro e registro da interação), com o menu marcando a estação; o endereço antigo da estação com o caso continua funcionando.',
+        'Quem só consulta (jurídico, gestor, auditoria) vê os mesmos dados e abas sem fila, cronômetro, janela de contato nem registro de interação; as ações do seu perfil (atribuir, mudar a situação, atualizar a posição, simular) ficam em "Mais ações".',
+        'No histórico, quem avalia a qualidade tem "Avaliar" em cada atendimento de outra pessoa: a monitoria abre com o negociador, o caso e a data preenchidos.',
+      ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'AUDITOR'],
       inputs: ['Títulos, contatos e histórico do devedor na carteira do caso.'],
       outputs: ['Interações, promessas, retornos, contestações e negociações do caso.'],
@@ -274,7 +278,7 @@ export const MANUAL: ModuleManual = {
       title: 'Correções de valor',
       objective: 'Aprove correções de valor pedidas por outra pessoa e decida as cargas do credor diferentes do valor corrigido.',
       purpose: [
-        'Quem pede a correção nunca a aprova. A fila mostra só os pedidos de outras pessoas, com motivo, evidência e os valores antes e depois.',
+        'Quem pede a correção nunca a aprova. A fila mostra só os pedidos de outras pessoas, com motivo, evidência e os valores antes e depois; filtre por credor e use "Revisar" para decidir.',
         'A carga do credor não sobrescreve um valor corrigido: a divergência fica aqui até alguém manter a correção ou aceitar o valor do credor.',
         'O limite define até quanto uma redução pura (soma das reduções, sem nenhum componente subir, mais as do mesmo título {{debt.cumulativeWindow}}) é aplicada sem segunda pessoa; aumentá-lo só vale com a confirmação de outra pessoa, e a proposta sem confirmação vence {{debt.proposalValidity}}.',
       ],
@@ -284,8 +288,26 @@ export const MANUAL: ModuleManual = {
       related: [
         { screen: 'debt.title-detail', why: 'Pedir a correção e ver o histórico do título.' },
         { screen: 'collection.dispute', why: 'Ajuste sugerido por contestação procedente.' },
+        { screen: 'debt.title-amount-approval', why: 'Decidir um pedido.' },
       ],
       terms: ['correcao-de-valor', 'razao-do-titulo'],
+    },
+    {
+      id: 'debt.title-amount-approval',
+      title: 'Aprovação de correção de valor',
+      objective: 'Decida um pedido de correção de valor vendo quanto ele passa do limite e o que muda em cada componente.',
+      purpose: [
+        'Mostra por que o pedido precisa de segunda pessoa: aumento de componente (sempre), redução acima do limite ou somada às reduções já aplicadas no título {{debt.cumulativeWindow}}, com o excesso em valor e %.',
+        '"Aprovar e abrir a próxima" e "Recusar e abrir a próxima" seguem na mesma fila filtrada, com o contador "1 de N"; no último, volta para a fila. Quem pediu não decide.',
+      ],
+      profiles: ['GESTOR', 'FINANCEIRO'],
+      inputs: ['Pedido de correção com motivo, componentes antes e depois e evidência.'],
+      outputs: ['Correção aplicada no razão do título, ou recusada com motivo.'],
+      related: [
+        { screen: 'debt.title-amounts', why: 'Voltar para a fila.' },
+        { screen: 'debt.title-detail', why: 'Histórico do título.' },
+      ],
+      terms: ['correcao-de-valor', 'quatro-olhos'],
     },
   ],
   terms: ['caso', 'elegibilidade', 'fila', 'proximo-caso', 'tabulacao', 'contato-efetivo', 'promessa', 'retorno', 'contestacao', 'porteiro-de-contato', 'devedor', 'titulo'],

@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.debt;
 
+import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.DebtorRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.TitleRecord;
@@ -12,6 +13,7 @@ import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCa
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.AdjustmentCommand;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.AdjustmentView;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.DivergenceView;
+import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.PendingFilter;
 import br.com.gestorcobranca.debt.application.port.in.TitleAmountAdjustmentUseCases.SettingsView;
 import br.com.gestorcobranca.debt.application.port.in.TitlePrescriptionUseCases.EvidenceUpload;
 import br.com.gestorcobranca.debt.application.port.spi.TitleAgreementGuard;
@@ -205,9 +207,32 @@ class TitleAmountAdjustmentIT extends IntegrationTest {
         // quem pediu não aprova nem vê o próprio pedido na fila
         assertThatThrownBy(() -> as(gestor, () -> adjustments.approve(pending.id(), null)))
                 .isInstanceOf(ConflictException.class).hasMessageContaining("Quem pediu");
-        assertThat(as(gestor, () -> adjustments.pendingApprovals(PageQuery.of(0, 20))).content()).isEmpty();
-        assertThat(as(financeiro, () -> adjustments.pendingApprovals(PageQuery.of(0, 20))).content())
+        assertThat(as(gestor, () -> adjustments.pendingApprovals(PendingFilter.ALL, PageQuery.of(0, 20))).content()).isEmpty();
+        assertThat(as(financeiro, () -> adjustments.pendingApprovals(PendingFilter.ALL, PageQuery.of(0, 20))).content())
                 .extracting(AdjustmentView::id).containsExactly(pending.id());
+        // filtro de credor da fila e quanto passa do limite (gravado no pedido)
+        assertThat(as(financeiro, () -> adjustments.pendingApprovals(new PendingFilter(system(() -> titles.get(t))
+                .creditorId()), PageQuery.of(0, 20))).content()).extracting(AdjustmentView::id).containsExactly(pending.id());
+        TitleAmountAdjustmentUseCases.ApprovalView approval = as(financeiro, () -> adjustments.approval(pending.id()));
+        assertThat(approval.reason()).isEqualTo("REDUCTION_ABOVE_LIMIT");
+        assertThat(approval.decreases()).isEqualByComparingTo("1000.00");
+        assertThat(approval.increases()).isEqualByComparingTo("0.00");
+        assertThat(approval.excess()).isEqualByComparingTo(approval.decreases().add(approval.recentReductions())
+                .subtract(approval.threshold()));
+        assertThat(approval.ownRequest()).isFalse();
+        assertThat(approval.adjustment().id()).isEqualTo(pending.id());
+        assertThat(as(gestor, () -> adjustments.approval(pending.id())).ownRequest()).isTrue();
+        // escopo e permissão: credor fora do escopo no filtro → 403; pedido fora do escopo → 404; sem aprovar → recusado
+        Actor otherScope = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "Outra carteira",
+                EnumSet.of(Permission.DEBTOR_VIEW, Permission.TITLE_AMOUNT_APPROVE), CreditorScope.of(Set.of(Ids.newId())));
+        assertThatThrownBy(() -> as(otherScope, () -> adjustments.pendingApprovals(new PendingFilter(creditor),
+                PageQuery.of(0, 20)))).isInstanceOf(ScopeAccessDeniedException.class);
+        assertThat(as(otherScope, () -> adjustments.pendingApprovals(PendingFilter.ALL, PageQuery.of(0, 20))).content())
+                .isEmpty();
+        assertThatThrownBy(() -> as(otherScope, () -> adjustments.approval(pending.id())))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> as(operador, () -> adjustments.approval(pending.id())))
+                .isInstanceOf(ScopeAccessDeniedException.class);
 
         AdjustmentView approved = as(financeiro, () -> adjustments.approve(pending.id(), "Conferido com o contrato"));
         assertThat(approved.status()).isEqualTo("APPLIED");
@@ -222,6 +247,7 @@ class TitleAmountAdjustmentIT extends IntegrationTest {
                 Map.of("FINE", new BigDecimal("20.00")), "CONTRACT_TERMS", "Multa contratual não carregada", null), pdf()));
         assertThat(increase.status()).isEqualTo("PENDING_APPROVAL");
         assertThat(increase.delta()).isEqualByComparingTo("20.00");
+        assertThat(as(financeiro, () -> adjustments.approval(increase.id())).reason()).isEqualTo("INCREASE");
         // pagamento entra antes da aprovação: a base mudou
         system(() -> ledgerPort.applyPayment(new PaymentApplication(t, Ids.newId(),
                 ComponentAmounts.principalOnly(new BigDecimal("100.00")), Instant.now())));

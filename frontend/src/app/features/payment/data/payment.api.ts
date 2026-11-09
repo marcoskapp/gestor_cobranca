@@ -28,8 +28,7 @@ import {
   StatementFormat,
   StatementImportView,
   StatementLineView,
-  UpdatePixAccountRequest,
-} from './payment.models';
+  UpdatePixAccountRequest, ReviewAssessmentView } from './payment.models';
 
 const BASE = `${API_V1}/payment`;
 
@@ -94,8 +93,16 @@ export class PaymentsApi {
     return this.http.post<PaymentView>(`${this.base}/external`, body, { headers: idempotency(key), context: silentErrorContext() });
   }
 
-  reviewQueue(page: PageRequest): Observable<PageResponse<PaymentView>> {
-    return this.http.get<PageResponse<PaymentView>>(`${this.base}/review-queue`, { params: toHttpParams({ page: page.page, size: page.size }) });
+  /** Fila de aprovação; filtros de credor e fonte do pagamento (origem). */
+  reviewQueue(page: PageRequest, filter: { creditorId?: string | null; origin?: string | null } = {}): Observable<PageResponse<PaymentView>> {
+    return this.http.get<PageResponse<PaymentView>>(`${this.base}/review-queue`, {
+      params: toHttpParams({ creditorId: filter.creditorId ?? null, origin: filter.origin ?? null, page: page.page, size: page.size }),
+    });
+  }
+
+  /** Por que o pagamento informado foi para a aprovação e quanto passa do limite. */
+  reviewAssessment(id: string): Observable<ReviewAssessmentView> {
+    return this.http.get<ReviewAssessmentView>(`${this.base}/${id}/review-assessment`, { context: silentErrorContext() });
   }
 
   approve(id: string, note: string | null): Observable<PaymentView> {

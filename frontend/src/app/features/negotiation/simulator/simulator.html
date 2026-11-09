@@ -7,7 +7,7 @@
       </a>
     }
     @if (caso()) {
-      <a class="btn btn-link d-inline-flex align-items-center gap-2" routerLink="/cobranca/fila" [queryParams]="{ caso: caso() }">
+      <a class="btn btn-link d-inline-flex align-items-center gap-2" [routerLink]="['/cobranca/casos', caso()]">
         <app-icon name="arrow-left" />
         Voltar ao caso
       </a>

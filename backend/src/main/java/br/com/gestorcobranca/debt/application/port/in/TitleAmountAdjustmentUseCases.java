@@ -45,7 +45,34 @@ public interface TitleAmountAdjustmentUseCases {
     AdjustmentView cancel(UUID adjustmentId, String note);
 
     /** Fila de aprovação: pedidos pendentes de outras pessoas no escopo. */
-    PageResponse<AdjustmentView> pendingApprovals(PageQuery page);
+    PageResponse<AdjustmentView> pendingApprovals(PendingFilter filter, PageQuery page);
+
+    /**
+     * Pedido para a tela de aprovação: o pedido e quanto ele passa do limite de quem corrige. {@code TITLE_AMOUNT_APPROVE}
+     * e credor no escopo; 422 {@code title_amount.not_dual_control} para pedido aplicado dentro do limite.
+     */
+    ApprovalView approval(UUID adjustmentId);
+
+    /** @param creditorId só deste credor (nulo = todos os do escopo) */
+    record PendingFilter(UUID creditorId) {
+
+        public static final PendingFilter ALL = new PendingFilter(null);
+    }
+
+    /**
+     * @param reason           INCREASE (algum componente aumenta: sempre segunda pessoa), REDUCTION_ABOVE_LIMIT (a
+     *                         redução sozinha passa do limite) ou CUMULATIVE_ABOVE_LIMIT (somada às reduções recentes)
+     * @param increases        soma dos aumentos de componente
+     * @param decreases        soma das reduções de componente (não o líquido)
+     * @param recentReductions reduções aplicadas sem segunda pessoa no título na janela, no pedido
+     * @param threshold        limite da assessoria no pedido (pedido antigo: o limite atual)
+     * @param excess           quanto as reduções, com as recentes, passam do limite (zero se o motivo é só aumento)
+     * @param ownRequest       pedido de quem consulta (segregação: não pode decidir)
+     */
+    record ApprovalView(AdjustmentView adjustment, String reason, BigDecimal increases, BigDecimal decreases,
+                        BigDecimal recentReductions, BigDecimal threshold, BigDecimal excess, long cumulativeWindowDays,
+                        boolean ownRequest) {
+    }
 
     /** Divergências abertas no escopo. */
     PageResponse<DivergenceView> openDivergences(PageQuery page);

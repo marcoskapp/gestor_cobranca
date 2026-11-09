@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.payment;
 
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ReviewQueueFilter;
 import br.com.gestorcobranca.payment.application.port.in.PaymentInstructionUseCases.CreateInstructionCommand;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ExternalPaymentCommand;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.PaymentView;
@@ -54,7 +55,7 @@ class PaymentIsolationIT extends PaymentTestSupport {
         assertThatThrownBy(() -> asOperator(() -> pixAccounts.list())).isInstanceOf(ScopeAccessDeniedException.class);
         assertThatThrownBy(() -> asOperator(() -> reconciliation.imports(PageQuery.of(0, 10))))
                 .isInstanceOf(ScopeAccessDeniedException.class);
-        assertThatThrownBy(() -> asOperator(() -> payments.reviewQueue(PageQuery.of(0, 10))))
+        assertThatThrownBy(() -> asOperator(() -> payments.reviewQueue(ReviewQueueFilter.ALL, PageQuery.of(0, 10))))
                 .isInstanceOf(ScopeAccessDeniedException.class);
         // a conta Pix da assessoria (sem credor) só é visível a quem tem todos os credores
         assertThat(asAdmin(() -> pixAccounts.list())).singleElement().satisfies(a -> {

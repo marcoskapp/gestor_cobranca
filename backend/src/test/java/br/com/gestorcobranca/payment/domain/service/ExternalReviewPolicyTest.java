@@ -30,6 +30,21 @@ class ExternalReviewPolicyTest {
     }
 
     @Test
+    void theDecisionCarriesTheExceededLimitAndHowMuchItPassesBy() {
+        var single = ExternalReviewPolicy.decide(Money.of("900.00"), Money.ZERO, Money.ZERO, limits);
+        assertThat(single.limit()).isEqualTo(Money.of("500.00"));
+        assertThat(single.considered()).isEqualTo(Money.of("900.00"));
+        assertThat(single.excess()).isEqualTo(Money.of("400.00"));
+        // soma da janela: o valor considerado é a soma com o pagamento novo
+        var destination = ExternalReviewPolicy.decide(Money.of("450.00"), Money.of("450.00"), Money.ZERO, limits);
+        assertThat(destination.considered()).isEqualTo(Money.of("900.00"));
+        assertThat(destination.excess()).isEqualTo(Money.of("400.00"));
+        var auto = ExternalReviewPolicy.decide(Money.of("10.00"), Money.ZERO, Money.ZERO, limits);
+        assertThat(auto.limit()).isNull();
+        assertThat(auto.excess()).isNull();
+    }
+
+    @Test
     void spreadingAcrossDestinationsIsCaughtByTheInformerTotal() {
         assertThat(ExternalReviewPolicy.decide(Money.of("400.00"), Money.ZERO, Money.of("1600.00"), limits)
                 .reviewRequired()).isFalse();

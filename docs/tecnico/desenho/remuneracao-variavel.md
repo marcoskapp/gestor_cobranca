@@ -73,6 +73,27 @@ Todas por negociador, equipe, credor, carteira, faixa de atraso, canal e períod
 | Nota de monitoria (QA) | média das avaliações de qualidade de atendimento (formulário configurável) |
 | Violações de compliance | negações do porteiro de contato contornadas, contato fora de horário, ocorrências de auditoria |
 
+
+### 2.4.1 "Avaliar este atendimento" (revisão de produto 11/2026, J7)
+
+A monitoria parte do atendimento, sem digitar identificador: **Chamadas e gravações** (linha da chamada atendida e
+encerrada; referência `CALL`), **conversa** (cabeçalho, conversa com pessoa responsável que já respondeu; `CONVERSATION`) e
+**histórico do caso** (interação registrada por pessoa; `CASE` com o caso) abrem o diálogo de monitoria com o negociador,
+a referência, a data do atendimento (fuso de operação) e uma descrição curta preenchidos (`EvaluationLauncher`,
+`features/incentive/quality`; o diálogo é carregado sob demanda). O registro manual ("Registrar monitoria") continua para
+os casos sem tela de origem.
+
+* **Quem avalia o quê**: `QUALITY_EVALUATE`; o negociador precisa estar no escopo de quem avalia (próprio/equipe/tudo,
+  `requireVisible`); **ninguém avalia o próprio atendimento** (`quality_evaluation.self_evaluation`, no domínio — a tela nem
+  mostra o botão) e atendimento sem pessoa (assistente, sistema) não é avaliado por aqui. Sem formulário ativo, o botão
+  avisa onde criar.
+* **Volta para a referência**: a lista de avaliações mostra "Ver caso" (`/cobranca/casos/:id?aba=historico`), "Ver
+  conversa" e "Ver acordo", só com a permissão de abrir a tela de destino; a chamada (sem ficha própria) abre o histórico do
+  caso dela pela leitura da chamada (`TELEPHONY_USE` ou `TELEPHONY_SUPERVISE`).
+* O servidor não confere que a referência existe nem que o negociador é quem atendeu (exigiria o incentive consultar
+  telefonia, comunicação e cobrança); a tela preenche a partir do próprio atendimento e a avaliação fica na auditoria.
+  Sem evento, métrica ou migration nova.
+
 ### 2.5 Normalização para comparação justa
 
 - **Segmentos de dificuldade**: faixa de atraso × faixa de valor × credor/carteira. Metas e taxas podem ser definidas por segmento.

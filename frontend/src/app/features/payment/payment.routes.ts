@@ -50,6 +50,14 @@ export const PAYMENT_ROUTES: Routes = [
     loadComponent: () => import('./payments/review-queue').then((m) => m.ReviewQueue),
   },
   {
+    // decisão aberta pela fila: contador "1 de N", "Aprovar e abrir a próxima" e volta à fila com os filtros
+    path: 'aprovacoes/:id',
+    title: 'Aprovação de pagamento',
+    canActivate: [permissionGuard],
+    data: { permissions: PAYMENT_PERMISSIONS.review },
+    loadComponent: () => import('./approvals/payment-approval').then((m) => m.PaymentApproval),
+  },
+  {
     path: 'sobras',
     title: 'Sobras e realocação',
     canActivate: [permissionGuard],

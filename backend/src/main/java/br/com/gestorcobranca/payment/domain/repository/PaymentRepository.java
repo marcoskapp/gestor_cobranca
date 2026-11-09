@@ -80,9 +80,10 @@ public interface PaymentRepository {
      * @param withBalance somente com saldo não alocado
      * @param excludeInformedBy exclui os informados por este usuário (fila de revisão)
      * @param agreementId       destinados ao acordo (destino solicitado do externo ou alguma alocação a ele)
+     * @param externalOrigin    fonte do pagamento externo (AGENCY_ACCOUNT, CREDITOR_DIRECT, CREDITOR_REPORT, OTHER)
      */
     record Criteria(Set<UUID> creditorIds, UUID creditorId, UUID debtorId, Set<PaymentStatus> statuses, String source,
                     String method, Instant paidFrom, Instant paidTo, boolean withBalance, UUID excludeInformedBy,
-                    UUID agreementId) {
+                    UUID agreementId, String externalOrigin) {
     }
 }

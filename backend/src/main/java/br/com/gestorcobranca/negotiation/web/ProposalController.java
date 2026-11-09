@@ -5,6 +5,8 @@ import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulati
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.PlanInput;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.AcceptCommand;
+import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.ApprovalAssessmentView;
+import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.ApprovalQueueFilter;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.CreateProposalCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.ProposalFilter;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.ProposalView;
@@ -84,9 +86,17 @@ class ProposalController {
     @GetMapping("/approval-queue")
     @PreAuthorize("hasAuthority('NEGOTIATION_APPROVE')")
     @Operation(summary = "Propostas aguardando aprovação que cabem na alçada do usuário")
-    PageResponse<ProposalView> approvalQueue(@RequestParam(required = false) Integer page,
+    PageResponse<ProposalView> approvalQueue(@RequestParam(required = false) UUID creditorId,
+                                             @RequestParam(required = false) Integer page,
                                              @RequestParam(required = false) Integer size) {
-        return proposals.approvalQueue(PageQuery.of(page, size));
+        return proposals.approvalQueue(new ApprovalQueueFilter(creditorId), PageQuery.of(page, size));
+    }
+
+    @GetMapping("/{id}/approval-assessment")
+    @PreAuthorize("hasAuthority('NEGOTIATION_PROPOSE') or hasAuthority('NEGOTIATION_APPROVE')")
+    @Operation(summary = "Quanto a proposta passa da alçada de quem negociou e se cabe na de quem consulta")
+    ApprovalAssessmentView approvalAssessment(@PathVariable UUID id) {
+        return proposals.approvalAssessment(id);
     }
 
     @GetMapping("/{id}")

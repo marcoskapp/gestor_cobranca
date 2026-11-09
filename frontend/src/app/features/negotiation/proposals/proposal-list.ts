@@ -27,7 +27,9 @@ import { CreditorLookup, CreditorNames } from '../../organization/data/organizat
 import { ProposalsApi } from '../data/agreement.api';
 import { ProposalFilter, ProposalView } from '../data/agreement.models';
 import { actorText, validityLapsed, violationText } from '../data/agreement.rules';
-import { planText } from '../data/negotiation.labels';
+import { authorityProfileText } from '../data/agreement.labels';
+import { percent, planText } from '../data/negotiation.labels';
+import { deadlineText, discountShare } from './proposal-approval';
 
 /** Valor do filtro "Criada por" que restringe às propostas do próprio usuário (`mine=true` na API). */
 export const MINE = 'MINE';
@@ -70,8 +72,13 @@ export function toProposalFilter(v: { creditor: string[]; debtor: string[]; stat
     @if (queue()) {
       <app-page-header
         title="Aprovações de propostas"
-        subtitle="Propostas acima da alçada de quem negociou e dentro da sua. Confira as condições e a justificativa antes de decidir."
+        subtitle="Propostas acima da alçada de quem negociou e dentro da sua. Revise uma a uma: ao decidir, a próxima abre sozinha."
       />
+      <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar a fila de aprovação">
+        <div class="app-filters__wide">
+          <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+        </div>
+      </form>
     } @else {
       <app-page-header title="Propostas" subtitle="Condições propostas ao devedor: prontas para aceite, aguardando aprovação, aceitas e formalizadas.">
         @if (canApprove()) {
@@ -132,10 +139,11 @@ export function toProposalFilter(v: { creditor: string[]; debtor: string[]; stat
       [emptyHint]="queue() ? 'Quando um negociador pedir aprovação de condições dentro da sua alçada, ela aparece aqui.' : 'Propostas nascem no simulador, a partir de condições validadas.'"
     >
       <ng-template appCell="createdAt" [appCellOf]="query.rows()" let-p>
-        <a [routerLink]="['/negociacao/propostas', p.id]">{{ p.createdAt | appDate }}</a>
-        @if (lapsed(p)) {
+        <a [routerLink]="link(p)" [queryParams]="linkParams()">{{ p.createdAt | appDate }}</a>
+        <!-- na fila, o prazo tem coluna própria -->
+        @if (!queue() && lapsed(p)) {
           <div class="pl-late">Validade vencida</div>
-        } @else if (p.validUntil) {
+        } @else if (!queue() && p.validUntil) {
           <div class="app-muted">válida até {{ p.validUntil | appDate: 'date' }}</div>
         }
       </ng-template>
@@ -145,7 +153,10 @@ export function toProposalFilter(v: { creditor: string[]; debtor: string[]; stat
       </ng-template>
       <ng-template appCell="total" [appCellOf]="query.rows()" let-p>
         <app-amount [value]="p.totalAmount" />
-        <div class="app-muted">desconto <app-amount [value]="p.discountAmount" /></div>
+        <!-- na fila, o desconto tem coluna própria -->
+        @if (!queue()) {
+          <div class="app-muted">desconto <app-amount [value]="p.discountAmount" /></div>
+        }
       </ng-template>
       <ng-template appCell="plan" [appCellOf]="query.rows()" let-p>
         {{ plan(p) }}
@@ -157,6 +168,9 @@ export function toProposalFilter(v: { creditor: string[]; debtor: string[]; stat
         } @else {
           {{ author(p) }}
         }
+        @if (queue() && p.actor.profileCode) {
+          <div class="app-muted">alçada {{ profile(p.actor.profileCode) }}</div>
+        }
         @if (p.authorityViolations.length) {
           <div class="app-muted">{{ violations(p) }}</div>
         }
@@ -164,10 +178,25 @@ export function toProposalFilter(v: { creditor: string[]; debtor: string[]; stat
       <ng-template appCell="status" [appCellOf]="query.rows()" let-p>
         <app-status-chip domain="proposal" [status]="p.status" />
       </ng-template>
+      <ng-template appCell="discount" [appCellOf]="query.rows()" let-p>
+        <span class="app-numeric">{{ percentText(discount(p)) }}</span>
+        <div class="app-muted"><app-amount [value]="p.discountAmount" /></div>
+      </ng-template>
+      <ng-template appCell="deadline" [appCellOf]="query.rows()" let-p>
+        @let d = deadline(p);
+        <span [class.pl-late]="d.tone === 'danger'" [class.pl-soon]="d.tone === 'warning'">{{ d.text }}</span>
+        @if (p.validUntil) {
+          <div class="app-muted">{{ p.validUntil | appDate: 'date' }}</div>
+        }
+      </ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
-        <a class="btn btn-sm btn-link" [routerLink]="['/negociacao/propostas', p.id]" aria-label="Abrir proposta" ngbTooltip="Abrir">
-          <app-icon name="chevron-right" />
-        </a>
+        @if (queue()) {
+          <a class="btn btn-sm btn-outline-primary" [routerLink]="link(p)" [queryParams]="linkParams()">Revisar</a>
+        } @else {
+          <a class="btn btn-sm btn-link" [routerLink]="['/negociacao/propostas', p.id]" aria-label="Abrir proposta" ngbTooltip="Abrir">
+            <app-icon name="chevron-right" />
+          </a>
+        }
       </ng-template>
     </app-data-table>
   `,
@@ -175,6 +204,10 @@ export function toProposalFilter(v: { creditor: string[]; debtor: string[]; stat
     .pl-late {
       font-weight: var(--app-weight-semibold);
       color: var(--bs-danger-text-emphasis);
+    }
+    .pl-soon {
+      font-weight: var(--app-weight-semibold);
+      color: var(--bs-warning-text-emphasis);
     }
     .pl-assistant {
       display: inline-flex;
@@ -229,7 +262,7 @@ export class ProposalList {
     { initialValue: toProposalFilter(this.filters.getRawValue()), equal: sameValue },
   );
   private readonly filter = computed(() => ({ queue: this.queue(), ...this.formFilter() }), { equal: sameValue });
-  protected readonly query = pagedQuery(this.filter, (f, page) => (f.queue ? this.api.approvalQueue(page) : this.api.search(f, page)), {
+  protected readonly query = pagedQuery(this.filter, (f, page) => (f.queue ? this.api.approvalQueue(page, { creditorId: f.creditorId }) : this.api.search(f, page)), {
     url: true,
     sortFields: { createdAt: 'createdAt', total: 'totalAmount' },
   });
@@ -238,16 +271,53 @@ export class ProposalList {
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((p) => p.creditorId));
   private readonly users = nameMap(inject(UserNames), () => this.query.rows().filter((p) => p.actor.type === 'USER').map((p) => p.actor.id), { batch: USER_NAMES_BATCH });
 
-  /** Ordenação por coluna só na consulta de propostas (a fila de aprovação tem a ordem própria do servidor). */
-  protected readonly columns = computed((): TableColumn[] => [
-    { key: 'createdAt', header: 'Criada em', sortable: !this.queue(), mobile: 'title' },
-    { key: 'debtor', header: 'Devedor', mobile: 'meta' },
-    { key: 'total', header: 'Total', align: 'end', sortable: !this.queue(), mobile: 'meta' },
-    { key: 'plan', header: 'Forma de pagamento', mobile: 'meta' },
-    { key: 'actor', header: 'Negociador', mobile: 'hidden' },
-    { key: 'status', header: 'Situação', mobile: 'badge' },
-    { key: 'actions', header: 'Ações', actions: true },
-  ]);
+  /**
+   * Ordenação por coluna só na consulta de propostas (a fila de aprovação tem a ordem própria do servidor, das mais
+   * antigas para as mais novas). Na fila: desconto em % da dívida e prazo da aprovação (validade da proposta).
+   */
+  protected readonly columns = computed((): TableColumn[] =>
+    this.queue()
+      ? [
+          { key: 'createdAt', header: 'Pedida em', mobile: 'title' },
+          { key: 'debtor', header: 'Devedor', mobile: 'meta' },
+          { key: 'total', header: 'Valor', align: 'end', mobile: 'meta' },
+          { key: 'discount', header: 'Desconto', align: 'end', mobile: 'meta' },
+          { key: 'deadline', header: 'Prazo', mobile: 'meta' },
+          { key: 'actor', header: 'Negociador e motivo', mobile: 'hidden' },
+          { key: 'actions', header: 'Ações', actions: true },
+        ]
+      : [
+          { key: 'createdAt', header: 'Criada em', sortable: true, mobile: 'title' },
+          { key: 'debtor', header: 'Devedor', mobile: 'meta' },
+          { key: 'total', header: 'Total', align: 'end', sortable: true, mobile: 'meta' },
+          { key: 'plan', header: 'Forma de pagamento', mobile: 'meta' },
+          { key: 'actor', header: 'Negociador', mobile: 'hidden' },
+          { key: 'status', header: 'Situação', mobile: 'badge' },
+          { key: 'actions', header: 'Ações', actions: true },
+        ],
+  );
+
+  /** Na fila, a proposta abre na tela de decisão (`/negociacao/aprovacoes/:id`) com o filtro de credor. */
+  protected link(p: ProposalView): string[] {
+    return this.queue() ? ['/negociacao/aprovacoes', p.id] : ['/negociacao/propostas', p.id];
+  }
+
+  protected linkParams(): Record<string, string> {
+    const creditor = this.filters.controls.creditor.value[0];
+    return this.queue() && creditor ? { credor: creditor } : {};
+  }
+
+  protected discount(p: ProposalView): number {
+    return discountShare(p);
+  }
+
+  protected percentText(value: number): string {
+    return percent(value);
+  }
+
+  protected deadline(p: ProposalView) {
+    return deadlineText(p.validUntil, this.today);
+  }
 
   protected plan(p: ProposalView): string {
     return planText({ installments: p.installments, downPayment: p.downPayment });
@@ -259,6 +329,10 @@ export class ProposalList {
 
   protected author(p: ProposalView): string {
     return actorText(p.actor.type, p.actor.id, this.auth.user()?.id ?? null, (id) => this.users.name(id));
+  }
+
+  protected profile(code: string): string {
+    return authorityProfileText(code);
   }
 
   protected violations(p: ProposalView): string {

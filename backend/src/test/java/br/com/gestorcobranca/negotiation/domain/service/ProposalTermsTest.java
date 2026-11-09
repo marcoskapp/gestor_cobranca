@@ -61,6 +61,42 @@ class ProposalTermsTest {
                 .satisfiedBy(limits(99, "100", 24, null, "0", true, 2))).as("renegociações").isFalse();
     }
 
+    @Test
+    void gapsShowWhereTheProposalExceedsTheProposerAndWhetherTheApproverCovers() {
+        // nível 2, 72% do envelope, 8 pagamentos, R$ 6.000, entrada de 5%, 1ª renegociação
+        var requirement = new ProposalTerms.AuthorityRequirement(2, new BigDecimal("72"), 8, Money.of("6000.00"),
+                new BigDecimal("5"), 1);
+        AuthorityLimits junior = limits(1, "50", 6, "5000", "10", false, 0);
+        AuthorityLimits supervisor = limits(99, "100", 24, "200000", "0", true, 2);
+
+        var gaps = requirement.gaps(junior, supervisor);
+        assertThat(gaps).extracting(ProposalTerms.AuthorityGap::dimension).containsExactly(
+                ProposalTerms.AuthorityDimension.LEVEL, ProposalTerms.AuthorityDimension.DISCOUNT_SHARE,
+                ProposalTerms.AuthorityDimension.INSTALLMENTS, ProposalTerms.AuthorityDimension.AMOUNT,
+                ProposalTerms.AuthorityDimension.DOWN_PAYMENT_SHARE, ProposalTerms.AuthorityDimension.RENEGOTIATIONS);
+        assertThat(gaps).allMatch(ProposalTerms.AuthorityGap::approverCovers);
+        var discount = gaps.get(1);
+        assertThat(discount.requested()).isEqualByComparingTo("72");
+        assertThat(discount.proposerLimit()).isEqualByComparingTo("50");
+        assertThat(discount.approverLimit()).isEqualByComparingTo("100");
+        assertThat(requirement.withinLimits(supervisor)).isTrue();
+
+        // aprovador com alçada menor que o pedido em parcelas: o ponto aparece sem cobertura
+        AuthorityLimits pleno = limits(2, "80", 6, "20000", "5", true, 1);
+        assertThat(requirement.gaps(junior, pleno)).filteredOn(g -> !g.approverCovers())
+                .extracting(ProposalTerms.AuthorityGap::dimension).containsExactly(ProposalTerms.AuthorityDimension.INSTALLMENTS);
+        assertThat(requirement.withinLimits(pleno)).isFalse();
+
+        // sem aprovador no contexto; dentro da alçada não há pontos; à vista a entrada não conta; valor sem limite próprio
+        assertThat(requirement.gaps(junior, null)).allSatisfy(g -> {
+            assertThat(g.approverLimit()).isNull();
+            assertThat(g.approverCovers()).isFalse();
+        });
+        assertThat(requirement.gaps(supervisor, null)).isEmpty();
+        var cash = new ProposalTerms.AuthorityRequirement(0, BigDecimal.ZERO, 1, Money.of("10.00"), new BigDecimal("100"), 0);
+        assertThat(cash.gaps(limits(0, "0", 1, null, "50", false, 0), null)).isEmpty();
+    }
+
     private static AuthorityLimits limits(int level, String share, int installments, String amount, String down,
                                           boolean approve, int renegotiations) {
         return new AuthorityLimits(UUID.randomUUID(), "X", level, new BigDecimal(share), installments,

@@ -34,6 +34,13 @@
       </div>
     </div>
     <div class="cv-head__actions" data-tour="conversation-actions">
+      <!-- monitoria de qualidade: só com QUALITY_EVALUATE, conversa atendida por outra pessoa -->
+      @if (evaluable(c)) {
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="evaluate(c)" data-tour="conversation-evaluate">
+          <app-icon name="clipboard-check" />
+          Avaliar atendimento
+        </button>
+      }
       @if (act.identify) {
         <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="identify()" [disabled]="busy()">
           <app-icon name="person-bounding-box" />

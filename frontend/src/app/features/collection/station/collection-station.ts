@@ -69,8 +69,9 @@ const GROUP = 'Estação de cobrança';
  * e voltar não zera a contagem nem o que foi digitado. O acordo fecha sem sair do caso (D7): simular
  * → propor → aceite e formalização (confirmação digitada) → Pix → cartão "Acordo formalizado".
  *
- * Rotas: `/cobranca/fila[?caso=id][&aba=]` (operador) e `/cobranca/casos/:id[?aba=]` (abrir um caso
- * específico).
+ * Rotas: `/cobranca/fila` (estação sem caso aberto) e `/cobranca/casos/:id[?aba=]` — o endereço único do caso, que
+ * para quem tem `CASE_WORK` abre aqui (menu e trilha marcam a estação) e para os demais na ficha em modo consulta
+ * (`CaseConsult`). O endereço antigo `/cobranca/fila?caso=` redireciona para ele.
  */
 @Component({
   selector: 'app-collection-station',
@@ -100,10 +101,8 @@ const GROUP = 'Estação de cobrança';
   styleUrl: './collection-station.scss',
 })
 export class CollectionStation {
-  /** `/cobranca/casos/:id` */
+  /** `/cobranca/casos/:id` (endereço único do caso; `/cobranca/fila?caso=` redireciona para ele). */
   readonly id = input<string>();
-  /** `/cobranca/fila?caso=` */
-  readonly caso = input<string>();
   /** `?aba=` (títulos, contatos, histórico, agenda, contestações, negociação, conversas). */
   readonly aba = input<string>();
   /** `?proximo=1`: "Próximo caso" pedido no início — a estação entrega o caso ao abrir. */
@@ -161,7 +160,7 @@ export class CollectionStation {
   /** Acordo formalizado nesta estação para o caso aberto (cartão "Acordo formalizado"). */
   protected readonly closedAgreementId = signal<string | null>(null);
 
-  protected readonly selectedId = linkedSignal<string | null>(() => this.id() ?? this.caso() ?? null);
+  protected readonly selectedId = linkedSignal<string | null>(() => this.id() ?? null);
 
   // ------------------------------------------------------------------ dados
 
@@ -581,8 +580,7 @@ export class CollectionStation {
 
   private open(id: string): void {
     this.selectedId.set(id);
-    const target = this.id() ? ['/cobranca/casos', id] : ['/cobranca/fila'];
-    // outro caso abre na aba guardada dele (ou na primeira)
-    void this.router.navigate(target, { queryParams: this.id() ? {} : { caso: id }, replaceUrl: true });
+    // endereço único do caso; outro caso abre na aba guardada dele (ou na primeira)
+    void this.router.navigate(['/cobranca/casos', id], { replaceUrl: true });
   }
 }

@@ -8,6 +8,8 @@ import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.Payment
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.PaymentView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ReallocateCommand;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ReverseCommand;
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ReviewAssessmentView;
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.ReviewQueueFilter;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.TargetInput;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
@@ -105,9 +107,17 @@ class PaymentController {
 
     @GetMapping("/review-queue")
     @PreAuthorize("hasAuthority('PAYMENT_REVIEW')")
-    PageResponse<PaymentView> reviewQueue(@RequestParam(required = false) Integer page,
+    PageResponse<PaymentView> reviewQueue(@RequestParam(required = false) UUID creditorId,
+                                          @RequestParam(required = false) String origin,
+                                          @RequestParam(required = false) Integer page,
                                           @RequestParam(required = false) Integer size) {
-        return payments.reviewQueue(PageQuery.of(page, size));
+        return payments.reviewQueue(new ReviewQueueFilter(creditorId, origin), PageQuery.of(page, size));
+    }
+
+    @GetMapping("/{id}/review-assessment")
+    @PreAuthorize("hasAuthority('PAYMENT_REVIEW')")
+    ReviewAssessmentView reviewAssessment(@PathVariable UUID id) {
+        return payments.reviewAssessment(id);
     }
 
     @PostMapping("/{id}/approve")

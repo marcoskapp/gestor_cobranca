@@ -1,3 +1,4 @@
+import { ActivatedRouteSnapshot } from '@angular/router';
 import { IconName } from '../../shared/components/icon/icon-names';
 import { Permission } from '../auth/permission';
 
@@ -406,4 +407,20 @@ export function activeNavRoute(url: string, routes: readonly string[]): string |
     }
   }
   return best;
+}
+
+/**
+ * Item do menu de uma tela cujo endereço fica fora dele (`data.menuRoute` da rota mais interna que o declara): menu e
+ * trilha marcam esse item. Ex.: o caso aberto por quem opera (`/cobranca/casos/:id`, endereço único do caso) é a
+ * estação de cobrança; para quem só consulta, o mesmo endereço continua sob "Casos".
+ */
+export function menuRouteOf(root: ActivatedRouteSnapshot | null): string | null {
+  let found: string | null = null;
+  for (let r: ActivatedRouteSnapshot | null = root; r; r = r.firstChild) {
+    const route = r.routeConfig?.data?.['menuRoute'];
+    if (typeof route === 'string') {
+      found = route;
+    }
+  }
+  return found;
 }

@@ -46,7 +46,10 @@ export const MANUAL: ModuleManual = {
       id: 'communication.conversation',
       title: 'Conversa',
       objective: 'Linha do tempo de uma conversa com o devedor, com as ações de assumir, responder e transferir.',
-      purpose: ['Mesmo atendimento da caixa de entrada, aberto direto pelo endereço da conversa. Mensagens do assistente aparecem identificadas.'],
+      purpose: [
+        'Mesmo atendimento da caixa de entrada, aberto direto pelo endereço da conversa. Mensagens do assistente aparecem identificadas.',
+        'Quem avalia a qualidade tem "Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa: a monitoria abre já preenchida.',
+      ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR'],
       inputs: ['Mensagens de todos os canais do devedor.'],
       outputs: ['Respostas e mudanças de dono da conversa.'],

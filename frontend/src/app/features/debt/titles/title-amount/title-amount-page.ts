@@ -1,10 +1,13 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { urlTab } from '../../../../shared/data/url-state';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { syncFormWithUrl, urlParam, urlTab } from '../../../../shared/data/url-state';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { finalize, map } from 'rxjs';
+import { CellDef } from '../../../../shared/components/data-table/cell-def';
+import { DataTable, TableColumn } from '../../../../shared/components/data-table/data-table';
+import { EntityPicker } from '../../../../shared/components/entity-picker/entity-picker';
 import { RouterLink } from '@angular/router';
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
-import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { Permission } from '../../../../core/auth/permission';
 import { NotificationService } from '../../../../core/notification/notification.service';
@@ -14,7 +17,7 @@ import { nameMap } from '../../../../shared/data/name-map';
 import { valueOr } from '../../../../shared/data/resource-value';
 import { FORM_FIELD } from '../../../../shared/forms/field';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
-import { CreditorNames } from '../../../organization/data/organization.lookups';
+import { CreditorLookup, CreditorNames } from '../../../organization/data/organization.lookups';
 import { TitleAmountApi } from '../../data/debt.api';
 import { AMOUNT_REASON_LABELS } from '../../data/debt.labels';
 import { canConfirmThreshold } from './title-amount.rules';
@@ -27,7 +30,7 @@ import { TabsMore } from '../../../../shared/components/tabs-more/tabs-more';
  */
 @Component({
   selector: 'app-title-amount-page',
-  imports: [TabsMore, ReactiveFormsModule, RouterLink, NgbNavModule, Amount, PageHeader, AppDatePipe, ...FORM_FIELD],
+  imports: [TabsMore, ReactiveFormsModule, RouterLink, NgbNavModule, Amount, PageHeader, AppDatePipe, CellDef, DataTable, EntityPicker, ...FORM_FIELD],
   template: `
     <app-page-header title="Correções de valor" subtitle="Aprovação das correções manuais e divergências com a carga do credor." />
     <ul ngbNav #tabs="ngbNav" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" class="nav-underline app-tabs" data-tour="title-amount-tabs">
@@ -35,21 +38,39 @@ import { TabsMore } from '../../../../shared/components/tabs-more/tabs-more';
         <li ngbNavItem="aprovacoes">
           <button ngbNavLink type="button">Para aprovar ({{ pendingRows().length }})</button>
           <ng-template ngbNavContent>
-            <section class="app-card" aria-label="Correções para aprovar">
-              <ul class="list-unstyled ta-rows">
-                @for (a of pendingRows(); track a.id) {
-                  <li>
-                    <a [routerLink]="['/titulos', a.titleId]">Título {{ a.titleLabel }}</a>
-                    <span class="app-muted">{{ creditors.name(a.creditorId) }}</span>
-                    <span>{{ reasons[a.reason] }}</span>
-                    <span><app-amount [value]="a.previousOpenBalance" /> → <app-amount [value]="a.newOpenBalance" /></span>
-                    <span class="app-muted">por {{ a.requestedByName ?? 'usuário' }} em {{ a.requestedAt | appDate }}</span>
-                  </li>
-                } @empty {
-                  <li class="app-muted">Nenhuma correção aguardando a sua aprovação.</li>
-                }
-              </ul>
-            </section>
+            <form class="app-filters" [formGroup]="filters" role="search" aria-label="Filtrar correções para aprovar">
+              <div class="app-filters__wide">
+                <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+              </div>
+            </form>
+            <app-data-table
+              caption="Correções aguardando a sua aprovação"
+              [rows]="pendingRows()"
+              [columns]="pendingColumns"
+              [loading]="pending.isLoading()"
+              [failed]="pending.status() === 'error'"
+              (retry)="pending.reload()"
+              emptyIcon="check2-circle"
+              emptyMessage="Nenhuma correção aguardando a sua aprovação."
+              emptyHint="Pedidos acima do limite ou com aumento de componente aparecem aqui. Os seus não aparecem: quem pede não decide."
+            >
+              <ng-template appCell="requestedAt" [appCellOf]="pendingRows()" let-a>
+                <a [routerLink]="['/titulos/correcoes-de-valor', a.id]" [queryParams]="linkParams()">{{ a.requestedAt | appDate }}</a>
+                <div class="app-muted">por {{ a.requestedByName ?? 'usuário' }}</div>
+              </ng-template>
+              <ng-template appCell="title" [appCellOf]="pendingRows()" let-a>
+                Título {{ a.titleLabel }}
+                <div class="app-muted">{{ creditors.name(a.creditorId) }}</div>
+              </ng-template>
+              <ng-template appCell="reason" [appCellOf]="pendingRows()" let-a>{{ reasons[a.reason] }}</ng-template>
+              <ng-template appCell="balance" [appCellOf]="pendingRows()" let-a>
+                <app-amount [value]="a.previousOpenBalance" /> → <app-amount [value]="a.newOpenBalance" />
+              </ng-template>
+              <ng-template appCell="delta" [appCellOf]="pendingRows()" let-a><app-amount [value]="a.delta" /></ng-template>
+              <ng-template appCell="actions" [appCellOf]="pendingRows()" let-a>
+                <a class="btn btn-sm btn-outline-primary" [routerLink]="['/titulos/correcoes-de-valor', a.id]" [queryParams]="linkParams()">Revisar</a>
+              </ng-template>
+            </app-data-table>
           </ng-template>
         </li>
       }
@@ -153,7 +174,25 @@ export class TitleAmountPage {
   protected readonly tab = urlTab(['aprovacoes', 'divergencias', 'limite'], this.canApprove() ? 'aprovacoes' : 'divergencias');
   protected readonly busy = signal(false);
 
-  private readonly pending = rxResource({ params: () => (this.canApprove() ? true : undefined), stream: () => this.api.pending({ page: 0, size: 100 }) });
+  protected readonly creditorSource = inject(CreditorLookup);
+  private readonly fb = inject(FormBuilder).nonNullable;
+  /** Filtro de credor na URL (`?credor=`): segue para a tela de decisão e volta com ela. */
+  protected readonly filters = syncFormWithUrl(this.fb.group({ creditor: this.fb.control<string[]>([]) }), { creditor: urlParam.ids('credor') });
+  private readonly creditorFilter = toSignal(this.filters.valueChanges.pipe(map(() => this.filters.getRawValue().creditor[0] ?? null)), {
+    initialValue: this.filters.getRawValue().creditor[0] ?? null,
+  });
+  protected readonly pending = rxResource({
+    params: () => (this.canApprove() ? { creditorId: this.creditorFilter() } : undefined),
+    stream: ({ params }) => this.api.pending({ page: 0, size: 100 }, params),
+  });
+  protected readonly pendingColumns: TableColumn[] = [
+    { key: 'requestedAt', header: 'Pedida em', mobile: 'title' },
+    { key: 'title', header: 'Título e credor', mobile: 'meta' },
+    { key: 'reason', header: 'Motivo', mobile: 'meta' },
+    { key: 'balance', header: 'Saldo em aberto', mobile: 'meta' },
+    { key: 'delta', header: 'Diferença', align: 'end', mobile: 'hidden' },
+    { key: 'actions', header: 'Ações', actions: true },
+  ];
   protected readonly pendingRows = computed(() => (this.pending.hasValue() ? this.pending.value().content : []));
   private readonly divergences = rxResource({ params: () => (this.canAdjust() ? true : undefined), stream: () => this.api.divergences({ page: 0, size: 100 }) });
   protected readonly divergenceRows = computed(() => (this.divergences.hasValue() ? this.divergences.value().content : []));
@@ -170,6 +209,12 @@ export class TitleAmountPage {
   });
   protected readonly threshold = new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(0), Validators.max(100000)] });
   protected readonly creditors = nameMap(inject(CreditorNames), () => [...this.pendingRows().map((a) => a.creditorId), ...this.divergenceRows().map((d) => d.creditorId)]);
+
+  /** O filtro da fila segue para a tela de decisão ("1 de N" na mesma fila e volta com ele). */
+  protected linkParams(): Record<string, string> {
+    const creditor = this.filters.getRawValue().creditor[0];
+    return creditor ? { credor: creditor } : {};
+  }
 
   constructor() {
     effect(() => {

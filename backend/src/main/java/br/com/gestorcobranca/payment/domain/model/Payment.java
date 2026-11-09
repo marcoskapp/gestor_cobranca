@@ -101,6 +101,16 @@ public class Payment extends TenantScopedEntity {
     @Column(name = "review_required", nullable = false, updatable = false)
     private boolean reviewRequired;
 
+    /** Por que foi para aprovação: AMOUNT, DESTINATION_CUMULATIVE ou INFORMER_CUMULATIVE (nulo sem revisão ou antigo). */
+    @Column(name = "review_reason", length = 30, updatable = false)
+    private String reviewReason;
+
+    @Column(name = "review_limit", updatable = false)
+    private Money reviewLimit;
+
+    @Column(name = "review_considered_amount", updatable = false)
+    private Money reviewConsideredAmount;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "review_mode", nullable = false, length = 20)
     private ReviewMode reviewMode;
@@ -233,6 +243,20 @@ public class Payment extends TenantScopedEntity {
             p.confirmedAt = now;
         }
         return p;
+    }
+
+    /**
+     * Registra por que o pagamento informado foi para a aprovação de outra pessoa (antes de gravar): o limite
+     * ultrapassado e o valor comparado com ele, para quem decide ver quanto passa do limite.
+     */
+    public void reviewTriggeredBy(String reason, Money limit, Money considered) {
+        Guard.require(reviewRequired && informedAt != null, "payment.review_not_required",
+                "O pagamento não exige aprovação");
+        Guard.require(reason != null && limit != null && considered != null, "payment.review_trigger_required",
+                "Motivo, limite e valor considerado obrigatórios");
+        this.reviewReason = reason;
+        this.reviewLimit = limit;
+        this.reviewConsideredAmount = considered;
     }
 
     /** Aprovação do pagamento informado: segregação — quem informou não aprova. */
@@ -489,5 +513,17 @@ public class Payment extends TenantScopedEntity {
 
     public String getEvidenceSha256() {
         return evidenceSha256;
+    }
+
+    public String getReviewReason() {
+        return reviewReason;
+    }
+
+    public Money getReviewLimit() {
+        return reviewLimit;
+    }
+
+    public Money getReviewConsideredAmount() {
+        return reviewConsideredAmount;
     }
 }

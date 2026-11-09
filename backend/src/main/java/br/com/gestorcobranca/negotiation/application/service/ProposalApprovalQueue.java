@@ -42,9 +42,19 @@ class ProposalApprovalQueue {
     }
 
     List<Proposal> eligibleFor(Actor actor) {
+        return eligibleFor(actor, null);
+    }
+
+    /** @param creditorId só as propostas deste credor (nulo = todos os do escopo) */
+    List<Proposal> eligibleFor(Actor actor, UUID creditorId) {
         accessScope.requirePermission(Permission.NEGOTIATION_APPROVE);
         Guard.require(actor.isUser(), "proposal.approver_must_be_user", "Somente usuários aprovam propostas");
         Set<UUID> allowed = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());
+        if (creditorId != null) {
+            // filtro de credor na consulta (antes do limite de varredura), não depois
+            accessScope.requireCreditor(creditorId);
+            allowed = Set.of(creditorId);
+        }
         Map<UUID, Optional<AuthorityLimits>> limitsByCreditor = new HashMap<>();
         List<Proposal> eligible = new ArrayList<>();
         for (Proposal p : proposals.findPendingApproval(allowed, SCAN_LIMIT)) {
@@ -67,7 +77,7 @@ class ProposalApprovalQueue {
         }
     }
 
-    private static ProposalTerms.AuthorityRequirement requirement(Proposal p) {
+    static ProposalTerms.AuthorityRequirement requirement(Proposal p) {
         return new ProposalTerms.AuthorityRequirement(p.getLevel(), p.getRequiredDiscountShare().value(),
                 p.getInstallments(), p.getTotalAmount(), p.getDownPaymentShare().value(), p.getRenegotiationNumber());
     }

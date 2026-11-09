@@ -30,6 +30,8 @@ import { CALL_RESULT_LABELS, HANGUP_SIDE_LABELS } from '../data/telephony.labels
 import { CallFilter, CallResult, CallView } from '../data/telephony.models';
 import { durationText, isCallActive } from '../data/telephony.rules';
 import { RecordingDialog, RecordingDialogData } from './recording-dialog';
+import { EvaluationLauncher, attendanceDate } from '../../incentive/quality/evaluation-launcher';
+import { BUSINESS_ZONE } from '../../collection/data/collection.rules';
 
 /**
  * Chamadas do escopo (supervisão): resultado, durações, tabulação e gravação. Ouvir exige
@@ -122,6 +124,12 @@ import { RecordingDialog, RecordingDialogData } from './recording-dialog';
             <app-status-chip domain="recording" [status]="r.status" />
           }
         }
+        <!-- monitoria de qualidade: só com QUALITY_EVALUATE, chamada encerrada e de outra pessoa -->
+        @if (evaluable(c)) {
+          <button class="btn btn-link" type="button" (click)="evaluate(c)" aria-label="Avaliar este atendimento" ngbTooltip="Avaliar este atendimento (monitoria)" data-tour="call-evaluate">
+            <app-icon name="clipboard-check" />
+          </button>
+        }
         @if (active(c)) {
           <button class="btn btn-link" type="button" (click)="hangup(c)" aria-label="Encerrar chamada" ngbTooltip="Encerrar chamada (auditado)">
             <app-icon name="telephone-x" />
@@ -183,6 +191,27 @@ export class CallList {
     { key: 'tabulation', header: 'Tabulação' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
+
+  private readonly evaluations = inject(EvaluationLauncher);
+
+  /** "Avaliar este atendimento": chamada atendida e encerrada, de outro operador, para quem avalia. */
+  protected evaluable(c: CallView): boolean {
+    return !!c.endedAt && !!c.answeredAt && this.evaluations.canEvaluate(c.operatorId);
+  }
+
+  protected evaluate(c: CallView): void {
+    const at = c.answeredAt ?? c.dialStartedAt ?? c.endedAt!;
+    this.evaluations
+      .open({
+        userId: c.operatorId!,
+        userName: this.users.name(c.operatorId!),
+        referenceType: 'CALL',
+        referenceId: c.id,
+        evaluatedOn: attendanceDate(at),
+        label: `chamada ${c.direction === 'INBOUND' ? 'recebida' : 'feita'} em ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: BUSINESS_ZONE }).format(new Date(at))}${c.debtorId ? ' · ' + this.debtors.name(c.debtorId) : ''}`,
+      })
+      .subscribe();
+  }
 
   protected resultText(result: CallResult): string {
     return CALL_RESULT_LABELS[result] ?? result;

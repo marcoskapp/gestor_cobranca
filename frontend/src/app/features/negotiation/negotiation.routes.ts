@@ -48,6 +48,14 @@ export const NEGOTIATION_ROUTES: Routes = [
     loadComponent: () => import('./proposals/proposal-list').then((m) => m.ProposalList),
   },
   {
+    // decisão aberta pela fila: contador "1 de N", "Aprovar e abrir a próxima" e volta à fila com os filtros
+    path: 'aprovacoes/:id',
+    title: 'Aprovação de proposta',
+    canActivate: [permissionGuard],
+    data: { permissions: NEGOTIATION_PERMISSIONS.approvals, queue: true },
+    loadComponent: () => import('./proposals/proposal-detail').then((m) => m.ProposalDetail),
+  },
+  {
     path: 'acordos',
     title: 'Acordos',
     canActivate: [permissionGuard],
