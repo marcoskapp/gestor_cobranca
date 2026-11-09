@@ -34,6 +34,11 @@ public enum AccessEventType {
     UNAUTHENTICATED,
     /** Visualização de dado pessoal sem máscara (documento, contato). */
     SENSITIVE_DATA_VIEWED,
+    /**
+     * Busca de devedor por dado pessoal completo (CPF/CNPJ ou telefone) na busca rápida: critério, quantidade e ids
+     * devolvidos — nunca o termo buscado.
+     */
+    PERSONAL_DATA_SEARCHED,
     /** Consulta a remuneração (extrato, razão ou simulação de comissão) de outro usuário. */
     COMPENSATION_DATA_VIEWED,
     /** Exportação de dados (relatórios, evidências). */

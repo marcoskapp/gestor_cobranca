@@ -129,7 +129,7 @@ class DebtTitleService implements DebtTitleUseCases {
             }
         }
         TitleSearchCriteria criteria = new TitleSearchCriteria(debtorVisibility.allowedCreditors(), filter.creditorId(),
-                filter.portfolioId(), filter.debtorId(), statuses, dueOnOrAfter, dueOnOrBefore);
+                filter.portfolioId(), filter.debtorId(), statuses, dueOnOrAfter, dueOnOrBefore, filter.importBatchId());
         return PageResponse.of(titles.search(criteria, page.toPageable(SEARCH_SORT, Sort.by("dueDate", "id"))),
                 t -> DebtViews.title(t, today));
     }

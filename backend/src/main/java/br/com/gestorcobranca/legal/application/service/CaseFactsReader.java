@@ -89,7 +89,7 @@ class CaseFactsReader {
         List<TitleView> content;
         do {
             content = titles.search(new TitleSearch(c.creditorId(), c.portfolioId(), c.debtorId(), "OPEN", null, null,
-                    null, null), new PageQuery(page++, PAGE)).content();
+                    null, null, null), new PageQuery(page++, PAGE)).content();
             found.addAll(content);
         } while (content.size() == PAGE);
         return snapshots(found);

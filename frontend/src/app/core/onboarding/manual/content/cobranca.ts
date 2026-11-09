@@ -106,6 +106,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Cada fila tem critérios (credor, carteira, atraso, saldo, score), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz.',
         'Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou.',
+        'O nome da fila abre a lista de casos dessa fila.',
       ],
       profiles: ['SUPERVISOR', 'GESTOR'],
       inputs: ['Casos elegíveis e equipes cadastradas.', 'Faixa de score, quando há modelo em uso.'],
@@ -208,7 +209,10 @@ export const MANUAL: ModuleManual = {
       id: 'debt.debtors',
       title: 'Devedores',
       objective: 'Encontre um devedor por nome ou documento e abra a ficha com títulos, contatos e histórico.',
-      purpose: ['Mostra pessoas e empresas com títulos nos credores que você atende. O documento é enviado de forma protegida, fora do endereço da página.'],
+      purpose: [
+        'Mostra pessoas e empresas com títulos nos credores que você atende. O documento é enviado de forma protegida, fora do endereço da página.',
+        'De qualquer tela, a busca rápida (Ctrl + K) também encontra devedor e caso: nome (3 letras ou mais), CPF/CNPJ ou telefone completos, ou o código do título no credor. Mostra no máximo 10 devedores e o caso de cada um; busca por CPF/CNPJ ou telefone fica registrada no log de acesso, e nada do que você digita vai para o endereço da página. Os "Recentes" ficam só enquanto a sessão estiver aberta.',
+      ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'ANALISTA_CARTEIRA', 'AUDITOR', 'COMPLIANCE'],
       inputs: ['Devedores gravados pela importação.'],
       outputs: ['Acesso à ficha do devedor.'],
@@ -221,10 +225,11 @@ export const MANUAL: ModuleManual = {
     {
       id: 'debt.debtor-detail',
       title: 'Ficha do devedor',
-      objective: 'Tudo sobre o devedor: posição da dívida, dados, títulos, contatos, razão, titularidade e restrições.',
+      objective: 'Tudo sobre o devedor: posição da dívida, dados, títulos, contatos, interações, razão, titularidade e restrições.',
       purpose: [
-        'Contatos podem ser confirmados ou marcados como inválidos. Ver o documento completo exige permissão e fica registrado.',
-        'Daqui você envia o link do portal de autonegociação e baixa o dossiê de contato.',
+        'Contatos podem ser confirmados ou marcados como inválidos. Ver o documento completo exige permissão e fica registrado. Em "Mais ações" você envia o link do portal de autonegociação e baixa o dossiê de contato.',
+        '"Abrir caso" leva ao caso em cobrança (com mais de um, você escolhe o credor e a carteira) e "Simular" abre o simulador já com o credor, o devedor e o caso. Aberta pela estação (painel lateral), a ficha não mostra os dois: você continua no caso atual.',
+        'A aba Interações reúne os 50 contatos mais recentes de todos os casos do devedor (os anteriores ficam em cada caso); o cartão "Relacionados" lista casos, acordos, pagamentos, contestações, casos jurídicos e conversas — só o que o seu perfil pode abrir.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'ANALISTA_CARTEIRA', 'AUDITOR', 'COMPLIANCE'],
       inputs: ['Importações, interações, pagamentos e restrições do devedor.'],
@@ -240,7 +245,10 @@ export const MANUAL: ModuleManual = {
       id: 'debt.titles',
       title: 'Títulos',
       objective: 'Consulte as dívidas por credor, carteira, situação, atraso e vencimento, inclusive as já encerradas.',
-      purpose: ['As faixas de atraso seguem o padrão da cobrança e consideram apenas títulos em cobrança.'],
+      purpose: [
+        'As faixas de atraso seguem o padrão da cobrança e consideram apenas títulos em cobrança.',
+        'Aberta pelo lote de importação ("Títulos importados"), mostra só os títulos daquela carga (os criados ou atualizados por ela por último).',
+      ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'ANALISTA_CARTEIRA', 'AUDITOR'],
       inputs: ['Títulos gravados pela importação, com pagamentos e ajustes posteriores.'],
       outputs: ['Acesso ao detalhe do título e às ações do seu ciclo de vida.'],
@@ -256,7 +264,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Saldo por componente, razão, titularidade e as ações do ciclo de vida de um título.',
       purpose: [
         'O saldo é calculado a partir do razão do título. Se divergir do saldo informado pelo credor, a diferença aparece em destaque.',
-        'Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria.',
+        'Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria. O cartão "Relacionados" leva ao devedor, ao caso da carteira, aos acordos que incluem o título, à contestação, ao caso jurídico e ao lote de importação.',
         'Corrigir valor muda o saldo dos componentes com motivo e evidência: até o limite da assessoria (somando as reduções do mesmo título {{debt.cumulativeWindow}}) aplica na hora; acima, ou em aumento do saldo, outra pessoa aprova. Título em acordo em vigor não é corrigido: renegocie antes.',
       ],
       profiles: ['SUPERVISOR', 'GESTOR', 'FINANCEIRO', 'ANALISTA_CARTEIRA', 'AUDITOR'],

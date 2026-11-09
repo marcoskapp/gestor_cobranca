@@ -224,6 +224,13 @@ export class InteractionsApi {
       params: toHttpParams({ page: page.page, size: page.size }),
     });
   }
+
+  /** Interações do devedor em todos os casos dos credores do escopo, da mais recente à mais antiga. */
+  listByDebtor(debtorId: string, page: PageRequest): Observable<PageResponse<InteractionView>> {
+    return this.http.get<PageResponse<InteractionView>>(`${BASE}/debtors/${debtorId}/interactions`, {
+      params: toHttpParams({ page: page.page, size: page.size }),
+    });
+  }
 }
 
 /** Tarefas, retornos e agenda (datas no fuso de operação). */

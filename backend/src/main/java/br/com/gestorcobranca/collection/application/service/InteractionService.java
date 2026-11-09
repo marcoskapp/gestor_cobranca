@@ -37,6 +37,8 @@ import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -190,6 +192,17 @@ class InteractionService implements InteractionUseCases {
         CollectionCase c = access.visible(caseId);
         return PageResponse.of(interactions.findByCaseIdOrderByStartedAtDesc(c.getId(), page.toPageable()),
                 CollectionViews::interaction);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<InteractionView> listByDebtor(UUID debtorId, PageQuery page) {
+        Set<UUID> allowed = access.creditorFilter();
+        Pageable pageable = page.toPageable();
+        if (allowed != null && allowed.isEmpty()) {
+            return PageResponse.of(Page.empty(pageable), CollectionViews::interaction);
+        }
+        return PageResponse.of(interactions.findByDebtor(debtorId, allowed, pageable), CollectionViews::interaction);
     }
 
     /**

@@ -65,6 +65,9 @@ interface DisputeJpaRepository extends JpaRepository<Dispute, UUID>, JpaSpecific
         if (c.creditorId() != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("creditorId"), c.creditorId()));
         }
+        if (c.debtorId() != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("debtorId"), c.debtorId()));
+        }
         if (c.statuses() != null && !c.statuses().isEmpty()) {
             spec = spec.and((root, query, cb) -> root.get("status").in(c.statuses()));
         }

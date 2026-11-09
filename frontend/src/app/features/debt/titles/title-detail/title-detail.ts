@@ -38,13 +38,16 @@ import { AmountAdjustmentView } from '../../data/debt.models';
 import { KpiCard } from '../../../../shared/components/kpi-card/kpi-card';
 import { MoreAction, MoreActions } from '../../../../shared/components/more-actions/more-actions';
 import { TabsMore } from '../../../../shared/components/tabs-more/tabs-more';
+import { RelatedRecords } from '../../../../shared/components/related-records/related-records';
+import { RelatedRecord } from '../../../../shared/components/related-records/related-targets';
+import { activeCases, debtorLinks } from '../../data/debtor-links';
 
 type ManualAction = 'suspend' | 'reactivate' | 'cancel' | 'return';
 
 /** Detalhe do título: dados, saldo por componente, razão, titularidade e ações de ciclo de vida. */
 @Component({
   selector: 'app-title-detail',
-  imports: [TabsMore, RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, TitleBalance, TitleLedger, TitleOwnership, TitlePrescription, TitleAmountHistory, OverdueBadge, Icon, NgbNavModule, KpiCard, MoreActions],
+  imports: [TabsMore, RouterLink, PageHeader, StatusChip, Skeleton, EmptyState, Amount, AppDatePipe, TitleBalance, TitleLedger, TitleOwnership, TitlePrescription, TitleAmountHistory, OverdueBadge, Icon, NgbNavModule, KpiCard, MoreActions, RelatedRecords],
   templateUrl: './title-detail.html',
   styleUrl: '../../debt.scss',
 })
@@ -126,6 +129,44 @@ export class TitleDetail {
   protected readonly portfolios = nameMap(inject(PortfolioNames), () => [this.current()?.portfolioId]);
 
   protected readonly titleLabel = titleLabel;
+
+  /** Casos, acordos e casos jurídicos do devedor que envolvem este título (só o que o perfil abre). */
+  private readonly links = debtorLinks(() => this.current()?.debtorId, ['cases', 'agreements', 'matters']);
+  private readonly linkData = valueOr(this.links, undefined);
+  private readonly dates = new AppDatePipe();
+
+  /** Cartão "Relacionados": devedor, caso da carteira, acordos, contestação, caso jurídico e lote de importação. */
+  protected readonly related = computed<RelatedRecord[]>(() => {
+    const t = this.current();
+    if (!t) {
+      return [];
+    }
+    const l = this.linkData();
+    const records: RelatedRecord[] = [{ kind: 'debtor', id: t.debtorId, label: this.debtors.name(t.debtorId) }];
+    // o caso é por devedor e carteira: o ativo primeiro, depois os encerrados
+    const cases = (l?.cases ?? []).filter((c) => c.portfolioId === t.portfolioId);
+    for (const c of [...activeCases(cases), ...cases.filter((c) => c.status === 'CLOSED')]) {
+      records.push({ kind: 'case', id: c.id, label: `${this.creditors.name(c.creditorId)} · ${this.portfolios.name(c.portfolioId)}`, hint: describeStatus('case', c.status).label });
+    }
+    for (const a of (l?.agreements ?? []).filter((a) => a.titleIds.includes(t.id))) {
+      records.push({
+        kind: 'agreement',
+        id: a.id,
+        label: `${formatAmount(a.totalAmount)} · formalizado em ${this.dates.transform(a.formalizedAt, 'date')}`,
+        hint: describeStatus('agreement', a.status).label,
+      });
+    }
+    if (t.disputeId) {
+      records.push({ kind: 'dispute', id: t.disputeId, label: 'Contestação do título', hint: t.disputeBlocked ? 'Cobrança bloqueada' : undefined });
+    }
+    for (const m of (l?.matters ?? []).filter((m) => m.titleIds.includes(t.id))) {
+      records.push({ kind: 'legalMatter', id: m.id, label: 'Caso jurídico', hint: describeStatus('legalStage', m.stage).label });
+    }
+    if (t.importBatchId) {
+      records.push({ kind: 'importBatch', id: t.importBatchId, label: 'Última carga do título (lote de importação)' });
+    }
+    return records;
+  });
 
   constructor() {
     effect(() => {

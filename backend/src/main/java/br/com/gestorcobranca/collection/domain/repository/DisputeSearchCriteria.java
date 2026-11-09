@@ -21,18 +21,28 @@ import java.util.UUID;
  * @param adjustmentPending  ajuste sugerido no título pendente
  * @param supervisionAsOf    visão do supervisor: sem responsável ou com prazo (interno ou de resposta) antes desta data
  * @param mailReplyPending   com resposta do credor por e-mail aguardando a confirmação do analista
+ * @param debtorId           contestações do devedor
  */
 public record DisputeSearchCriteria(Set<UUID> allowedCreditorIds, UUID creditorId, Set<DisputeStatus> statuses,
                                     Set<DisputeType> types, Set<DisputeOrigin> origins, UUID assigneeId,
                                     boolean unassigned, Boolean overdue, LocalDate dueUntil, Boolean awaitingCreditor,
                                     boolean noticePending, boolean adjustmentPending, LocalDate supervisionAsOf,
-                                    boolean mailReplyPending) {
+                                    boolean mailReplyPending, UUID debtorId) {
+
+    public DisputeSearchCriteria(Set<UUID> allowedCreditorIds, UUID creditorId, Set<DisputeStatus> statuses,
+                                 Set<DisputeType> types, Set<DisputeOrigin> origins, UUID assigneeId,
+                                 boolean unassigned, Boolean overdue, LocalDate dueUntil, Boolean awaitingCreditor,
+                                 boolean noticePending, boolean adjustmentPending, LocalDate supervisionAsOf,
+                                 boolean mailReplyPending) {
+        this(allowedCreditorIds, creditorId, statuses, types, origins, assigneeId, unassigned, overdue, dueUntil,
+                awaitingCreditor, noticePending, adjustmentPending, supervisionAsOf, mailReplyPending, null);
+    }
 
     public DisputeSearchCriteria(Set<UUID> allowedCreditorIds, UUID creditorId, Set<DisputeStatus> statuses,
                                  Set<DisputeType> types, Set<DisputeOrigin> origins, UUID assigneeId,
                                  boolean unassigned, Boolean overdue, LocalDate dueUntil, Boolean awaitingCreditor,
                                  boolean noticePending, boolean adjustmentPending, LocalDate supervisionAsOf) {
         this(allowedCreditorIds, creditorId, statuses, types, origins, assigneeId, unassigned, overdue, dueUntil,
-                awaitingCreditor, noticePending, adjustmentPending, supervisionAsOf, false);
+                awaitingCreditor, noticePending, adjustmentPending, supervisionAsOf, false, null);
     }
 }

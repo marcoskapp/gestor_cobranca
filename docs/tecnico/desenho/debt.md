@@ -1,6 +1,6 @@
-# Desenho do módulo debt — correção de valor do título
+# Desenho do módulo debt — correção de valor do título e busca rápida
 
-Desenho técnico da correção manual do valor do título. As regras de negócio estão em
+Desenho técnico da correção manual do valor do título (§1–§5) e da busca rápida de devedor (§6). As regras de negócio estão em
 [negocio/correcao-de-valor.md](../../negocio/correcao-de-valor.md) (decisões 802–813, 864, 865, 872 e as revisões do
 responsável 888–892). Este documento cobre, por enquanto, só a correção de valor; o restante do
 módulo (devedores, títulos, razão, garantias, prescrição) segue descrito no código e nas decisões.
@@ -89,3 +89,38 @@ esperar; pedido pendente recusado antes do envio; arquivo removido quando a regr
 - Integração: `TitleAmountAdjustmentIT`, `TitleAmountLimitIT` (acumulado na janela e fora dela; concorrência no lock
   do título; proposta vencida com o
   relógio de teste `support/MutableClock`, pendência e job), `TitleAmountEvidenceUploadIT`.
+
+## 6. Busca rápida de devedor (`DebtorQuickSearch`, revisão de produto 11/2026 — item 1.3)
+
+Porta `application/port/in/DebtorQuickSearch` (sem endpoint próprio; quem expõe é o collection,
+`POST /api/v1/collection/quick-search` — [collection.md](collection.md) §8.4), implementada por
+`DebtorQuickSearchService`. O termo é classificado no domínio (`domain/service/QuickSearchTerm`):
+
+| Termo | Critério | Consulta |
+| --- | --- | --- |
+| CPF/CNPJ completo e válido (com ou sem máscara) | `DOCUMENT` | blind index `debtor.document_hash` |
+| Telefone do Brasil completo (DDD + número; `+55` opcional) | `PHONE` | blind index `debtor_contact.value_hash` (`ix_debtor_contact_hash`), com o escopo na consulta; só se o documento não achou ninguém visível (CPF válido de 11 dígitos também pode ser celular) |
+| Sem espaço, 3 a 80 caracteres, e que não seja documento nem telefone | `TITLE_CODE` | `debt_title.external_id` exato (`ix_debt_title_external_id`, **V0306**) |
+| Com letra e 3+ letras ou dígitos | `NAME` | trecho do nome (`ix_debtor_name_trgm`), pela mesma consulta da lista de devedores |
+
+- Documento ou telefone **incompleto** nunca é buscado como documento, telefone ou nome (nunca por parte de dado
+  pessoal); sem espaço, ele só vira busca **exata** pelo código do título no credor (ex.: `071.340` acha o título cujo
+  código é exatamente esse). Termo curto ou vazio devolve `criteria` vazio.
+- Precedência: o documento é conferido com a visibilidade do ator **antes** de decidir pelo telefone (documento de
+  devedor fora do escopo conta como "não achou" e o telefone é buscado).
+- Telefone e código do título aplicam o escopo na própria consulta (título no credor ou coobrigação vigente, a regra de
+  `DebtorVisibility`), em ordem de id: o limite de candidatos e o "há mais resultados" contam só devedores do escopo;
+  `filterVisible` continua como segunda barreira. Credores do resultado em lote (`findDebtorCreditors` e
+  `findActiveDebtorCreditors`: duas consultas).
+- Escopo: candidatos de documento/telefone/código passam por `DebtorVisibility#filterVisible` (em lote); o nome usa o
+  filtro de credores da própria consulta; os credores do resultado são só os do escopo. No máximo 10 devedores, sem
+  paginação (`truncated` avisa que há mais).
+- Exige `DEBTOR_VIEW` (`AccessScope#requirePermission`, defesa além do `@PreAuthorize`).
+- **Log de acesso**: busca por documento ou telefone grava `PERSONAL_DATA_SEARCHED` (`resource=debtor`,
+  `purpose=QUICK_SEARCH`, `criteria`, `returned`, `resourceIds` dos devolvidos) — inclusive com zero resultados; o termo
+  nunca é gravado (nem em log técnico, evento ou métrica; `QuickSearchTerm#toString` não o contém).
+- Testes: `QuickSearchTermTest` (classificação) e `CollectionQuickSearchIT` (escopo, critérios, log de acesso, web).
+
+Lista de títulos por lote: `TitleSearch.importBatchId` (`GET /titles?importBatchId=`) filtra os títulos cuja **última**
+carga foi o lote (`debt_title.import_batch_id`, atualizado a cada carga que toca o título; índice parcial
+`ix_debt_title_import_batch`). Usado no link "Títulos importados" do lote.

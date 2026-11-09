@@ -1,4 +1,7 @@
-import { Component, inject, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
 import { Amount } from '../../../shared/components/amount/amount';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
@@ -17,7 +20,7 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
 /** Tabela do razão de comissão (lista geral e recebimentos de um demonstrativo). */
 @Component({
   selector: 'app-receipt-table',
-  imports: [NgbTooltip, Icon, Amount, AppDatePipe, CellDef, DataTable, StatusChip],
+  imports: [NgbTooltip, Icon, Amount, AppDatePipe, CellDef, DataTable, StatusChip, RouterLink],
   template: `
     <app-data-table
       caption="Recebimentos e estornos no razão de comissão"
@@ -33,7 +36,12 @@ import { DialogService } from '../../../shared/dialog/dialog.service';
       emptyHint="Recebimentos entram no razão quando o pagamento é confirmado e aplicado."
     >
       <ng-template appCell="paidOn" [appCellOf]="query().rows()" let-r>
-        {{ r.paidOn | appDate: 'date' }}
+        <!-- recebimento → pagamento de origem (prestação de contas: conferir sem procurar de novo) -->
+        @if (r.paymentId && canOpenPayment()) {
+          <a [routerLink]="['/pagamentos', r.paymentId]" ngbTooltip="Abrir o pagamento">{{ r.paidOn | appDate: 'date' }}</a>
+        } @else {
+          {{ r.paidOn | appDate: 'date' }}
+        }
         @if (r.competenceDate !== r.paidOn) {
           <div class="app-muted rt-small">competência {{ r.competenceDate | appDate: 'date' }}</div>
         }
@@ -88,6 +96,9 @@ export class ReceiptTable {
   readonly emptyMessage = input('Nenhum recebimento encontrado.');
 
   private readonly dialog = inject(DialogService);
+  private readonly auth = inject(AuthService);
+  /** Link para o pagamento só para quem abre a ficha do pagamento (tela sem permissão fica oculta). */
+  protected readonly canOpenPayment = computed(() => this.auth.hasPermission(Permission.PAYMENT_VIEW));
   protected readonly paymentTypes = PAYMENT_TYPE_LABELS;
   protected readonly pending = PENDING_REASON_LABELS;
   protected readonly creditors = nameMap(inject(CreditorNames), () => (this.showCreditor() ? this.query().rows().map((r) => r.creditorId) : []));

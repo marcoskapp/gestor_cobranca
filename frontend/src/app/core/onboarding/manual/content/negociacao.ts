@@ -103,6 +103,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Gere o Pix de uma parcela, informe um pagamento recebido fora do Pix ou baixe o termo aceito. Ao informar um valor acima do limite da assessoria, a tela avisa que ele vai para a aprovação de outra pessoa.',
         'Renegociar volta ao simulador com os pagamentos já abatidos; o acordo atual é substituído na formalização.',
+        'Na tabela de pagamentos aplicados, a data abre o pagamento (com estorno, se houver). O cartão "Relacionados" leva aos registros ligados a este que o seu perfil pode abrir: devedor, caso, proposta, pagamentos e acordos da renegociação.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'FINANCEIRO', 'AUDITOR'],
       inputs: ['Formalização da proposta e pagamentos confirmados.'],

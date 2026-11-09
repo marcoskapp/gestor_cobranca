@@ -2,6 +2,7 @@ package br.com.gestorcobranca.debt.infrastructure.persistence;
 
 import br.com.gestorcobranca.debt.domain.model.ObligationParty;
 import br.com.gestorcobranca.debt.domain.model.ObligationRole;
+import br.com.gestorcobranca.debt.domain.repository.DebtorCreditor;
 import br.com.gestorcobranca.debt.domain.repository.ObligationPartyRepository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -33,6 +34,13 @@ interface ObligationPartyJpaRepository extends JpaRepository<ObligationParty, UU
             where p.debtorId in :debtorIds and p.creditorId in :creditorIds and p.endedOn is null
             """)
     List<UUID> findActiveDebtorIdsInCreditors(Collection<UUID> debtorIds, Collection<UUID> creditorIds);
+
+    @Override
+    @Query("""
+            select distinct new br.com.gestorcobranca.debt.domain.repository.DebtorCreditor(p.debtorId, p.creditorId)
+              from ObligationParty p where p.debtorId in :debtorIds and p.endedOn is null
+            """)
+    List<DebtorCreditor> findActiveDebtorCreditors(Collection<UUID> debtorIds);
 
     @Override
     @Query("""

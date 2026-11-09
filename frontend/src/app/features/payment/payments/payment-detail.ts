@@ -35,6 +35,8 @@ import { ReallocateDialog, ReallocateDialogData } from '../reallocation/realloca
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
+import { RelatedRecords } from '../../../shared/components/related-records/related-records';
+import { RelatedRecord } from '../../../shared/components/related-records/related-targets';
 
 /**
  * Ficha do pagamento: valores e destinos (alocações com o resultado da baixa), linha do tempo dos
@@ -42,7 +44,7 @@ import { MoreAction, MoreActions } from '../../../shared/components/more-actions
  */
 @Component({
   selector: 'app-payment-detail',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, KpiCard, MoreActions],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, KpiCard, MoreActions, RelatedRecords],
   templateUrl: './payment-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './payment-detail.scss'],
 })
@@ -159,6 +161,25 @@ export class PaymentDetail {
     const p = this.payment();
     const name = p ? this.debtors.name(p.debtorId) : '';
     return name && name !== '…' ? name : null;
+  });
+
+  protected readonly canOpenDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
+
+  /** Cartão "Relacionados": devedor, acordos e títulos que receberam o pagamento (ativos e estornados). */
+  protected readonly related = computed<RelatedRecord[]>(() => {
+    const p = this.payment();
+    if (!p) {
+      return [];
+    }
+    const records: RelatedRecord[] = [{ kind: 'debtor', id: p.debtorId, label: this.debtorName() ?? 'Ficha do devedor' }];
+    const agreements = [...new Set(p.allocations.map((a) => a.agreementId).filter((id): id is string => !!id))];
+    agreements.forEach((id, i) => records.push({ kind: 'agreement', id, label: agreements.length > 1 ? `Acordo ${i + 1}` : 'Acordo' }));
+    const titles = [...new Set(p.allocations.flatMap((a) => a.lines.map((l) => l.titleId)).filter((id): id is string => !!id))];
+    titles.slice(0, 5).forEach((id) => records.push({ kind: 'title', id, label: this.titles.name(id) || 'Título' }));
+    if (titles.length > 5) {
+      records.push({ kind: 'titleList', label: 'Títulos do devedor', queryParams: { devedor: p.debtorId } });
+    }
+    return records;
   });
 
   constructor() {

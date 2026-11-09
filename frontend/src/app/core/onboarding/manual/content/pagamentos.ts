@@ -47,7 +47,10 @@ export const MANUAL: ModuleManual = {
       id: 'payment.detail',
       title: 'Pagamento',
       objective: 'Destinos, linha do tempo, comprovante, aprovação, realocação e estorno de um pagamento.',
-      purpose: ['Veja quanto foi para cada acordo ou título e se a baixa foi aplicada. Pagamento aguardando aprovação mostra o destino solicitado por quem informou.'],
+      purpose: [
+        'Veja quanto foi para cada acordo ou título e se a baixa foi aplicada. Pagamento aguardando aprovação mostra o destino solicitado por quem informou.',
+        'O nome do devedor abre a ficha dele. O cartão "Relacionados" leva aos registros ligados a este que o seu perfil pode abrir: devedor, acordos e títulos que receberam o pagamento.',
+      ],
       profiles: ['FINANCEIRO', 'SUPERVISOR', 'GESTOR', 'AUDITOR'],
       inputs: ['Registro do pagamento e suas alocações.'],
       outputs: ['Aprovação, recusa, realocação ou estorno, com o efeito nas parcelas e títulos.'],

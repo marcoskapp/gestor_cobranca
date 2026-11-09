@@ -34,6 +34,12 @@ public interface InteractionUseCases {
     PageResponse<InteractionView> list(UUID caseId, PageQuery page);
 
     /**
+     * Interações do devedor em todos os casos dos credores do escopo do ator, da mais recente à mais antiga (histórico
+     * da ficha do devedor). Credor fora do escopo não aparece; sem nenhum credor no escopo, página vazia.
+     */
+    PageResponse<InteractionView> listByDebtor(UUID debtorId, PageQuery page);
+
+    /**
      * @param channel        PHONE, WHATSAPP, EMAIL, SMS, IN_PERSON, PORTAL ou LETTER
      * @param direction      OUTBOUND ou INBOUND
      * @param tabulationCode código da tabulação (alternativa a {@code tabulationId})

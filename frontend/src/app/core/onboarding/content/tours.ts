@@ -160,7 +160,7 @@ export const TOURS: readonly TourDefinition[] = [
       {
         anchor: 'search',
         title: 'Busca rápida (Ctrl + K)',
-        body: 'Digite parte do nome de uma tela ou ação e pressione Enter. É o caminho mais curto para qualquer lugar.',
+        body: 'Ache telas e ações pelo nome e tecle Enter. Com acesso a devedores, ache também devedor e caso por nome, CPF/CNPJ, telefone ou título.',
       },
       {
         anchor: 'tenant',
@@ -272,9 +272,9 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'debt.debtor-detail',
-    version: 1,
+    version: 2,
     title: 'Ficha do devedor',
-    summary: 'Posição, dados, títulos, contatos e histórico em um só lugar.',
+    summary: 'Posição, dados, títulos, contatos, interações e vínculos em um só lugar.',
     steps: [
       {
         anchor: 'debtor-summary',
@@ -287,15 +287,25 @@ export const TOURS: readonly TourDefinition[] = [
         body: 'Exibir o documento completo exige permissão e fica registrado no log de acesso. Use só quando necessário.',
       },
       {
+        anchor: 'debtor-open-case',
+        title: 'Abrir caso',
+        body: 'Leva ao caso em cobrança do devedor. Com mais de um (credores ou carteiras diferentes), escolha qual abrir.',
+      },
+      {
+        anchor: 'related-records',
+        title: 'Relacionados',
+        body: 'Casos, acordos, pagamentos, contestações, casos jurídicos e conversas do devedor. Só aparece o que o seu perfil pode abrir.',
+      },
+      {
         anchor: 'debtor-tabs',
         title: 'Títulos, contatos e histórico',
-        body: 'Contatos podem ser confirmados ou marcados como inválidos. Razão e titularidade mostram cada lançamento e cada carteira.',
+        body: 'Contatos podem ser confirmados ou marcados como inválidos. Interações reúne os contatos de todos os casos. Razão e titularidade mostram cada lançamento e cada carteira.',
         placement: 'above',
       },
       {
         anchor: 'page-actions',
         title: 'Ações da ficha',
-        body: 'Edite os dados cadastrais, veja os títulos na consulta completa ou baixe o dossiê de contato.',
+        body: 'Simule uma negociação, edite os dados cadastrais e, em "Mais ações", envie o link do portal ou baixe o dossiê de contato.',
       },
     ],
   },

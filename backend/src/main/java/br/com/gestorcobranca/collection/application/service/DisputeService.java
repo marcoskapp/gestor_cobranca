@@ -434,7 +434,7 @@ class DisputeService implements DisputeUseCases {
                 CollectionEnums.parseSet(DisputeOrigin.class, query.origins(), "dispute.origin_invalid", "Origem"),
                 assignee, query.unassigned(), query.overdue(), query.dueUntil(), query.awaitingCreditor(),
                 query.noticePending(), query.adjustmentPending(),
-                query.supervision() ? CollectionViews.today(clock) : null, query.mailReplyPending());
+                query.supervision() ? CollectionViews.today(clock) : null, query.mailReplyPending(), query.debtorId());
         Page<Dispute> result = disputes.search(criteria, page.toPageable(Sort.by("internalDueDate").ascending()
                 .and(Sort.by("responseDueDate")).and(Sort.by("id"))));
         return new PageResponse<>(views.views(result.getContent()), result.getNumber(), result.getSize(),

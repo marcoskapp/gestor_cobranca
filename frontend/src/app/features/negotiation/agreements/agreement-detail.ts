@@ -38,6 +38,8 @@ import { percent } from '../data/negotiation.labels';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { MoreAction, MoreActions } from '../../../shared/components/more-actions/more-actions';
+import { RelatedRecords } from '../../../shared/components/related-records/related-records';
+import { RelatedRecord } from '../../../shared/components/related-records/related-targets';
 
 const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse().join('/') : '—');
 
@@ -48,7 +50,7 @@ const date = (iso: string | null | undefined) => (iso ? iso.split('-').reverse()
  */
 @Component({
   selector: 'app-agreement-detail',
-  imports: [Icon, NgbTooltip, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, PaymentReviewAlert, InfoHint, KpiCard, MoreActions],
+  imports: [Icon, NgbTooltip, RouterLink, Amount, DocumentDisplay, EmptyState, PageHeader, Skeleton, StatusChip, AppDatePipe, PaymentReviewAlert, InfoHint, KpiCard, MoreActions, RelatedRecords],
   templateUrl: './agreement-detail.html',
   styleUrl: '../detail-page.scss',
 })
@@ -121,6 +123,42 @@ export class AgreementDetail {
   protected readonly active = computed(() => ['FORMALIZED', 'IN_PAYMENT'].includes(this.agreement()?.status ?? ''));
   protected readonly canPix = computed(() => this.active() && this.auth.hasPermission(Permission.PAYMENT_INSTRUCTION_CREATE));
   protected readonly canRegisterPayment = computed(() => this.auth.hasPermission(Permission.PAYMENT_REGISTER_EXTERNAL));
+  /** Pagamento aplicado e devedor viram link só para quem abre a ficha de destino. */
+  protected readonly canOpenPayment = computed(() => this.auth.hasPermission(Permission.PAYMENT_VIEW));
+  protected readonly canOpenDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
+  private readonly dates = new AppDatePipe();
+
+  /** Cartão "Relacionados": devedor, caso, proposta, pagamentos aplicados, acordos da renegociação e títulos. */
+  protected readonly related = computed<RelatedRecord[]>(() => {
+    const a = this.agreement();
+    if (!a) {
+      return [];
+    }
+    const records: RelatedRecord[] = [{ kind: 'debtor', id: a.debtorId, label: this.debtorName() ?? 'Ficha do devedor' }];
+    if (a.caseId) {
+      records.push({ kind: 'case', id: a.caseId, label: `Caso · ${this.creditors.name(a.creditorId)}` });
+    }
+    records.push({ kind: 'proposal', id: a.proposalId, label: 'Proposta de origem' });
+    if (a.replacedAgreementId) {
+      records.push({ kind: 'agreement', id: a.replacedAgreementId, label: 'Acordo anterior (renegociado)' });
+    }
+    if (a.replacedByAgreementId) {
+      records.push({ kind: 'agreement', id: a.replacedByAgreementId, label: 'Acordo atual (renegociação)' });
+    }
+    for (const p of this.payments().slice(0, 5)) {
+      records.push({
+        kind: 'payment',
+        id: p.paymentId,
+        label: `${formatAmount(p.amount)} em ${this.dates.transform(p.paidAt, 'date')}`,
+        hint: this.paymentStatus[p.status] ?? p.status,
+      });
+    }
+    if (this.payments().length > 5) {
+      records.push({ kind: 'paymentList', label: `Ver todos os pagamentos do devedor`, queryParams: { devedor: a.debtorId } });
+    }
+    records.push({ kind: 'titleList', label: `Títulos do devedor (${a.titleIds.length} no acordo)`, queryParams: { devedor: a.debtorId } });
+    return records;
+  });
 
   constructor() {
     effect(() => this.breadcrumbs.setCurrentLabel(this.debtorName()));

@@ -18,26 +18,64 @@
 
 @if (current(); as d) {
   <app-page-header [title]="d.name" [subtitle]="personTypes[d.personType] + (d.createdAt ? ' · cadastrado em ' + (d.createdAt | appDate: 'date') : '')">
-    <a class="btn btn-outline-secondary" routerLink="/titulos" [queryParams]="{ devedor: d.id }">
-      <app-icon name="file-earmark-text" />
-      Títulos
-    </a>
-    @if (canSendPortalLink() && active() && portalCreditors().length) {
-      <div ngbDropdown class="d-inline-block" placement="bottom-end">
-        <button class="btn btn-outline-secondary" type="button" ngbDropdownToggle ngbTooltip="Link de uso único por WhatsApp (passa pelo porteiro de contato)">
-          <app-icon name="link" />
-          Enviar link do portal
-          <app-icon name="chevron-down" />
-        </button>
-        <div ngbDropdownMenu class="shadow app-menu">
-          @for (c of portalCreditors(); track c) {
-            <button ngbDropdownItem type="button" (click)="sendPortalLink(d, c)">{{ creditors.name(c) }}</button>
-          }
+    <!-- ações de trabalho: fora do painel da estação (embutida, o operador já está no caso) -->
+    @if (!embedded && canSeeCases() && openCases().length) {
+      @if (openCases().length === 1) {
+        <a class="btn btn-primary" [routerLink]="['/cobranca/casos', openCases()[0].id]" data-tour="debtor-open-case">
+          <app-icon name="briefcase" />
+          Abrir caso
+        </a>
+      } @else {
+        <div ngbDropdown class="d-inline-block" placement="bottom-end" data-tour="debtor-open-case">
+          <button class="btn btn-primary" type="button" ngbDropdownToggle>
+            <app-icon name="briefcase" />
+            Abrir caso ({{ openCases().length }})
+            <app-icon name="chevron-down" />
+          </button>
+          <div ngbDropdownMenu class="shadow app-menu">
+            @for (c of openCases(); track c.id) {
+              <a ngbDropdownItem [routerLink]="['/cobranca/casos', c.id]">
+                {{ caseLabel(c) }}
+                <small class="d-block text-body-secondary">{{ caseStatus(c) }}</small>
+              </a>
+            }
+          </div>
         </div>
-      </div>
+      }
+    }
+    @if (!embedded && canSimulate() && active() && (openCases().length || simulateCreditors().length)) {
+      @if (openCases().length + simulateCreditors().length === 1) {
+        @if (openCases()[0]; as c) {
+          <a class="btn btn-outline-secondary" routerLink="/negociacao/simulador" [queryParams]="{ credor: c.creditorId, devedor: d.id, caso: c.id }">
+            <app-icon name="calculator" />
+            Simular
+          </a>
+        } @else {
+          <a class="btn btn-outline-secondary" routerLink="/negociacao/simulador" [queryParams]="{ credor: simulateCreditors()[0], devedor: d.id }">
+            <app-icon name="calculator" />
+            Simular
+          </a>
+        }
+      } @else {
+        <div ngbDropdown class="d-inline-block" placement="bottom-end">
+          <button class="btn btn-outline-secondary" type="button" ngbDropdownToggle>
+            <app-icon name="calculator" />
+            Simular
+            <app-icon name="chevron-down" />
+          </button>
+          <div ngbDropdownMenu class="shadow app-menu">
+            @for (c of openCases(); track c.id) {
+              <a ngbDropdownItem routerLink="/negociacao/simulador" [queryParams]="{ credor: c.creditorId, devedor: d.id, caso: c.id }">{{ caseLabel(c) }}</a>
+            }
+            @for (c of simulateCreditors(); track c) {
+              <a ngbDropdownItem routerLink="/negociacao/simulador" [queryParams]="{ credor: c, devedor: d.id }">{{ creditors.name(c) }}</a>
+            }
+          </div>
+        </div>
+      }
     }
     @if (canManage() && active()) {
-      <button class="btn btn-primary" type="button" (click)="edit(d)">
+      <button class="btn btn-outline-secondary" type="button" (click)="edit(d)">
         <app-icon name="pencil" />
         Editar dados
       </button>
@@ -85,6 +123,8 @@
       <dd>{{ d.notes || '—' }}</dd>
     </dl>
   </section>
+
+  <app-related-records [records]="related()" />
 
   <section class="app-card" aria-label="Títulos, contatos e histórico">
     <ul ngbNav #tabs="ngbNav" [activeId]="tab.value()" (activeIdChange)="tab.set($event)" class="nav-underline app-tabs" data-tour="debtor-tabs">
@@ -209,6 +249,15 @@
           </div>
         </ng-template>
       </li>
+
+      @if (canSeeCases()) {
+        <li [ngbNavItem]="'interacoes'">
+          <button ngbNavLink type="button" data-tour="debtor-interactions">Interações</button>
+          <ng-template ngbNavContent>
+            <div class="debt-tab"><app-debtor-interactions [debtorId]="d.id" [caseLabel]="caseLabelById" /></div>
+          </ng-template>
+        </li>
+      }
 
       <li [ngbNavItem]="'contratos'">
         <button ngbNavLink type="button">Contratos de origem</button>

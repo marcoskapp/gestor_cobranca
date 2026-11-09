@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "7c4ff86bbac6feb6",
+ "contentVersion": "8f8d772a913fa227",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -1421,7 +1421,7 @@
    "objective": "Resultado de um lote: contadores, ocorrências por linha e, quando cabe, importar a prévia ou reprocessar.",
    "purpose": [
     "Mostra quantas linhas foram lidas, aceitas e recusadas e quantos devedores e títulos foram criados ou atualizados.",
-    "Baixe o relatório de ocorrências para devolver ao credor as linhas que precisam de correção.",
+    "Baixe o relatório de ocorrências para devolver ao credor as linhas que precisam de correção. \"Títulos importados\" abre a lista de títulos da carga (os que ela criou ou atualizou por último).",
     "Com a retenção de arquivos de importação ligada (Compliance → Retenção), o arquivo original é descartado no prazo: o lote, os contadores e as ocorrências ficam, sem download nem reprocessamento."
    ],
    "profiles": [
@@ -1684,7 +1684,8 @@
    "objective": "Defina os critérios e a prioridade das filas e distribua os casos entre os operadores.",
    "purpose": [
     "Cada fila tem critérios (credor, carteira, atraso, saldo, score), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz.",
-    "Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou."
+    "Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou.",
+    "O nome da fila abre a lista de casos dessa fila."
    ],
    "profiles": [
     "SUPERVISOR",
@@ -1964,7 +1965,8 @@
    "title": "Devedores",
    "objective": "Encontre um devedor por nome ou documento e abra a ficha com títulos, contatos e histórico.",
    "purpose": [
-    "Mostra pessoas e empresas com títulos nos credores que você atende. O documento é enviado de forma protegida, fora do endereço da página."
+    "Mostra pessoas e empresas com títulos nos credores que você atende. O documento é enviado de forma protegida, fora do endereço da página.",
+    "De qualquer tela, a busca rápida (Ctrl + K) também encontra devedor e caso: nome (3 letras ou mais), CPF/CNPJ ou telefone completos, ou o código do título no credor. Mostra no máximo 10 devedores e o caso de cada um; busca por CPF/CNPJ ou telefone fica registrada no log de acesso, e nada do que você digita vai para o endereço da página. Os \"Recentes\" ficam só enquanto a sessão estiver aberta."
    ],
    "profiles": [
     "OPERADOR",
@@ -2006,10 +2008,11 @@
    "id": "debt.debtor-detail",
    "module": "cobranca",
    "title": "Ficha do devedor",
-   "objective": "Tudo sobre o devedor: posição da dívida, dados, títulos, contatos, razão, titularidade e restrições.",
+   "objective": "Tudo sobre o devedor: posição da dívida, dados, títulos, contatos, interações, razão, titularidade e restrições.",
    "purpose": [
-    "Contatos podem ser confirmados ou marcados como inválidos. Ver o documento completo exige permissão e fica registrado.",
-    "Daqui você envia o link do portal de autonegociação e baixa o dossiê de contato."
+    "Contatos podem ser confirmados ou marcados como inválidos. Ver o documento completo exige permissão e fica registrado. Em \"Mais ações\" você envia o link do portal de autonegociação e baixa o dossiê de contato.",
+    "\"Abrir caso\" leva ao caso em cobrança (com mais de um, você escolhe o credor e a carteira) e \"Simular\" abre o simulador já com o credor, o devedor e o caso. Aberta pela estação (painel lateral), a ficha não mostra os dois: você continua no caso atual.",
+    "A aba Interações reúne os 50 contatos mais recentes de todos os casos do devedor (os anteriores ficam em cada caso); o cartão \"Relacionados\" lista casos, acordos, pagamentos, contestações, casos jurídicos e conversas — só o que o seu perfil pode abrir."
    ],
    "profiles": [
     "OPERADOR",
@@ -2059,7 +2062,8 @@
    "title": "Títulos",
    "objective": "Consulte as dívidas por credor, carteira, situação, atraso e vencimento, inclusive as já encerradas.",
    "purpose": [
-    "As faixas de atraso seguem o padrão da cobrança e consideram apenas títulos em cobrança."
+    "As faixas de atraso seguem o padrão da cobrança e consideram apenas títulos em cobrança.",
+    "Aberta pelo lote de importação (\"Títulos importados\"), mostra só os títulos daquela carga (os criados ou atualizados por ela por último)."
    ],
    "profiles": [
     "OPERADOR",
@@ -2104,7 +2108,7 @@
    "objective": "Saldo por componente, razão, titularidade e as ações do ciclo de vida de um título.",
    "purpose": [
     "O saldo é calculado a partir do razão do título. Se divergir do saldo informado pelo credor, a diferença aparece em destaque.",
-    "Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria.",
+    "Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria. O cartão \"Relacionados\" leva ao devedor, ao caso da carteira, aos acordos que incluem o título, à contestação, ao caso jurídico e ao lote de importação.",
     "Corrigir valor muda o saldo dos componentes com motivo e evidência: até o limite da assessoria (somando as reduções do mesmo título {{debt.cumulativeWindow}}) aplica na hora; acima, ou em aumento do saldo, outra pessoa aprova. Título em acordo em vigor não é corrigido: renegocie antes."
    ],
    "profiles": [
@@ -3340,7 +3344,8 @@
    "objective": "Cronograma de parcelas, Pix por parcela, pagamentos, termo do acordo e renegociação.",
    "purpose": [
     "Gere o Pix de uma parcela, informe um pagamento recebido fora do Pix ou baixe o termo aceito. Ao informar um valor acima do limite da assessoria, a tela avisa que ele vai para a aprovação de outra pessoa.",
-    "Renegociar volta ao simulador com os pagamentos já abatidos; o acordo atual é substituído na formalização."
+    "Renegociar volta ao simulador com os pagamentos já abatidos; o acordo atual é substituído na formalização.",
+    "Na tabela de pagamentos aplicados, a data abre o pagamento (com estorno, se houver). O cartão \"Relacionados\" leva aos registros ligados a este que o seu perfil pode abrir: devedor, caso, proposta, pagamentos e acordos da renegociação."
    ],
    "profiles": [
     "OPERADOR",
@@ -3707,7 +3712,8 @@
    "title": "Pagamento",
    "objective": "Destinos, linha do tempo, comprovante, aprovação, realocação e estorno de um pagamento.",
    "purpose": [
-    "Veja quanto foi para cada acordo ou título e se a baixa foi aplicada. Pagamento aguardando aprovação mostra o destino solicitado por quem informou."
+    "Veja quanto foi para cada acordo ou título e se a baixa foi aplicada. Pagamento aguardando aprovação mostra o destino solicitado por quem informou.",
+    "O nome do devedor abre a ficha dele. O cartão \"Relacionados\" leva aos registros ligados a este que o seu perfil pode abrir: devedor, acordos e títulos que receberam o pagamento."
    ],
    "profiles": [
     "FINANCEIRO",
@@ -4172,7 +4178,8 @@
    "objective": "Totais, ajustes, arquivos, envio ao credor e repasses de um demonstrativo, etapa por etapa.",
    "purpose": [
     "Calcule depois do fim do período, revise e aprove. A conferência da soma mostra como se chega ao líquido.",
-    "Aprovado, exporte os arquivos conciliáveis, registre o envio e o aceite ou a contestação do credor."
+    "Aprovado, exporte os arquivos conciliáveis, registre o envio e o aceite ou a contestação do credor.",
+    "Na aba de recebimentos, a data de cada recebimento abre o pagamento de origem para conferir."
    ],
    "profiles": [
     "FINANCEIRO",

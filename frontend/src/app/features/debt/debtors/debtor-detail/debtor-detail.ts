@@ -1,6 +1,6 @@
-import { Component, DestroyRef, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
 import { NavigationHistory } from '../../../../core/layout/breadcrumbs/navigation-history';
-import { urlTab } from '../../../../shared/data/url-state';
+import { URL_STATE_EMBEDDED, urlTab } from '../../../../shared/data/url-state';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -48,15 +48,30 @@ import { MoreAction, MoreActions } from '../../../../shared/components/more-acti
 import { FORM_FIELD } from '../../../../shared/forms/field';
 import { NgbTooltip, NgbDropdownModule, NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { TabsMore } from '../../../../shared/components/tabs-more/tabs-more';
+import { RelatedRecords } from '../../../../shared/components/related-records/related-records';
+import { RelatedRecord } from '../../../../shared/components/related-records/related-targets';
+import { formatAmount } from '../../../../shared/components/amount/amount';
+import { describeStatus } from '../../../../shared/status/status';
+import { CaseView } from '../../../collection/data/collection.models';
+import { CHANNEL_LABELS as CONVERSATION_CHANNELS } from '../../../communication/data/communication.labels';
+import { DISPUTE_TYPE_LABELS } from '../../../collection/data/collection.labels';
+import { RELATED_PREVIEW, activeCases, debtorLinks } from '../../data/debtor-links';
+import { DebtorInteractions } from '../debtor-interactions/debtor-interactions';
 
 /**
  * Ficha do devedor: dados cadastrais (documento mascarado, revelação auditada), posição por
- * credor, títulos, contatos, contratos de origem, razão, titularidade e restrições de contato.
- * Valores revelados ficam apenas em memória nesta tela e são descartados ao sair.
+ * credor, títulos, contatos, contratos de origem, razão, titularidade, restrições de contato e
+ * histórico de interações; ações "Abrir caso" e "Simular" (um caso ativo → direto; vários → escolher)
+ * e o cartão "Relacionados" (casos, acordos, pagamentos, contestações, casos jurídicos e conversas que
+ * o perfil pode abrir). Valores revelados ficam apenas em memória nesta tela e são descartados ao sair.
+ *
+ * Embutida no painel da estação (`appUrlStateEmbedded`): sem "Abrir caso" e "Simular" — o operador já
+ * está no caso e simula pelo painel da estação; trocar de caso fica só pelo link explícito do
+ * "Relacionados" (decisão [D-9]).
  */
 @Component({
   selector: 'app-debtor-detail',
-  imports: [TabsMore, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions],
+  imports: [TabsMore, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions, RelatedRecords, DebtorInteractions],
   templateUrl: './debtor-detail.html',
   styleUrl: '../../debt.scss',
 })
@@ -75,7 +90,9 @@ export class DebtorDetail {
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
   /** Aba ativa na URL (`?aba=`): voltar para a ficha reabre a mesma aba. */
-  protected readonly tab = urlTab(['titulos', 'contatos', 'contratos', 'garantias', 'razao', 'titularidade', 'restricoes'], 'titulos');
+  protected readonly tab = urlTab(['titulos', 'contatos', 'interacoes', 'contratos', 'garantias', 'razao', 'titularidade', 'restricoes'], 'titulos');
+  /** Dentro do painel da estação: sem ações que tirem o operador do caso atual. */
+  protected readonly embedded = inject(URL_STATE_EMBEDDED, { optional: true }) ?? false;
 
   protected readonly personTypes = PERSON_TYPE_LABELS;
   protected readonly contactTypes = CONTACT_TYPE_LABELS;
@@ -88,6 +105,8 @@ export class DebtorDetail {
   protected readonly canReveal = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
   protected readonly canExportEvidence = computed(() => this.auth.hasPermission(Permission.CONTACT_RESTRICTION_MANAGE));
   protected readonly canSendPortalLink = computed(() => this.auth.hasPermission(Permission.MESSAGE_SEND));
+  protected readonly canSeeCases = computed(() => this.auth.hasPermission(Permission.CASE_VIEW));
+  protected readonly canSimulate = computed(() => this.auth.hasPermission(Permission.NEGOTIATION_SIMULATE));
   private readonly portalApi = inject(PortalAdminApi);
   /** Credores em que o devedor tem títulos em cobrança (o servidor confere se o portal está habilitado). */
   protected readonly portalCreditors = computed(() => [
@@ -99,9 +118,25 @@ export class DebtorDetail {
   /** Ações menos frequentes no menu "Mais ações" (padrão de ação da ficha, ux.md §12.2). */
   protected readonly moreActions = computed<MoreAction[]>(() => {
     const d = this.current();
-    return d && this.canExportEvidence()
-      ? [{ id: 'evidence', label: 'Dossiê de contato', hint: 'Restrições e tentativas de contato (acesso registrado)', icon: 'download', run: () => this.exportEvidence(d) }]
-      : [];
+    if (!d) {
+      return [];
+    }
+    const actions: MoreAction[] = [];
+    if (this.canSendPortalLink() && this.active()) {
+      for (const c of this.portalCreditors()) {
+        actions.push({
+          id: `portal:${c}`,
+          label: `Enviar link do portal · ${this.creditors.name(c)}`,
+          hint: 'Link de uso único por WhatsApp (passa pelo porteiro de contato)',
+          icon: 'link',
+          run: () => this.sendPortalLink(d, c),
+        });
+      }
+    }
+    if (this.canExportEvidence()) {
+      actions.push({ id: 'evidence', label: 'Dossiê de contato', hint: 'Restrições e tentativas de contato (acesso registrado)', icon: 'download', run: () => this.exportEvidence(d) });
+    }
+    return actions;
   });
   protected readonly summary = rxResource({ params: () => this.id(), stream: ({ params }) => this.debtorsApi.summary(params) });
   protected readonly position = valueOr(this.summary, undefined);
@@ -111,6 +146,77 @@ export class DebtorDetail {
   protected readonly contactRows = valueOr(this.contacts, []);
 
   protected readonly active = computed(() => this.current()?.status === 'ACTIVE');
+
+  /** Vínculos nos outros módulos (só o que o perfil abre; ver `debtorLinks`). */
+  protected readonly links = debtorLinks(() => this.id(), ['cases', 'agreements', 'payments', 'disputes', 'matters', 'conversations']);
+  private readonly linkData = valueOr(this.links, undefined);
+  protected readonly cases = computed(() => this.linkData()?.cases ?? []);
+  /** Casos em cobrança do devedor no escopo: destino de "Abrir caso" e de "Simular". */
+  protected readonly openCases = computed(() => activeCases(this.cases()));
+  /** Sem caso ativo, simular pelo credor (títulos em cobrança). */
+  protected readonly simulateCreditors = computed(() => (this.openCases().length ? [] : this.portalCreditors()));
+  protected readonly caseLabel = (c: CaseView) => `${this.creditors.name(c.creditorId)} · ${this.portfolios.name(c.portfolioId)}`;
+  protected readonly caseStatus = (c: CaseView) => describeStatus('case', c.status).label;
+  protected readonly caseLabelById = (caseId: string) => {
+    const c = this.cases().find((x) => x.id === caseId);
+    return c ? this.caseLabel(c) : 'Abrir caso';
+  };
+  private readonly dates = new AppDatePipe();
+
+  /** Cartão "Relacionados": os primeiros de cada tipo e "Ver todos" para a lista filtrada. */
+  protected readonly related = computed<RelatedRecord[]>(() => {
+    const d = this.current();
+    const l = this.linkData();
+    if (!d || !l) {
+      return [];
+    }
+    const records: RelatedRecord[] = [];
+    const sortedCases = [...this.openCases(), ...this.cases().filter((c) => c.status === 'CLOSED')];
+    for (const c of sortedCases.slice(0, RELATED_PREVIEW)) {
+      records.push({ kind: 'case', id: c.id, label: this.caseLabel(c), hint: describeStatus('case', c.status).label });
+    }
+    if (sortedCases.length > RELATED_PREVIEW) {
+      records.push({ kind: 'caseList', label: `Ver todos os casos (${sortedCases.length})`, queryParams: { devedor: d.id } });
+    }
+    records.push({ kind: 'titleList', label: 'Abrir na lista de títulos', queryParams: { devedor: d.id } });
+    for (const a of l.agreements.slice(0, RELATED_PREVIEW)) {
+      records.push({
+        kind: 'agreement',
+        id: a.id,
+        label: `${this.creditors.name(a.creditorId)} · ${formatAmount(a.totalAmount)}`,
+        hint: `${describeStatus('agreement', a.status).label} · ${this.dates.transform(a.formalizedAt, 'date')}`,
+      });
+    }
+    if (l.agreementTotal > RELATED_PREVIEW) {
+      records.push({ kind: 'agreementList', label: `Ver todos os acordos (${l.agreementTotal})`, queryParams: { devedor: d.id } });
+    }
+    for (const p of l.payments) {
+      records.push({
+        kind: 'payment',
+        id: p.id,
+        label: `${formatAmount(p.amount)} em ${this.dates.transform(p.paidAt, 'date')}`,
+        hint: describeStatus('payment', p.status).label,
+      });
+    }
+    if (l.paymentTotal > l.payments.length) {
+      records.push({ kind: 'paymentList', label: `Ver todos os pagamentos (${l.paymentTotal})`, queryParams: { devedor: d.id } });
+    }
+    for (const x of l.disputes.slice(0, RELATED_PREVIEW)) {
+      records.push({ kind: 'dispute', id: x.id, label: DISPUTE_TYPE_LABELS[x.type] ?? 'Contestação', hint: describeStatus('dispute', x.status).label });
+    }
+    for (const m of l.matters.slice(0, RELATED_PREVIEW)) {
+      records.push({ kind: 'legalMatter', id: m.id, label: `${this.creditors.name(m.creditorId)} · caso jurídico`, hint: describeStatus('legalStage', m.stage).label });
+    }
+    for (const c of l.conversations) {
+      records.push({
+        kind: 'conversation',
+        id: c.id,
+        label: `${CONVERSATION_CHANNELS[c.channel] ?? c.channel} · ${c.contactMasked}`,
+        hint: describeStatus('conversation', c.status).label,
+      });
+    }
+    return records;
+  });
 
   /** Título escolhido nas abas de razão e titularidade: o primeiro em cobrança, por padrão. */
   protected readonly selectedTitleId = linkedSignal<readonly TitleView[], string | null>({
@@ -124,8 +230,14 @@ export class DebtorDetail {
   protected readonly creditors = nameMap(inject(CreditorNames), () => [
     ...this.titleRows().map((t) => t.creditorId),
     ...(this.position()?.creditors.map((c) => c.creditorId) ?? []),
+    ...this.cases().map((c) => c.creditorId),
+    ...(this.linkData()?.agreements.map((a) => a.creditorId) ?? []),
+    ...(this.linkData()?.matters.map((m) => m.creditorId) ?? []),
   ]);
-  protected readonly portfolios = nameMap(inject(PortfolioNames), () => this.titleRows().map((t) => t.portfolioId));
+  protected readonly portfolios = nameMap(inject(PortfolioNames), () => [
+    ...this.titleRows().map((t) => t.portfolioId),
+    ...this.cases().map((c) => c.portfolioId),
+  ]);
 
   /** Documento completo revelado (somente em memória, nesta tela). */
   protected readonly revealedDocument = signal<string | null>(null);
@@ -163,6 +275,12 @@ export class DebtorDetail {
 
   constructor() {
     effect(() => this.breadcrumbs.setCurrentLabel(this.current()?.name ?? null));
+    // `?aba=interacoes` sem CASE_VIEW (link compartilhado, perfil trocado): a aba não existe, volta para Títulos
+    effect(() => {
+      if (this.tab.value() === 'interacoes' && !this.canSeeCases()) {
+        untracked(() => this.tab.set('titulos'));
+      }
+    });
     // Dados revelados não sobrevivem à troca de devedor nem à saída da tela.
     effect(() => {
       this.id();

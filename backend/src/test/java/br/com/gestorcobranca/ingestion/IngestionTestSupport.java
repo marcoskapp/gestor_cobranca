@@ -201,12 +201,12 @@ abstract class IngestionTestSupport extends IntegrationTest {
     }
 
     long titleCount(UUID creditorId) {
-        return system(() -> titles.search(new TitleSearch(creditorId, null, null, null, null, null, null, null),
+        return system(() -> titles.search(new TitleSearch(creditorId, null, null, null, null, null, null, null, null),
                 PageQuery.of(0, 1)).totalElements());
     }
 
     List<TitleView> allTitles(UUID creditorId) {
-        return system(() -> titles.search(new TitleSearch(creditorId, null, null, null, null, null, null, null),
+        return system(() -> titles.search(new TitleSearch(creditorId, null, null, null, null, null, null, null, null),
                 PageQuery.of(0, 200)).content());
     }
 
