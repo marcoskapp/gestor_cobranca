@@ -217,7 +217,7 @@ describe('conteúdo do onboarding', () => {
     // v10: endereço único do caso (J9); v11: selo de vulnerabilidade
     expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(11);
     expect(findTour('collection.station')?.version).toBe(4);
-    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(3);
+    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(4);
     // aprovações no padrão único (revisão 11/2026, 3.1): decisão da fila antes do detalhe (":id" casaria o caminho)
     expect(findScreen('/pagamentos/aprovacoes/pay-1')?.key).toBe('payment.approval');
     expect(findScreen('/titulos/correcoes-de-valor/aj-1')?.key).toBe('debt.title-amount-approval');

@@ -1,9 +1,9 @@
+import { countActiveFilters } from '../../../shared/data/filter-count';
 import { convertToParamMap } from '@angular/router';
 import { readUrlValues, urlParamsOf } from '../../../shared/data/url-state';
 import {
   DISPUTE_FORM_DEFAULTS,
   DISPUTE_URL_CODECS,
-  activeDisputeFilters,
   adjustmentShortcut,
   canWorkDispute,
   disputeActions,
@@ -95,8 +95,10 @@ describe('regras de tela das contestações', () => {
   });
 
   it('conta os filtros aplicados para o botão "Filtros (n)" do celular', () => {
-    expect(activeDisputeFilters(DISPUTE_FORM_DEFAULTS)).toBe(0);
-    expect(activeDisputeFilters({ ...DISPUTE_FORM_DEFAULTS, creditor: ['c-1'], awaiting: true })).toBe(2);
-    expect(activeDisputeFilters({ ...DISPUTE_FORM_DEFAULTS, status: '' })).toBe(1);
+    // contagem padrão da aplicação (shared/data/filter-count) sobre o padrão do formulário
+    const count = (v: typeof DISPUTE_FORM_DEFAULTS) => countActiveFilters(v, DISPUTE_FORM_DEFAULTS);
+    expect(count(DISPUTE_FORM_DEFAULTS)).toBe(0);
+    expect(count({ ...DISPUTE_FORM_DEFAULTS, creditor: ['c-1'], awaiting: true })).toBe(2);
+    expect(count({ ...DISPUTE_FORM_DEFAULTS, status: '' })).toBe(1);
   });
 });

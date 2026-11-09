@@ -408,10 +408,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'negotiation.proposals',
-    version: 2,
+    version: 3,
     path: '/negociacao/propostas',
     tourId: 'negotiation.proposals',
-    changes: [{ version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Criação e total.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] }],
+    changes: [
+      { version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Criação e total.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] },
+      { version: 3, items: ['No celular, os filtros ficam no botão "Filtros (n)", com quantos estão aplicados.'] },
+    ],
   },
   {
     key: 'negotiation.proposal-detail',
@@ -460,12 +463,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.instruction', version: 1, path: '/pagamentos/instrucoes/:id', tourId: 'payment.instruction' },
   {
     key: 'payment.review',
-    version: 3,
+    version: 4,
     path: '/pagamentos/aprovacoes',
     tourId: 'payment.review',
     changes: [
       { version: 2, items: ['Coluna "Destino solicitado": para onde o valor vai (parcelas do acordo ou títulos) antes de aprovar.'] },
       { version: 3, items: ['Filtros de credor e de onde o pagamento entrou; "Revisar" abre a decisão com quanto passa do limite, "Aprovar e abrir a próxima" e o contador "1 de N".'] },
+      { version: 4, items: ['No celular, os filtros ficam no botão "Filtros (n)", com quantos estão aplicados.'] },
     ],
   },
   // decisão da fila antes do detalhe do pagamento (":id" casaria o caminho)

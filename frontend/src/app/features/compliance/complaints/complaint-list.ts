@@ -16,6 +16,8 @@ import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
 import { syncFormWithUrl } from '../../../shared/data/url-state';
+import { activeFilterCount } from '../../../shared/data/filter-count';
+
 import { DialogService } from '../../../shared/dialog/dialog.service';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
@@ -37,7 +39,6 @@ import {
   COMPLAINT_URL_CODECS,
   ComplaintListForm,
   OPEN_STATUSES,
-  activeComplaintFilters,
   toComplaintFilter,
   unassignedAlias,
 } from './complaint.rules';
@@ -261,10 +262,8 @@ export class ComplaintList {
     }),
     COMPLAINT_URL_CODECS,
   );
-  private readonly formValue = toSignal(this.filters.valueChanges.pipe(map(() => this.filters.getRawValue())), {
-    initialValue: this.filters.getRawValue(),
-  });
-  protected readonly activeFilters = computed(() => activeComplaintFilters(this.formValue()));
+  /** Filtros aplicados (botão "Filtros (n)" no celular; ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),

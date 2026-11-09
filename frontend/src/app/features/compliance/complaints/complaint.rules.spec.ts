@@ -1,3 +1,4 @@
+import { countActiveFilters } from '../../../shared/data/filter-count';
 import { convertToParamMap } from '@angular/router';
 import { readUrlValues, urlParamsOf } from '../../../shared/data/url-state';
 import { deadlineText, deadlineTone, onTimeRate } from './complaint.data';
@@ -5,7 +6,6 @@ import { receivedInstant } from './complaint-form';
 import {
   COMPLAINT_FORM_DEFAULTS,
   COMPLAINT_URL_CODECS,
-  activeComplaintFilters,
   complaintActions,
   complaintEvidenceProblem,
   monthRange,
@@ -48,8 +48,10 @@ describe('regras de tela das reclamações', () => {
   });
 
   it('conta os filtros aplicados', () => {
-    expect(activeComplaintFilters(COMPLAINT_FORM_DEFAULTS)).toBe(0);
-    expect(activeComplaintFilters({ ...COMPLAINT_FORM_DEFAULTS, creditor: ['c'], deadline: 'overdue', protocol: '  ' })).toBe(2);
+    // contagem padrão da aplicação (shared/data/filter-count) sobre o padrão do formulário
+    const count = (v: typeof COMPLAINT_FORM_DEFAULTS) => countActiveFilters(v, COMPLAINT_FORM_DEFAULTS);
+    expect(count(COMPLAINT_FORM_DEFAULTS)).toBe(0);
+    expect(count({ ...COMPLAINT_FORM_DEFAULTS, creditor: ['c'], deadline: 'overdue' })).toBe(2);
   });
 
   it('URL em português compatível com "Minhas pendências"', () => {

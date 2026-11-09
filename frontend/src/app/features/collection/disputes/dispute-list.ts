@@ -18,6 +18,8 @@ import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
 import { syncFormWithUrl } from '../../../shared/data/url-state';
+import { activeFilterCount } from '../../../shared/data/filter-count';
+
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
@@ -28,7 +30,7 @@ import { DisputesApi } from '../data/collection.api';
 import { DISPUTE_ORIGIN_LABELS, DISPUTE_TYPE_LABELS } from '../data/collection.labels';
 import { DisputeFilter, DisputeView } from '../data/collection.models';
 import { daysBetween, zonedNow } from '../data/collection.rules';
-import { DISPUTE_FORM_DEFAULTS, DISPUTE_URL_CODECS, activeDisputeFilters, canWorkDispute, dueTone, isPending, nearestDue, toDisputeFilter } from './dispute.rules';
+import { DISPUTE_FORM_DEFAULTS, DISPUTE_URL_CODECS, canWorkDispute, dueTone, isPending, nearestDue, toDisputeFilter } from './dispute.rules';
 
 export { toDisputeFilter } from './dispute.rules';
 
@@ -299,11 +301,8 @@ export class DisputeList {
     ),
     { initialValue: toDisputeFilter(this.filters.getRawValue(), this.today), equal: sameValue },
   );
-  /** Filtros aplicados (botão "Filtros (n)" no celular). */
-  private readonly formValue = toSignal(this.filters.valueChanges.pipe(map(() => this.filters.getRawValue())), {
-    initialValue: this.filters.getRawValue(),
-  });
-  protected readonly activeFilters = computed(() => activeDisputeFilters(this.formValue()));
+  /** Filtros aplicados (botão "Filtros (n)" no celular; ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.search(f, page), { url: true });
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((d) => d.debtorId));
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((d) => d.creditorId));

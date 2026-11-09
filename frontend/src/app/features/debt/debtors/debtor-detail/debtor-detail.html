@@ -18,7 +18,10 @@
 
 @if (current(); as d) {
   <app-page-header [title]="d.name" [subtitle]="personTypes[d.personType] + (d.createdAt ? ' · cadastrado em ' + (d.createdAt | appDate: 'date') : '')">
-    <app-vulnerability-badge [debtorId]="d.id" />
+    <!-- embutida no painel da estação, o selo já está no cabeçalho do caso (uma consulta e um log de acesso só) -->
+    @if (!embedded) {
+      <app-vulnerability-badge [debtorId]="d.id" />
+    }
     <!-- ações de trabalho: fora do painel da estação (embutida, o operador já está no caso) -->
     @if (!embedded && canSeeCases() && openCases().length) {
       @if (openCases().length === 1) {

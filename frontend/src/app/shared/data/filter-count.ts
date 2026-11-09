@@ -27,6 +27,6 @@ export function activeFilterCount(
 }
 
 /** Quantos campos de `value` diferem de `defaults` (comparação estrutural), sem os de `ignore`. Função pura. */
-export function countActiveFilters(value: Record<string, unknown>, defaults: Record<string, unknown>, ignore: readonly string[] = []): number {
-  return Object.keys(value).filter((key) => !ignore.includes(key) && !sameValue(value[key], defaults[key])).length;
+export function countActiveFilters<T extends object>(value: T, defaults: Partial<T>, ignore: readonly string[] = []): number {
+  return (Object.keys(value) as (keyof T & string)[]).filter((key) => !ignore.includes(key) && !sameValue(value[key], defaults[key])).length;
 }

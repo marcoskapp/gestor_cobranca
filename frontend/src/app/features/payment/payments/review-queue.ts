@@ -7,6 +7,9 @@ import { Permission } from '../../../core/auth/permission';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { sameValue } from '../../../shared/data/same-value';
 import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
+
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { ExternalOrigin } from '../data/payment.models';
@@ -38,26 +41,28 @@ import { breakHoldBadge } from '../data/review-status';
  */
 @Component({
   selector: 'app-review-queue',
-  imports: [Icon, NgbTooltip, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, RequestedTarget, ...FORM_FIELD],
+  imports: [FilterBar, Icon, NgbTooltip, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, RequestedTarget, ...FORM_FIELD],
   template: `
     <app-page-header title="Aprovação de pagamentos" subtitle="Pagamentos informados acima do limite da assessoria aguardando uma segunda pessoa." />
     <div class="alert alert-info d-flex gap-2 align-items-start" role="note" data-tour="review-segregation">
       <app-icon name="people" />
       <span>Os pagamentos que <strong>você</strong> informou não aparecem aqui: quem informa não aprova (o sistema recusa, inclusive para administradores). Confira o comprovante e <strong>para onde o valor vai</strong> (destino solicitado) antes de aprovar.</span>
     </div>
-    <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar a fila de aprovação">
-      <div class="app-filters__wide">
-        <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
-      </div>
-      <app-field label="Onde entrou">
-        <select appInput formControlName="origin">
-          <option value="">Todas as fontes</option>
-          @for (o of originOptions; track o[0]) {
-            <option [value]="o[0]">{{ o[1] }}</option>
-          }
-        </select>
-      </app-field>
-    </form>
+    <app-filter-bar [activeCount]="activeFilters()">
+      <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar a fila de aprovação">
+        <div class="app-filters__wide">
+          <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+        </div>
+        <app-field label="Onde entrou">
+          <select appInput formControlName="origin">
+            <option value="">Todas as fontes</option>
+            @for (o of originOptions; track o[0]) {
+              <option [value]="o[0]">{{ o[1] }}</option>
+            }
+          </select>
+        </app-field>
+      </form>
+    </app-filter-bar>
     <app-data-table
       caption="Pagamentos aguardando aprovação"
       [rows]="query.rows()"
@@ -152,6 +157,8 @@ export class ReviewQueue {
     creditor: urlParam.ids('credor'),
     origin: urlParam.choice('origem', Object.keys(ORIGIN_LABELS)),
   });
+  /** Filtros aplicados (botão "Filtros (n)" no celular; ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
   private readonly filter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),

@@ -46,14 +46,6 @@ export function toComplaintFilter(v: ComplaintListForm): ComplaintFilter {
   return filter;
 }
 
-/** Filtros diferentes do padrão (botão "Filtros (n)" no celular). */
-export function activeComplaintFilters(v: ComplaintListForm): number {
-  return (Object.keys(COMPLAINT_FORM_DEFAULTS) as (keyof ComplaintListForm)[]).filter((key) => {
-    const current = v[key];
-    return Array.isArray(current) ? current.length > 0 : (current ?? '').toString().trim() !== COMPLAINT_FORM_DEFAULTS[key];
-  }).length;
-}
-
 const ALL = 'todas';
 
 /**

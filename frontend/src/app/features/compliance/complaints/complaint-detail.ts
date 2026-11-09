@@ -125,7 +125,7 @@ import { COMPLAINT_EVIDENCE_ACCEPT, EVIDENCE_STATUS_LABELS, complaintActions, co
           <dd>
             @if (c.debtorId) {
               @if (canOpenDebtor()) {
-                <a [routerLink]="['/cobranca/devedores', c.debtorId]">{{ debtors.name(c.debtorId) }}</a>
+                <a [routerLink]="['/devedores', c.debtorId]">{{ debtors.name(c.debtorId) }}</a>
               } @else {
                 {{ debtors.name(c.debtorId) }}
               }

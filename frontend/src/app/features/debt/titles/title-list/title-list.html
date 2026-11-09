@@ -40,6 +40,13 @@
       </button>
     </div>
   </app-field>
+  <div class="app-filters__actions">
+    <button class="btn btn-link" type="button" (click)="clear()">Limpar filtros</button>
+  </div>
+</form>
+</app-filter-bar>
+<!-- filtros de contexto (vindos da ficha do devedor ou do lote): sempre visíveis, também no celular -->
+<div class="title-list__context">
   @if (filters.controls.debtorId.value) {
     <span class="app-status app-status--info title-list__debtor">
       Devedor: {{ debtors.name(filters.controls.debtorId.value) || 'selecionado' }}
@@ -52,11 +59,7 @@
       <button class="btn-close" type="button" (click)="clearBatch()" aria-label="Remover filtro de lote"></button>
     </span>
   }
-  <div class="app-filters__actions">
-    <button class="btn btn-link" type="button" (click)="clear()">Limpar filtros</button>
-  </div>
-</form>
-</app-filter-bar>
+</div>
 
 <app-data-table
   caption="Títulos"

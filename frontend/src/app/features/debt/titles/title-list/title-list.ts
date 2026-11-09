@@ -66,6 +66,15 @@ export function toTitleFilter(v: {
     .title-list__flag {
       margin-left: 6px;
     }
+    .title-list__context {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: var(--app-space-3);
+      &:empty {
+        display: none;
+      }
+    }
     .title-list__debtor {
       align-self: center;
       gap: 6px;

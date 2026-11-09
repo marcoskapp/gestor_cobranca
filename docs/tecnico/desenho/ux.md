@@ -431,7 +431,7 @@ Aplicado em: título, devedor, acordo, proposta, pagamento, demonstrativo, credo
 
 ### 12.3 Celular: filtros e listas
 
-- **Filtros** abaixo de 768 px: `app-filter-bar` recolhe os campos num botão "Filtros (n)" e abre um painel lateral; os números e a lista aparecem na primeira tela (nos painéis, os indicadores vêm logo depois do botão). Nas listas, a contagem vem de `activeFilterCount(form, { ignore })` (`shared/data/filter-count.ts`): campos diferentes do padrão da tela (o valor de antes da URL, guardado por `syncFormWithUrl`); `ignore` para campo dependente (o operador escolhido conta junto com "Responsável"; o período personalizado da agenda conta junto com "Período"). Aplicado nos painéis e nas listas com dois filtros ou mais: casos, devedores, títulos, acordos, pagamentos, instruções de pagamento, divergências, razão de comissão, demonstrativos, regras de comissão, lotes de importação, layouts, auditoria, log de acesso, usuários, credores, carteiras, políticas de cobrança, campanhas, segmentos, testes A/B, templates, agenda, chamadas, casos jurídicos, revisão do assistente, extratos e lançamentos da remuneração, tokens e consumo da API pública. Faltam propostas (frente E), contestações e as listas do compliance (frente G) — mesmo padrão.
+- **Filtros** abaixo de 768 px: `app-filter-bar` recolhe os campos num botão "Filtros (n)" e abre um painel lateral; os números e a lista aparecem na primeira tela (nos painéis, os indicadores vêm logo depois do botão). Nas listas, a contagem vem de `activeFilterCount(form, { ignore })` (`shared/data/filter-count.ts`): campos diferentes do padrão da tela (o valor de antes da URL, guardado por `syncFormWithUrl`); `ignore` para campo dependente (o operador escolhido conta junto com "Responsável"; o período personalizado da agenda conta junto com "Período"). Aplicado nos painéis e nas listas com dois filtros ou mais: casos, devedores, títulos, acordos, pagamentos, instruções de pagamento, divergências, razão de comissão, demonstrativos, regras de comissão, lotes de importação, layouts, auditoria, log de acesso, usuários, credores, carteiras, políticas de cobrança, campanhas, segmentos, testes A/B, templates, agenda, chamadas, casos jurídicos, revisão do assistente, extratos e lançamentos da remuneração, tokens e consumo da API pública. Usam o padrão as listas com dois filtros ou mais, inclusive propostas, aprovação de pagamentos, contestações e reclamações (as filas de aprovação com um filtro só ficam sem o botão). Filtros de contexto vindos de outra tela (ex.: devedor e lote na lista de títulos) ficam fora do botão, sempre visíveis (decisão 1070).
 - **Listas** abaixo de 576 px: `app-data-table` em lista empilhada (§12); a paginação some quando tudo cabe numa página. Rótulos de indicador podem ocupar 2 linhas.
 - **Botão "Filtros"** informa `aria-expanded`; ao alargar a tela com o painel aberto, os filtros voltam para a linha.
 - **Cabeçalho** abaixo de 600 px: menu, marca, busca, pendências, ajuda e avatar; o chat de suporte e o tema ficam no menu do usuário.
@@ -722,7 +722,7 @@ de um painel para outro (`urlFilter`, em memória).
 **Para telas novas:** lista principal com `syncFormWithUrl` + `pagedQuery({ url: true })`; colunas ordenáveis só com lista
 branca no servidor; abas com `urlTab`; ficha com `recordLabel`; item de menu pela tarefa do perfil.
 
-### 16.1 Índices das ordenações (medição de 08/11/2026, decisão 954 / RC-06)
+### 16.1 Índices das ordenações (medição de 08/11/2026, decisões 954 e 1037)
 
 **Como foi medido.** O sandbox tem poucas centenas de registros por assessoria (232 casos: 0,3 ms com seq scan — não
 mede nada). As tabelas foram copiadas (estrutura e os registros fictícios do sandbox, lidos sem escrita) para um
@@ -798,13 +798,12 @@ de todos os casos do devedor no escopo, numa chamada (`GET /collection/debtors/{
 remete ao histórico de cada caso. `?aba=interacoes` sem `CASE_VIEW` volta para Títulos.
 **Embutida no painel da estação** (`appUrlStateEmbedded`): sem "Abrir caso" e "Simular" — o operador já está no caso e
 simula pelo painel da própria estação; o "Relacionados" continua (ir a outro caso é uma escolha explícita, e o
-atendimento fica guardado por caso, §16).
+atendimento fica guardado por caso, [collection.md](collection.md) §8.2).
 
 **Links pontuais**: linha da fila → `/cobranca/casos?fila=` (`CASE_VIEW`); lote de importação → "Títulos importados"
 (`/titulos?lote=`, só lote `IMPORT` com títulos criados/atualizados; filtro `lote` na lista de títulos, só id); acordo →
 cada pagamento aplicado (data) e o devedor; recebimento do demonstrativo (e do razão de comissão) → pagamento de origem;
 pagamento → devedor. Todos só com a permissão da tela de destino.
-
 
 ## 18. Aprovações num padrão único (revisão de produto 11/2026 — J8, T9, telas 15 e 18)
 

@@ -17,6 +17,9 @@ import { nameMap } from '../../../shared/data/name-map';
 import { pagedQuery } from '../../../shared/data/paged-query';
 import { sameValue } from '../../../shared/data/same-value';
 import { syncFormWithUrl, urlParam } from '../../../shared/data/url-state';
+import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
+import { activeFilterCount } from '../../../shared/data/filter-count';
+
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { statusOptions } from '../../../shared/status/status';
@@ -54,7 +57,7 @@ export function toProposalFilter(v: { creditor: string[]; debtor: string[]; stat
  */
 @Component({
   selector: 'app-proposal-list',
-  imports: [
+  imports: [FilterBar, 
     Icon,
     NgbTooltip,
     ...FORM_FIELD,
@@ -95,32 +98,34 @@ export function toProposalFilter(v: { creditor: string[]; debtor: string[]; stat
         }
       </app-page-header>
 
-      <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar propostas">
-        @if (canSearchDebtors()) {
+      <app-filter-bar [activeCount]="activeFilters()">
+        <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar propostas">
+          @if (canSearchDebtors()) {
+            <div class="app-filters__wide">
+              <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor (nome ou CPF/CNPJ)" [single]="true" />
+            </div>
+          }
           <div class="app-filters__wide">
-            <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor (nome ou CPF/CNPJ)" [single]="true" />
+            <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
           </div>
-        }
-        <div class="app-filters__wide">
-          <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
-        </div>
-        <app-field label="Situação">
-          <select appInput formControlName="status">
-            <option value="">Todas</option>
-            @for (s of statuses; track s.value) {
-              <option [ngValue]="s.value">{{ s.label }}</option>
-            }
-          </select>
-        </app-field>
-        <app-field label="Criada por">
-          <select appInput formControlName="actorType">
-            <option value="">Qualquer autor</option>
-            <option value="USER">Operadores</option>
-            <option [value]="mine">Somente as minhas</option>
-            <option value="ASSISTANT">Assistente</option>
-          </select>
-        </app-field>
-      </form>
+          <app-field label="Situação">
+            <select appInput formControlName="status">
+              <option value="">Todas</option>
+              @for (s of statuses; track s.value) {
+                <option [ngValue]="s.value">{{ s.label }}</option>
+              }
+            </select>
+          </app-field>
+          <app-field label="Criada por">
+            <select appInput formControlName="actorType">
+              <option value="">Qualquer autor</option>
+              <option value="USER">Operadores</option>
+              <option [value]="mine">Somente as minhas</option>
+              <option value="ASSISTANT">Assistente</option>
+            </select>
+          </app-field>
+        </form>
+      </app-filter-bar>
     }
 
     <app-data-table
@@ -253,6 +258,8 @@ export class ProposalList {
       actorType: urlParam.choice<string>('autor', ACTOR_FILTERS),
     },
   );
+  /** Filtros aplicados (botão "Filtros (n)" no celular; ux.md §12.3). */
+  protected readonly activeFilters = activeFilterCount(this.filters);
   private readonly formFilter = toSignal(
     this.filters.valueChanges.pipe(
       startWith(null),
