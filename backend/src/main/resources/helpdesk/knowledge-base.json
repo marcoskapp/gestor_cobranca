@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "19c0ae41fafd1cb0",
+ "contentVersion": "a0d04ca1c1d228b3",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -800,7 +800,8 @@
    "overview": [
     "Os painéis medem a operação com regras públicas: cada indicador tem fórmula e denominador explícitos e mostra a base (\"1.100 de 4.000\"), nunca uma taxa sozinha. Sem base no período, o indicador aparece como indisponível, nunca como 0%.",
     "Recuperado é sempre pagamento confirmado, líquido de estornos, a mesma base da prestação de contas. O valor acordado aparece separado do valor pago.",
-    "Os números são consolidados periodicamente; o \"Dados até\" mostra a partir de quando valem. Os filtros ficam no endereço da página, para compartilhar exatamente a mesma visão."
+    "Os números são consolidados periodicamente; o \"Dados até\" mostra a partir de quando valem. Os filtros ficam no endereço da página, para compartilhar exatamente a mesma visão.",
+    "Número sublinhado leva à lista que forma o número, com o mesmo credor, carteira e período: casos em aberto, casos elegíveis por estado e a fila pendente abrem Casos; recuperado, recebido e estornado abrem o Razão de comissão; divergências abrem a lista de divergências. A lista é atual e o painel vale até o \"Dados até\", então pode haver pequena diferença. Sem a lista no seu perfil, ou com um recorte que a lista não tem (mais de um credor, pessoa ou canal), o número fica só como texto."
    ],
    "connections": [
     {
@@ -1604,7 +1605,7 @@
    "id": "collection.cases",
    "module": "cobranca",
    "title": "Casos de cobrança",
-   "objective": "Consulte casos por credor, situação, fila, responsável e elegibilidade para encontrar exceções e redistribuir.",
+   "objective": "Consulte casos por credor, carteira, situação, fila, responsável e elegibilidade para encontrar exceções e redistribuir.",
    "purpose": [
     "Visão de gestão dos casos: quais estão sem responsável, inelegíveis (com o motivo) ou parados. Atribua um caso a um operador ou a uma equipe pela linha."
    ],
@@ -4086,7 +4087,7 @@
    "purpose": [
     "A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados.",
     "Importação com falha mostra o motivo e a linha do arquivo. \"Tentar novamente\" continua de onde parou: as linhas já gravadas e as baixas delas não se repetem. Se o problema estiver no arquivo, a falha volta com a mesma linha: corrija e importe um arquivo novo.",
-    "\"Cancelar processamento\" (na fila ou em processamento, com motivo) para a importação onde está: o lote em andamento termina, nenhum outro é gravado e as linhas e baixas já gravadas ficam valendo. Use quando o arquivo estiver errado ou a importação parar de avançar; depois, \"Tentar novamente\" continua de onde parou."
+    "\"Cancelar processamento\" (no menu \"Mais ações\", na fila ou em processamento, com motivo) para a importação onde está: o lote em andamento termina, nenhum outro é gravado e as linhas e baixas já gravadas ficam valendo. Use quando o arquivo estiver errado ou a importação parar de avançar; depois, \"Tentar novamente\" continua de onde parou."
    ],
    "profiles": [
     "FINANCEIRO",
@@ -4122,7 +4123,8 @@
    "title": "Divergências de conciliação",
    "objective": "Créditos que o sistema não conciliou sozinho, para decidir com justificativa.",
    "purpose": [
-    "Tipos: valor diferente, duplicidade, sem correspondência, não confirmado e devolução parcial. Concilie com o pagamento certo, aceite ou descarte."
+    "Tipos: valor diferente, duplicidade, sem correspondência, não confirmado e devolução parcial. Concilie com o pagamento certo, aceite ou descarte.",
+    "Filtre por credor e pela data de abertura (\"Aberta de\" e \"Aberta até\"); o painel de confiabilidade abre esta lista já filtrada."
    ],
    "profiles": [
     "FINANCEIRO"
@@ -4405,7 +4407,8 @@
    "title": "Razão de comissão",
    "objective": "Cada recebimento confirmado vira um lançamento com a regra vigente na data do pagamento e a memória de cálculo.",
    "purpose": [
-    "Lançamentos não mudam: estornos geram lançamentos de compensação. Veja os aguardando regra e os já prestados."
+    "Lançamentos não mudam: estornos geram lançamentos de compensação. Veja os aguardando regra e os já prestados.",
+    "Filtre por carteira e por lançamento (recebimentos, estornos ou os dois). O período usa a data do pagamento e, no estorno, a do estorno: a mesma base do recuperado dos painéis, que abrem esta lista já filtrada."
    ],
    "profiles": [
     "FINANCEIRO",
@@ -5864,7 +5867,8 @@
    "title": "Painel operacional",
    "objective": "Posição da carteira agora: valor em cobrança, saldo vencido e elegível, casos por estado e filas pendentes.",
    "purpose": [
-    "Mostra a carteira na data da última consolidação; o período não se aplica a esta visão."
+    "Mostra a carteira na data da última consolidação; o período não se aplica a esta visão.",
+    "Casos em aberto, fila pendente e as linhas por estado e por fila abrem a lista de casos já filtrada; o recuperado abre o Razão de comissão. O saldo elegível não tem link: é somado por título, e a lista filtra a elegibilidade do caso inteiro."
    ],
    "profiles": [
     "GESTOR",
@@ -5908,7 +5912,8 @@
    "title": "Recuperação",
    "objective": "Valor recuperado líquido e taxa de recuperação sobre o saldo elegível no início do período.",
    "purpose": [
-    "Compare credores, carteiras e faixas de atraso. Estornos entram na data do estorno, sem alterar o período do pagamento."
+    "Compare credores, carteiras e faixas de atraso. Estornos entram na data do estorno, sem alterar o período do pagamento.",
+    "Recuperado, estornos e as linhas por credor, carteira, mês, semana ou dia abrem o Razão de comissão com os recebimentos e estornos que formam o número."
    ],
    "profiles": [
     "GESTOR",
@@ -5925,6 +5930,10 @@
     {
      "screen": "settlement.statements",
      "why": "A mesma base na prestação de contas."
+    },
+    {
+     "screen": "settlement.ledger",
+     "why": "Os recebimentos e estornos de cada número."
     }
    ],
    "terms": [
@@ -6604,7 +6613,7 @@
    "objective": "Identificação, uso, rotação sem parada e revogação imediata de um token de integração.",
    "purpose": [
     "Rotacione periodicamente ou quando a equipe do credor mudar: o segredo anterior continua aceito durante a carência. Em caso de vazamento, rotacione sem carência ou revogue.",
-    "A revogação é imediata e definitiva e exige motivo. Editar e rotacionar exigem as permissões de todos os escopos do token (as mesmas de criá-lo); sem elas, só Revogar aparece.",
+    "A revogação é imediata e definitiva e exige motivo. Editar e rotacionar exigem as permissões de todos os escopos do token (as mesmas de criá-lo); sem elas, só \"Revogar token\" aparece, no menu \"Mais ações\" (⋯).",
     "Pausado pela plataforma: a ficha mostra desde quando, o motivo e a retomada agendada, se houver. Você não retoma, mas pode editar, rotacionar (segredo exposto) e revogar; para retomar antes, procure a plataforma."
    ],
    "profiles": [
