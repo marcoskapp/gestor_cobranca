@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "18034b0d44412c6a",
+ "contentVersion": "22700d8c778d0ba2",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -2868,7 +2868,8 @@
    "objective": "Chamadas do seu escopo com resultado, tabulação e gravação, que só é ouvida com finalidade registrada.",
    "purpose": [
     "Inclui clique para ligar, discador e chamadas recebidas. Use para supervisão, monitoria de qualidade e atendimento a reclamações.",
-    "Quem avalia a qualidade tem \"Avaliar este atendimento\" na linha da chamada encerrada de outra pessoa: a monitoria abre com o operador, a chamada e a data preenchidos."
+    "Quem avalia a qualidade tem \"Avaliar este atendimento\" na linha da chamada encerrada de outra pessoa e no player da gravação: a monitoria abre com o operador, a chamada e a data preenchidos, por cima do áudio.",
+    "Filtre por operador e resultado \"Atendida\" para monitorar o atendimento de uma pessoa no período."
    ],
    "profiles": [
     "SUPERVISOR",
@@ -4534,7 +4535,8 @@
    "title": "Desempenho dos negociadores",
    "objective": "Indicadores do negociador, da equipe ou de todos, conforme o seu perfil, sempre com a base de cálculo.",
    "purpose": [
-    "Escolha mês, agrupamento, faixa de atraso e credor. Recuperado conta só pagamento confirmado, com o peso de crédito de cada acordo."
+    "Escolha mês, agrupamento, faixa de atraso e credor. Recuperado conta só pagamento confirmado, com o peso de crédito de cada acordo.",
+    "Agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês, e \"Avaliar chamadas\" abre as chamadas atendidas por ela no período, onde \"Avaliar\" registra a monitoria."
    ],
    "profiles": [
     "OPERADOR",
@@ -4556,6 +4558,10 @@
     {
      "screen": "analytics.productivity",
      "why": "Produtividade da operação."
+    },
+    {
+     "screen": "incentive.evaluations",
+     "why": "Avaliações de monitoria do negociador."
     }
    ],
    "terms": [
@@ -5002,7 +5008,8 @@
    "objective": "Avaliações de atendimento de 0 a 10; a nota média do período pode suspender o variável.",
    "purpose": [
     "Avalie a partir do atendimento: \"Avaliar\" em Chamadas e gravações, na conversa e no histórico do caso abre o formulário com o negociador, a referência e a data preenchidos, sem digitar identificador.",
-    "Cada avaliação tem o link \"Ver\" de volta para o caso, a conversa, o acordo ou a chamada avaliada. Ninguém avalia o próprio atendimento, e só aparecem negociadores do seu escopo. O negociador vê as próprias avaliações."
+    "Cada critério tem uma escala de 0 a 10 de um clique, e a nota ponderada fica no rodapé. Nota 0 em critério crítico zera a avaliação: descreva o ocorrido no comentário. Cada avaliação tem o link \"Ver\" de volta para o atendimento; ninguém avalia o próprio, e o negociador vê as suas.",
+    "\"Registrar monitoria\" nesta tela, sem atendimento de origem, faz uma avaliação geral. Para monitorar uma pessoa, use o Desempenho por negociador (\"Avaliar chamadas\") ou o filtro por operador em Chamadas e gravações."
    ],
    "profiles": [
     "QUALIDADE",
@@ -5027,6 +5034,10 @@
     {
      "screen": "collection.case",
      "why": "Avaliar pelo histórico do caso."
+    },
+    {
+     "screen": "incentive.performance",
+     "why": "Nota por negociador e chamadas para monitorar."
     },
     {
      "screen": "incentive.quality-forms",

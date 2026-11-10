@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 19,
+    date: '2026-11-10',
+    title: 'Monitoria de qualidade mais rápida e perto do atendimento',
+    items: [
+      { text: 'Formulário de monitoria refeito: o atendimento avaliado num cartão, escala de 0 a 10 de um clique por critério e a nota ponderada sempre visível.', route: '/remuneracao/qualidade/avaliacoes' },
+      { text: 'Ouça a gravação e avalie no mesmo passo; Chamadas e gravações filtra por operador.', route: '/telefonia/chamadas' },
+      { text: 'No desempenho por negociador, a nota de monitoria abre as avaliações da pessoa e "Avaliar chamadas" abre as chamadas dela no período.', route: '/remuneracao/desempenho' },
+    ],
+  },
+  {
     version: 18,
     date: '2026-11-08',
     title: 'Busca de devedor, fichas ligadas, aprovações em sequência e conformidade',

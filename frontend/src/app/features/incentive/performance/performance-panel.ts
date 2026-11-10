@@ -44,6 +44,9 @@ export function groupOptions(scope: PerformanceScope): PerformanceGroupBy[] {
   return scope === 'OWN' ? ['NONE', ...common] : ['USER', 'TEAM', 'NONE', ...common];
 }
 
+/** Chave do agrupamento por negociador que é um usuário (não "UNKNOWN"). */
+const USER_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Período do painel: do dia 1º ao fim do mês (o mês corrente vai até hoje). */
 export function monthRange(month: string, today: string): { from: string; to: string } {
   const end = monthEnd(month);
@@ -172,7 +175,23 @@ export function monthRange(month: string, today: string): { from: string; to: st
                     <td class="in-end">{{ pct(r.financial.recoveryRate) }}</td>
                     <td class="in-end">{{ pct(r.conversion.promisesKeptRate) }}</td>
                     <td class="in-end">{{ pct(r.quality.earlyBreak60) }}</td>
-                    <td class="in-end">{{ scoreText(r.quality.qaScoreAverage) }}</td>
+                    <td class="in-end">
+                      <!-- por negociador: da nota às avaliações dele e às chamadas para monitorar (mesmo período) -->
+                      @if (monitoring(r.groupKey); as m) {
+                        <a [routerLink]="m.evaluations" [queryParams]="m.evaluationsQuery" data-testid="performance-evaluations"
+                          >{{ scoreText(r.quality.qaScoreAverage) }}<span class="visually-hidden">: avaliações de {{ label(r.groupKey) }}</span></a
+                        >
+                        @if (m.callsQuery) {
+                          <div class="in-small">
+                            <a routerLink="/telefonia/chamadas" [queryParams]="m.callsQuery" data-testid="performance-monitor-calls"
+                              >Avaliar chamadas<span class="visually-hidden"> de {{ label(r.groupKey) }}</span></a
+                            >
+                          </div>
+                        }
+                      } @else {
+                        {{ scoreText(r.quality.qaScoreAverage) }}
+                      }
+                    </td>
                   </tr>
                 } @empty {
                   <tr><td colspan="9">Nenhuma atividade registrada no período.</td></tr>
@@ -241,6 +260,24 @@ export class PerformancePanel {
   private readonly groupReport = valueOr(this.groupData, undefined);
   protected readonly grouped = computed<IndicatorRow[] | null>(() => (this.query().groupBy === 'NONE' ? null : (this.groupReport()?.rows ?? null)));
   protected readonly unavailable = computed(() => (this.totalReport()?.unavailableMetrics ?? []).map((m) => UNAVAILABLE_METRIC_LABELS[m] ?? m));
+
+  /**
+   * Agrupado por negociador: a nota de monitoria leva às avaliações dele no mês (quem vê o painel abre a monitoria) e, para quem avalia e supervisiona a
+   * telefonia, às chamadas atendidas por ele no mesmo período (onde "Avaliar" abre a monitoria preenchida).
+   */
+  protected monitoring(key: string): { evaluations: string; evaluationsQuery: Record<string, string>; callsQuery: Record<string, string> | null } | null {
+    // só com USER_VIEW: nas telas de destino o filtro por pessoa só aparece com essa permissão (filtro invisível confunde)
+    if (this.groupBy() !== 'USER' || !USER_KEY.test(key) || !this.auth.hasPermission(Permission.USER_VIEW)) {
+      return null;
+    }
+    const { from, to } = this.query();
+    const canMonitorCalls = this.auth.hasPermission(Permission.QUALITY_EVALUATE) && this.auth.hasPermission(Permission.TELEPHONY_SUPERVISE);
+    return {
+      evaluations: '/remuneracao/qualidade/avaliacoes',
+      evaluationsQuery: { negociador: key, de: from, ate: to },
+      callsQuery: canMonitorCalls ? { operador: key, resultado: 'ANSWERED', de: from, ate: to } : null,
+    };
+  }
 
   private readonly keys = computed(() => (this.grouped() ?? []).map((r) => r.groupKey));
   private readonly userNames = nameMap(inject(UserNames), () => (this.groupBy() === 'USER' ? this.keys() : []), { batch: USER_NAMES_BATCH });

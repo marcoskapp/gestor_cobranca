@@ -32,6 +32,7 @@ import { CALL_RESULT_LABELS, HANGUP_SIDE_LABELS } from '../data/telephony.labels
 import { CallFilter, CallResult, CallView } from '../data/telephony.models';
 import { durationText, isCallActive } from '../data/telephony.rules';
 import { RecordingDialog, RecordingDialogData } from './recording-dialog';
+import { UserLookup } from '../../admin/data/user.lookup';
 import { EvaluationLauncher, attendanceDate } from '../../incentive/quality/evaluation-launcher';
 import { BUSINESS_ZONE } from '../../collection/data/collection.rules';
 
@@ -50,6 +51,11 @@ import { BUSINESS_ZONE } from '../../collection/data/collection.rules';
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
+      @if (canPickOperator()) {
+        <div class="app-filters__wide">
+          <app-entity-picker [control]="filters.controls.operator" [source]="userSource" label="Operador" [single]="true" />
+        </div>
+      }
       <app-field label="Resultado">
         <select appInput formControlName="result">
           <option value="">Todos</option>
@@ -150,6 +156,9 @@ export class CallList {
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
+  protected readonly userSource = inject(UserLookup);
+  /** Filtro por operador: quem supervisiona e consulta usuários (para monitorar o atendimento de uma pessoa). */
+  protected readonly canPickOperator = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
   protected readonly results = Object.entries(CALL_RESULT_LABELS) as [CallResult, string][];
   protected readonly hangups = HANGUP_SIDE_LABELS;
   protected readonly duration = durationText;
@@ -157,10 +166,11 @@ export class CallList {
   protected readonly canListen = computed(() => this.auth.hasPermission(Permission.CALL_RECORDING_LISTEN));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  /** Filtros na URL (`?credor=&resultado=&direcao=&de=&ate=`), preservados ao voltar. */
+  /** Filtros na URL (`?credor=&operador=&resultado=&direcao=&de=&ate=`), preservados ao voltar. */
   protected readonly filters = syncFormWithUrl(
     this.fb.group({
       creditor: this.fb.control<string[]>([]),
+      operator: this.fb.control<string[]>([]),
       result: [''],
       direction: [''],
       from: this.fb.control<string | null>(null),
@@ -168,6 +178,7 @@ export class CallList {
     }),
     {
       creditor: urlParam.ids('credor'),
+      operator: urlParam.ids('operador'),
       result: urlParam.choice<string>('resultado', this.results.map((r) => r[0])),
       direction: urlParam.choice('direcao', ['OUTBOUND', 'INBOUND']),
       from: urlParam.date('de'),
@@ -223,7 +234,12 @@ export class CallList {
 
   protected listen(c: CallView): void {
     this.dialog.open<RecordingDialog, RecordingDialogData>(RecordingDialog, {
-      data: { call: c, debtorName: c.debtorId ? this.debtors.name(c.debtorId) : 'Não identificado' },
+      data: {
+        call: c,
+        debtorName: c.debtorId ? this.debtors.name(c.debtorId) : 'Não identificado',
+        // ouvir e avaliar no mesmo passo: a monitoria abre por cima do player
+        evaluate: this.evaluable(c) ? () => this.evaluate(c) : undefined,
+      },
     });
   }
 
@@ -251,6 +267,8 @@ export class CallList {
     const v = this.filters.getRawValue();
     return {
       creditorId: v.creditor[0] ?? null,
+      // sem o seletor (USER_VIEW), um `?operador=` da URL não filtra: filtro invisível não é aplicado
+      operator: this.canPickOperator() ? (v.operator[0] ?? null) : null,
       result: v.result || null,
       direction: v.direction || null,
       // data digitada incompleta ou inválida (erro do datepicker) não filtra
@@ -260,5 +278,5 @@ export class CallList {
   }
 
   /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
-  protected readonly activeFilters = activeFilterCount(this.filters);
+  protected readonly activeFilters = activeFilterCount(this.filters, { ignore: this.canPickOperator() ? [] : ['operator'] });
 }

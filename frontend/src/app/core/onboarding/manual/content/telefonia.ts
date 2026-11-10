@@ -59,7 +59,8 @@ export const MANUAL: ModuleManual = {
       objective: 'Chamadas do seu escopo com resultado, tabulação e gravação, que só é ouvida com finalidade registrada.',
       purpose: [
         'Inclui clique para ligar, discador e chamadas recebidas. Use para supervisão, monitoria de qualidade e atendimento a reclamações.',
-        'Quem avalia a qualidade tem "Avaliar este atendimento" na linha da chamada encerrada de outra pessoa: a monitoria abre com o operador, a chamada e a data preenchidos.',
+        'Quem avalia a qualidade tem "Avaliar este atendimento" na linha da chamada encerrada de outra pessoa e no player da gravação: a monitoria abre com o operador, a chamada e a data preenchidos, por cima do áudio.',
+        'Filtre por operador e resultado "Atendida" para monitorar o atendimento de uma pessoa no período.',
       ],
       profiles: ['SUPERVISOR', 'GESTOR', 'QUALIDADE', 'AUDITOR'],
       inputs: ['Chamadas registradas pelo provedor de telefonia.'],

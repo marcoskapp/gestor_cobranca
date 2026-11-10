@@ -17,6 +17,8 @@ import { durationText } from '../data/telephony.rules';
 export interface RecordingDialogData {
   call: CallView;
   debtorName: string;
+  /** Monitoria deste atendimento (só para quem avalia, chamada de outra pessoa): abre por cima, com o áudio tocando. */
+  evaluate?: () => void;
 }
 
 /**
@@ -74,6 +76,12 @@ export interface RecordingDialogData {
     </div>
     <div class="modal-footer">
       <button class="btn btn-link" type="button" appDialogClose>Fechar</button>
+      @if (data.evaluate) {
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="data.evaluate()" data-testid="recording-evaluate">
+          <app-icon name="clipboard-check" />
+          Avaliar este atendimento
+        </button>
+      }
       @if (!audioUrl()) {
         <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="listen()" [disabled]="!purpose() || loading()">
           <app-icon name="play" />

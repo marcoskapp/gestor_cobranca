@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
+import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, startWith } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -26,15 +26,18 @@ import { zonedNow } from '../../collection/data/collection.rules';
 import { QualityApi } from '../data/incentive.api';
 import { REFERENCE_TYPE_LABELS } from '../data/incentive.labels';
 import { EvaluationView, QualityForm, ReferenceType } from '../data/incentive.models';
-import { parseDecimal, score } from '../data/incentive.rules';
+import { score } from '../data/incentive.rules';
 import { incentiveError } from '../statements/statement-dialogs';
 import { personRangeFilter } from './person-range-filter';
 import type { EvaluationDialogData } from './evaluation-launcher';
 import { Router, RouterLink } from '@angular/router';
 import { CallsApi } from '../../telephony/data/telephony.api';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const referenceTypes = Object.entries(REFERENCE_TYPE_LABELS) as [ReferenceType, string][];
+/** Tipo do atendimento sem vínculo: a avaliação geral vem primeiro (sem link de volta, o tipo só classifica). */
+const referenceTypes: [ReferenceType, string][] = [
+  ['OTHER', 'Geral (sem atendimento específico)'],
+  ...(Object.entries(REFERENCE_TYPE_LABELS) as [ReferenceType, string][]).filter(([t]) => t !== 'OTHER'),
+];
 
 /** Nota ponderada (0–10) e falha crítica, como `QualityForm.score`: nota 0 em critério crítico zera a avaliação. */
 export function weightedScore(form: QualityForm, scores: Record<string, number | null>): { score: number | null; critical: boolean } {
@@ -56,105 +59,276 @@ export function weightedScore(form: QualityForm, scores: Record<string, number |
   return { score: weights ? Math.round((total / weights) * 100) / 100 : null, critical };
 }
 
-/** Registro de monitoria: formulário, negociador avaliado, atendimento de referência e nota por critério. */
+/** Escala da nota por critério: um clique por nota inteira, de 0 a 10. */
+const SCALE = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
+const REFERENCE_ICONS: Record<ReferenceType, string> = {
+  CALL: 'telephone',
+  CONVERSATION: 'chat-left-text',
+  CASE: 'folder2-open',
+  AGREEMENT: 'file-earmark-check',
+  OTHER: 'clipboard-check',
+};
+
+let nextDialogId = 0;
+
+/**
+ * Registro de monitoria: o atendimento avaliado (já preenchido quando vem de "Avaliar" na chamada, na gravação, na
+ * conversa ou no histórico do caso), a nota de cada critério numa escala de 0 a 10 de um clique e a nota ponderada
+ * sempre visível no rodapé (ux.md §19).
+ */
 @Component({
   selector: 'app-incentive-evaluation-dialog',
   styles: `
-    .ev-prefill {
+    .ev-section + .ev-section {
+      margin-top: 24px;
+    }
+    .ev-section__head {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px 32px;
-      margin: 0;
-      dt {
-        font-size: var(--app-text-xs);
-        color: var(--bs-secondary-color);
-        font-weight: var(--app-weight-semibold);
-      }
-      dd {
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 4px 16px;
+      margin-bottom: 12px;
+      .app-section-title {
         margin: 0;
       }
     }
+    .ev-target {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius-lg);
+      background: var(--bs-tertiary-bg);
+    }
+    .ev-target__icon {
+      flex-shrink: 0;
+      font-size: 1.25rem;
+      color: var(--bs-primary);
+    }
+    .ev-target__body {
+      flex: 1;
+      min-width: 0;
+    }
+    .ev-target__date {
+      flex-shrink: 0;
+      text-align: end;
+    }
+    .ev-criteria {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .ev-criterion {
+      margin: 0;
+      padding: 12px 16px;
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius-lg);
+    }
+    .ev-criterion--missing {
+      border-color: var(--bs-form-invalid-border-color);
+    }
+    .ev-criterion--critical-fail {
+      border-color: var(--bs-danger-border-subtle);
+      background: var(--bs-danger-bg-subtle);
+    }
+    .ev-criterion__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 8px;
+      margin-bottom: 8px;
+      padding: 0;
+      font-size: inherit;
+      font-weight: var(--app-weight-medium);
+    }
+    .ev-criterion__text {
+      margin-inline-end: auto;
+    }
+    .ev-scale {
+      display: grid;
+      grid-template-columns: repeat(11, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .ev-scale__option {
+      padding-inline: 0;
+      min-width: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .ev-scale__ends {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+      font-size: var(--app-text-xs);
+      color: var(--bs-secondary-color);
+    }
+    .ev-score {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 8px;
+      margin: 0 auto 0 0;
+    }
+    .ev-score__value {
+      font-size: 1.5rem;
+      font-weight: var(--app-weight-semibold);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
   `,
-  imports: [ReactiveFormsModule, NgbInputDatepicker, ...DIALOG_DIRECTIVES, ...FORM_FIELD, EntityPicker, Icon],
+  imports: [ReactiveFormsModule, RouterLink, NgbInputDatepicker, NgbTooltip, ...DIALOG_DIRECTIVES, ...FORM_FIELD, AppDatePipe, EntityPicker, Icon],
   template: `
     <div class="modal-header">
-      <h2 appDialogTitle class="h5 mb-0">Registrar monitoria</h2>
+      <div>
+        <h2 appDialogTitle class="h5 mb-0">Registrar monitoria</h2>
+        @if (forms.length === 1) {
+          <p class="app-muted small mb-0" data-testid="evaluation-form-name">{{ forms[0].name }}</p>
+        }
+      </div>
       <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
     </div>
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
-        <div class="app-form-grid">
-          <app-field class="app-span-all" label="Formulário">
-            <select appInput ngbAutofocus formControlName="formId" (change)="pickForm()">
-              @for (f of forms; track f.id) {
-                <option [ngValue]="f.id">{{ f.name }}</option>
-              }
-            </select>
-          </app-field>
+        <section class="ev-section" [attr.aria-labelledby]="ids.target">
+          <div class="ev-section__head">
+            <h3 class="app-section-title" [id]="ids.target">Atendimento avaliado</h3>
+          </div>
           @if (prefill; as p) {
-            <!-- vindo do atendimento (chamada, conversa, histórico do caso): negociador, referência e data preenchidos -->
-            <dl class="app-span-all ev-prefill" data-testid="evaluation-prefill">
-              <div>
-                <dt>Negociador avaliado</dt>
-                <dd>{{ p.userName }}</dd>
+            <!-- vindo do atendimento: negociador, referência e data fixos -->
+            <div class="ev-target" data-testid="evaluation-prefill">
+              <app-icon class="ev-target__icon" [name]="refIcons[p.referenceType]" />
+              <div class="ev-target__body">
+                <div class="fw-semibold">{{ p.userName }}</div>
+                <div class="app-muted small text-truncate" [title]="p.label">{{ refLabels[p.referenceType] }} · {{ p.label }}</div>
               </div>
-              <div>
-                <dt>Atendimento</dt>
-                <dd>{{ refLabels[p.referenceType] }} · {{ p.label }}</dd>
+              <div class="ev-target__date">
+                <div class="app-muted small">Data</div>
+                <div>{{ p.evaluatedOn | appDate: 'date' }}</div>
               </div>
-            </dl>
+            </div>
           } @else {
-            <app-entity-picker class="app-span-all" [control]="form.controls.user" [source]="users" label="Negociador avaliado" [single]="true" />
-            <app-field label="Atendimento de referência">
-              <select appInput formControlName="referenceType">
-                @for (r of references; track r[0]) {
-                  <option [ngValue]="r[0]">{{ r[1] }}</option>
+            <div class="app-form-grid">
+              <app-entity-picker class="app-span-all" [control]="form.controls.user" [source]="users" label="Negociador avaliado" [single]="true" />
+              <app-field label="Tipo de atendimento">
+                <select appInput formControlName="referenceType">
+                  @for (r of references; track r[0]) {
+                    <option [ngValue]="r[0]">{{ r[1] }}</option>
+                  }
+                </select>
+              </app-field>
+              <app-field label="Data do atendimento">
+                <div class="input-group">
+                  <input appInput ngbDatepicker #d="ngbDatepicker" formControlName="evaluatedOn" placeholder="dd/mm/aaaa" [maxDate]="today" />
+                  <button type="button" class="btn btn-outline-secondary" (click)="d.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
+                </div>
+              </app-field>
+            </div>
+            <div class="alert alert-info d-flex align-items-start gap-2 mt-3 mb-0" role="note" data-testid="evaluation-unlinked">
+              <app-icon name="info-circle" />
+              <span>
+                Sem vínculo com um atendimento específico. Para avaliar uma ligação ou conversa com link de volta para revisar, use
+                “Avaliar” no próprio atendimento@if (sources.length) {:
+                  @for (s of sources; track s.route; let last = $last) {
+                    <a [routerLink]="s.route" (click)="leave()">{{ s.label }}</a>{{ last ? '' : ', ' }}
+                  }
+                  ou no histórico do caso.
+                } @else {
+                  (chamada, conversa ou histórico do caso).
+                }
+              </span>
+            </div>
+          }
+        </section>
+
+        <section class="ev-section" [attr.aria-labelledby]="ids.criteria">
+          <div class="ev-section__head">
+            <h3 class="app-section-title" [id]="ids.criteria">Critérios</h3>
+            @if (selected(); as f) {
+              <span class="app-muted small" data-testid="evaluation-progress">{{ answered() }} de {{ f.criteria.length }} avaliados · nota de 0 a 10</span>
+            }
+          </div>
+          @if (forms.length > 1) {
+            <app-field class="d-block mb-3" label="Formulário">
+              <select appInput formControlName="formId" (change)="pickForm()">
+                @for (f of forms; track f.id) {
+                  <option [ngValue]="f.id">{{ f.name }}</option>
                 }
               </select>
             </app-field>
-            <app-field
-              label="Identificador (opcional)"
-              hint="Prefira “Avaliar” na chamada, na conversa ou no histórico do caso: a referência vem preenchida."
-              error="Identificador completo (UUID)."
-            >
-              <input appInput class="font-monospace" formControlName="referenceId" autocomplete="off" spellcheck="false" />
-            </app-field>
           }
-          <app-field label="Data do atendimento">
-            <div class="input-group">
-              <input appInput ngbDatepicker #d="ngbDatepicker" formControlName="evaluatedOn" placeholder="dd/mm/aaaa" [maxDate]="today" />
-              <button type="button" class="btn btn-outline-secondary" (click)="d.toggle()" aria-label="Abrir calendário"><app-icon name="calendar-event" /></button>
-            </div>
-          </app-field>
-        </div>
-        @if (selected(); as f) {
-          <fieldset class="mt-2">
-            <legend class="form-label">Notas de 0 a 10</legend>
-            <div class="app-form-grid">
-              @for (c of f.criteria; track c.code) {
-                <app-field [label]="c.description + (c.critical ? ' (crítico: nota 0 zera a avaliação)' : '')" [hint]="'Peso ' + c.weight" error="Nota de 0 a 10.">
-                  <input appInput [formControl]="scoreControl(c.code)" inputmode="decimal" />
-                </app-field>
+          @if (selected(); as f) {
+            <ol class="ev-criteria">
+              @for (c of f.criteria; track c.code; let i = $index) {
+                @let value = scoreControl(c.code).value;
+                <li>
+                  <fieldset
+                    class="ev-criterion"
+                    [class.ev-criterion--missing]="submitted() && value === null"
+                    [class.ev-criterion--critical-fail]="c.critical && value === 0"
+                    [attr.aria-invalid]="submitted() && value === null ? 'true' : null"
+                    [attr.aria-describedby]="submitted() && value === null ? ids.prefix + c.code + '-error' : null"
+                    data-testid="evaluation-criterion"
+                  >
+                    <legend class="ev-criterion__head">
+                      <span class="ev-criterion__text">{{ i + 1 }}. {{ c.description }}</span>
+                      @if (c.critical) {
+                        <span class="badge rounded-pill border bg-danger-subtle text-danger-emphasis border-danger-subtle fw-normal" ngbTooltip="Nota 0 neste critério zera a avaliação"
+                          >Crítico<span class="visually-hidden">: nota 0 neste critério zera a avaliação</span></span
+                        >
+                      }
+                      <span class="badge rounded-pill border bg-body-tertiary text-body-secondary fw-normal">Peso {{ c.weight }}</span>
+                    </legend>
+                    <div class="ev-scale">
+                      @for (n of scale; track n) {
+                        <input
+                          type="radio"
+                          class="btn-check"
+                          [id]="ids.prefix + c.code + '-' + n"
+                          [name]="ids.prefix + c.code"
+                          [value]="n"
+                          [formControl]="scoreControl(c.code)"
+                          [attr.aria-label]="scaleLabel(n)"
+                        />
+                        <label class="btn btn-sm btn-outline-secondary ev-scale__option" [for]="ids.prefix + c.code + '-' + n" aria-hidden="true">{{ n }}</label>
+                      }
+                    </div>
+                    <div class="ev-scale__ends" aria-hidden="true"><span>Não atendeu</span><span>Excelente</span></div>
+                    @if (submitted() && value === null) {
+                      <div class="invalid-feedback d-block" [id]="ids.prefix + c.code + '-error'">Dê uma nota a este critério.</div>
+                    }
+                  </fieldset>
+                </li>
               }
-            </div>
-          </fieldset>
-          <p class="app-dialog-message" aria-live="polite">
-            Nota ponderada: <strong>{{ preview().score === null ? '—' : scoreText(preview().score) }}</strong>
-            @if (preview().critical) {
-              <span class="text-danger-emphasis"> · falha em critério crítico</span>
-            }
-          </p>
-        }
-        <app-field label="Comentários (opcional)" hint="Até 4000 caracteres">
-          <textarea appInput formControlName="comments" rows="3" maxlength="4000"></textarea>
-        </app-field>
+            </ol>
+          }
+        </section>
+
+        <section class="ev-section">
+          <app-field [label]="preview().critical ? 'Comentários' : 'Comentários (opcional)'" [hint]="commentHint()">
+            <textarea appInput formControlName="comments" rows="3" maxlength="4000"></textarea>
+          </app-field>
+        </section>
         @if (error()) {
-          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
+          <div class="alert alert-danger d-flex align-items-start gap-2 mt-3 mb-0" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
         }
       </div>
       <div class="modal-footer">
+        <p class="ev-score" aria-live="polite" data-testid="evaluation-score">
+          <span class="app-muted small">Nota ponderada</span>
+          <strong class="ev-score__value" [class.text-danger-emphasis]="preview().critical">{{ preview().score === null ? '—' : scoreText(preview().score) }}</strong>
+          @if (preview().critical) {
+            <span class="small text-danger-emphasis">falha em critério crítico</span>
+          } @else if (missing(); as n) {
+            <span class="app-muted small">{{ n === 1 ? 'falta 1 critério' : 'faltam ' + n + ' critérios' }}</span>
+          }
+        </p>
         <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
-        <button class="btn btn-primary" type="submit" [disabled]="sending()">Registrar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="sending()">Registrar monitoria</button>
       </div>
     </form>
   `,
@@ -162,27 +336,37 @@ export function weightedScore(form: QualityForm, scores: Record<string, number |
 export class EvaluationDialog {
   private readonly data = inject<EvaluationDialogData>(DIALOG_DATA);
   protected readonly forms = this.data.forms;
-  /** Atendimento de origem ("Avaliar este atendimento"): os campos de referência ficam fixos. */
+  /** Atendimento de origem ("Avaliar este atendimento"): negociador, referência e data ficam fixos. */
   protected readonly prefill = this.data.prefill ?? null;
   protected readonly refLabels = REFERENCE_TYPE_LABELS;
+  protected readonly refIcons = REFERENCE_ICONS;
+  protected readonly scale = SCALE;
+  private readonly dialogId = ++nextDialogId;
+  protected readonly ids = { target: `ev-target-${this.dialogId}`, criteria: `ev-criteria-${this.dialogId}`, prefix: `ev-${this.dialogId}-` };
   private readonly ref = inject<DialogRef<EvaluationView>>(DialogRef);
   private readonly api = inject(QualityApi);
+  private readonly auth = inject(AuthService);
   protected readonly users = inject(UserLookup);
   protected readonly references = referenceTypes;
   protected readonly today = toDateStruct(zonedNow().date);
   protected readonly scoreText = score;
   protected readonly sending = signal(false);
+  protected readonly submitted = signal(false);
   protected readonly error = signal<string | null>(null);
+  /** Onde avaliar com o atendimento vinculado, conforme o perfil abre. */
+  protected readonly sources = [
+    { label: 'Chamadas e gravações', route: '/telefonia/chamadas', allowed: this.auth.hasPermission(Permission.TELEPHONY_SUPERVISE) },
+    { label: 'Caixa de entrada', route: '/conversas', allowed: this.auth.hasPermission(Permission.INBOX_VIEW) },
+  ].filter((s) => s.allowed);
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
     formId: [this.forms[0]?.id ?? '', [Validators.required]],
     user: this.fb.control<string[]>(this.prefill ? [this.prefill.userId] : []),
-    referenceType: this.fb.control<ReferenceType>(this.prefill?.referenceType ?? 'CALL'),
-    referenceId: [this.prefill?.referenceId ?? '', [(c: { value: unknown }) => (!c.value || UUID.test(String(c.value).trim()) ? null : { pattern: true })]],
+    referenceType: this.fb.control<ReferenceType>(this.prefill?.referenceType ?? 'OTHER'),
     evaluatedOn: this.fb.control<string | null>(this.prefill?.evaluatedOn ?? toLocalDate(new Date()), [Validators.required]),
     comments: ['', [Validators.maxLength(4000)]],
   });
-  private readonly scores = new Map<string, FormControl<string>>();
+  private readonly scores = new Map<string, FormControl<number | null>>();
   private readonly formId = toSignal(this.form.controls.formId.valueChanges.pipe(startWith(this.form.controls.formId.value)), { initialValue: '' });
   protected readonly selected = computed(() => this.forms.find((f) => f.id === this.formId()) ?? null);
   private readonly scoreValues = signal(0);
@@ -191,18 +375,25 @@ export class EvaluationDialog {
     const f = this.selected();
     return f ? weightedScore(f, this.values(f)) : { score: null, critical: false };
   });
+  protected readonly answered = computed(() => {
+    this.scoreValues();
+    const f = this.selected();
+    return f ? f.criteria.filter((c) => (this.scores.get(c.code)?.value ?? null) !== null).length : 0;
+  });
+  protected readonly missing = computed(() => (this.selected()?.criteria.length ?? 0) - this.answered());
+  protected readonly commentHint = computed(() =>
+    this.preview().critical ? 'Descreva o que aconteceu no critério crítico: o comentário orienta o feedback ao negociador.' : 'Até 4000 caracteres',
+  );
 
   protected pickForm(): void {
     this.scores.clear();
+    this.scoreValues.update((v) => v + 1);
   }
 
-  protected scoreControl(code: string): FormControl<string> {
+  protected scoreControl(code: string): FormControl<number | null> {
     let control = this.scores.get(code);
     if (!control) {
-      control = new FormControl('', {
-        nonNullable: true,
-        validators: [(c) => { const n = parseDecimal(c.value as string); return n !== null && n >= 0 && n <= 10 ? null : { range: true }; }],
-      });
+      control = new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(0), Validators.max(10)] });
       control.valueChanges.subscribe(() => this.scoreValues.update((v) => v + 1));
       this.scores.set(code, control);
     }
@@ -210,26 +401,42 @@ export class EvaluationDialog {
   }
 
   private values(f: QualityForm): Record<string, number | null> {
-    return Object.fromEntries(f.criteria.map((c) => [c.code, parseDecimal(this.scores.get(c.code)?.value ?? '')]));
+    return Object.fromEntries(f.criteria.map((c) => [c.code, this.scores.get(c.code)?.value ?? null]));
+  }
+
+  /** Sai para a tela de origem do atendimento: o diálogo fecha sem registrar e o `routerLink` navega. */
+  protected leave(): void {
+    this.ref.close();
+  }
+
+  /** Rótulo do rádio (o critério já vem do `legend`); as pontas levam o significado da escala. */
+  protected scaleLabel(n: number): string {
+    return n === 0 ? 'Nota 0, não atendeu' : n === 10 ? 'Nota 10, excelente' : `Nota ${n}`;
   }
 
   protected save(): void {
     const f = this.selected();
     const v = this.form.getRawValue();
     const controls = f ? f.criteria.map((c) => this.scoreControl(c.code)) : [];
-    controls.forEach((c) => c.markAsTouched());
+    this.submitted.set(true);
     if (!f || this.form.invalid || controls.some((c) => c.invalid) || !v.user[0] || this.sending()) {
       this.form.markAllAsTouched();
-      if (!v.user[0]) {
-        this.error.set('Escolha o negociador avaliado.');
-      }
+      this.error.set(!v.user[0] ? 'Escolha o negociador avaliado.' : this.missing() ? 'Dê uma nota a todos os critérios.' : null);
       return;
     }
     const scores = this.values(f) as Record<string, number>;
     this.sending.set(true);
     this.error.set(null);
     this.api
-      .evaluate({ formId: f.id, userId: v.user[0], referenceType: v.referenceType, referenceId: v.referenceId.trim() || null, evaluatedOn: v.evaluatedOn!, scores, comments: v.comments.trim() || null })
+      .evaluate({
+        formId: f.id,
+        userId: v.user[0],
+        referenceType: v.referenceType,
+        referenceId: this.prefill?.referenceId ?? null,
+        evaluatedOn: v.evaluatedOn!,
+        scores,
+        comments: v.comments.trim() || null,
+      })
       .pipe(finalize(() => this.sending.set(false)))
       .subscribe({ next: (e) => this.ref.close(e), error: (err: unknown) => this.error.set(incentiveError(err)) });
   }

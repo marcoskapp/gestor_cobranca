@@ -573,12 +573,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'settlement.transfers', version: 1, path: '/prestacao-de-contas/repasses', tourId: 'settlement.transfers' },
   {
     key: 'incentive.performance',
-    version: 3,
+    version: 4,
     path: '/remuneracao/desempenho',
     tourId: 'incentive.performance',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
       { version: 3, items: ['Para o negociador, "Meu desempenho" reúne os atalhos para a produtividade, os extratos e lançamentos de comissão, a monitoria e as ocorrências, que saíram do menu.'] },
+      { version: 4, items: ['Agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês, e "Avaliar chamadas" abre as chamadas atendidas por ela no mesmo período.'] },
     ],
   },
   { key: 'incentive.statements', version: 1, path: '/remuneracao/extratos', tourId: 'incentive.statements' },
@@ -604,9 +605,18 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'incentive.exports', version: 1, path: '/remuneracao/exportacao' },
   {
     key: 'incentive.evaluations',
-    version: 2,
+    version: 3,
     path: '/remuneracao/qualidade/avaliacoes',
-    changes: [{ version: 2, items: ['Avalie a partir do atendimento: "Avaliar" em Chamadas e gravações, na conversa e no histórico do caso abre o formulário com o negociador, a referência e a data preenchidos.', 'Cada avaliação tem o link "Ver" de volta para o caso, a conversa, o acordo ou a chamada avaliada.'] }],
+    changes: [
+      { version: 2, items: ['Avalie a partir do atendimento: "Avaliar" em Chamadas e gravações, na conversa e no histórico do caso abre o formulário com o negociador, a referência e a data preenchidos.', 'Cada avaliação tem o link "Ver" de volta para o caso, a conversa, o acordo ou a chamada avaliada.'] },
+      {
+        version: 3,
+        items: [
+          'Formulário de monitoria refeito: o atendimento avaliado aparece num cartão, cada critério tem uma escala de 0 a 10 de um clique e a nota ponderada fica sempre visível no rodapé.',
+          'Sem atendimento de origem, a monitoria é uma avaliação geral (sem identificador para digitar), com o caminho para avaliar no próprio atendimento.',
+        ],
+      },
+    ],
   },
   { key: 'incentive.occurrences', version: 1, path: '/remuneracao/qualidade/ocorrencias' },
   { key: 'incentive.quality-forms', version: 1, path: '/remuneracao/qualidade/formularios' },
@@ -621,10 +631,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'telephony.calls',
-    version: 2,
+    version: 3,
     path: '/telefonia/chamadas',
     tourId: 'telephony.calls',
-    changes: [{ version: 2, items: ['"Avaliar este atendimento" na linha da chamada encerrada (para quem avalia a qualidade): a monitoria abre já preenchida.'] }],
+    changes: [
+      { version: 2, items: ['"Avaliar este atendimento" na linha da chamada encerrada (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
+      { version: 3, items: ['Ouça e avalie no mesmo passo: "Avaliar este atendimento" também fica no player da gravação, e a monitoria abre por cima com o áudio tocando.', 'Filtro por operador, para monitorar o atendimento de uma pessoa.'] },
+    ],
   },
   {
     key: 'telephony.agents',

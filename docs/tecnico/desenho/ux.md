@@ -824,3 +824,21 @@ O "quanto passa" vem do módulo dono, nunca é calculado na tela: `GET /negotiat
 `GET /title-amount-adjustments/{id}/approval` (`docs/negocio/correcao-de-valor.md`). A fila lida pela decisão é a primeira
 página de até 200 itens (`APPROVAL_QUEUE_WINDOW`); com mais que isso, o total vem do servidor e a próxima continua
 funcionando dentro da janela.
+
+## 19. Formulário de monitoria (revisão de 10/11/2026)
+
+**Problema:** o diálogo "Registrar monitoria" era uma grade de campos soltos: o atendimento vinha preenchido, mas a data
+continuava editável; sem atendimento de origem, pedia um identificador UUID que a interface nunca mostra; cada critério
+era um campo de texto (nota digitada, com o rótulo do peso e do crítico no meio do texto) e o título "Notas de 0 a 10"
+saía no tamanho de título de página; a nota ponderada ficava perdida entre os campos.
+
+| Peça | Contrato |
+| --- | --- |
+| Cabeçalho | "Registrar monitoria"; com um só formulário ativo, o nome dele fica abaixo do título (sem seletor). Com mais de um, o seletor abre a seção "Critérios". |
+| Atendimento avaliado | Vindo de "Avaliar": cartão fixo (ícone do tipo, negociador, tipo · descrição e data). Sem origem: negociador, tipo (padrão "Geral (sem atendimento específico)") e data, mais o aviso com os links para avaliar no próprio atendimento (Chamadas e gravações, Caixa de entrada, conforme a permissão). |
+| Critérios | Um bloco por critério (`fieldset` + `legend`): número, descrição, selo "Crítico" (a regra "nota 0 zera a avaliação" fica no tooltip e em texto para leitor de tela) e "Peso N"; escala de 11 botões (`btn-check`, rádio) em grade que encolhe até a largura do celular, com "Não atendeu" e "Excelente" nas pontas (os rádios dizem só "Nota N"; o critério vem do `legend`). Nota 0 em critério crítico pinta o bloco de perigo; ao registrar sem nota, o bloco fica com a borda de erro e "Dê uma nota a este critério." |
+| Rodapé | Nota ponderada sempre visível (`aria-live`), com "faltam N critérios" ou "falha em critério crítico"; botões "Cancelar" e "Registrar monitoria". |
+| Comentário | Opcional; com falha crítica, o rótulo perde o "(opcional)" e a dica pede a descrição do ocorrido (decisão 1074). |
+
+Pontos de entrada: chamada (linha e player da gravação), conversa, histórico do caso e o painel de desempenho por
+negociador (desenho em `remuneracao-variavel.md` §2.4.1). Teste: `features/incentive/quality/evaluation-dialog.spec.ts`.

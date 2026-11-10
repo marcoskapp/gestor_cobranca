@@ -81,7 +81,17 @@ encerrada; referência `CALL`), **conversa** (cabeçalho, conversa com pessoa re
 **histórico do caso** (interação registrada por pessoa; `CASE` com o caso) abrem o diálogo de monitoria com o negociador,
 a referência, a data do atendimento (fuso de operação) e uma descrição curta preenchidos (`EvaluationLauncher`,
 `features/incentive/quality`; o diálogo é carregado sob demanda). O registro manual ("Registrar monitoria") continua para
-os casos sem tela de origem.
+os casos sem tela de origem, como **avaliação geral**: tipo `OTHER` por padrão, sem identificador (o campo de UUID saiu,
+decisão 1072), com o caminho para avaliar no próprio atendimento.
+
+* **Mais pontos de entrada (11/2026, decisão 1073)**: o player da gravação tem "Avaliar este atendimento" (a monitoria abre
+  por cima, com o áudio tocando); Chamadas e gravações filtra por operador (`?operador=`, com `USER_VIEW`); no painel de
+  desempenho agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês
+  (`/remuneracao/qualidade/avaliacoes?negociador=&de=&ate=`) e "Avaliar chamadas" abre as chamadas atendidas por ela no
+  período (`/telefonia/chamadas?operador=&resultado=ANSWERED&de=&ate=`, com `QUALITY_EVALUATE` e `TELEPHONY_SUPERVISE`).
+* **Formulário (ux.md §19)**: atendimento avaliado em cartão fixo; escala de 0 a 10 de um clique por critério (nota
+  inteira, decisão 1071), com peso e selo "Crítico"; nota ponderada e critérios faltantes no rodapé; nota 0 em critério
+  crítico destaca o critério e pede o comentário (sem torná-lo obrigatório, decisão 1074).
 
 * **Quem avalia o quê**: `QUALITY_EVALUATE`; o negociador precisa estar no escopo de quem avalia (próprio/equipe/tudo,
   `requireVisible`); **ninguém avalia o próprio atendimento** (`quality_evaluation.self_evaluation`, no domínio — a tela nem
@@ -393,5 +403,5 @@ Regras de tela (o servidor continua decidindo):
 - **Exportação**: o arquivo baixado de novo é conferido com o SHA-256 registrado.
 - **Desempenho**: reaproveita `app-kpi-card` e `app-bar-chart` do `analytics` sem alterá-los; taxas sempre com a base; indicadores sem fonte listados (`unavailableMetrics`).
 
-Testes: `data/incentive.rules.spec.ts`, `data/plan-rules.spec.ts`, `statements/statements.spec.ts`, `plans/plans.spec.ts`, `incentive-pages.spec.ts` (períodos, exportação, metas, ocorrências, monitoria, desempenho, atribuição), `goals/goal-dialog.spec.ts` (unidade da meta); backend `PlanDraftAndGoalRemovalIT`, `GoalUnitIT`.
+Testes: `data/incentive.rules.spec.ts`, `data/plan-rules.spec.ts`, `statements/statements.spec.ts`, `plans/plans.spec.ts`, `incentive-pages.spec.ts` (períodos, exportação, metas, ocorrências, monitoria, desempenho, atribuição), `goals/goal-dialog.spec.ts` (unidade da meta), `quality/evaluation-dialog.spec.ts` (formulário de monitoria); backend `PlanDraftAndGoalRemovalIT`, `GoalUnitIT`.
 
