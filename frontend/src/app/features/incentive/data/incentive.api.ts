@@ -13,6 +13,7 @@ import {
   DisputeRequest,
   DisputeView,
   EvaluationRequest,
+  EvaluableUsers,
   EvaluationView,
   ExportFormat,
   ExportView,
@@ -244,6 +245,11 @@ export class QualityApi {
 
   evaluations(filter: PersonRangeFilter, page: PageRequest): Observable<PageResponse<EvaluationView>> {
     return this.http.get<PageResponse<EvaluationView>>(`${this.base}/evaluations`, { params: toHttpParams({ ...filter, page: page.page, size: page.size }) });
+  }
+
+  /** Escopo de quem avalia: a tela só oferece "Avaliar" para atendimentos dessas pessoas. */
+  evaluableUsers(): Observable<EvaluableUsers> {
+    return this.http.get<EvaluableUsers>(`${this.base}/evaluable-users`, { context: silentErrorContext() });
   }
 
   evaluate(request: EvaluationRequest): Observable<EvaluationView> {

@@ -168,6 +168,22 @@ class IsolationAndScopeIT extends IncentiveTestSupport {
     }
 
     @Test
+    void evaluableUsersMatchTheEvaluationScope() {
+        provisionTenant("evaluable");
+        // supervisor: só a própria equipe, sem ele mesmo e sem o gestor (que também registra atendimentos)
+        QualityUseCases.EvaluableUsers team = as(supervisor, DefaultRoles.SUPERVISOR, () -> quality.evaluableUsers());
+        assertThat(team.all()).isFalse();
+        assertThat(team.userIds()).containsExactlyInAnyOrder(operatorX, operatorY);
+        UUID form = as(supervisor, DefaultRoles.SUPERVISOR, () -> quality.createForm(new FormCommand("Monitoria",
+                null, List.of(new CriterionInput("ABORDAGEM", "Abordagem respeitosa", BigDecimal.ONE, false))))).id();
+        assertThatThrownBy(() -> as(supervisor, DefaultRoles.SUPERVISOR, () -> quality.evaluate(new EvaluationCommand(form,
+                manager, "CASE", null, LocalDate.of(2026, 9, 10), Map.of("ABORDAGEM", BigDecimal.TEN), null))))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        // gestor: visão total
+        assertThat(as(manager, DefaultRoles.GESTOR, () -> quality.evaluableUsers()).all()).isTrue();
+    }
+
+    @Test
     void monitoringGateSuspendsUntilReevaluationAndSevereViolationZeroes() {
         provisionTenant("gate");
         // plano com portão de monitoria (nota mínima 7,0): nova versão publicada a partir de setembro

@@ -97,6 +97,15 @@ decisão 1072), com o caminho para avaliar no próprio atendimento.
   `requireVisible`); **ninguém avalia o próprio atendimento** (`quality_evaluation.self_evaluation`, no domínio — a tela nem
   mostra o botão) e atendimento sem pessoa (assistente, sistema) não é avaliado por aqui. Sem formulário ativo, o botão
   avisa onde criar.
+* **Botão só no escopo (decisão 1075)**: `GET /incentive/quality/evaluable-users` (`QUALITY_EVALUATE`) devolve quem o ator
+  pode avaliar — `{all: true}` com visão total ou `{all: false, userIds}` com os membros das equipes que supervisiona,
+  sempre sem o próprio ator (mesma regra de `requireVisible` no registro). O `EvaluationLauncher` carrega uma vez por
+  pessoa logada e só mostra "Avaliar" para atendimento dessas pessoas (até a resposta, ou se ela falhar, não mostra); o
+  seletor de negociador da avaliação geral usa a mesma lista (`EvaluableUserSource`: com equipe, parte dos membros e mostra
+  só o nome, via `/users/display-names`; com visão total, a busca de usuários ativos). Perfil personalizado com
+  `QUALITY_EVALUATE` e sem permissão de desempenho recebe 403 (registrado como `ACCESS_DENIED` uma vez por sessão) e não vê
+  o botão. Antes, o supervisor via "Avaliar"
+  num atendimento do gestor e recebia 403 (`SCOPE_DENIED`) ao registrar.
 * **Volta para a referência**: a lista de avaliações mostra "Ver caso" (`/cobranca/casos/:id?aba=historico`), "Ver
   conversa" e "Ver acordo", só com a permissão de abrir a tela de destino; a chamada (sem ficha própria) abre o histórico do
   caso dela pela leitura da chamada (`TELEPHONY_USE` ou `TELEPHONY_SUPERVISE`).
@@ -390,7 +399,7 @@ Feature `frontend/src/app/features/incentive`, rotas em `/remuneracao` (seção 
 | Metas por período (unidade R$ ou %) | `/remuneracao/metas` | `COMMISSION_PLAN_MANAGE` | `GET/PUT /goals`, `GET /goals/unit-options`, `DELETE /goals/{id}` |
 | Períodos de apuração | `/remuneracao/periodos` | `COMMISSION_STATEMENT_MANAGE` | `GET /periods`, `POST /periods/{p}/close` |
 | Exportação para a folha | `/remuneracao/exportacao` | `COMMISSION_STATEMENT_APPROVE` | `GET/POST /exports`, `GET /exports/{id}/file` |
-| Monitoria, ocorrências e formulários | `/remuneracao/qualidade/{avaliacoes,ocorrencias,formularios}` | `PERFORMANCE_VIEW_*`, `QUALITY_EVALUATE` (registro); dispensa de ocorrência com `COMMISSION_STATEMENT_MANAGE` | `/quality/forms`, `/quality/evaluations`, `/quality/occurrences` (+ `dismiss`) |
+| Monitoria, ocorrências e formulários | `/remuneracao/qualidade/{avaliacoes,ocorrencias,formularios}` | `PERFORMANCE_VIEW_*`, `QUALITY_EVALUATE` (registro); dispensa de ocorrência com `COMMISSION_STATEMENT_MANAGE` | `/quality/forms`, `/quality/evaluations`, `/quality/occurrences` (+ `dismiss`), `/quality/evaluable-users` (`QUALITY_EVALUATE`) |
 | Atribuição de crédito do acordo (link no detalhe do acordo) | `/remuneracao/atribuicoes/:agreementId` | `PERFORMANCE_VIEW_*`, `AGREEMENT_VIEW` | `GET /attributions/{agreementId}` |
 
 Regras de tela (o servidor continua decidindo):

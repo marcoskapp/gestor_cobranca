@@ -385,6 +385,12 @@ export interface Criterion {
   critical: boolean;
 }
 
+/** Quem o ator pode avaliar (`GET /quality/evaluable-users`): todos (exceto ele) ou só `userIds`. */
+export interface EvaluableUsers {
+  all: boolean;
+  userIds: string[];
+}
+
 export interface QualityForm {
   id: string;
   name: string;

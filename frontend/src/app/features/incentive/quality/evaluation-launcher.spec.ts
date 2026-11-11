@@ -1,6 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { signal } from '@angular/core';
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
@@ -41,8 +41,19 @@ describe('EvaluationLauncher ("Avaliar este atendimento")', () => {
 
   afterEach(() => http.verify());
 
-  it('só para quem avalia e nunca o próprio atendimento (nem atendimento sem pessoa)', () => {
+  const EVALUABLE = '/api/v1/incentive/quality/evaluable-users';
+
+  /** Carrega o escopo de quem avalia (o recurso dispara no próximo ciclo). */
+  async function launcherWith(scope: { all: boolean; userIds: string[] }): Promise<EvaluationLauncher> {
     const launcher = TestBed.inject(EvaluationLauncher);
+    TestBed.tick();
+    http.expectOne(EVALUABLE).flush(scope);
+    await TestBed.inject(ApplicationRef).whenStable();
+    return launcher;
+  }
+
+  it('só para quem avalia e nunca o próprio atendimento (nem atendimento sem pessoa)', async () => {
+    const launcher = await launcherWith({ all: true, userIds: [] });
     expect(launcher.canEvaluate('u-2')).toBe(true);
     expect(launcher.canEvaluate('u-1')).toBe(false);
     expect(launcher.canEvaluate(null)).toBe(false);
@@ -50,8 +61,23 @@ describe('EvaluationLauncher ("Avaliar este atendimento")', () => {
     expect(launcher.canEvaluate('u-2')).toBe(false);
   });
 
-  it('abre o formulário já preenchido com o atendimento; sem formulário ativo, avisa onde criar', async () => {
+  it('supervisor: só quem está nas equipes dele (o gestor ou outra equipe ficam sem "Avaliar")', async () => {
+    const launcher = await launcherWith({ all: false, userIds: ['u-2', 'u-3'] });
+    expect(launcher.canEvaluate('u-2')).toBe(true);
+    expect(launcher.canEvaluate('u-gestor')).toBe(false);
+  });
+
+  it('antes da resposta do servidor (ou se ela falhar), não oferece "Avaliar"', async () => {
     const launcher = TestBed.inject(EvaluationLauncher);
+    expect(launcher.canEvaluate('u-2')).toBe(false);
+    TestBed.tick();
+    http.expectOne(EVALUABLE).flush(null, { status: 500, statusText: 'erro' });
+    await TestBed.inject(ApplicationRef).whenStable();
+    expect(launcher.canEvaluate('u-2')).toBe(false);
+  });
+
+  it('abre o formulário já preenchido com o atendimento; sem formulário ativo, avisa onde criar', async () => {
+    const launcher = await launcherWith({ all: true, userIds: [] });
     launcher.open(target).subscribe();
     http.expectOne('/api/v1/incentive/quality/forms').flush([{ id: 'f-1', name: 'Padrão', description: null, active: false, criteria: [] }]);
     expect(info).toHaveBeenCalledWith(expect.stringContaining('Nenhum formulário de monitoria ativo'));

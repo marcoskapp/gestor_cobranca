@@ -2,6 +2,7 @@ package br.com.gestorcobranca.incentive.web;
 
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.CriterionInput;
+import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.EvaluableUsers;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.EvaluationCommand;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.EvaluationView;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.FormCommand;
@@ -79,6 +80,13 @@ class QualityController {
     EvaluationView evaluate(@Valid @RequestBody EvaluationRequest request) {
         return quality.evaluate(new EvaluationCommand(request.formId(), request.userId(), request.referenceType(),
                 request.referenceId(), request.evaluatedOn(), request.scores(), request.comments()));
+    }
+
+    /** Quem o ator pode avaliar: a tela só mostra "Avaliar" para esses atendimentos. */
+    @GetMapping("/evaluable-users")
+    @PreAuthorize("hasAuthority('QUALITY_EVALUATE')")
+    EvaluableUsers evaluableUsers() {
+        return quality.evaluableUsers();
     }
 
     @GetMapping("/evaluations")

@@ -29,6 +29,7 @@ import { EvaluationView, QualityForm, ReferenceType } from '../data/incentive.mo
 import { score } from '../data/incentive.rules';
 import { incentiveError } from '../statements/statement-dialogs';
 import { personRangeFilter } from './person-range-filter';
+import { EvaluableUserSource } from './evaluable-user-source';
 import type { EvaluationDialogData } from './evaluation-launcher';
 import { Router, RouterLink } from '@angular/router';
 import { CallsApi } from '../../telephony/data/telephony.api';
@@ -346,7 +347,7 @@ export class EvaluationDialog {
   private readonly ref = inject<DialogRef<EvaluationView>>(DialogRef);
   private readonly api = inject(QualityApi);
   private readonly auth = inject(AuthService);
-  protected readonly users = inject(UserLookup);
+  protected readonly users = inject(EvaluableUserSource);
   protected readonly references = referenceTypes;
   protected readonly today = toDateStruct(zonedNow().date);
   protected readonly scoreText = score;

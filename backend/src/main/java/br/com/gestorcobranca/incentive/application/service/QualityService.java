@@ -54,6 +54,18 @@ class QualityService implements QualityUseCases {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public EvaluableUsers evaluableUsers() {
+        access.requirePermission(Permission.QUALITY_EVALUATE);
+        Set<UUID> visible = access.visibleUsers();
+        if (visible == null) {
+            return new EvaluableUsers(true, List.of());
+        }
+        UUID self = access.actor().id();
+        return new EvaluableUsers(false, visible.stream().filter(id -> !id.equals(self)).sorted().toList());
+    }
+
+    @Override
     public FormView createForm(FormCommand command) {
         access.requirePermission(Permission.QUALITY_EVALUATE);
         List<QualityCriterion> criteria = command.criteria() == null ? List.of() : command.criteria().stream()

@@ -1,5 +1,6 @@
-import { Injectable, inject } from '@angular/core';
-import { Observable, from, map, of, switchMap } from 'rxjs';
+import { Injectable, computed, inject } from '@angular/core';
+import { rxResource, toObservable } from '@angular/core/rxjs-interop';
+import { Observable, catchError, from, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -39,9 +40,10 @@ export function attendanceDate(instant: string): string {
 
 /**
  * "Avaliar este atendimento": regra de exibição e abertura do diálogo de monitoria já preenchido. Exige
- * `QUALITY_EVALUATE`; ninguém avalia o próprio atendimento (o servidor também recusa, `quality_evaluation.self_evaluation`,
- * e confere que o negociador está no escopo de quem avalia). Atendimento sem pessoa (assistente, sistema) não é avaliado
- * aqui. O diálogo é carregado sob demanda (fica no pacote da monitoria).
+ * `QUALITY_EVALUATE` e que quem atendeu esteja no escopo de quem avalia — todos, com visão total, ou os membros das
+ * equipes que supervisiona —, informado pelo servidor (`GET /quality/evaluable-users`, a mesma regra que ele aplica ao
+ * registrar); até a resposta chegar, o botão não aparece. Ninguém avalia o próprio atendimento. Atendimento sem pessoa
+ * (assistente, sistema) não é avaliado aqui. O diálogo é carregado sob demanda (fica no pacote da monitoria).
  */
 @Injectable({ providedIn: 'root' })
 export class EvaluationLauncher {
@@ -50,9 +52,31 @@ export class EvaluationLauncher {
   private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
 
-  /** Mostra "Avaliar" para este atendimento: permissão de avaliar e atendente que não é a própria pessoa. */
+  /** Escopo de quem avalia, carregado uma vez por pessoa logada (falha = ninguém, o botão não aparece). */
+  private readonly scope = rxResource({
+    params: () => (this.auth.hasPermission(Permission.QUALITY_EVALUATE) ? (this.auth.user()?.id ?? undefined) : undefined),
+    stream: () => this.api.evaluableUsers().pipe(catchError(() => of({ all: false, userIds: [] }))),
+  });
+  private readonly evaluable = computed(() => {
+    const s = this.scope.hasValue() ? this.scope.value() : null;
+    return s ? { all: s.all, ids: new Set(s.userIds) } : null;
+  });
+
+  /** Escopo de quem avalia (`null` até a resposta do servidor), para o seletor de negociador. */
+  readonly scope$ = toObservable(this.evaluable);
+
+  /** Valor atual do escopo (`null` até a resposta). */
+  scopeSnapshot(): { all: boolean; ids: ReadonlySet<string> } | null {
+    return this.evaluable();
+  }
+
+  /** Mostra "Avaliar" para este atendimento: permissão de avaliar, atendente no escopo e que não é a própria pessoa. */
   canEvaluate(attendantId: string | null | undefined): boolean {
-    return !!attendantId && this.auth.hasPermission(Permission.QUALITY_EVALUATE) && attendantId !== this.auth.user()?.id;
+    if (!attendantId || !this.auth.hasPermission(Permission.QUALITY_EVALUATE) || attendantId === this.auth.user()?.id) {
+      return false;
+    }
+    const e = this.evaluable();
+    return !!e && (e.all || e.ids.has(attendantId));
   }
 
   /** Abre a monitoria preenchida; sem formulário ativo, avisa onde criar. Emite a avaliação registrada (ou nada). */

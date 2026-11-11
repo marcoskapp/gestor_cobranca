@@ -46,6 +46,7 @@ describe('CaseConsult (ficha do caso para quem não opera)', () => {
 
   beforeEach(() => {
     permissions = ['CASE_VIEW', 'DEBTOR_VIEW'];
+    evaluable = ['u-2'];
     dialog.open.mockReset().mockReturnValue({ afterClosed: () => of(undefined) });
     TestBed.configureTestingModule({
       imports: [CaseConsult],
@@ -70,6 +71,8 @@ describe('CaseConsult (ficha do caso para quem não opera)', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
+  let evaluable: string[];
+
   function reply(req: TestRequest): void {
     const url = req.request.url;
     if (url.endsWith('/sheet')) return req.flush(sheet());
@@ -77,6 +80,8 @@ describe('CaseConsult (ficha do caso para quem não opera)', () => {
     if (url.startsWith('/api/v1/creditors/')) return req.flush({ id: 'c-1', legalName: 'Banco Horizonte S.A.', tradeName: 'Horizonte' });
     if (url.startsWith('/api/v1/portfolios/')) return req.flush({ id: 'p-1', name: 'Cartões setembro' });
     if (url === '/api/v1/users/display-names') return req.flush([{ id: 'u-2', name: 'Carla Operadora' }]);
+    // escopo de quem avalia: a operadora u-2 é da equipe; "Avaliar" só aparece para quem está nele
+    if (url === '/api/v1/incentive/quality/evaluable-users') return req.flush({ all: false, userIds: evaluable });
     return req.flush(url.includes('/negotiation/') || url.includes('/communication/') ? { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 } : {});
   }
 
@@ -121,6 +126,16 @@ describe('CaseConsult (ficha do caso para quem não opera)', () => {
     expect(el.querySelector('[data-testid="interaction-evaluate"]')).not.toBeNull();
     // CASE_MANAGE: ações de situação no "Mais ações"
     expect(el.querySelector('app-more-actions button')).not.toBeNull();
+  });
+
+  it('atendimento de quem está fora do escopo de quem avalia (ex.: o gestor, para o supervisor) fica sem "Avaliar"', async () => {
+    permissions = [...permissions, 'QUALITY_EVALUATE'];
+    evaluable = ['u-9'];
+    const fixture = await render();
+    const el = fixture.nativeElement as HTMLElement;
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Histórico'))!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="interaction-evaluate"]')).toBeNull();
   });
 
   it('endereço único: o antigo /cobranca/fila?caso= redireciona para /cobranca/casos/:id, com a aba', () => {

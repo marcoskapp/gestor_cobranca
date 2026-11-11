@@ -49,7 +49,7 @@ describe('EvaluationDialog (registro de monitoria)', () => {
         provideRouter([]),
         { provide: DIALOG_DATA, useValue: data },
         { provide: DialogRef, useValue: { close } },
-        { provide: QualityApi, useValue: { evaluate } },
+        { provide: QualityApi, useValue: { evaluate, evaluableUsers: () => of({ all: true, userIds: [] }) } },
         { provide: UserLookup, useValue: { search: () => of([]), resolve: () => of([]) } },
         {
           provide: AuthService,

@@ -24,6 +24,12 @@ public interface QualityUseCases {
 
     EvaluationView evaluate(EvaluationCommand command);
 
+    /**
+     * Quem o ator pode avaliar (escopo de {@link #evaluate}): todos, com visão total, ou os membros das equipes que
+     * supervisiona. Nunca inclui o próprio ator (ninguém avalia o próprio atendimento). Exige {@code QUALITY_EVALUATE}.
+     */
+    EvaluableUsers evaluableUsers();
+
     /** @param userId null = todos os visíveis */
     PageResponse<EvaluationView> evaluations(UUID userId, LocalDate from, LocalDate to, PageQuery page);
 
@@ -46,6 +52,10 @@ public interface QualityUseCases {
     /** @param referenceType CALL, CONVERSATION, CASE, AGREEMENT ou OTHER */
     record EvaluationCommand(UUID formId, UUID userId, String referenceType, UUID referenceId, LocalDate evaluatedOn,
                              Map<String, BigDecimal> scores, String comments) {
+    }
+
+    /** @param all todos os usuários da assessoria (exceto o ator); senão, só {@code userIds} */
+    record EvaluableUsers(boolean all, List<UUID> userIds) {
     }
 
     record EvaluationView(UUID id, UUID formId, UUID userId, UUID evaluatorId, String referenceType, UUID referenceId,
