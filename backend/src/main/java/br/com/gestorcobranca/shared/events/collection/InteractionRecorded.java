@@ -16,6 +16,12 @@ import java.util.UUID;
  *                         produtores da versão original (tratado como não informado: não conta
  *                         como tentativa)
  * @param portfolioId      carteira do caso (segmentação dos indicadores)
+ * @param contactId        contato do devedor usado (telefone, e-mail…), ou null quando não houve
+ *                         contato específico ou em produtores de versões anteriores
+ * @param source           origem do registro (MANUAL, TELEPHONY, COMMUNICATION, ASSISTANT, SYSTEM…), ou null em
+ *                         produtores de versões anteriores; interações TELEPHONY e COMMUNICATION espelham
+ *                         {@code CallCompleted} e {@code MessageStatusChanged} (quem conta tentativas por esses
+ *                         eventos não deve contá-las de novo)
  */
 public record InteractionRecorded(
         UUID eventId,
@@ -30,13 +36,23 @@ public record InteractionRecorded(
         boolean effectiveContact,
         UUID operatorId,
         String direction,
-        UUID portfolioId) implements IntegrationEvent {
+        UUID portfolioId,
+        UUID contactId,
+        String source) implements IntegrationEvent {
+
+    /** Construtor da versão anterior do contrato (sem contato e origem). */
+    public InteractionRecorded(UUID eventId, UUID tenantId, Instant occurredAt, UUID interactionId, UUID caseId,
+                               UUID debtorId, UUID creditorId, String channel, String outcomeCode,
+                               boolean effectiveContact, UUID operatorId, String direction, UUID portfolioId) {
+        this(eventId, tenantId, occurredAt, interactionId, caseId, debtorId, creditorId, channel, outcomeCode,
+                effectiveContact, operatorId, direction, portfolioId, null, null);
+    }
 
     /** Construtor da versão original do contrato (sem direção e carteira). */
     public InteractionRecorded(UUID eventId, UUID tenantId, Instant occurredAt, UUID interactionId, UUID caseId,
                                UUID debtorId, UUID creditorId, String channel, String outcomeCode,
                                boolean effectiveContact, UUID operatorId) {
         this(eventId, tenantId, occurredAt, interactionId, caseId, debtorId, creditorId, channel, outcomeCode,
-                effectiveContact, operatorId, null, null);
+                effectiveContact, operatorId, null, null, null, null);
     }
 }

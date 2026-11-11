@@ -203,6 +203,24 @@ class CollectionTabulationFollowUpIT extends CollectionTestSupport {
     }
 
     @Test
+    void contactOfAnotherDebtorIsRefusedBeforeAnythingIsRecorded() {
+        UUID debtor = debtor("390.533.447-05");
+        load(creditorA, portfolioA, debtor, "75.00");
+        CaseView c = activeCase(debtor, portfolioA);
+        UUID other = debtor("529.982.247-25");
+        ContactView otherPhone = system(() -> debtorContacts.list(other)).stream()
+                .filter(v -> v.type().equals("PHONE")).findFirst().orElseThrow();
+
+        // o id sai no InteractionRecorded e mudaria o contato (novidade, perfil) de outro devedor
+        assertThatThrownBy(() -> record(operatorX, c.id(), withContact("NO_ANSWER", null, otherPhone.id())))
+                .isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("interaction.contact_not_of_debtor");
+        ContactView untouched = system(() -> debtorContacts.list(other)).stream()
+                .filter(v -> v.id().equals(otherPhone.id())).findFirst().orElseThrow();
+        assertThat(untouched.status()).isNotEqualTo("INVALID");
+    }
+
+    @Test
     void followUpDetailsOnlyWithTabulationsThatHaveTheAction() {
         UUID debtor = debtor("529.982.247-25");
         load(creditorA, portfolioA, debtor, "60.00");

@@ -22,6 +22,7 @@ import br.com.gestorcobranca.collection.domain.repository.CollectionQueueReposit
 import br.com.gestorcobranca.collection.domain.repository.CollectionTaskRepository;
 import br.com.gestorcobranca.collection.domain.repository.InteractionRepository;
 import br.com.gestorcobranca.collection.domain.repository.TabulationRepository;
+import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
@@ -77,6 +78,7 @@ class InteractionService implements InteractionUseCases {
     private final CurrentActor currentActor;
     private final CollectionMetrics metrics;
     private final TabulationFollowUps followUps;
+    private final DebtorContactUseCases debtorContacts;
     private final Clock clock;
 
     InteractionService(InteractionRepository interactions, TabulationRepository tabulations,
@@ -85,7 +87,7 @@ class InteractionService implements InteractionUseCases {
                        PromiseService promiseService, PromiseRecorder promiseRecorder, SettingsProvider settings,
                        UserDirectory users, BusinessEventLogger businessEvents, ApplicationEventPublisher events,
                        CurrentActor currentActor, CollectionMetrics metrics, TabulationFollowUps followUps,
-                       Clock clock) {
+                       DebtorContactUseCases debtorContacts, Clock clock) {
         this.interactions = interactions;
         this.tabulations = tabulations;
         this.tasks = tasks;
@@ -103,6 +105,7 @@ class InteractionService implements InteractionUseCases {
         this.currentActor = currentActor;
         this.metrics = metrics;
         this.followUps = followUps;
+        this.debtorContacts = debtorContacts;
         this.clock = clock;
     }
 
@@ -143,6 +146,7 @@ class InteractionService implements InteractionUseCases {
         Guard.require(cmd.endedAt() == null || !cmd.endedAt().isAfter(now.plus(CLOCK_SKEW)), "interaction.ended_in_future",
                 "Fim da interação no futuro");
         UUID operatorId = actor.isUser() ? actor.id() : null;
+        requireContactOfDebtor(c, cmd.contactId());
 
         Interaction interaction = interactions.save(new Interaction(c, channel, direction, tabulation, cmd.note(),
                 cmd.contactId(), startedAt, cmd.endedAt(), operatorId, actor.type().name(), source, externalRef));
@@ -276,7 +280,20 @@ class InteractionService implements InteractionUseCases {
         metrics.interaction(i.getChannel().name(), i.getDirection().name(), i.isEffectiveContact(), i.getSource().name());
         events.publishEvent(new InteractionRecorded(Ids.newId(), currentActor.tenantId(), i.getStartedAt(), i.getId(),
                 c.getId(), c.getDebtorId(), c.getCreditorId(), i.getChannel().name(), i.getOutcomeCode(),
-                i.isEffectiveContact(), i.getOperatorId(), i.getDirection().name(), c.getPortfolioId()));
+                i.isEffectiveContact(), i.getOperatorId(), i.getDirection().name(), c.getPortfolioId(), i.getContactId(),
+                i.getSource().name()));
+    }
+
+    /**
+     * O contato informado precisa ser do devedor do caso: ele sai no {@code InteractionRecorded} e muda o estado do
+     * contato no debt (novidade) e o perfil de contato no scoring — um id de outro devedor não pode alcançá-los.
+     */
+    private void requireContactOfDebtor(CollectionCase c, UUID contactId) {
+        if (contactId == null) {
+            return;
+        }
+        boolean ofDebtor = debtorContacts.list(c.getDebtorId()).stream().anyMatch(v -> v.id().equals(contactId));
+        Guard.require(ofDebtor, "interaction.contact_not_of_debtor", "O contato não pertence ao devedor do caso");
     }
 
     private Tabulation tabulation(RecordInteractionCommand cmd) {

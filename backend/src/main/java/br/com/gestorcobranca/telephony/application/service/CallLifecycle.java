@@ -117,7 +117,8 @@ class CallLifecycle {
             }
             publisher.publishEvent(new CallCompleted(Ids.newId(), currentActor.tenantId(), call.getEndedAt(), call.getId(),
                     call.getCaseId(), call.getDebtorId(), call.getCreditorId(), call.getOperatorId(),
-                    call.getDirection().name(), call.getResult().name(), call.getTalkSeconds(), call.getPortfolioId()));
+                    call.getDirection().name(), call.getResult().name(), call.getTalkSeconds(), call.getPortfolioId(),
+                    call.getContactId()));
             BusinessEvent event = base(BusinessEventTypes.CALL_COMPLETED, call)
                     .attr("status", call.getStatus())
                     .attr("result", call.getResult())

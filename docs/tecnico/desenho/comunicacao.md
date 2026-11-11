@@ -297,7 +297,9 @@ templates sem `DELETE`.
 ## 7. Eventos, logs e métricas
 
 * Publicado: `MessageStatusChanged` em toda mudança de status (com `senderActorType`, `senderActorId`, `portfolioId`
-  usados pelo incentive — tempo de resposta de humanos).
+  usados pelo incentive — tempo de resposta de humanos — e `contactId`, o contato em uso na conversa no momento da
+  mudança de status, base da [inteligência de contato](inteligencia-de-contato.md) e dos
+  [contatos recebidos](contatos-recebidos.md)).
 * Consumidos: `MessageStatusChanged` (interação), `HandoffRequested`, `CaseAssignmentChanged`, `CaseStatusChanged`
   (abertura vincula conversas sem caso do devedor no credor).
 * Negócio: `message.sent|delivered|read|failed|blocked|replied|received`, `conversation.started`, `conversation.handoff`,

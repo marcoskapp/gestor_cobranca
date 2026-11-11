@@ -163,6 +163,7 @@ class MessageRecorder {
         events.publishEvent(new MessageStatusChanged(Ids.newId(), currentActor.tenantId(), m.getStatusAt(), m.getId(),
                 c.getId(), c.getDebtorId(), c.getCreditorId(), c.getCaseId(), m.getCampaignExecutionId(),
                 m.getChannel().name(), m.getDirection().name(), m.getStatus().name(),
-                outbound ? m.getSenderType().name() : null, outbound ? m.getSenderId() : null, c.getPortfolioId()));
+                outbound ? m.getSenderType().name() : null, outbound ? m.getSenderId() : null, c.getPortfolioId(),
+                c.getContactId()));
     }
 }

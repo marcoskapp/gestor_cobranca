@@ -237,7 +237,7 @@ tabulação desativada ou interação com mais de 7 dias → não registra (mét
 
 `CallCompleted` (linguagem publicada, na transação do encerramento) para toda chamada que chegou ao provedor: `callId`,
 `caseId`, `debtorId`, `creditorId`, `portfolioId`, `operatorId` (quem atendeu), `direction`, `result` (§1) e
-`durationSeconds` = **conversação**. O incentive usa só `ANSWERED` com duração > 0: TMA e tempo em atendimento
+`durationSeconds` = **conversação** e `contactId` (telefone discado do devedor; base da inteligência de contato, [inteligencia-de-contato.md](inteligencia-de-contato.md)). O incentive usa só `ANSWERED` com duração > 0: TMA e tempo em atendimento
 (ocupação = tempo de chamadas atendidas ÷ tempo logado, `remuneracao-variavel.md` §2).
 
 ## 7. Presença do operador (ACD)
