@@ -173,7 +173,17 @@ recusada (`plan.rules.goal_metric_unavailable`, mensagem atualizada): o motor de
   e `score.reviewed`.
 * `DebtorAnonymized`: apaga fatos e scores vigentes do devedor, apaga snapshots não apurados e desvincula o devedor dos
   apurados (estatística preservada, sem identificação).
-* Retenção: fatos 1095 dias, snapshots apurados 730 dias (`app.scoring.*`).
+* Retenção por assessoria na tela de Retenção (compliance): `SCORING_CASE_FACTS` (fatos, contados de `occurred_at`;
+  limites 730–3650 dias — o mínimo é a janela de fatos das features, `fact-lookback-days`) e
+  `SCORING_FEATURE_SNAPSHOTS` (snapshots **apurados**, contados de `reference_date`; 365–3650 dias — o mínimo é a janela
+  de treino padrão; janela de treino maior que a retenção treina com menos dados). Padrão do sistema enquanto a
+  assessoria não configura: `app.scoring.fact-retention-days` (1095) e `snapshot-retention-days` (730), informados ao
+  compliance pela porta `compliance :: spi` `RetentionDefaults` (`ScoringRetentionDefaults`), com o `fact-lookback-days`
+  como mínimo exigido dos fatos: se a configuração passar do mínimo da categoria (730), a aplicação não sobe (senão uma
+  assessoria poderia apagar fatos que as features ainda usam). O descarte não pode ser
+  desligado. `OutcomeService#purge` lê os prazos por `RetentionUseCases#retentionFor` no tenant e registra log INFO com
+  prazo e origem (`factSource`/`snapshotSource` = `TENANT`|`SYSTEM_DEFAULT`) quando descarta algo. IT:
+  `ScoringRetentionIT`.
 
 ## 9. Segurança, escopo e auditoria
 

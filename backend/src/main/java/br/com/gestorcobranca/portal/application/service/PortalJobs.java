@@ -65,10 +65,15 @@ class PortalJobs {
     /** @return registros descartados ou limpos na assessoria */
     int purgeAccessData(UUID tenantId) {
         int total = 0;
+        PortalMaintenance.AccessRetention retention = null;
         try {
+            // prazos da assessoria (tela de Retenção) ou o padrão do sistema, lidos uma vez por execução
+            PortalMaintenance.AccessRetention r = tenantExecution.callInTenant(tenantId, RETENTION_JOB,
+                    maintenance::accessRetention);
+            retention = r;
             for (int round = 0; round < MAX_RETENTION_ROUNDS; round++) {
                 PortalMaintenance.Purged purged = tenantExecution.callInTenant(tenantId, RETENTION_JOB,
-                        maintenance::purgeAccessData);
+                        () -> maintenance.purgeAccessData(r));
                 total += purged.total();
                 if (!purged.full()) {
                     break;
@@ -80,7 +85,14 @@ class PortalJobs {
                     .log("Falha no descarte dos dados de acesso do portal");
         }
         if (total > 0) {
+            // origem e prazo de cada categoria (TENANT = configurado pela assessoria; SYSTEM_DEFAULT = padrão)
             LOG.atInfo().addKeyValue("tenantId", tenantId).addKeyValue("job", RETENTION_JOB).addKeyValue("purged", total)
+                    .addKeyValue("challengesDays", retention.challenges().amount())
+                    .addKeyValue("challengesSource", retention.challenges().source())
+                    .addKeyValue("throttlesDays", retention.throttles().amount())
+                    .addKeyValue("throttlesSource", retention.throttles().source())
+                    .addKeyValue("sessionClientDataDays", retention.sessionClientData().amount())
+                    .addKeyValue("sessionClientDataSource", retention.sessionClientData().source())
                     .log("Retenção dos dados de acesso do portal executada");
         }
         return total;

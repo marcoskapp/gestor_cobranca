@@ -286,7 +286,7 @@ chamada no escopo e **finalidade** obrigatória (`QUALITY_MONITORING`, `DISPUTE`
 registra `FILE_DOWNLOADED` no log de acesso (recurso, gravação, chamada, credor, finalidade) e o contador de acessos;
 resposta `no-store` com `X-Content-SHA256`.
 
-Retenção: política `CALL_RECORDINGS` do compliance (`RetentionUseCases#policyFor`), descarte diário do arquivo
+Retenção: política `CALL_RECORDINGS` do compliance (`RetentionUseCases#retentionFor`), descarte diário do arquivo
 (metadados permanecem, `PURGED/RETENTION`). Anonimização do devedor (`DebtorAnonymized`) descarta as gravações
 (`PURGED/ANONYMIZATION`) e elimina número, índice e máscara das chamadas.
 

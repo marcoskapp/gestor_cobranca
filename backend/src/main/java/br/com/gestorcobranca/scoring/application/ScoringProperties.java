@@ -17,8 +17,10 @@ import java.util.List;
  * @param maintenanceCron      apuração de desfechos, recuperado × esperado e retenção
  * @param trainingCron         treino automático (se habilitado na assessoria); promoção é sempre manual
  * @param factLookbackDays     fatos considerados nas features (dias para trás)
- * @param factRetentionDays    retenção dos fatos
- * @param snapshotRetentionDays retenção dos snapshots apurados
+ * @param factRetentionDays    retenção dos fatos: padrão do sistema; cada assessoria ajusta na tela de Retenção
+ *                             (categoria {@code SCORING_CASE_FACTS} do compliance)
+ * @param snapshotRetentionDays retenção dos snapshots apurados: padrão do sistema; ajustável por assessoria
+ *                             (categoria {@code SCORING_FEATURE_SNAPSHOTS})
  * @param outcomeGraceDays     carência após o fim da janela antes de apurar (confirmações tardias)
  * @param rescoreDelay         atraso do recálculo por evento (agrupa fatos próximos do mesmo caso)
  * @param maxTrainingRows      observações mais recentes usadas no treino

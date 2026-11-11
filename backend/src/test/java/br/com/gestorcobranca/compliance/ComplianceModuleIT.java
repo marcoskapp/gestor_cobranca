@@ -372,7 +372,7 @@ class ComplianceModuleIT extends IntegrationTest {
         assertThat(count("select count(*) from shared.access_log where event_type = 'FILE_DOWNLOADED'")).isEqualTo(1);
         assertThat(count("select count(*) from shared.access_log where event_type = 'SENSITIVE_DATA_VIEWED'")).isEqualTo(3);
 
-        RequestView completed = system(() -> requests.complete(started.id(), "Arquivo entregue ao titular por e-mail"));
+        RequestView completed = system(() -> requests.complete(started.id(), "Arquivo entregue ao titular por e-mail", null));
         assertThat(completed.status()).isEqualTo("COMPLETED");
         assertThat(count("select count(*) from shared.business_event where event_type = 'data_subject_request.completed'"))
                 .isEqualTo(1);
@@ -437,7 +437,7 @@ class ComplianceModuleIT extends IntegrationTest {
         RequestView executed = system(() -> requests.execute(second.id()));
         assertThat(executed.executedAt()).isNotNull();
         assertThat(system(() -> debtors.get(debtor)).status()).isEqualTo("ANONYMIZED");
-        assertThat(system(() -> requests.complete(second.id(), "Dados eliminados")).status()).isEqualTo("COMPLETED");
+        assertThat(system(() -> requests.complete(second.id(), "Dados eliminados", null)).status()).isEqualTo("COMPLETED");
 
         // devedor anonimizado não pode mais ser contatado
         assertThat(evaluate(creditorA, "PHONE", null).reasons()).containsExactly(DenialReason.DEBTOR_ANONYMIZED);
@@ -481,7 +481,42 @@ class ComplianceModuleIT extends IntegrationTest {
         system(() -> legalBases.register(new RegisterLegalBasisCommand(creditorB, null, "EXERCICIO_REGULAR_DIREITOS", null,
                 "Contrato 2026/01", LocalDate.of(2020, 1, 1), null, "Dra. Jurídica", 120, null)));
 
+        // sem política, todas as categorias aparecem para configurar (a tela não fica sem ponto de partida): as
+        // antigas (em meses) sem prazo e sem descarte; as do portal e do scoring (em dias) com o padrão do sistema, ativas
+        List<RetentionUseCases.RetentionPolicyView> initial = system(() -> retention.listPolicies());
+        assertThat(initial).allSatisfy(p -> {
+            assertThat(p.configured()).isFalse();
+            assertThat(p.retentionAmount()).isNull();
+        }).extracting(RetentionUseCases.RetentionPolicyView::category)
+                .containsExactly("DEBTOR_INACTIVE", "IMPORT_FILES", "MESSAGE_CONTENT", "CALL_RECORDINGS",
+                        "PORTAL_ACCESS_CHALLENGES", "PORTAL_ACCESS_THROTTLES", "PORTAL_SESSION_CLIENT_DATA",
+                        "SCORING_CASE_FACTS", "SCORING_FEATURE_SNAPSHOTS");
+        assertThat(initial).filteredOn(p -> p.unit().equals("MONTHS")).hasSize(4).allSatisfy(p -> {
+            assertThat(p.defaultAmount()).isNull();
+            assertThat(p.enabled()).isFalse();
+        });
+        assertThat(initial).filteredOn(p -> p.unit().equals("DAYS"))
+                .extracting(RetentionUseCases.RetentionPolicyView::category,
+                        RetentionUseCases.RetentionPolicyView::defaultAmount,
+                        RetentionUseCases.RetentionPolicyView::minAmount,
+                        RetentionUseCases.RetentionPolicyView::enabled)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("PORTAL_ACCESS_CHALLENGES", 30, 1, true),
+                        org.assertj.core.groups.Tuple.tuple("PORTAL_ACCESS_THROTTLES", 30, 7, true),
+                        org.assertj.core.groups.Tuple.tuple("PORTAL_SESSION_CLIENT_DATA", 365, 30, true),
+                        org.assertj.core.groups.Tuple.tuple("SCORING_CASE_FACTS", 1095, 730, true),
+                        org.assertj.core.groups.Tuple.tuple("SCORING_FEATURE_SNAPSHOTS", 730, 365, true));
+        // categoria sem padrão e sem política habilitada: nada a descartar
+        assertThat(system(() -> retention.retentionFor("IMPORT_FILES"))).isEmpty();
         system(() -> retention.configure("DEBTOR_INACTIVE", 24, false));
+        assertThat(system(() -> retention.listPolicies())).filteredOn(p -> p.category().equals("DEBTOR_INACTIVE"))
+                .singleElement().satisfies(p -> {
+                    assertThat(p.configured()).isTrue();
+                    assertThat(p.retentionAmount()).isEqualTo(24);
+                    assertThat(p.unit()).isEqualTo("MONTHS");
+                });
+        assertThat(system(() -> retention.retentionFor("DEBTOR_INACTIVE"))).isEmpty();
+        assertThat(count("select count(*) from compliance.retention_policy where category = 'DEBTOR_INACTIVE' "
+                + "and retention_months = 24 and retention_days is null")).isEqualTo(1);
         assertThatThrownBy(() -> system(() -> retention.run("DEBTOR_INACTIVE", false)))
                 .hasFieldOrPropertyWithValue("code", "retention.policy_disabled");
 
@@ -508,6 +543,57 @@ class ComplianceModuleIT extends IntegrationTest {
                 .isEqualTo(2);
         assertThatThrownBy(() -> system(() -> jdbcTemplate.update("delete from compliance.retention_run_item")))
                 .isInstanceOf(DataAccessException.class);
+    }
+
+    @Test
+    void retentionPeriodCheckRejectsNullAmountInTheCategoryUnit() {
+        // lógica de três valores: sem o "is not null" explícito, "null > 0" é desconhecido e o check deixaria passar
+        String insert = "insert into compliance.retention_policy (id, tenant_id, version, created_at, updated_at, "
+                + "category, retention_months, retention_days, action, enabled) values (?, ?, 0, now(), now(), ?, ?, ?, ?, true)";
+        assertThatThrownBy(() -> system(() -> jdbcTemplate.update(insert, Ids.newId(), tenant, "IMPORT_FILES", null, null,
+                "DELETE_FILE"))).isInstanceOf(DataAccessException.class).hasMessageContaining("ck_retention_policy_period");
+        assertThatThrownBy(() -> system(() -> jdbcTemplate.update(insert, Ids.newId(), tenant, "SCORING_CASE_FACTS", null,
+                null, "DELETE_RECORD"))).isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("ck_retention_policy_period");
+        assertThat(system(() -> jdbcTemplate.update(insert, Ids.newId(), tenant, "IMPORT_FILES", 6, null, "DELETE_FILE")))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void resetToDefaultDeletesTenantPolicyAndAuditsEffectivePeriod() {
+        // categoria sem padrão do sistema: não há para onde voltar
+        system(() -> retention.configure("IMPORT_FILES", 6, true));
+        assertThatThrownBy(() -> system(() -> retention.resetToDefault("IMPORT_FILES")))
+                .hasFieldOrPropertyWithValue("code", "retention.no_system_default");
+        // sem política da assessoria: nada muda (nem trilha)
+        assertThat(system(() -> retention.resetToDefault("SCORING_FEATURE_SNAPSHOTS")).configured()).isFalse();
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? "
+                + "and action = 'retention_policy.reset_to_default'", tenant)).isZero();
+
+        system(() -> retention.configure("SCORING_FEATURE_SNAPSHOTS", 400, true));
+        assertThat(system(() -> retention.retentionFor("SCORING_FEATURE_SNAPSHOTS")).orElseThrow().source())
+                .isEqualTo("TENANT");
+        // escopo: só quem alcança todos os credores
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> retention.resetToDefault("SCORING_FEATURE_SNAPSHOTS")))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+
+        RetentionUseCases.RetentionPolicyView reset = system(() -> retention.resetToDefault("SCORING_FEATURE_SNAPSHOTS"));
+        assertThat(reset.configured()).isFalse();
+        assertThat(reset.retentionAmount()).isNull();
+        assertThat(reset.defaultAmount()).isEqualTo(730);
+        assertThat(reset.enabled()).isTrue();
+        assertThat(count("select count(*) from compliance.retention_policy where category = 'SCORING_FEATURE_SNAPSHOTS'"))
+                .isZero();
+        assertThat(system(() -> retention.retentionFor("SCORING_FEATURE_SNAPSHOTS")).orElseThrow())
+                .satisfies(r -> {
+                    assertThat(r.amount()).isEqualTo(730);
+                    assertThat(r.source()).isEqualTo("SYSTEM_DEFAULT");
+                });
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? "
+                + "and action = 'retention_policy.reset_to_default' "
+                + "and before_state->>'effectiveRetentionAmount' = '400' "
+                + "and after_state->>'effectiveRetentionAmount' = '730' "
+                + "and after_state->>'source' = 'SYSTEM_DEFAULT'", tenant)).isEqualTo(1);
     }
 
     @Test

@@ -4,6 +4,9 @@ import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, debounceTime, forkJoin, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { Permission } from '../../../../core/auth/permission';
+import { nameMap } from '../../../../shared/data/name-map';
+import { DebtorNames } from '../../../debt/data/debt.lookups';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../../shared/components/data-table/data-table';
 import { DocumentDisplay } from '../../../../shared/components/document-display/document-display';
@@ -31,18 +34,21 @@ export interface RequestQueueFilter {
   status: string | null;
   type: string | null;
   overdue: boolean | null;
+  /** Titular (devedor) vindo da ficha do devedor ou da solicitação: só o id, na URL (`?devedor=`). */
+  debtorId: string | null;
   document: string | null;
   /** Documento digitado mas incompleto/ inválido: não consulta. */
   incomplete: boolean;
 }
 
-export function toQueueFilter(v: { status: string; type: string; overdue: boolean; document: string }): RequestQueueFilter {
+export function toQueueFilter(v: { status: string; type: string; overdue: boolean; document: string; debtor?: string }): RequestQueueFilter {
   const digits = onlyDigits(v.document);
   const complete = (digits.length === 11 || digits.length === 14) && isValidDocument(digits);
   return {
     status: v.status || null,
     type: v.type || null,
     overdue: v.overdue ? true : null,
+    debtorId: v.debtor || null,
     document: complete ? digits : null,
     incomplete: digits.length > 0 && !complete,
   };
@@ -79,10 +85,11 @@ export class RequestList {
    * Filtros na URL (`?situacao=&pedido=&vencidas=true`): `vencidas` vem de "Minhas pendências" e tudo se preserva ao
    * voltar. O CPF/CNPJ do titular nunca vai para a URL (dado pessoal).
    */
-  protected readonly filters = syncFormWithUrl(this.fb.group({ status: [''], type: [''], overdue: [false], document: [''] }), {
+  protected readonly filters = syncFormWithUrl(this.fb.group({ status: [''], type: [''], overdue: [false], document: [''], debtor: [''] }), {
     status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
     type: urlParam.choice('pedido', this.types.map((t) => t.value)),
     overdue: OVERDUE_PARAM,
+    debtor: urlParam.id('devedor'),
   });
 
   private readonly filter = toSignal(
@@ -94,6 +101,9 @@ export class RequestList {
     { initialValue: toQueueFilter(this.filters.getRawValue()), equal: sameValue },
   );
   protected readonly incomplete = computed(() => this.filter().incomplete);
+  protected readonly debtorId = computed(() => this.filter().debtorId);
+  protected readonly canOpenDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
+  protected readonly debtorNames = nameMap(inject(DebtorNames), () => [this.canOpenDebtor() ? this.debtorId() : null]);
   protected readonly query = pagedQuery(this.filter, (f, page) => this.load(f, page), { url: true });
 
   /** Indicadores da fila (totais do servidor; uma consulta de 1 item por indicador). */
@@ -136,6 +146,11 @@ export class RequestList {
     return r.status !== 'COMPLETED' && r.status !== 'REJECTED';
   }
 
+  /** Volta à fila completa (o filtro do titular vem de outra tela e não tem campo próprio). */
+  protected clearDebtor(): void {
+    this.filters.patchValue({ debtor: '' });
+  }
+
   protected showOverdue(): void {
     this.filters.patchValue({ overdue: true, status: '' });
   }
@@ -152,13 +167,14 @@ export class RequestList {
   }
 
   private load(f: RequestQueueFilter, page: PageRequest): Observable<PageResponse<DataSubjectRequestView>> {
-    // A fila completa exige acesso a todos os credores (o direito do titular alcança todos os seus dados).
-    if (f.incomplete || !this.allCreditors()) {
+    // Pelo titular, basta o devedor visível (o servidor confere o escopo); a fila completa exige acesso a todos os
+    // credores (o direito do titular alcança todos os seus dados).
+    if (f.incomplete || (!this.allCreditors() && !f.debtorId)) {
       return of(emptyPage<DataSubjectRequestView>(page.size));
     }
     if (f.document) {
       return this.api.lookup(f.document, page);
     }
-    return this.api.search({ status: f.status, type: f.type, overdue: f.overdue }, page);
+    return this.api.search({ status: f.status, type: f.type, overdue: f.overdue, debtorId: f.debtorId }, page);
   }
 }

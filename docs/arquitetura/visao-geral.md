@@ -70,21 +70,22 @@ shared ◄── organization ◄── identity
               ├── communication      (→ collection [usecases e spi, ADR-0010], debt, compliance, identity [atribuíveis], organization)
               ├── campaign           (→ communication, collection, negotiation, portal [link de acesso], debt, compliance, organization)
               ├── telephony          (→ collection, compliance, debt, identity [operador habilitável], organization)
-              ├── portal             (→ negotiation, payment, communication, collection [contestação do devedor], debt, organization)
+              ├── portal             (→ negotiation, payment, communication, collection [contestação do devedor], compliance [prazos de retenção; usecases e spi], debt, organization)
               ├── complaint          (→ collection, debt, identity, organization)
-              ├── scoring            (→ collection, debt, payment, organization)
+              ├── scoring            (→ collection, compliance [prazos de retenção; usecases e spi], debt, payment, organization)
               ├── assistant          (→ negotiation, communication, collection, compliance, debt, payment [ADR-0009], organization)
               ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation e réguas do campaign por evento)
               ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               ├── analytics          (→ organization; lê o banco por views próprias)
               ├── pendingwork        (→ só shared; recebe as fontes de pendência dos módulos por injeção)
+              │   (o compliance recebe do mesmo jeito as fontes de compartilhamento `shared.privacy.DataSharingSource` de debt, communication, telephony, payment, assistant, legal e publicapi — sem dependência nova)
               ├── helpdesk           (→ identity, organization, debt, collection, negotiation, payment, ingestion, settlement, incentive, pendingwork — só leitura)
               └── publicapi          (→ organization, debt, ingestion, collection, negotiation, payment — usecases; registros assíncronos por PortfolioLoaded)
 ```
 
 Todo módulo pode depender de `shared`. A dependência é declarada em `package-info.java` com `@ApplicationModule(allowedDependencies = …)` e verificada por teste (`ModularityTest`).
 
-**Portas declaradas pelo dono da regra** (`<modulo> :: spi`, ADR-0010): quando um módulo precisa, *de forma síncrona*, de um dado que só um módulo acima dele no grafo tem, ele declara a porta em `application.port.spi` (`@NamedInterface("spi")`) e esse módulo — que já depende dele — a implementa. Exemplo: `negotiation.application.port.spi.PaymentReviewHolds`, implementada pelo payment, para suspender a quebra do acordo enquanto há pagamento em revisão; `collection.application.port.spi.DisputeDebtorMessenger`, implementada pelo communication, para a resposta da contestação ao devedor (mensagem transacional).
+**Portas declaradas pelo dono da regra** (`<modulo> :: spi`, ADR-0010): quando um módulo precisa, *de forma síncrona*, de um dado que só um módulo acima dele no grafo tem, ele declara a porta em `application.port.spi` (`@NamedInterface("spi")`) e esse módulo — que já depende dele — a implementa. Exemplo: `negotiation.application.port.spi.PaymentReviewHolds`, implementada pelo payment, para suspender a quebra do acordo enquanto há pagamento em revisão; `collection.application.port.spi.DisputeDebtorMessenger`, implementada pelo communication, para a resposta da contestação ao devedor (mensagem transacional). `compliance.application.port.spi.RetentionDefaults`, implementada pelo portal e pelo scoring, para o prazo padrão do sistema das categorias de retenção que eles descartam (exibido na tela de Retenção e usado enquanto a assessoria não configura).
 
 **Reações no sentido contrário ao grafo** (ex.: `collection` precisa saber que um pagamento foi confirmado) acontecem **somente** por *eventos de integração* definidos em `shared.events` (linguagem publicada). Nunca se cria dependência cíclica para isso.
 

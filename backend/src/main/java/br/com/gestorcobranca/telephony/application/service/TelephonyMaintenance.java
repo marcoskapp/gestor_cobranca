@@ -1,8 +1,7 @@
 package br.com.gestorcobranca.telephony.application.service;
 
 import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases;
-import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases.RetentionPolicyView;
-import br.com.gestorcobranca.shared.config.TimeConfig;
+import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases.AppliedRetention;
 import br.com.gestorcobranca.shared.storage.FileStorage;
 import br.com.gestorcobranca.telephony.application.TelephonyProperties;
 import br.com.gestorcobranca.telephony.application.port.out.WebhookReceiptLog;
@@ -23,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -81,13 +79,12 @@ class TelephonyMaintenance {
     /** @return gravações tratadas neste lote (lote cheio = há mais) */
     @Transactional
     public int purgeRecordings() {
-        Optional<RetentionPolicyView> policy = retention.policyFor(RETENTION_CATEGORY).filter(RetentionPolicyView::enabled);
+        Optional<AppliedRetention> policy = retention.retentionFor(RETENTION_CATEGORY);
         if (policy.isEmpty()) {
             return 0;
         }
         Instant now = Instant.now(clock);
-        Instant cutoff = ZonedDateTime.ofInstant(now, TimeConfig.BUSINESS_ZONE)
-                .minusMonths(policy.get().retentionMonths()).toInstant();
+        Instant cutoff = policy.get().cutoff(now);
         List<CallRecording> batch = recordings.findStoredBefore(cutoff, properties.retentionBatch());
         for (CallRecording recording : batch) {
             purge(recording, "RETENTION", now);

@@ -5,14 +5,12 @@ import br.com.gestorcobranca.communication.application.port.out.WebhookReceiptLo
 import br.com.gestorcobranca.communication.domain.model.Message;
 import br.com.gestorcobranca.communication.domain.repository.MessageRepository;
 import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases;
-import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases.RetentionPolicyView;
-import br.com.gestorcobranca.shared.config.TimeConfig;
+import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases.AppliedRetention;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,13 +44,12 @@ class CommunicationMaintenance {
     /** @return mensagens com conteúdo descartado neste lote (lote cheio = há mais) */
     @Transactional
     public int purgeMessageContent() {
-        Optional<RetentionPolicyView> policy = retention.policyFor(RETENTION_CATEGORY).filter(RetentionPolicyView::enabled);
+        Optional<AppliedRetention> policy = retention.retentionFor(RETENTION_CATEGORY);
         if (policy.isEmpty()) {
             return 0;
         }
         Instant now = Instant.now(clock);
-        Instant cutoff = ZonedDateTime.ofInstant(now, TimeConfig.BUSINESS_ZONE)
-                .minusMonths(policy.get().retentionMonths()).toInstant();
+        Instant cutoff = policy.get().cutoff(now);
         List<Message> batch = messages.findContentOlderThan(cutoff, properties.retentionBatch());
         int purged = 0;
         for (Message m : batch) {

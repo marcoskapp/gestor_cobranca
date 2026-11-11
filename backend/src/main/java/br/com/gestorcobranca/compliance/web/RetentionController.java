@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,7 +44,14 @@ class RetentionController {
     @PutMapping("/policies/{category}")
     @PreAuthorize("hasAuthority('RETENTION_MANAGE')")
     RetentionPolicyView configure(@PathVariable String category, @Valid @RequestBody PolicyRequest request) {
-        return retention.configure(category, request.retentionMonths(), request.enabled());
+        return retention.configure(category, request.retentionAmount(), request.enabled());
+    }
+
+    /** "Usar o padrão": apaga o prazo da assessoria e a categoria volta ao padrão do sistema. */
+    @DeleteMapping("/policies/{category}")
+    @PreAuthorize("hasAuthority('RETENTION_MANAGE')")
+    RetentionPolicyView resetToDefault(@PathVariable String category) {
+        return retention.resetToDefault(category);
     }
 
     /** {@code dryRun=true} (padrão) só gera o relatório dos elegíveis. */
@@ -73,6 +81,10 @@ class RetentionController {
         return retention.runItems(id, PageQuery.of(page, size));
     }
 
-    record PolicyRequest(@Min(1) @Max(1200) int retentionMonths, boolean enabled) {
+    /**
+     * @param retentionAmount prazo na unidade da categoria; os limites de cada categoria são conferidos no domínio
+     * @param enabled         só a categoria sem padrão do sistema pode ficar desabilitada
+     */
+    record PolicyRequest(@Min(1) @Max(3650) int retentionAmount, boolean enabled) {
     }
 }

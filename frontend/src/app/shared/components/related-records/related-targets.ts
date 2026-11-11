@@ -49,6 +49,20 @@ export const RELATED_TARGETS = {
   legalMatter: { group: 'Casos jurídicos', icon: 'folder-symlink', path: '/juridico/casos', detail: true, permissions: [P.LEGAL_VIEW] },
   conversation: { group: 'Conversas', icon: 'chat-left-text', path: '/conversas', detail: true, permissions: [P.INBOX_VIEW] },
   importBatch: { group: 'Importação', icon: 'file-earmark-arrow-up', path: '/importacao', detail: true, permissions: [P.IMPORT_VIEW] },
+  dataSubjectRequest: {
+    group: 'Solicitações do titular (LGPD)',
+    icon: 'shield-exclamation',
+    path: '/compliance/solicitacoes-titulares',
+    detail: true,
+    permissions: [P.DATA_SUBJECT_REQUEST_MANAGE],
+  },
+  dataSubjectRequestList: {
+    group: 'Solicitações do titular (LGPD)',
+    icon: 'shield-exclamation',
+    path: '/compliance/solicitacoes-titulares',
+    detail: false,
+    permissions: [P.DATA_SUBJECT_REQUEST_MANAGE],
+  },
 } as const satisfies Record<string, RelatedTarget>;
 
 export type RelatedKind = keyof typeof RELATED_TARGETS;

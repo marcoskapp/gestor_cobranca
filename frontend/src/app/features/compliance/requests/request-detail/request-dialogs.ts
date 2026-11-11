@@ -16,6 +16,8 @@ export interface ResponseDialogData {
   confirmLabel: string;
   destructive?: boolean;
   details: readonly { label: string; value: string }[];
+  /** Texto já preenchido (resposta sugerida), editável. */
+  initial?: string;
 }
 
 /** Resposta ao titular na conclusão ou fundamentação da recusa (até 4.000 caracteres). */
@@ -29,6 +31,9 @@ export interface ResponseDialogData {
     </div>
     <div class="modal-body">
       <p class="app-dialog-message">{{ data.message }}</p>
+      @if (data.initial) {
+        <p class="app-muted small">Texto preenchido com a resposta sugerida: confira e ajuste antes de concluir.</p>
+      }
       <dl class="app-definition-list rd-details">
         @for (d of data.details; track d.label) {
           <dt>{{ d.label }}</dt>
@@ -36,7 +41,7 @@ export interface ResponseDialogData {
         }
       </dl>
       <app-field class="app-full-width mb-3" [label]="(data.label)" [hintEnd]="(text.value.length) + ' / ' + (max)" [error]="text.invalid ? (error()) : undefined">
-        <textarea appInput [formControl]="text" rows="6" [maxlength]="max" required></textarea>
+        <textarea appInput [formControl]="text" [rows]="data.initial ? 14 : 6" required></textarea>
       </app-field>
     </div>
     <div class="modal-footer">
@@ -57,7 +62,10 @@ export class ResponseDialog {
   protected readonly data = inject<ResponseDialogData>(DIALOG_DATA);
   private readonly ref = inject<DialogRef<string>>(DialogRef);
   protected readonly max = RESPONSE_MAX;
-  protected readonly text = inject(FormBuilder).nonNullable.control('', [AppValidators.notBlank, Validators.maxLength(RESPONSE_MAX)]);
+  protected readonly text = inject(FormBuilder).nonNullable.control(this.data.initial ?? '', [
+    AppValidators.notBlank,
+    Validators.maxLength(RESPONSE_MAX),
+  ]);
 
   protected error(): string {
     return errorMessage(this.text.errors);

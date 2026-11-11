@@ -278,16 +278,22 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
     }
 
     @Override
-    public RequestView complete(UUID requestId, String responseSummary) {
+    public RequestView complete(UUID requestId, String responseSummary, String draftSha256) {
         DataSubjectRequest request = loadForCommand(requestId);
         Instant now = Instant.now(clock);
         RequestStatus previous = request.getStatus();
         request.complete(responseSummary, now);
         requests.save(request);
+        // resposta a partir do rascunho sugerido: registra o uso e se o analista editou o texto
+        Boolean draftEdited = draftSha256 == null ? null
+                : !DataSubjectResponseDraftService.sha256(request.getResponseSummary()).equals(draftSha256);
         auditTrail.record(AuditEntry.of("data_subject_request.completed", RESOURCE, requestId)
                 .change("status", previous, request.getStatus())
-                .reason(request.getResponseSummary()));
-        logClosed(request, now, null);
+                .reason(request.getResponseSummary())
+                .meta("fromDraft", draftSha256 == null ? null : true)
+                .meta("draftSha256", draftSha256)
+                .meta("draftEdited", draftEdited));
+        logClosed(request, now, null, draftEdited);
         return view(request);
     }
 
@@ -307,10 +313,11 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
                 .change("status", previous, request.getStatus())
                 .reason(request.getResponseSummary())
                 .meta("cause", cause));
-        logClosed(request, now, cause);
+        logClosed(request, now, cause, null);
     }
 
-    private void logClosed(DataSubjectRequest request, Instant now, String rejectionCause) {
+    /** @param draftEdited nulo = resposta sem rascunho; verdadeiro/falso = partiu do rascunho, editada ou não */
+    private void logClosed(DataSubjectRequest request, Instant now, String rejectionCause, Boolean draftEdited) {
         businessEvents.log(BusinessEvent.of(BusinessEventTypes.DATA_SUBJECT_REQUEST_COMPLETED)
                 .debtor(request.getDebtorId())
                 .reference(RESOURCE, request.getId())
@@ -319,7 +326,9 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
                 .attr("type", request.getType())
                 .attr("outcome", request.getStatus())
                 .attr("rejectionCause", rejectionCause)
-                .attr("withinDeadline", !now.isAfter(request.getDueAt())));
+                .attr("withinDeadline", !now.isAfter(request.getDueAt()))
+                .attr("fromDraft", draftEdited == null ? null : true)
+                .attr("draftEdited", draftEdited));
     }
 
     @Override

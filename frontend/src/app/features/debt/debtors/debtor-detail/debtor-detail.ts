@@ -50,6 +50,7 @@ import { NgbTooltip, NgbDropdownModule, NgbNavModule } from '@ng-bootstrap/ng-bo
 import { TabsMore } from '../../../../shared/components/tabs-more/tabs-more';
 import { RelatedRecords } from '../../../../shared/components/related-records/related-records';
 import { RelatedRecord } from '../../../../shared/components/related-records/related-targets';
+import { REQUEST_TYPE_LABELS } from '../../../compliance/data/compliance.labels';
 import { formatAmount } from '../../../../shared/components/amount/amount';
 import { describeStatus } from '../../../../shared/status/status';
 import { CaseView } from '../../../collection/data/collection.models';
@@ -149,7 +150,15 @@ export class DebtorDetail {
   protected readonly active = computed(() => this.current()?.status === 'ACTIVE');
 
   /** Vínculos nos outros módulos (só o que o perfil abre; ver `debtorLinks`). */
-  protected readonly links = debtorLinks(() => this.id(), ['cases', 'agreements', 'payments', 'disputes', 'matters', 'conversations']);
+  protected readonly links = debtorLinks(() => this.id(), [
+    'cases',
+    'agreements',
+    'payments',
+    'disputes',
+    'matters',
+    'conversations',
+    'dataSubjectRequests',
+  ]);
   private readonly linkData = valueOr(this.links, undefined);
   protected readonly cases = computed(() => this.linkData()?.cases ?? []);
   /** Casos em cobrança do devedor no escopo: destino de "Abrir caso" e de "Simular". */
@@ -214,6 +223,22 @@ export class DebtorDetail {
         id: c.id,
         label: `${CONVERSATION_CHANNELS[c.channel] ?? c.channel} · ${c.contactMasked}`,
         hint: describeStatus('conversation', c.status).label,
+      });
+    }
+    // solicitações do titular (LGPD): cada uma abre o atendimento; "Ver todas" leva à fila filtrada pelo titular
+    for (const q of l.dataSubjectRequests) {
+      records.push({
+        kind: 'dataSubjectRequest',
+        id: q.id,
+        label: REQUEST_TYPE_LABELS[q.type] ?? 'Solicitação',
+        hint: `${describeStatus('dataSubjectRequest', q.status).label} · recebida em ${this.dates.transform(q.receivedAt, 'date')}`,
+      });
+    }
+    if (l.dataSubjectRequestTotal > l.dataSubjectRequests.length) {
+      records.push({
+        kind: 'dataSubjectRequestList',
+        label: `Ver todas as solicitações do titular (${l.dataSubjectRequestTotal})`,
+        queryParams: { devedor: d.id },
       });
     }
     return records;

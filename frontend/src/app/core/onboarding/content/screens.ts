@@ -141,7 +141,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.debtors', version: 1, path: '/devedores', tourId: 'debt.debtors' },
   {
     key: 'debt.debtor-detail',
-    version: 5,
+    version: 6,
     path: '/devedores/:id',
     tourId: 'debt.debtor-detail',
     changes: [
@@ -157,6 +157,7 @@ export const SCREENS: readonly ScreenGuide[] = [
         ],
       },
       { version: 5, items: ['Selo de vulnerabilidade no cabeçalho quando o devedor tem marcador ativo (a categoria só aparece para quem pode vê-la).'] },
+      { version: 6, items: ['Para quem atende titulares, "Relacionados" mostra as solicitações LGPD do devedor; "Ver todas" abre a fila filtrada pelo titular.'] },
     ],
   },
   {
@@ -629,13 +630,14 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'telephony.calls',
-    version: 4,
+    version: 5,
     path: '/telefonia/chamadas',
     tourId: 'telephony.calls',
     changes: [
       { version: 2, items: ['"Avaliar este atendimento" na linha da chamada encerrada (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
       { version: 3, items: ['Ouça e avalie no mesmo passo: "Avaliar este atendimento" também fica no player da gravação, e a monitoria abre por cima com o áudio tocando.', 'Filtro por operador, para monitorar o atendimento de uma pessoa.'] },
       { version: 4, items: ['Chamada que você já avaliou mostra o ícone de monitoria preenchido, com a nota na dica, no lugar de "Avaliar"; outro avaliador ainda pode avaliá-la.'] },
+      { version: 5, items: ['Filtro por devedor (para quem consulta devedores): a resposta ao titular abre as chamadas dele direto.'] },
     ],
   },
   {
@@ -860,10 +862,17 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'compliance.contact-policy', version: 1, path: '/compliance/politica-de-contato', tourId: 'compliance.contact-policy' },
   { key: 'compliance.holidays', version: 1, path: '/compliance/feriados' },
   { key: 'compliance.legal-bases', version: 1, path: '/compliance/bases-legais', tourId: 'compliance.legal-bases' },
-  { key: 'compliance.requests', version: 1, path: '/compliance/solicitacoes-titulares', tourId: 'compliance.requests' },
+  { key: 'compliance.processors', version: 1, path: '/compliance/operadores', tourId: 'compliance.processors' },
+  {
+    key: 'compliance.requests',
+    version: 2,
+    path: '/compliance/solicitacoes-titulares',
+    tourId: 'compliance.requests',
+    changes: [{ version: 2, items: ['Vinda da ficha do devedor ou de uma solicitação, a fila mostra só os pedidos daquele titular; "Ver todas as solicitações" volta à fila completa.'] }],
+  },
   {
     key: 'compliance.request-detail',
-    version: 5,
+    version: 7,
     path: '/compliance/solicitacoes-titulares/:id',
     tourId: 'compliance.request-detail',
     changes: [
@@ -872,11 +881,26 @@ export const SCREENS: readonly ScreenGuide[] = [
         version: 3,
         items: ['Sem acesso a todos os credores, "Baixar dados do titular" aparece desabilitado e explica o motivo ao passar o mouse, tocar ou chegar pelo teclado.'],
       },
-      { version: 4, items: ['Atribuir e Recusar em cinza ao lado da próxima ação (em azul); para voltar à lista, use a trilha no topo.'] }, { version: 5, items: ['Atribuir: a lista mostra só quem pode atender a solicitação (ativo, atende solicitações de titulares e com acesso a todos os credores), com a lista inteira visível no diálogo.'] }],
+      { version: 4, items: ['Atribuir e Recusar em cinza ao lado da próxima ação (em azul); para voltar à lista, use a trilha no topo.'] }, { version: 5, items: ['Atribuir: a lista mostra só quem pode atender a solicitação (ativo, atende solicitações de titulares e com acesso a todos os credores), com a lista inteira visível no diálogo.'] },
+      {
+        version: 6,
+        items: [
+          'Confirmação de tratamento e informação sobre compartilhamento: cartão "Resposta sugerida" com credores, prestadores, escritórios e integrações, cada um com o link para a evidência.',
+          'Alertas com atalho: prestador sem cadastro de operador e credor sem base legal vigente.',
+          '"Usar como resposta" abre a conclusão com o texto preenchido e editável; nada é enviado sozinho.',
+        ],
+      },
+      {
+        version: 7,
+        items: [
+          'A resposta sugerida só é montada quando você clica em "Montar resposta sugerida" (a consulta lê dados do titular e fica registrada); "Montar de novo" refaz a consulta.',
+          'Operadores cadastrados à mão (ex.: hospedagem) entram na tabela e no texto com a finalidade do cadastro.',
+        ],
+      }],
   },
   {
     key: 'compliance.retention',
-    version: 3,
+    version: 4,
     path: '/compliance/retencao',
     tourId: 'compliance.retention',
     changes: [
@@ -884,6 +908,14 @@ export const SCREENS: readonly ScreenGuide[] = [
       {
         version: 3,
         items: ['Sem a permissão de atender titulares, "Executar" volta a aparecer, desabilitado, e explica o motivo ao passar o mouse, tocar ou chegar pelo teclado.'],
+      },
+      {
+        version: 4,
+        items: [
+          'Todas as categorias aparecem, inclusive as ainda não configuradas, com "Configurar".',
+          'Os prazos do portal (pedidos de acesso vencidos, controle de tentativas, IP e navegador das sessões) e do score (histórico dos casos e fotografias para treino) agora ficam nesta tela: cada assessoria vê o padrão do sistema e pode ajustá-lo com o próprio encarregado de dados. Nessas categorias o descarte está sempre ativo; só o prazo muda, em dias.',
+          '"Usar o padrão" apaga o prazo da assessoria e a categoria volta a seguir o padrão do sistema.',
+        ],
       },
     ],
   },

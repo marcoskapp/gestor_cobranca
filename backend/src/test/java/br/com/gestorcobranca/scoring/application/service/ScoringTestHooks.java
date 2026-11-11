@@ -18,4 +18,9 @@ public final class ScoringTestHooks {
     public static int measureCohorts(ApplicationContext context) {
         return context.getBean(OutcomeService.class).measureCohorts();
     }
+
+    /** Retenção de fatos e snapshots apurados (manutenção {@code scoring.retention}). */
+    public static int purge(ApplicationContext context) {
+        return context.getBean(OutcomeService.class).purge();
+    }
 }

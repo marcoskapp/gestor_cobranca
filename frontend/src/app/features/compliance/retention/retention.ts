@@ -13,7 +13,7 @@ import { pagedQuery } from '../../../shared/data/paged-query';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { RetentionApi } from '../data/compliance.api';
-import { RETENTION_ACTION_LABELS, RETENTION_CATEGORY_LABELS } from '../data/compliance.labels';
+import { RETENTION_ACTION_LABELS, RETENTION_CATEGORY_LABELS, retentionPeriod } from '../data/compliance.labels';
 import { RetentionPolicyView, RetentionRunView } from '../data/compliance.models';
 import { RetentionPolicyForm, RetentionRunItems } from './retention-dialogs';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -31,7 +31,7 @@ import { DisabledAction } from '../../../shared/components/disabled-action/disab
   template: `
     <app-page-header
       title="Retenção de dados"
-      subtitle="Prazos de guarda por categoria. Devedores sem títulos em cobrança há mais tempo que o prazo têm os dados pessoais anonimizados."
+      subtitle="Quanto tempo a assessoria guarda cada dado. Vencido o prazo, o dado é descartado ou anonimizado; onde há padrão do sistema, ele vale até a assessoria configurar o próprio prazo."
     />
 
     <section class="app-card" aria-labelledby="politicas" data-tour="retention-policies">
@@ -50,18 +50,43 @@ import { DisabledAction } from '../../../shared/components/disabled-action/disab
         <ng-template appCell="category" [appCellOf]="policyRows()" let-p>
           {{ categories[p.category] ?? p.category }}
           @if (!p.executableHere) {
-            <div class="app-muted">Aplicada pelo módulo dono dos dados</div>
+            <div class="app-muted">Descarte automático diário</div>
           }
         </ng-template>
         <ng-template appCell="action" [appCellOf]="policyRows()" let-p>{{ actions[p.action] ?? p.action }}</ng-template>
-        <ng-template appCell="retentionMonths" [appCellOf]="policyRows()" let-p>{{ p.retentionMonths }} meses</ng-template>
-        <ng-template appCell="enabled" [appCellOf]="policyRows()" let-p><app-status-chip domain="active" [status]="p.enabled" /></ng-template>
-        <ng-template appCell="updatedAt" [appCellOf]="policyRows()" let-p>{{ p.updatedAt | appDate }}</ng-template>
+        <ng-template appCell="period" [appCellOf]="policyRows()" let-p>
+          @if (p.configured) {
+            {{ period(p.retentionAmount, p.unit) }}
+            @if (p.defaultAmount !== null && p.defaultAmount !== p.retentionAmount) {
+              <div class="app-muted">Padrão do sistema: {{ period(p.defaultAmount, p.unit) }}</div>
+            }
+          } @else if (p.defaultAmount !== null) {
+            Padrão do sistema: {{ period(p.defaultAmount, p.unit) }}
+          } @else {
+            <span class="app-muted">Não configurada</span>
+          }
+        </ng-template>
+        <ng-template appCell="enabled" [appCellOf]="policyRows()" let-p>
+          @if (p.configured || p.defaultAmount !== null) {
+            <app-status-chip domain="active" [status]="p.enabled" />
+          } @else {
+            —
+          }
+        </ng-template>
+        <ng-template appCell="updatedAt" [appCellOf]="policyRows()" let-p>{{ p.updatedAt ? (p.updatedAt | appDate) : '—' }}</ng-template>
         <ng-template appCell="actions" [appCellOf]="policyRows()" let-p>
+          @if (!p.configured) {
+            <!-- categoria ainda sem prazo da assessoria: o ponto de partida é configurar (simular e executar vêm depois) -->
+            <button class="btn btn-outline-primary" type="button" (click)="configure(p)" [attr.aria-label]="'Configurar ' + categories[p.category]">
+              <app-icon name="sliders" />
+              Configurar
+            </button>
+          } @else {
           <button class="btn btn-sm btn-outline-secondary border-0" type="button" (click)="configure(p)" [attr.aria-label]="'Configurar ' + categories[p.category]" ngbTooltip="Configurar">
             <app-icon name="sliders" />
           </button>
-          @if (p.executableHere) {
+          }
+          @if (p.configured && p.executableHere) {
             <button class="btn btn-outline-primary" type="button" (click)="simulate(p)" [disabled]="running()" data-tour="retention-dry-run">
               <app-icon name="eyedropper" />
               Simular
@@ -139,6 +164,7 @@ export class RetentionPage {
 
   protected readonly categories: Record<string, string> = RETENTION_CATEGORY_LABELS;
   protected readonly actions = RETENTION_ACTION_LABELS;
+  protected readonly period = retentionPeriod;
   /** A execução efetiva anonimiza devedores: exige também a permissão de titulares. */
   protected readonly canAnonymize = computed(() => this.auth.hasPermission(Permission.DATA_SUBJECT_REQUEST_MANAGE));
   protected readonly anonymizeDeniedReason = 'Para executar o descarte é preciso ter a permissão de atender solicitações de titulares (LGPD).';
@@ -154,7 +180,7 @@ export class RetentionPage {
   protected readonly policyColumns: TableColumn[] = [
     { key: 'category', header: 'Categoria' },
     { key: 'action', header: 'Ação' },
-    { key: 'retentionMonths', header: 'Prazo', align: 'end' },
+    { key: 'period', header: 'Prazo', align: 'end' },
     { key: 'enabled', header: 'Situação' },
     { key: 'updatedAt', header: 'Atualizada em' },
     { key: 'actions', header: 'Ações', actions: true },
@@ -175,7 +201,14 @@ export class RetentionPage {
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {
-          this.notifications.success('Política de retenção atualizada.');
+          // "Usar o padrão" devolve a categoria sem política da assessoria
+          this.notifications.success(
+            !saved.configured
+              ? 'A categoria voltou ao padrão do sistema.'
+              : p.configured
+                ? 'Política de retenção atualizada.'
+                : 'Política de retenção configurada.',
+          );
           this.policies.reload();
         }
       });
@@ -194,7 +227,7 @@ export class RetentionPage {
         destructive: true,
         details: [
           { label: 'Categoria', value: RETENTION_CATEGORY_LABELS[p.category] },
-          { label: 'Prazo', value: `${p.retentionMonths} meses sem títulos em cobrança` },
+          { label: 'Prazo', value: `${retentionPeriod(p.retentionAmount, p.unit)} sem títulos em cobrança` },
           { label: 'Exceções', value: 'Devedores com prazo maior na base legal do credor são mantidos' },
         ],
         warning: 'A anonimização não pode ser desfeita. Confira antes o relatório de uma simulação.',

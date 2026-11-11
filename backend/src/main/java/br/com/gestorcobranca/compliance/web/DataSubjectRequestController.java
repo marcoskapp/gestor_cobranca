@@ -6,12 +6,15 @@ import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUs
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.OpenRequestCommand;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.RequestFilter;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.RequestView;
+import br.com.gestorcobranca.compliance.application.port.in.DataSubjectResponseDraftUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.DataSubjectResponseDraftUseCases.ResponseDraftView;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.web.ApiPaths;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpStatus;
@@ -40,10 +43,13 @@ class DataSubjectRequestController {
 
     private final DataSubjectRequestUseCases requests;
     private final DataSubjectRequestAssigneeUseCases assignees;
+    private final DataSubjectResponseDraftUseCases drafts;
 
-    DataSubjectRequestController(DataSubjectRequestUseCases requests, DataSubjectRequestAssigneeUseCases assignees) {
+    DataSubjectRequestController(DataSubjectRequestUseCases requests, DataSubjectRequestAssigneeUseCases assignees,
+                                 DataSubjectResponseDraftUseCases drafts) {
         this.requests = requests;
         this.assignees = assignees;
+        this.drafts = drafts;
     }
 
     /**
@@ -120,14 +126,21 @@ class DataSubjectRequestController {
 
     @PostMapping("/{id}/complete")
     @PreAuthorize("hasAuthority('DATA_SUBJECT_REQUEST_MANAGE')")
-    RequestView complete(@PathVariable UUID id, @Valid @RequestBody ResponseRequest request) {
-        return requests.complete(id, request.response());
+    RequestView complete(@PathVariable UUID id, @Valid @RequestBody CompleteRequest request) {
+        return requests.complete(id, request.response(), request.draftSha256());
     }
 
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('DATA_SUBJECT_REQUEST_MANAGE')")
     RequestView reject(@PathVariable UUID id, @Valid @RequestBody ResponseRequest request) {
         return requests.reject(id, request.response());
+    }
+
+    /** Rascunho de resposta (confirmação de tratamento e informação sobre compartilhamento) — revisão humana antes do uso. */
+    @GetMapping("/{id}/response-draft")
+    @PreAuthorize("hasAuthority('DATA_SUBJECT_REQUEST_MANAGE')")
+    ResponseDraftView responseDraft(@PathVariable UUID id) {
+        return drafts.draft(id);
     }
 
     @GetMapping("/{id}/result")
@@ -148,6 +161,11 @@ class DataSubjectRequestController {
     }
 
     record ResponseRequest(@NotBlank @Size(max = 4000) String response) {
+    }
+
+    /** @param draftSha256 resumo do rascunho sugerido, quando a resposta partiu dele */
+    record CompleteRequest(@NotBlank @Size(max = 4000) String response,
+                           @Pattern(regexp = "[0-9a-f]{64}") String draftSha256) {
     }
 
     record DocumentLookupRequest(@NotBlank @Size(max = 20) String document) {

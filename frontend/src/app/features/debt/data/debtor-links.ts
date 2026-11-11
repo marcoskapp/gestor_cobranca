@@ -15,6 +15,8 @@ import { AgreementsApi } from '../../negotiation/data/agreement.api';
 import { AgreementView } from '../../negotiation/data/agreement.models';
 import { PaymentsApi } from '../../payment/data/payment.api';
 import { PaymentView } from '../../payment/data/payment.models';
+import { DataSubjectRequestsApi } from '../../compliance/data/compliance.api';
+import { DataSubjectRequestView } from '../../compliance/data/compliance.models';
 
 /** Quantos registros de cada tipo o cartão mostra antes do "Ver todos". */
 export const RELATED_PREVIEW = 5;
@@ -29,6 +31,9 @@ export interface DebtorLinks {
   disputes: DisputeView[];
   matters: MatterView[];
   conversations: ConversationView[];
+  /** Solicitações de titular (LGPD) do devedor, as mais recentes primeiro. */
+  dataSubjectRequests: DataSubjectRequestView[];
+  dataSubjectRequestTotal: number;
 }
 
 export const NO_LINKS: DebtorLinks = {
@@ -40,10 +45,12 @@ export const NO_LINKS: DebtorLinks = {
   disputes: [],
   matters: [],
   conversations: [],
+  dataSubjectRequests: [],
+  dataSubjectRequestTotal: 0,
 };
 
 /** Quais vínculos buscar (o título só precisa de parte deles). */
-export type DebtorLinkKind = 'cases' | 'agreements' | 'payments' | 'disputes' | 'matters' | 'conversations';
+export type DebtorLinkKind = 'cases' | 'agreements' | 'payments' | 'disputes' | 'matters' | 'conversations' | 'dataSubjectRequests';
 
 const PAGE = { page: 0, size: RELATED_PREVIEW };
 const MANY = { page: 0, size: 50 };
@@ -63,6 +70,7 @@ export function debtorLinks(debtorId: () => string | null | undefined, kinds: re
   const payments = inject(PaymentsApi);
   const matters = inject(LegalMattersApi);
   const conversations = inject(ConversationsApi);
+  const dataSubjectRequests = inject(DataSubjectRequestsApi);
   const has = (p: string) => auth.hasPermission(p);
   const opens = (kind: RelatedKind) => RelatedRecords.canOpen(kind, has);
   const wants = (kind: DebtorLinkKind) => kinds.includes(kind);
@@ -86,6 +94,10 @@ export function debtorLinks(debtorId: () => string | null | undefined, kinds: re
         conversations: wants('conversations') && opens('conversation')
           ? safe(conversations.inbox({ debtorId: id, status: 'ALL' }, PAGE), null)
           : of(null),
+        // pedidos do titular (LGPD): basta o devedor visível no servidor; só para quem atende titulares
+        dataSubjectRequests: wants('dataSubjectRequests') && opens('dataSubjectRequest')
+          ? safe(dataSubjectRequests.search({ debtorId: id }, PAGE), null)
+          : of(null),
       }).pipe(
         map(
           (r): DebtorLinks => ({
@@ -97,6 +109,8 @@ export function debtorLinks(debtorId: () => string | null | undefined, kinds: re
             disputes: r.disputes?.content ?? [],
             matters: r.matters?.content ?? [],
             conversations: r.conversations?.content ?? [],
+            dataSubjectRequests: r.dataSubjectRequests?.content ?? [],
+            dataSubjectRequestTotal: r.dataSubjectRequests?.totalElements ?? 0,
           }),
         ),
       ),

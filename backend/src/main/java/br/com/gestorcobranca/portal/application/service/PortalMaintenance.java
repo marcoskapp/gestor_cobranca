@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.portal.application.service;
 
+import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases.AppliedRetention;
 import br.com.gestorcobranca.portal.application.PortalProperties;
 import br.com.gestorcobranca.portal.application.port.out.AccessThrottleStore;
 import br.com.gestorcobranca.portal.application.port.out.PortalAgreementLedger;
@@ -48,6 +50,7 @@ class PortalMaintenance {
     private final AccessLogger accessLogger;
     private final BusinessEventLogger businessEvents;
     private final PortalProperties properties;
+    private final RetentionUseCases retention;
     private final PortalMetrics metrics;
     private final Clock clock;
 
@@ -55,7 +58,7 @@ class PortalMaintenance {
                       AccessChallengeRepository challenges, ServiceRequestRepository serviceRequests,
                       PortalConfigurationRepository configurations, AccessThrottleStore throttle,
                       AccessLogger accessLogger, BusinessEventLogger businessEvents, PortalProperties properties,
-                      PortalMetrics metrics, Clock clock) {
+                      RetentionUseCases retention, PortalMetrics metrics, Clock clock) {
         this.ledger = ledger;
         this.sessions = sessions;
         this.links = links;
@@ -66,6 +69,7 @@ class PortalMaintenance {
         this.accessLogger = accessLogger;
         this.businessEvents = businessEvents;
         this.properties = properties;
+        this.retention = retention;
         this.metrics = metrics;
         this.clock = clock;
     }
@@ -124,18 +128,34 @@ class PortalMaintenance {
         }
     }
 
+    /** Prazos da retenção dos dados de acesso na assessoria do contexto (dela ou o padrão do sistema). */
+    record AccessRetention(AppliedRetention challenges, AppliedRetention throttles,
+                           AppliedRetention sessionClientData) {
+    }
+
+    /** Prazos vigentes na assessoria do contexto: os do compliance (categorias {@code PORTAL_*}). */
+    AccessRetention accessRetention() {
+        return new AccessRetention(applied(PortalRetentionDefaults.CHALLENGES),
+                applied(PortalRetentionDefaults.THROTTLES), applied(PortalRetentionDefaults.SESSION_CLIENT_DATA));
+    }
+
+    /** As categorias do portal têm padrão do sistema e não podem ser desligadas: sempre há prazo. */
+    private AppliedRetention applied(String category) {
+        return retention.retentionFor(category)
+                .orElseThrow(() -> new IllegalStateException("Retenção sem prazo para a categoria " + category));
+    }
+
     /**
      * Retenção dos dados de acesso (LGPD, minimização), uma rodada de até {@link #BATCH} por tipo: desafios vencidos
      * (inclusive os fictícios, com o HMAC do documento de quem não é devedor), contadores do bloqueio progressivo
-     * sem uso e sem bloqueio vigente, e IP/agente das sessões encerradas. Prazos em {@code app.portal.retention}.
+     * sem uso e sem bloqueio vigente, e IP/agente das sessões encerradas. Prazos de {@link #accessRetention()}.
      */
-    Purged purgeAccessData() {
+    Purged purgeAccessData(AccessRetention r) {
         Instant now = Instant.now(clock);
-        PortalProperties.Retention r = properties.retention();
         Purged purged = new Purged(
-                challenges.deleteExpiredBefore(now.minus(r.challenges()), BATCH),
-                throttle.deleteIdleBefore(now.minus(r.throttles()), now, BATCH),
-                sessions.clearClientDataEndedBefore(now.minus(r.sessionClientData()), BATCH));
+                challenges.deleteExpiredBefore(r.challenges().cutoff(now), BATCH),
+                throttle.deleteIdleBefore(r.throttles().cutoff(now), now, BATCH),
+                sessions.clearClientDataEndedBefore(r.sessionClientData().cutoff(now), BATCH));
         metrics.retention("CHALLENGE", purged.challenges());
         metrics.retention("THROTTLE", purged.throttles());
         metrics.retention("SESSION_CLIENT_DATA", purged.sessions());

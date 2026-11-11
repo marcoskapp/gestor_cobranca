@@ -90,8 +90,9 @@ public record PortalProperties(String publicBaseUrl, Session session, Access acc
     }
 
     /**
-     * Descarte dos dados de acesso ao portal (job diário {@code portal.retention}). Os prazos são decisão a
-     * combinar com o encarregado (docs/negocio/decisoes-autonomas.md).
+     * Prazos padrão do sistema do descarte dos dados de acesso ao portal (job diário {@code portal.retention}), em
+     * dias inteiros. Cada assessoria pode ajustá-los na tela de Retenção (categorias {@code PORTAL_*} do compliance);
+     * estes valores valem enquanto ela não configura.
      *
      * @param challenges        desafios de acesso (HMAC do documento digitado, inclusive de quem não é devedor) são
      *                          apagados depois deste prazo do vencimento

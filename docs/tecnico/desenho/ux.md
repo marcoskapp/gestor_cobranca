@@ -853,7 +853,7 @@ canais, as contas Pix) obrigavam a pessoa a sair do formulário, achar a tela no
 | Peça | Contrato |
 | --- | --- |
 | `app-config-link` (`shared/components/config-link`) | Link pequeno ("Gerenciar perfis de alçada ↗") logo abaixo do campo ou no bloco que usa o item; abre a tela de configuração **em nova aba** (`target="_blank"`, `rel="noopener"`), com "(abre em nova aba)" para o leitor de tela; só aparece com as permissões da tela de destino (as mesmas do menu). |
-| Uso atual | Política do assistente: perfil de alçada e perfil exigido na fila (`/negociacao/alcadas`, `AUTHORITY_MANAGE`), canais (`/conversas/canais`, `CHANNEL_MANAGE`) e contas Pix (`/pagamentos/contas-pix`, `INTEGRATION_MANAGE`). O prompt não tem atalho: versões imutáveis, entram com a atualização do sistema (a dica explica). |
+| Uso atual | Política do assistente: perfil de alçada e perfil exigido na fila (`/negociacao/alcadas`, `AUTHORITY_MANAGE`), canais (`/conversas/canais`, `CHANNEL_MANAGE`) e contas Pix (`/pagamentos/contas-pix`, `INTEGRATION_MANAGE`). Resposta sugerida ao titular e cadastro de operadores: cadastrar operador e registrar base legal (com `queryParams`: `?chave=`, `?credor=`) e a configuração de cada provedor (conformidade.md §8.4). O prompt não tem atalho: versões imutáveis, entram com a atualização do sistema (a dica explica). |
 
 Premissas gerais de navegabilidade, usabilidade, segurança e conformidade: `CLAUDE.md` ("Premissas de toda tela e
 funcionalidade").

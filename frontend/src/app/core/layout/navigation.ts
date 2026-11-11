@@ -304,6 +304,7 @@ export const NAVIGATION: readonly NavSection[] = [
         permissions: [P.DATA_SUBJECT_REQUEST_MANAGE],
       },
       { label: 'Bases legais', icon: 'shield', route: '/compliance/bases-legais', permissions: [P.DATA_SUBJECT_REQUEST_MANAGE] },
+      { label: 'Operadores e suboperadores', icon: 'share', route: '/compliance/operadores', permissions: [P.DATA_SUBJECT_REQUEST_MANAGE] },
       { label: 'Retenção de dados', icon: 'trash3', route: '/compliance/retencao', permissions: [P.RETENTION_MANAGE] },
       { label: 'Reclamações', icon: 'exclamation-triangle', route: '/compliance/reclamacoes', permissions: [P.COMPLAINT_REGISTER, P.COMPLAINT_MANAGE] },
       {

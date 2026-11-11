@@ -14,7 +14,7 @@ import { Icon } from '../icon/icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (visible()) {
-      <a class="config-link" [routerLink]="route()" target="_blank" rel="noopener">
+      <a class="config-link" [routerLink]="route()" [queryParams]="queryParams() ?? null" target="_blank" rel="noopener">
         {{ label() }}<app-icon name="box-arrow-up-right" /><span class="visually-hidden"> (abre em nova aba)</span>
       </a>
     }
@@ -29,6 +29,8 @@ export class ConfigLink {
 
   /** Rota da tela de configuração (ex.: `/negociacao/alcadas`). */
   readonly route = input.required<string>();
+  /** Filtro ou item da tela de destino (só ids e códigos — nunca dado pessoal; ux.md §16). */
+  readonly queryParams = input<Record<string, string> | null>(null);
   /** Texto do link (ex.: "Gerenciar perfis de alçada"). */
   readonly label = input.required<string>();
   /** Permissões da tela de destino (basta uma), as mesmas do menu. */

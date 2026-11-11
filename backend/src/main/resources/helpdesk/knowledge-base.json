@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "f9593d50a6c9be89",
+ "contentVersion": "e61aa15c63b9f4cc",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -783,7 +783,7 @@
     "A política do credor prevalece canal a canal; canais sem regra seguem a da assessoria. Cada publicação cria uma versão com vigência.",
     "O prazo legal de um pedido do titular conta a partir do recebimento, por qualquer canal: registre no mesmo dia.",
     "Eliminação de dados pede confirmação reforçada e não pode ser desfeita.",
-    "Políticas de retenção nascem desabilitadas; simule antes de executar.",
+    "As políticas de devedores, arquivos, mensagens e gravações nascem desabilitadas (simule antes de executar); as do portal e do score já descartam pelo padrão do sistema, e a assessoria pode ajustar o prazo.",
     "Atenção especial guarda só a categoria, a base legal e quem registrou: nunca escreva diagnóstico ou relato. A categoria só aparece para compliance e gestão; os demais veem \"atenção especial\".",
     "O assistente de IA só sugere o marcador; uma pessoa confirma a categoria ou dispensa.",
     "Reclamação: o prazo informado pelo canal prevalece; sem ele, vale o prazo do canal configurado pela assessoria."
@@ -5843,6 +5843,10 @@
     {
      "screen": "scoring.transparency",
      "why": "Explicar o score ao titular."
+    },
+    {
+     "screen": "debt.debtor-detail",
+     "why": "Solicitações do titular em \"Relacionados\"."
     }
    ],
    "terms": [
@@ -5863,7 +5867,8 @@
    "objective": "Etapas do atendimento de um pedido do titular: identidade, ação, resposta e evidências.",
    "purpose": [
     "Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada.",
-    "O arquivo do titular traz os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos os credores; para os demais, o botão aparece desabilitado com o motivo."
+    "O arquivo do titular traz os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos os credores; para os demais, o botão aparece desabilitado com o motivo.",
+    "Confirmação de tratamento e compartilhamento: em \"Resposta sugerida\", clique em \"Montar resposta sugerida\" (a consulta lê dados do titular e fica registrada). O cartão lista credores, prestadores (inclusive os operadores cadastrados à mão, como hospedagem), escritórios e integrações, com link para a evidência e atalhos para resolver os alertas. \"Usar como resposta\" abre a conclusão com o texto editável; nada é enviado sozinho."
    ],
    "profiles": [
     "COMPLIANCE"
@@ -5878,6 +5883,14 @@
     {
      "screen": "compliance.requests",
      "why": "Fila de pedidos."
+    },
+    {
+     "screen": "compliance.processors",
+     "why": "Operadores citados na resposta."
+    },
+    {
+     "screen": "compliance.legal-bases",
+     "why": "Base legal dos credores."
     }
    ],
    "terms": [
@@ -5893,13 +5906,54 @@
    }
   },
   {
+   "id": "compliance.processors",
+   "module": "compliance",
+   "title": "Operadores e suboperadores",
+   "objective": "Prestadores que tratam dados dos devedores em nome da assessoria, com finalidade, país e contrato.",
+   "purpose": [
+    "No topo, para quem tem acesso a todos os credores, os prestadores configurados no sistema (contas de canal, telefonia, Pix e o assistente, quando há política publicada) ainda sem cadastro: cadastre a empresa contratada, a finalidade, os dados tratados e o contrato.",
+    "Fora do Brasil, informe a garantia da transferência internacional (LGPD art. 33). O nome, a finalidade e o país entram na resposta ao titular; prestador que o sistema não conhece (ex.: hospedagem) também se cadastra aqui e entra na resposta enquanto ativo e vigente.",
+    "Cadastrar e editar exige acesso a todos os credores; os demais consultam."
+   ],
+   "profiles": [
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Contratos e acordos de tratamento de dados (DPA) com os prestadores."
+   ],
+   "outputs": [
+    "Registro das operações de tratamento e resposta ao titular com os operadores."
+   ],
+   "related": [
+    {
+     "screen": "compliance.request-detail",
+     "why": "Resposta sugerida ao titular."
+    },
+    {
+     "screen": "communication.channels",
+     "why": "Contas de canal."
+    }
+   ],
+   "terms": [
+    "titular"
+   ],
+   "path": "/compliance/operadores",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DATA_SUBJECT_REQUEST_MANAGE"
+    ]
+   }
+  },
+  {
    "id": "compliance.retention",
    "module": "compliance",
    "title": "Retenção de dados",
    "objective": "Prazos de guarda por categoria, simulação e anonimização dos dados que já cumpriram o prazo.",
    "purpose": [
     "A simulação lista os devedores elegíveis sem alterar nada. Cada execução guarda o corte, os contadores e os itens processados.",
-    "Executar anonimiza dados: só executa quem também atende solicitações de titulares; para os demais, o botão aparece desabilitado com o motivo."
+    "Executar anonimiza dados: só executa quem também atende solicitações de titulares; para os demais, o botão aparece desabilitado com o motivo.",
+    "Nas categorias com padrão do sistema (portal e score), \"Usar o padrão\" apaga o prazo da assessoria: a categoria volta a seguir o padrão, inclusive se ele mudar."
    ],
    "profiles": [
     "COMPLIANCE"

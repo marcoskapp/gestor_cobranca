@@ -3,7 +3,9 @@ import { permissionGuard } from '../../core/auth/auth.guards';
 import { Permission } from '../../core/auth/permission';
 
 const restrictions = [Permission.CONTACT_RESTRICTION_MANAGE];
-const dataSubject = [Permission.DATA_SUBJECT_REQUEST_MANAGE];
+/** Solicitações de titulares, bases legais e operadores (mesma permissão; reaproveitada pelos atalhos de configuração). */
+export const DATA_SUBJECT_PERMISSIONS: readonly string[] = [Permission.DATA_SUBJECT_REQUEST_MANAGE];
+const dataSubject = DATA_SUBJECT_PERMISSIONS;
 const vulnerability = [Permission.VULNERABILITY_REGISTER, Permission.VULNERABILITY_MANAGE];
 const complaints = [Permission.COMPLAINT_REGISTER, Permission.COMPLAINT_MANAGE];
 
@@ -37,6 +39,13 @@ export const COMPLIANCE_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: dataSubject },
     loadComponent: () => import('./legal-bases/legal-basis-list').then((m) => m.LegalBasisList),
+  },
+  {
+    path: 'operadores',
+    title: 'Operadores e suboperadores',
+    canActivate: [permissionGuard],
+    data: { permissions: dataSubject },
+    loadComponent: () => import('./processors/processor-list').then((m) => m.ProcessorList),
   },
   {
     path: 'solicitacoes-titulares',

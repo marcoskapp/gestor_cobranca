@@ -109,4 +109,21 @@ describe('RequestList', () => {
     http.expectNone((r) => r.url === BASE);
     expect(fixture.nativeElement.textContent).toContain('exige acesso a todos os credores');
   });
+
+  it('filtrada pelo titular (`?devedor=`), consulta só os pedidos dele, mesmo sem acesso a todos os credores', async () => {
+    user.set(fakeUser({ permissions: ['DATA_SUBJECT_REQUEST_MANAGE'], allCreditors: false }));
+    const fixture = TestBed.createComponent(RequestList);
+    fixture.componentInstance['filters'].patchValue({ debtor: 'd-1' });
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+    const req = http.expectOne((r) => r.url === BASE && r.params.get('debtorId') === 'd-1');
+    req.flush(page([overdue]));
+    for (const names of http.match((r) => r.url.includes('/debtors'))) {
+      names.flush([{ id: 'd-1', name: 'Carlos Lima' }]);
+    }
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Solicitações do titular');
+    expect(fixture.nativeElement.textContent).not.toContain('exige acesso a todos os credores');
+  });
 });

@@ -236,14 +236,35 @@ export interface OpenDataSubjectRequest {
   receivedAt: string | null;
 }
 
-export type RetentionCategory = 'DEBTOR_INACTIVE' | 'IMPORT_FILES' | 'MESSAGE_CONTENT' | 'CALL_RECORDINGS';
+export type RetentionCategory =
+  | 'DEBTOR_INACTIVE'
+  | 'IMPORT_FILES'
+  | 'MESSAGE_CONTENT'
+  | 'CALL_RECORDINGS'
+  | 'PORTAL_ACCESS_CHALLENGES'
+  | 'PORTAL_ACCESS_THROTTLES'
+  | 'PORTAL_SESSION_CLIENT_DATA'
+  | 'SCORING_CASE_FACTS'
+  | 'SCORING_FEATURE_SNAPSHOTS';
 
+export type RetentionUnit = 'DAYS' | 'MONTHS';
+
+/**
+ * Política de uma categoria; a lista traz todas, e as ainda não configuradas vêm com `configured: false`, sem prazo da
+ * assessoria. Categoria com padrão do sistema (`defaultAmount`) descarta sempre — pelo padrão enquanto a assessoria
+ * não configura — e não pode ser desabilitada.
+ */
 export interface RetentionPolicyView {
   category: RetentionCategory;
-  retentionMonths: number;
-  action: 'ANONYMIZE' | 'DELETE_FILE';
+  action: 'ANONYMIZE' | 'DELETE_FILE' | 'DELETE_RECORD' | 'CLEAR_FIELDS';
+  unit: RetentionUnit;
+  retentionAmount: number | null;
+  defaultAmount: number | null;
+  minAmount: number;
+  maxAmount: number;
   enabled: boolean;
   executableHere: boolean;
+  configured: boolean;
   updatedAt: string | null;
 }
 
@@ -271,4 +292,134 @@ export interface RetentionRunItemView {
   errorCode: string | null;
   detail: string | null;
   processedAt: string | null;
+}
+
+// --- Resposta sugerida ao titular (art. 18, I e VII) e cadastro de operadores ---
+
+export type RecipientType = 'CREDITOR' | 'PROVIDER' | 'LAW_FIRM' | 'INTEGRATION';
+
+/** Tela que abre a evidência e as permissões da rota (uma de `anyPermission`, todas de `allPermissions`). */
+export interface DraftLinkView {
+  route: string;
+  queryParams: Record<string, string>;
+  anyPermission: string[];
+  allPermissions: string[];
+  label: string;
+}
+
+/** `DataSubjectResponseDraftUseCases.ProcessorSummary` */
+export interface DraftProcessorSummary {
+  id: string;
+  name: string;
+  role: string;
+  purpose: string;
+  countryCode: string;
+  countryName: string;
+  internationalTransfer: boolean;
+  transferSafeguard: string | null;
+  contractReference: string | null;
+  current: boolean;
+}
+
+/** `DataSubjectResponseDraftUseCases.RecipientView` (textos já em linguagem simples). */
+export interface DraftRecipientView {
+  type: RecipientType;
+  key: string;
+  recipientId: string | null;
+  name: string;
+  purposes: string[];
+  firstAt: string | null;
+  lastAt: string | null;
+  count: number;
+  countLabel: string;
+  links: DraftLinkView[];
+  legalBases: string[];
+  processor: DraftProcessorSummary | null;
+}
+
+export type DraftAlertCode =
+  | 'PROCESSOR_UNREGISTERED'
+  | 'PROCESSOR_NOT_CURRENT'
+  | 'CREDITOR_WITHOUT_LEGAL_BASIS'
+  | 'SOURCE_UNAVAILABLE'
+  | 'TEXT_TOO_LONG';
+
+export interface DraftAlertView {
+  code: DraftAlertCode;
+  severity: 'WARNING' | 'DANGER';
+  message: string;
+  recipientKey: string | null;
+  recipientId: string | null;
+}
+
+export interface DraftParagraphView {
+  text: string;
+  recipientKeys: string[];
+}
+
+/** `DataSubjectResponseDraftUseCases.ResponseDraftView` */
+export interface ResponseDraftView {
+  requestId: string;
+  type: RequestType;
+  generatedAt: string;
+  processing: boolean;
+  dataCategories: string[];
+  recipients: DraftRecipientView[];
+  alerts: DraftAlertView[];
+  unavailable: string[];
+  paragraphs: DraftParagraphView[];
+  text: string;
+  textSha256: string;
+  textMaxLength: number;
+}
+
+export type ProcessorRoleCode = 'OPERATOR' | 'SUB_OPERATOR' | 'JOINT_CONTROLLER';
+export type TransferSafeguardCode =
+  | 'ADEQUACY_DECISION'
+  | 'SPECIFIC_CONTRACTUAL_CLAUSES'
+  | 'STANDARD_CONTRACTUAL_CLAUSES'
+  | 'GLOBAL_CORPORATE_RULES'
+  | 'SEALS_AND_CERTIFICATES'
+  | 'ANPD_AUTHORIZATION'
+  | 'SPECIFIC_CONSENT'
+  | 'LEGAL_NECESSITY';
+
+/** `DataProcessorUseCases.ProcessorView` */
+export interface DataProcessorView {
+  id: string;
+  providerKey: string;
+  name: string;
+  role: ProcessorRoleCode;
+  purpose: string;
+  dataCategories: string;
+  countryCode: string;
+  internationalTransfer: boolean;
+  transferSafeguard: TransferSafeguardCode | null;
+  contractReference: string | null;
+  validFrom: string;
+  validUntil: string | null;
+  active: boolean;
+  current: boolean;
+  updatedAt: string;
+}
+
+export interface DataProcessorDetails {
+  name: string;
+  role: ProcessorRoleCode;
+  purpose: string;
+  dataCategories: string;
+  countryCode: string;
+  transferSafeguard: TransferSafeguardCode | null;
+  contractReference: string | null;
+  validFrom: string;
+  validUntil: string | null;
+  active: boolean;
+}
+
+/** `DataProcessorUseCases.RecipientInUseView`: prestador configurado ainda sem cadastro. */
+export interface RecipientInUseView {
+  providerKey: string;
+  name: string;
+  purpose: string;
+  source: string;
 }

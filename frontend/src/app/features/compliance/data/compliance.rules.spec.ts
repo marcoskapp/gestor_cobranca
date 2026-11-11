@@ -160,9 +160,12 @@ describe('regras de tela do módulo compliance', () => {
         status: 'RECEIVED',
         type: 'ACCESS',
         overdue: null,
+        debtorId: null,
         document: null,
         incomplete: false,
       });
+      // titular vindo de outra tela: só o id
+      expect(toQueueFilter({ status: '', type: '', overdue: false, document: '', debtor: 'd-1' }).debtorId).toBe('d-1');
     });
 
     it('recebimento hoje = agora; dias anteriores ao meio-dia local', () => {

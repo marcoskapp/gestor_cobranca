@@ -8,12 +8,27 @@
   </button>
 </app-page-header>
 
-@if (!allCreditors()) {
+@if (debtorId(); as id) {
+  <div class="alert alert-info d-flex flex-wrap gap-2 align-items-center" role="status" data-tour="dsr-debtor-filter">
+    <app-icon name="person" />
+    <span class="flex-grow-1">
+      Solicitações do titular
+      @if (canOpenDebtor()) {
+        <a [routerLink]="['/devedores', id]">{{ debtorNames.name(id) }}</a>
+      }
+    </span>
+    @if (allCreditors()) {
+      <button class="btn btn-sm btn-outline-secondary" type="button" (click)="clearDebtor()">Ver todas as solicitações</button>
+    }
+  </div>
+}
+
+@if (!allCreditors() && !debtorId()) {
   <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
     <app-icon name="lock" />
     <span>O atendimento a titulares exige acesso a todos os credores: o direito do titular alcança todos os seus dados na assessoria.</span>
   </div>
-} @else {
+} @else if (allCreditors()) {
   <section class="cmp-kpis" aria-label="Situação da fila" data-tour="dsr-kpis">
     @let c = counters.hasValue() ? counters.value() : null;
     <button type="button" class="cmp-kpi cmp-kpi--button" (click)="showOverdue()">

@@ -17,6 +17,7 @@ import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.InactiveDeb
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.config.TimeConfig;
+import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.DomainException;
 import br.com.gestorcobranca.shared.domain.Guard;
@@ -41,6 +42,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -75,13 +77,15 @@ class RetentionService implements RetentionUseCases {
     private final BusinessEventLogger businessEvents;
     private final MeterRegistry meterRegistry;
     private final ComplianceProperties properties;
+    private final RetentionDefaultRegistry defaults;
     private final TransactionTemplate newTransaction;
     private final Clock clock;
 
     RetentionService(RetentionPolicyRepository policies, RetentionRunRepository runs, RetentionRunItemRepository items,
                      LegalBasisRecordRepository legalBases, DebtorUseCases debtors, AccessScope accessScope,
                      AuditTrail auditTrail, BusinessEventLogger businessEvents, MeterRegistry meterRegistry,
-                     ComplianceProperties properties, PlatformTransactionManager transactionManager, Clock clock) {
+                     ComplianceProperties properties, RetentionDefaultRegistry defaults,
+                     PlatformTransactionManager transactionManager, Clock clock) {
         this.policies = policies;
         this.runs = runs;
         this.items = items;
@@ -92,6 +96,7 @@ class RetentionService implements RetentionUseCases {
         this.businessEvents = businessEvents;
         this.meterRegistry = meterRegistry;
         this.properties = properties;
+        this.defaults = defaults;
         this.newTransaction = new TransactionTemplate(transactionManager);
         this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.clock = clock;
@@ -101,39 +106,91 @@ class RetentionService implements RetentionUseCases {
     @Transactional(readOnly = true)
     public List<RetentionPolicyView> listPolicies() {
         accessScope.requireAllCreditors(RESOURCE);
-        return policies.findAllByOrderByCategoryAsc().stream().map(RetentionService::view).toList();
+        // todas as categorias: a não configurada aparece para ser configurada (sem ela a tela não teria por onde começar)
+        Map<RetentionCategory, RetentionPolicy> configured = policies.findAllByOrderByCategoryAsc().stream()
+                .collect(Collectors.toMap(RetentionPolicy::getCategory, p -> p));
+        return Arrays.stream(RetentionCategory.values())
+                .map(c -> configured.containsKey(c) ? policyView(configured.get(c)) : notConfigured(c))
+                .toList();
     }
 
     @Override
-    public RetentionPolicyView configure(String category, int retentionMonths, boolean enabled) {
+    public RetentionPolicyView configure(String category, int retentionAmount, boolean enabled) {
         accessScope.requireAllCreditors(RESOURCE);
         RetentionCategory parsed = ComplianceEnums.parse(RetentionCategory.class, category, "retention.category_invalid",
                 "Categoria");
         Optional<RetentionPolicy> existing = policies.findByCategory(parsed);
-        RetentionPolicy policy = existing.orElseGet(() -> new RetentionPolicy(parsed, retentionMonths));
-        Integer previousMonths = existing.map(RetentionPolicy::getRetentionMonths).orElse(null);
+        RetentionPolicy policy = existing.orElseGet(() -> new RetentionPolicy(parsed, retentionAmount));
+        Integer previousAmount = existing.map(RetentionPolicy::getRetentionAmount).orElse(null);
         Boolean previousEnabled = existing.map(RetentionPolicy::isEnabled).orElse(null);
-        policy.changeRetention(retentionMonths);
+        policy.changeRetention(retentionAmount);
         if (enabled) {
             policy.enable();
         } else {
             policy.disable();
         }
         policies.save(policy);
-        auditTrail.record(AuditEntry.of(existing.isPresent() ? "retention_policy.updated" : "retention_policy.created",
+        Integer systemDefault = defaultAmount(parsed);
+        // sem política anterior, a categoria com padrão do sistema descartava pelo padrão: a trilha registra o prazo
+        // efetivo de antes e de depois (o que muda para os titulares), além do prazo configurado
+        AuditEntry audit = AuditEntry.of(existing.isPresent() ? "retention_policy.updated" : "retention_policy.created",
                         RESOURCE, policy.getId())
                 .change("category", existing.isPresent() ? parsed : null, parsed)
-                .change("retentionMonths", previousMonths, policy.getRetentionMonths())
-                .change("enabled", previousEnabled, policy.isEnabled()));
-        return view(policy);
+                .change("retentionUnit", existing.isPresent() ? parsed.unit() : null, parsed.unit())
+                .change("retentionAmount", previousAmount, policy.getRetentionAmount())
+                .change("enabled", previousEnabled, policy.isEnabled());
+        if (systemDefault != null) {
+            audit.change("effectiveRetentionAmount", previousAmount == null ? systemDefault : previousAmount,
+                            policy.getRetentionAmount())
+                    .meta("systemDefaultAmount", systemDefault);
+        }
+        auditTrail.record(audit);
+        return policyView(policy);
+    }
+
+    @Override
+    public RetentionPolicyView resetToDefault(String category) {
+        accessScope.requireAllCreditors(RESOURCE);
+        RetentionCategory parsed = ComplianceEnums.parse(RetentionCategory.class, category, "retention.category_invalid",
+                "Categoria");
+        Integer systemDefault = defaultAmount(parsed);
+        if (!parsed.hasSystemDefault() || systemDefault == null) {
+            throw new BusinessRuleException("retention.no_system_default",
+                    "Esta categoria não tem prazo padrão do sistema: ajuste o prazo ou desabilite o descarte");
+        }
+        Optional<RetentionPolicy> existing = policies.findByCategory(parsed);
+        if (existing.isEmpty()) {
+            return notConfigured(parsed);
+        }
+        RetentionPolicy policy = existing.get();
+        int previousAmount = policy.getRetentionAmount();
+        policies.delete(policy);
+        // a trilha registra o prazo efetivo antes (o da assessoria) e depois (o padrão): é o que muda para os titulares
+        auditTrail.record(AuditEntry.of("retention_policy.reset_to_default", RESOURCE, policy.getId())
+                .change("retentionAmount", previousAmount, null)
+                .change("effectiveRetentionAmount", previousAmount, systemDefault)
+                .change("source", AppliedRetention.TENANT, AppliedRetention.SYSTEM_DEFAULT)
+                .meta("category", parsed)
+                .meta("retentionUnit", parsed.unit())
+                .meta("systemDefaultAmount", systemDefault));
+        return notConfigured(parsed);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<RetentionPolicyView> policyFor(String category) {
+    public Optional<AppliedRetention> retentionFor(String category) {
         RetentionCategory parsed = ComplianceEnums.parse(RetentionCategory.class, category, "retention.category_invalid",
                 "Categoria");
-        return policies.findByCategory(parsed).map(RetentionService::view);
+        Optional<RetentionPolicy> policy = policies.findByCategory(parsed);
+        if (policy.isPresent() && policy.get().isEnabled()) {
+            return Optional.of(new AppliedRetention(parsed.name(), policy.get().getRetentionAmount(), parsed.unit().name(),
+                    AppliedRetention.TENANT));
+        }
+        // política desabilitada só existe na categoria sem padrão (o domínio não deixa desabilitar a outra): nada a
+        // descartar; sem política, vale o padrão do sistema, se a categoria tiver
+        return policy.isPresent() ? Optional.empty() : defaults.defaultFor(parsed).stream().boxed().findFirst()
+                .map(amount -> new AppliedRetention(parsed.name(), amount, parsed.unit().name(),
+                        AppliedRetention.SYSTEM_DEFAULT));
     }
 
     @Override
@@ -169,7 +226,7 @@ class RetentionService implements RetentionUseCases {
 
     private RetentionRun execute(RetentionPolicy policy, RetentionRun.Trigger trigger, boolean dryRun) {
         Instant now = Instant.now(clock);
-        Instant cutoff = ZonedDateTime.ofInstant(now, TimeConfig.BUSINESS_ZONE).minusMonths(policy.getRetentionMonths())
+        Instant cutoff = ZonedDateTime.ofInstant(now, TimeConfig.BUSINESS_ZONE).minusMonths(policy.getRetentionAmount())
                 .toInstant();
         // transações separadas: o índice único de execução em andamento precisa ver a anterior já encerrada
         newTransaction.executeWithoutResult(s -> releaseStaleRun(policy.getCategory(), now));
@@ -221,7 +278,7 @@ class RetentionService implements RetentionUseCases {
 
     private RetentionRun start(RetentionPolicy policy, RetentionRun.Trigger trigger, boolean dryRun, Instant cutoff,
                                Instant now) {
-        RetentionRun run = runs.save(new RetentionRun(policy.getCategory(), trigger, dryRun, policy.getRetentionMonths(),
+        RetentionRun run = runs.save(new RetentionRun(policy.getCategory(), trigger, dryRun, policy.getRetentionAmount(),
                 cutoff, now));
         auditTrail.record(AuditEntry.of("retention_run.started", "retention_run", run.getId())
                 .created("category", run.getCategory())
@@ -348,9 +405,21 @@ class RetentionService implements RetentionUseCases {
                         i.getProcessedAt()));
     }
 
-    static RetentionPolicyView view(RetentionPolicy p) {
-        return new RetentionPolicyView(p.getCategory().name(), p.getRetentionMonths(), p.getAction().name(), p.isEnabled(),
-                p.getCategory().isExecutableHere(), p.getUpdatedAt());
+    private RetentionPolicyView policyView(RetentionPolicy p) {
+        RetentionCategory c = p.getCategory();
+        return new RetentionPolicyView(c.name(), p.getAction().name(), c.unit().name(), p.getRetentionAmount(),
+                defaultAmount(c), c.minAmount(), c.maxAmount(), p.isEnabled(), c.isExecutableHere(), true,
+                p.getUpdatedAt());
+    }
+
+    /** Sem política: a categoria com padrão do sistema descarta pelo padrão (ativa); a outra não descarta nada. */
+    private RetentionPolicyView notConfigured(RetentionCategory c) {
+        return new RetentionPolicyView(c.name(), c.action().name(), c.unit().name(), null, defaultAmount(c),
+                c.minAmount(), c.maxAmount(), c.hasSystemDefault(), c.isExecutableHere(), false, null);
+    }
+
+    private Integer defaultAmount(RetentionCategory c) {
+        return defaults.defaultFor(c).stream().boxed().findFirst().orElse(null);
     }
 
     static RetentionRunView view(RetentionRun r) {

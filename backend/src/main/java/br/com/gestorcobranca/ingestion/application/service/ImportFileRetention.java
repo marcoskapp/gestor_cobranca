@@ -1,7 +1,7 @@
 package br.com.gestorcobranca.ingestion.application.service;
 
 import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases;
-import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases.RetentionPolicyView;
+import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases.AppliedRetention;
 import br.com.gestorcobranca.ingestion.application.port.out.ImportFileRetentionStore;
 import br.com.gestorcobranca.ingestion.application.port.out.ImportFileRetentionStore.ExpiredFile;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
@@ -18,7 +18,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -98,14 +97,12 @@ class ImportFileRetention {
     }
 
     private Round purgeRound() {
-        Optional<RetentionPolicyView> policy = retention.policyFor(RETENTION_CATEGORY)
-                .filter(RetentionPolicyView::enabled);
+        Optional<AppliedRetention> policy = retention.retentionFor(RETENTION_CATEGORY);
         if (policy.isEmpty()) {
             return new Round(0, 0);
         }
-        int months = policy.get().retentionMonths();
         Instant now = clock.instant();
-        Instant cutoff = ZonedDateTime.ofInstant(now, TimeConfig.BUSINESS_ZONE).minusMonths(months).toInstant();
+        Instant cutoff = policy.get().cutoff(now);
         List<ExpiredFile> files = store.expiredFiles(cutoff, BATCH);
         int deleted = 0;
         for (ExpiredFile f : files) {
@@ -116,7 +113,7 @@ class ImportFileRetention {
             storage.delete(f.fileKey());
             auditTrail.record(AuditEntry.of("import_batch.file_deleted", BatchCreation.RESOURCE, f.batchId())
                     .creditor(f.creditorId()).meta("batches", marked).meta("fileSha256", f.fileSha256())
-                    .reason("política IMPORT_FILES de " + months + " meses"));
+                    .reason("política IMPORT_FILES de " + policy.get().describe()));
             deleted++;
         }
         return new Round(files.size(), deleted);

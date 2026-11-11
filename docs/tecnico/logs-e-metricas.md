@@ -55,7 +55,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | `contact.opt_out` / `contact.restricted` | restrição de contato criada (opt-out ou demais tipos) | `type`, `source`, `temporary`, `contactSpecific`, `fromInteraction` (falecimento informado no atendimento); `channel` |
 | `contact.restriction_revoked` | restrição revogada | `type`, `activeDays` |
 | `contact.denied` | `ContactGate.authorizeAndRecord` negou um contato | `origin`, `reasons` (lista separada por vírgula); `channel` |
-| `data_subject_request.opened` / `.completed` | solicitação de titular aberta / encerrada (concluída ou recusada) | `type`, `dueDays`; no encerramento `outcome`, `rejectionCause`, `withinDeadline`, `durationMs` |
+| `data_subject_request.opened` / `.completed` | solicitação de titular aberta / encerrada (concluída ou recusada) | `type`, `dueDays`; no encerramento `outcome`, `rejectionCause`, `withinDeadline`, `durationMs`; na conclusão a partir da resposta sugerida, `fromDraft=true` e `draftEdited` (o texto foi alterado) — conformidade.md §8.3 |
 | `retention.run_completed` | execução de retenção concluída (simulada ou efetiva) | `category`, `trigger`, `dryRun`, `candidates`, `eligible`, `processed`, `retained`, `failed` |
 
 ### 3.1a Atributos dos eventos do marcador de vulnerabilidade (compliance)
@@ -70,6 +70,8 @@ categoria** (decisão 1061). Referência opaca `vulnerability_marker` ou `vulner
 | `vulnerability.capacity_changed` | capacidade de pagamento declarada alterada | `withCapacity` |
 | `vulnerability.suggested` | sugestão criada pelo gatilho `VULNERABILITY` do assistente | `origin`; `creditor_id` da conversa |
 | `vulnerability.suggestion_resolved` | sugestão confirmada ou dispensada | `outcome` (`CONFIRMED`/`DISMISSED`), `origin`, `hoursPending` |
+
+Log de acesso: `SENSITIVE_DATA_VIEWED` (`resource=debtor`, `view=data_subject_response_draft`, `requestId`, `requestType`, `recipients`) a cada resposta sugerida montada para o titular (conformidade.md §8.3) — só quando a pessoa pede ("Montar resposta sugerida"), nunca ao abrir a solicitação; log técnico WARN `Fonte de compartilhamento indisponível` (`source`, `error` — classe da exceção —, `rootCause` — classe da causa mais específica, `NestedExceptionUtils.getMostSpecificCause` — e `sqlState` — da primeira `SQLException` da cadeia, ex.: `57014` tempo esgotado, `42P01` tabela ausente; nulo fora do banco) quando uma fonte de `shared.privacy` falha. A mensagem da exceção não vai ao log (pode trazer parâmetros da consulta). Auditoria `retention_policy.reset_to_default` ("Usar o padrão" na retenção: prazo efetivo antes e depois e a origem), sem evento de negócio nem métrica nova.
 
 Log de acesso: `SENSITIVE_DATA_VIEWED` (`resource=vulnerability_marker`, `view` = `debtor` ou `list`, `debtorIds` = os
 devedores com categoria sensível exibidos) quando saúde é exibida a quem tem `VULNERABILITY_SENSITIVE_VIEW`. Na trilha
@@ -783,7 +785,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `portal.access.links{channel,outcome}`, `portal.sessions{event}` | links emitidos e ciclo das sessões (`OPENED`, `REFRESHED`, `LOGOUT`, `REVOKED`, `EXPIRED`) |
 | `portal.offers.refused{reason}`, `portal.agreements.formalized{plan}`, `portal.pix{outcome}` | condições recusadas no servidor (`not_offered`, `guard_*`), acordos (`CASH`/`INSTALLMENTS`) e Pix (`ISSUED`, `REUSED`, `FAILED`) |
 | `portal.service_requests{reason,outcome}`, `portal.job.failures{job}` | pedidos à fila humana (`CREATED`, `FORWARDED`, `UNDELIVERED` — alarme se crescer) e falhas de jobs (`portal.session_expiry`, `portal.retention`) |
-| `portal.retention.purged{kind}` | retenção dos dados de acesso (job `portal.retention`): `CHALLENGE` (desafios vencidos apagados, inclusive fictícios), `THROTTLE` (contadores do bloqueio sem uso apagados), `SESSION_CLIENT_DATA` (sessões encerradas com IP e agente apagados) |
+| `portal.retention.purged{kind}` | retenção dos dados de acesso (job `portal.retention`): `CHALLENGE` (desafios vencidos apagados, inclusive fictícios), `THROTTLE` (contadores do bloqueio sem uso apagados), `SESSION_CLIENT_DATA` (sessões encerradas com IP e agente apagados). Prazo e origem de cada categoria (`TENANT` = configurado pela assessoria na tela de Retenção; `SYSTEM_DEFAULT` = `app.portal.retention`) vão no log técnico INFO da execução, por assessoria, não em tag de métrica |
 | `compliance.privacy_acknowledgments{channel,outcome}` | aviso de privacidade reconhecido com/sem base legal vigente do credor (`without_legal_basis` exige regularização) |
 | `scoring.cases.scored{trigger,model,band}`, `scoring.cases.skipped{reason}` | casos escorados por gatilho, tipo de modelo e faixa; não escorados (`legal`, `closed`, `anonymized`, `error`) |
 | `scoring.events.published{reason}` | `CaseScoreChanged` publicados (`first`, `band_change`, `delta`) |
@@ -793,7 +795,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `scoring.monitoring.psi{scope}`, `scoring.monitoring.alerts{level,kind}` | PSI do score e das features; alertas de deriva (alarme em `level=ALERT`) |
 | `scoring.outcomes.resolved`, `scoring.cohorts.measured` | desfechos apurados e safras de recuperado × esperado publicadas |
 | `scoring.facts.recorded{kind}`, `scoring.facts.ignored{type,reason}`, `scoring.events.consumed{type}` | fatos gravados; ignorados (`disabled` = sem base legal, `no_portfolio`, `duplicate`, `not_applicable`) |
-| `scoring.retention.purged{what}`, `scoring.jobs.failures{job}` | retenção (`facts`, `snapshots`) e falhas de agendamento/execução interrompida (alarme) |
+| `scoring.retention.purged{what}`, `scoring.jobs.failures{job}` | retenção (`facts`, `snapshots`; prazo e origem `TENANT`/`SYSTEM_DEFAULT` no log técnico INFO `Retenção de fatos e snapshots do score executada`) e falhas de agendamento/execução interrompida (alarme) |
 | `analytics.query.duration{report,outcome}` (p50/p95/p99), `analytics.queries.slow{report}` | latência das consultas dos painéis e consultas acima de `app.analytics.slow-query-threshold` (2 s; WARN no log técnico com relatório e agrupamento) |
 | `analytics.refresh.duration{dataset,outcome}`, `analytics.refresh.rows{dataset}`, `analytics.refresh.cycle.duration{trigger}`, `analytics.refresh.tenants{trigger,outcome}` | reconstrução dos snapshots dos painéis por conjunto e ciclo agendado (carimbo "dados até") |
 | `analytics.refresh.failures{trigger}` | falha ao atualizar os painéis de uma assessoria (alarme) |

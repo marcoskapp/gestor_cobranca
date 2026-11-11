@@ -5,5 +5,9 @@ public enum RetentionAction {
     /** Eliminar dados pessoais preservando registros financeiros. */
     ANONYMIZE,
     /** Remover fisicamente o arquivo armazenado. */
-    DELETE_FILE
+    DELETE_FILE,
+    /** Excluir o registro inteiro. */
+    DELETE_RECORD,
+    /** Apagar os campos com dado pessoal, mantendo o registro (sem identificação). */
+    CLEAR_FIELDS
 }

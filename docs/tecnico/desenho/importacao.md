@@ -285,7 +285,7 @@ Auditoria: `import_review.created`, `import_review.format_confirmed` (decisões 
 O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico gerado do PDF aprovado) fica na categoria
 `IMPORT` do armazenamento e tem CPF/CNPJ, nome, contatos, endereço e garantias em claro. O descarte segue a política
 **`IMPORT_FILES`** do compliance (Compliance → Retenção; nasce desabilitada, prazo em meses), consultada por
-`RetentionUseCases.policyFor` — o ingestion passa a depender de `compliance :: usecases` (decisão 876).
+`RetentionUseCases.retentionFor` (prazo a aplicar; vazio sem política habilitada) — o ingestion passa a depender de `compliance :: usecases` (decisão 876).
 
 - Job `ImportFileRetention` (diário, `app.ingestion.file-retention-cron`, 03:40, ShedLock `ingestion.file-retention`,
   por assessoria): rodadas de 200 arquivos, cada uma na própria transação, até esvaziar (teto de 50).

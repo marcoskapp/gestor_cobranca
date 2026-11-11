@@ -45,8 +45,13 @@ public interface DataSubjectRequestUseCases {
     /** Executa a ação automática do tipo (somente ACCESS, PORTABILITY, ANONYMIZATION, OPPOSITION). */
     RequestView execute(UUID requestId);
 
-    /** Conclui com a resposta dada ao titular. Tipos executáveis exigem a execução antes. */
-    RequestView complete(UUID requestId, String responseSummary);
+    /**
+     * Conclui com a resposta dada ao titular. Tipos executáveis exigem a execução antes.
+     *
+     * @param draftSha256 resumo do rascunho sugerido ({@link DataSubjectResponseDraftUseCases}) quando a resposta partiu
+     *                    dele (nulo = digitada): a auditoria e o log de negócio registram o uso e se o texto foi editado
+     */
+    RequestView complete(UUID requestId, String responseSummary, String draftSha256);
 
     /** Recusa fundamentada (a justificativa é a resposta ao titular). */
     RequestView reject(UUID requestId, String justification);

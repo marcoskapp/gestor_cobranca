@@ -25,7 +25,7 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { endOfDayInstant, fromLocalDate, startOfDayInstant } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
-import { DebtorNames } from '../../debt/data/debt.lookups';
+import { DebtorLookup, DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { CallsApi } from '../data/telephony.api';
 import { CALL_RESULT_LABELS, HANGUP_SIDE_LABELS } from '../data/telephony.labels';
@@ -52,6 +52,11 @@ import { BUSINESS_ZONE } from '../../collection/data/collection.rules';
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
       </div>
+      @if (canSearchDebtors()) {
+        <div class="app-filters__wide">
+          <app-entity-picker [control]="filters.controls.debtor" [source]="debtorSource" label="Devedor" [single]="true" />
+        </div>
+      }
       @if (canPickOperator()) {
         <div class="app-filters__wide">
           <app-entity-picker [control]="filters.controls.operator" [source]="userSource" label="Operador" [single]="true" />
@@ -164,6 +169,9 @@ export class CallList {
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly userSource = inject(UserLookup);
+  protected readonly debtorSource = inject(DebtorLookup);
+  /** Filtro por devedor (ex.: vindo da resposta ao titular, `?devedor=`): só com a busca de devedores. */
+  protected readonly canSearchDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
   /** Filtro por operador: quem supervisiona e consulta usuários (para monitorar o atendimento de uma pessoa). */
   protected readonly canPickOperator = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
   protected readonly results = Object.entries(CALL_RESULT_LABELS) as [CallResult, string][];
@@ -173,10 +181,11 @@ export class CallList {
   protected readonly canListen = computed(() => this.auth.hasPermission(Permission.CALL_RECORDING_LISTEN));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  /** Filtros na URL (`?credor=&operador=&resultado=&direcao=&de=&ate=`), preservados ao voltar. */
+  /** Filtros na URL (`?credor=&devedor=&operador=&resultado=&direcao=&de=&ate=`), preservados ao voltar. */
   protected readonly filters = syncFormWithUrl(
     this.fb.group({
       creditor: this.fb.control<string[]>([]),
+      debtor: this.fb.control<string[]>([]),
       operator: this.fb.control<string[]>([]),
       result: [''],
       direction: [''],
@@ -185,6 +194,7 @@ export class CallList {
     }),
     {
       creditor: urlParam.ids('credor'),
+      debtor: urlParam.ids('devedor'),
       operator: urlParam.ids('operador'),
       result: urlParam.choice<string>('resultado', this.results.map((r) => r[0])),
       direction: urlParam.choice('direcao', ['OUTBOUND', 'INBOUND']),
@@ -285,6 +295,8 @@ export class CallList {
     const v = this.filters.getRawValue();
     return {
       creditorId: v.creditor[0] ?? null,
+      // como o operador: sem o seletor (DEBTOR_VIEW), um `?devedor=` da URL não filtra (filtro invisível não é aplicado)
+      debtorId: this.canSearchDebtors() ? (v.debtor[0] ?? null) : null,
       // sem o seletor (USER_VIEW), um `?operador=` da URL não filtra: filtro invisível não é aplicado
       operator: this.canPickOperator() ? (v.operator[0] ?? null) : null,
       result: v.result || null,
@@ -296,5 +308,7 @@ export class CallList {
   }
 
   /** "Filtros (n)" do `app-filter-bar` no celular (ux.md §12.3). */
-  protected readonly activeFilters = activeFilterCount(this.filters, { ignore: this.canPickOperator() ? [] : ['operator'] });
+  protected readonly activeFilters = activeFilterCount(this.filters, {
+    ignore: [...(this.canPickOperator() ? [] : ['operator']), ...(this.canSearchDebtors() ? [] : ['debtor'])],
+  });
 }

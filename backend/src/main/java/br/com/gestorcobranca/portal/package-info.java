@@ -18,11 +18,14 @@
  *       {@code portal.*}; configuração por credor ({@code PORTAL_MANAGE}).</li>
  * </ul>
  * Dependências: {@code negotiation}, {@code payment}, {@code communication}, {@code debt},
- * {@code organization} e {@code collection} (interfaces {@code usecases}).
+ * {@code organization}, {@code collection} e {@code compliance} (interfaces {@code usecases}); implementa
+ * {@code compliance :: spi} ({@code RetentionDefaults}: prazos padrão da retenção dos dados de acesso, que cada
+ * assessoria ajusta na tela de Retenção).
  */
 @ApplicationModule(displayName = "Portal",
         allowedDependencies = {"shared", "negotiation :: usecases", "payment :: usecases", "communication :: usecases",
-                "debt :: usecases", "organization :: usecases", "collection :: usecases"})
+                "debt :: usecases", "organization :: usecases", "collection :: usecases",
+                "compliance :: usecases", "compliance :: spi"})
 package br.com.gestorcobranca.portal;
 
 import org.springframework.modulith.ApplicationModule;

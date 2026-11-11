@@ -13,4 +13,7 @@ public interface RetentionPolicyRepository {
     Optional<RetentionPolicy> findByCategory(RetentionCategory category);
 
     List<RetentionPolicy> findAllByOrderByCategoryAsc();
+
+    /** Só para voltar ao padrão do sistema (categoria com padrão): a política da assessoria deixa de existir. */
+    void delete(RetentionPolicy policy);
 }

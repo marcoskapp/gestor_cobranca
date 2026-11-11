@@ -94,12 +94,11 @@ class AssistantJobs {
     /** Descarte do conteúdo vencido da assessoria. @return turnos descartados */
     int purge(UUID tenant) {
         return tenantExecution.callInTenant(tenant, "assistant.retention", () -> {
-            var policy = retention.policyFor(RETENTION_CATEGORY).filter(RetentionUseCases.RetentionPolicyView::enabled);
+            var policy = retention.retentionFor(RETENTION_CATEGORY);
             if (policy.isEmpty()) {
                 return 0;
             }
-            Instant cutoff = java.time.ZonedDateTime.now(clock.withZone(TimeConfig.BUSINESS_ZONE))
-                    .minusMonths(policy.get().retentionMonths()).toInstant();
+            Instant cutoff = policy.get().cutoff(Instant.now(clock));
             int purged = content.purgeOlderThan(cutoff, properties.retentionBatch());
             metrics.purged(purged);
             return purged;

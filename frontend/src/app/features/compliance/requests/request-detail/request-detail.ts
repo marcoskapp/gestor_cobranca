@@ -32,8 +32,10 @@ import {
   dueText,
 } from '../../data/compliance.labels';
 import { DataSubjectRequestView } from '../../data/compliance.models';
+import { draftAvailability } from '../../data/data-sharing';
 import { EvidenceButtons } from '../../restrictions/evidence/evidence-buttons';
 import { PickDialog, PickDialogData, ResponseDialog, ResponseDialogData } from './request-dialogs';
+import { DraftUse, ResponseDraftCard } from './response-draft-card';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
@@ -74,7 +76,7 @@ export function requestActions(r: DataSubjectRequestView): {
 
 @Component({
   selector: 'app-request-detail',
-  imports: [RouterLink, PageHeader, StatusChip, DocumentDisplay, EmptyState, Skeleton, AppDatePipe, EvidenceButtons, Icon, NgbTooltip, InfoHint, DisabledAction],
+  imports: [RouterLink, PageHeader, StatusChip, DocumentDisplay, EmptyState, Skeleton, AppDatePipe, EvidenceButtons, Icon, NgbTooltip, InfoHint, DisabledAction, ResponseDraftCard],
   templateUrl: './request-detail.html',
   styleUrl: '../../compliance.scss',
 })
@@ -113,6 +115,11 @@ export class RequestDetail {
   protected readonly canManageRestrictions = computed(() => this.auth.hasPermission(Permission.CONTACT_RESTRICTION_MANAGE));
   /** O arquivo reúne o titular em todos os credores, sem máscara: baixar exige acesso a todos (como gerar). */
   protected readonly canDownloadResult = computed(() => this.auth.user()?.allCreditors ?? false);
+  /** Cartão "Resposta sugerida" (confirmação de tratamento e compartilhamento), com o mesmo alcance de atuar. */
+  protected readonly showDraft = computed(() => {
+    const r = this.current();
+    return !!r && draftAvailability(r, this.auth.user()?.allCreditors ?? false).show;
+  });
 
   protected readonly debtors = nameMap(inject(DebtorNames), () => [this.canOpenDebtor() ? this.current()?.debtorId : null]);
   protected readonly users = nameMap(
@@ -208,15 +215,17 @@ export class RequestDetail {
     this.apply(confirmed.pipe(switchMap(() => this.api.execute(r.id))), 'Ação executada.');
   }
 
-  protected complete(r: DataSubjectRequestView): void {
+  /** Conclusão; com a resposta sugerida, o texto abre preenchido e o resumo dele vai junto (auditoria do uso). */
+  protected complete(r: DataSubjectRequestView, draft?: DraftUse): void {
     const text = this.respond({
       title: 'Concluir solicitação',
       message: 'Registre a resposta enviada ao titular. Ela fica na trilha de auditoria.',
       label: 'Resposta ao titular',
       confirmLabel: 'Concluir',
       details: this.impact(r),
+      initial: draft?.text,
     });
-    this.apply(text.pipe(switchMap((response) => this.api.complete(r.id, response))), 'Solicitação concluída.');
+    this.apply(text.pipe(switchMap((response) => this.api.complete(r.id, response, draft?.sha256 ?? null))), 'Solicitação concluída.');
   }
 
   protected reject(r: DataSubjectRequestView): void {

@@ -113,6 +113,9 @@
         } @else {
           <span class="app-muted">Ainda não identificado</span>
         }
+        @if (r.debtorId) {
+          · <a [routerLink]="['/compliance/solicitacoes-titulares']" [queryParams]="{ devedor: r.debtorId }">todas as solicitações do titular</a>
+        }
       </dd>
       <dt>Responsável</dt>
       <dd>{{ r.assignedTo ? (canViewUsers() ? users.name(r.assignedTo) : 'Atribuído') : '—' }}</dd>
@@ -120,6 +123,10 @@
       <dd class="cmp-pre">{{ r.details || '—' }}</dd>
     </dl>
   </section>
+
+  @if (showDraft()) {
+    <app-response-draft-card [request]="r" (use)="complete(r, $event)" />
+  }
 
   <section class="app-card" aria-labelledby="historico-solicitacao">
     <h2 class="app-card__title" id="historico-solicitacao">Atendimento</h2>

@@ -8,6 +8,7 @@ import {
   RestrictionSource,
   RestrictionType,
   RetentionCategory,
+  RetentionUnit,
   WeekDay,
 } from './compliance.models';
 
@@ -128,12 +129,44 @@ export const RETENTION_CATEGORY_LABELS: Record<RetentionCategory, string> = {
   IMPORT_FILES: 'Arquivos de carga',
   MESSAGE_CONTENT: 'Conteúdo de mensagens',
   CALL_RECORDINGS: 'Gravações de chamadas',
+  PORTAL_ACCESS_CHALLENGES: 'Portal: pedidos de acesso vencidos',
+  PORTAL_ACCESS_THROTTLES: 'Portal: controle de tentativas de acesso',
+  PORTAL_SESSION_CLIENT_DATA: 'Portal: IP e navegador das sessões',
+  SCORING_CASE_FACTS: 'Score: histórico dos casos',
+  SCORING_FEATURE_SNAPSHOTS: 'Score: fotografias para treino do modelo',
+};
+
+/** A partir de quando o prazo conta e o que é descartado (dica do campo de prazo). */
+export const RETENTION_CATEGORY_HINTS: Record<RetentionCategory, string> = {
+  DEBTOR_INACTIVE: 'Contado da última movimentação. Prazos maiores exigidos pela base legal de cada credor prevalecem.',
+  IMPORT_FILES: 'Contado da importação do arquivo.',
+  MESSAGE_CONTENT: 'Contado do envio ou recebimento da mensagem.',
+  CALL_RECORDINGS: 'Contado da gravação da chamada.',
+  PORTAL_ACCESS_CHALLENGES:
+    'Contado do vencimento do pedido de código ou link, inclusive os feitos com documento de quem não é devedor.',
+  PORTAL_ACCESS_THROTTLES:
+    'Contado do último uso. Bloqueios em vigor nunca são apagados; menos de 7 dias zera o bloqueio de quem insiste.',
+  PORTAL_SESSION_CLIENT_DATA:
+    'Contado do encerramento da sessão. A sessão continua no histórico, sem o IP e o navegador.',
+  SCORING_CASE_FACTS:
+    'Contatos, promessas, acordos e pagamentos usados no cálculo do score, contados da data de cada um. O mínimo é o período que o score considera.',
+  SCORING_FEATURE_SNAPSHOTS:
+    'Fotografias periódicas dos casos com o resultado já apurado, usadas para treinar e acompanhar o modelo; contadas da data da fotografia.',
 };
 
 export const RETENTION_ACTION_LABELS: Record<string, string> = {
   ANONYMIZE: 'Anonimizar dados pessoais',
   DELETE_FILE: 'Excluir arquivo',
+  DELETE_RECORD: 'Excluir registro',
+  CLEAR_FIELDS: 'Apagar IP e navegador',
 };
+
+/** Prazo legível na unidade da categoria (ex.: "30 dias", "1 mês"); sem prazo, "—". */
+export function retentionPeriod(amount: number | null, unit: RetentionUnit): string {
+  if (amount === null) return '—';
+  if (unit === 'DAYS') return `${amount} ${amount === 1 ? 'dia' : 'dias'}`;
+  return `${amount} ${amount === 1 ? 'mês' : 'meses'}`;
+}
 
 export const ATTEMPT_ORIGIN_LABELS: Record<string, string> = {
   OPERATOR: 'Operador',

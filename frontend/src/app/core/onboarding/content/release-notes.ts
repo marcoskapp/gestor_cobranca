@@ -3,6 +3,27 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 27,
+    date: '2026-11-11',
+    title: 'Prazos de retenção num lugar só',
+    items: [
+      { text: 'Retenção de dados: todas as categorias aparecem, mesmo as ainda não configuradas, com "Configurar" para definir o prazo.', route: '/compliance/retencao' },
+      { text: 'Os prazos de guarda dos dados de acesso ao portal e do histórico usado pelo score agora são ajustáveis por assessoria na mesma tela, partindo do padrão do sistema; nessas categorias o descarte não pode ser desligado. "Usar o padrão" volta ao prazo do sistema.', route: '/compliance/retencao' },
+      { text: 'Resposta sugerida ao titular: montada só quando você pede ("Montar resposta sugerida") e com os operadores cadastrados à mão, como a hospedagem.', route: '/compliance/solicitacoes-titulares' },
+    ],
+  },
+  {
+    version: 26,
+    date: '2026-11-11',
+    title: 'Resposta sugerida ao titular e cadastro de operadores',
+    items: [
+      { text: 'Confirmação de tratamento e informação sobre compartilhamento: a solicitação mostra com quem os dados do titular foram compartilhados (credores, prestadores, escritórios e integrações), com link para cada evidência, e sugere a resposta, que você confere e edita antes de concluir.', route: '/compliance/solicitacoes-titulares' },
+      { text: 'Novo cadastro de operadores e suboperadores: empresa, finalidade, país, garantia da transferência internacional e contrato; os prestadores em uso sem cadastro aparecem no topo.', route: '/compliance/operadores' },
+      { text: 'Ficha do devedor: as solicitações LGPD do titular em "Relacionados", e a fila de solicitações filtrada pelo titular.', route: '/compliance/solicitacoes-titulares' },
+      { text: 'Chamadas e gravações: filtro por devedor.', route: '/telefonia/chamadas' },
+    ],
+  },
+  {
     version: 25,
     date: '2026-11-11',
     title: 'Atribuir só a quem pode atuar',

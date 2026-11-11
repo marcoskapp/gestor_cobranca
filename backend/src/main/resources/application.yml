@@ -278,6 +278,8 @@ app:
     maintenance-cron: "0 15 4 * * *"
     training-cron: "0 0 5 1 * *"
     fact-lookback-days: 730
+    # retenção (padrão do sistema; cada assessoria ajusta na tela de Retenção — SCORING_CASE_FACTS (mín. 730 = janela
+    # de fatos) e SCORING_FEATURE_SNAPSHOTS (mín. 365))
     fact-retention-days: 1095
     snapshot-retention-days: 730
     outcome-grace-days: 5
@@ -437,7 +439,8 @@ app:
       access-link: PORTAL_LINK
       service-request: PORTAL_ATENDIMENTO
     session-expiry-interval: PT10M
-    # retenção dos dados de acesso (LGPD, minimização; prazos a confirmar com o encarregado — decisões autônomas)
+    # retenção dos dados de acesso (LGPD, minimização): padrão do sistema, em dias inteiros; cada assessoria ajusta na
+    # tela de Retenção (categorias PORTAL_* do compliance)
     retention:
       # desafios de acesso vencidos (HMAC do documento digitado, inclusive de quem não é devedor)
       challenges: P30D

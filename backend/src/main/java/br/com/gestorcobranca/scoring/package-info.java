@@ -17,9 +17,12 @@
  * títulos de um pagamento sem carteira informada); demais fatos por eventos de
  * {@code shared.events}. O grafo também permite {@code payment} e {@code organization}, mas não são
  * necessários: os fatos de pagamento chegam por {@code PaymentConfirmed}/{@code PaymentReversed}.
+ * {@code compliance}: prazos de retenção de fatos e snapshots por assessoria ({@code RetentionUseCases#retentionFor});
+ * implementa {@code compliance :: spi} ({@code RetentionDefaults}: os prazos padrão do sistema).
  */
 @ApplicationModule(displayName = "Scoring",
-        allowedDependencies = {"shared", "collection :: usecases", "debt :: usecases"})
+        allowedDependencies = {"shared", "collection :: usecases", "debt :: usecases", "compliance :: usecases",
+                "compliance :: spi"})
 package br.com.gestorcobranca.scoring;
 
 import org.springframework.modulith.ApplicationModule;

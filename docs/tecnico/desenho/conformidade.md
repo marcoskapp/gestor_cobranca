@@ -180,6 +180,8 @@ anonimização do devedor, resumo, resposta e protocolo são substituídos e os 
 | `V0609__collection_vulnerability_and_portal_dispute` | collection | `collection_case.vulnerable`, `queue.vulnerable_only`, `dispute.origin_reference` (+ índice único por caso) |
 | `V1304__portal_dispute_intake` | portal | `service_request.dispute_type` e `portal.service_request_dispute` |
 | `V2400__complaint_tables` | complaint (faixa nova) | reclamações, evidências e regras de prazo por canal |
+| `V0508__compliance_data_processor` | compliance | cadastro de operadores e suboperadores (§8.2) |
+| `V0507__compliance_retention_policy_days` | compliance | retenção por assessoria: categorias do portal e do scoring, `retention_days` (§7) |
 
 ## 5. Pendências e fora do escopo
 
@@ -223,3 +225,194 @@ assessoria.
   para o painel de confiabilidade exige mudar o contrato de leitura do analytics (frente F).
 - **Selo na lista de casos e na fila do operador** (além da ficha): depende de expor `vulnerable` nas listagens do
   collection (frentes D/E).
+
+## 7. Retenção de dados por assessoria (compliance)
+
+A tela **Retenção de dados** (`/compliance/retencao`, `RETENTION_MANAGE`) é o lugar único de "quanto tempo guardamos
+cada dado" da assessoria. Os prazos que eram fixos no `application.yml` (portal e scoring) passaram a ser categorias
+dela, ajustáveis pelo encarregado (DPO) de cada assessoria, com auditoria; os valores do `application.yml` continuam
+como **padrão do sistema** enquanto a assessoria não configura.
+
+| Categoria | Dado | Unidade | Limites | Padrão do sistema | Ação | Aplicada por |
+| --- | --- | --- | --- | --- | --- | --- |
+| `DEBTOR_INACTIVE` | devedor sem títulos em cobrança | meses | 1–1200 | — | anonimizar | compliance (simular/executar) |
+| `IMPORT_FILES` | arquivos de carga | meses | 1–1200 | — | excluir arquivo | ingestion |
+| `MESSAGE_CONTENT` | conteúdo de mensagens (e turnos do assistente) | meses | 1–1200 | — | excluir conteúdo | communication, assistant |
+| `CALL_RECORDINGS` | gravações de chamadas | meses | 1–1200 | — | excluir arquivo | telephony |
+| `PORTAL_ACCESS_CHALLENGES` | pedidos de código/link vencidos (HMAC do documento, inclusive de não devedor) | dias | 1–365 | 30 (`app.portal.retention.challenges`) | excluir registro | portal |
+| `PORTAL_ACCESS_THROTTLES` | contadores do bloqueio progressivo sem uso (sem bloqueio vigente) | dias | 7–365 | 30 (`throttles`) | excluir registro | portal |
+| `PORTAL_SESSION_CLIENT_DATA` | IP e navegador das sessões encerradas | dias | 30–1825 | 365 (`session-client-data`) | apagar IP e navegador | portal |
+| `SCORING_CASE_FACTS` | fatos dos casos usados nas features | dias | 730–3650 | 1095 (`app.scoring.fact-retention-days`) | excluir registro | scoring |
+| `SCORING_FEATURE_SNAPSHOTS` | snapshots com desfecho apurado (treino e monitoramento) | dias | 365–3650 | 730 (`snapshot-retention-days`) | excluir registro | scoring |
+
+- **Unidade e limites** são da categoria (`RetentionCategory`), conferidos no domínio (`retention.amount_invalid`) e no
+  formulário. Mínimos com motivo técnico: contadores do portal 7 dias (menos zera a escalada do bloqueio de quem
+  insiste), IP e navegador 30 dias (apuração de incidentes), fatos do score 730 dias (janela de fatos das features,
+  `fact-lookback-days`), snapshots 365 dias (janela de treino padrão). O módulo dono declara o mínimo que a configuração
+  dele exige (`RetentionDefault.requiredMinimum`; o score informa o `fact-lookback-days` para os fatos) e a aplicação
+  não sobe se ele passar do mínimo da categoria (decisão 1129).
+- **Padrão do sistema**: o módulo dono informa o prazo pela porta `compliance :: spi` `RetentionDefaults`
+  (`PortalRetentionDefaults`, `ScoringRetentionDefaults`); `RetentionDefaultRegistry` confere na subida que toda
+  categoria com padrão tem exatamente um, dentro dos limites (senão a aplicação não sobe). As categorias antigas não têm
+  padrão: sem política habilitada, nada é descartado (comportamento mantido).
+- **Descarte obrigatório** nas categorias com padrão: a política só ajusta o prazo; desabilitar é recusado
+  (`retention.discard_mandatory`, também `check` no banco). Lado seguro para a minimização (LGPD art. 6º III): antes o
+  descarte sempre ocorria e continua sempre ocorrendo.
+- **Leitura pelos módulos donos**: `RetentionUseCases#retentionFor(category)` (no tenant do job) devolve
+  `AppliedRetention` (prazo, unidade, origem `TENANT`|`SYSTEM_DEFAULT`, `cutoff(now)` em dias ou meses de calendário no
+  fuso de operação); vazio = nada a descartar. Substituiu o `policyFor` (todos os chamadores migrados: communication,
+  assistant, telephony, ingestion). O portal e o scoring passam a depender de `compliance :: usecases` e
+  `compliance :: spi` (sem ciclo; [visão geral](../../arquitetura/visao-geral.md) §2.1). Os jobs registram no log
+  técnico o prazo e a origem de cada categoria.
+- **API**: `GET /api/v1/compliance/retention/policies` traz todas as categorias com `unit`, `retentionAmount` (da
+  assessoria, nulo se não configurada), `defaultAmount`, `minAmount`, `maxAmount`, `enabled` (sempre `true` nas com
+  padrão) e `configured`; `PUT /policies/{category}` recebe `{retentionAmount, enabled}` (antes `retentionMonths`);
+  `DELETE /policies/{category}` ("Usar o padrão", `RETENTION_MANAGE` e todos os credores, como o `PUT`) apaga a
+  política da assessoria e a categoria volta ao padrão do sistema — só nas categorias com padrão
+  (`retention.no_system_default`, 422, nas outras); sem política, nada muda (decisão 1125).
+- **Auditoria** (`retention_policy.created|updated`): categoria, `retentionUnit`, `retentionAmount` (antes/depois),
+  `enabled` e, nas categorias com padrão, `effectiveRetentionAmount` (o prazo efetivo de antes — o padrão, na primeira
+  configuração — e o de depois), com `systemDefaultAmount` nos metadados. `retention_policy.reset_to_default`: prazo
+  apagado (`retentionAmount` antes), `effectiveRetentionAmount` (o da assessoria → o padrão) e `source`
+  (`TENANT` → `SYSTEM_DEFAULT`), com categoria, unidade e padrão nos metadados.
+- **Banco** (`V0507__compliance_retention_policy_days`): coluna `retention_days` ao lado de `retention_months`; cada
+  política usa só a coluna da unidade da categoria (`check ck_retention_policy_period`, com `is not null` explícito na
+  coluna da unidade: sem ele, a lógica de três valores do SQL deixaria passar prazo nulo). A mesma migration concede
+  `delete` em `retention_policy` ao `app_runtime` (a V0500 revogara; "Usar o padrão" apaga a política). Deploy gradual: as instâncias
+  antigas continuam gravando `retention_months` nas categorias antigas (a coluna só deixou de ser obrigatória); durante
+  a troca, a listagem numa instância antiga falharia se alguém já tivesse configurado uma categoria nova (enum
+  desconhecido) — janela curta, sem efeito nos jobs, que leem só a própria categoria.
+- **Testes**: `RetentionPolicyTest` e `RetentionDefaultRegistryTest` (unidade, padrão, limites, corte em dias e meses,
+  mínimo exigido pelo módulo dono), `ScoringRetentionDefaultsTest` (lookback como mínimo), `ComplianceModuleIT`
+  (listagem com padrão, `check` com prazo nulo, "Usar o padrão" com escopo e auditoria), `retention.spec` (o diálogo
+  chama o `DELETE` e não grava o número do padrão), `PortalRetentionIT` (prazo da assessoria × padrão, descarte obrigatório,
+  auditoria) e `ScoringRetentionIT` (prazo por assessoria × padrão, isolamento por RLS).
+
+## 8. Resposta sugerida ao titular e cadastro de operadores (LGPD art. 18, I e VII; art. 37 e 39) — 11/11/2026
+
+Pedido do responsável: nas solicitações de **confirmação de tratamento** (art. 18, I) e de **informação sobre
+compartilhamento** (art. 18, VII), o sistema reúne o que sabe e monta um **rascunho de resposta**, que o analista confere,
+edita e só então usa (revisão humana; nada é enviado sozinho). Decisões 1100–1111.
+
+### 8.1 Fontes de compartilhamento sem acoplar módulos (`shared.privacy`)
+
+O compliance não pode depender de communication, telephony, legal, payment, assistant ou publicapi (eles dependem do
+compliance pelo porteiro de contato — haveria ciclo). Mesmo padrão de `shared.pendingwork`: o contrato
+`DataSharingSource` é linguagem publicada do kernel, implementado pelo módulo dono e recebido pelo compliance por
+injeção de `List<DataSharingSource>` (`DataSharingCollector`). O grafo de módulos não muda.
+
+| Tipo | Papel |
+| --- | --- |
+| `DataSharingSource` | `id`, `label`, `sharedWith(DataSharingQuery)` (fatos do devedor) e `recipientsInUse()` (prestadores configurados na assessoria) |
+| `DataSharingFact` | tipo do destinatário (`CREDITOR`, `PROVIDER`, `LAW_FIRM`, `INTEGRATION`), **chave estável** (`<modulo>.<nome>` ou `<modulo>.<tipo>:<uuid>`, `check` no registro), id, nome, finalidade (`DataSharingPurpose`), primeiro e último uso, quantidade e quantidade por extenso, link da evidência |
+| `DataSharingLink` | rota do frontend, filtros (só ids/códigos — validados), permissões da rota (`anyPermission` e `allPermissions`, como o `permissionGuard`) e rótulo |
+| `DataSharingUsage` / `DataSharingRows` | linha agregada lida pelos adaptadores JDBC (colunas `code`, `recipient_id`, `name`, `first_at`, `last_at`, `total`, `latest_id`) |
+
+Cada fonte segue o padrão das pendências: `application/service/<Modulo>DataSharing` + porta
+`application/port/out/<Modulo>DataSharingQueries` + adaptador `infrastructure/persistence/Jdbc<Modulo>DataSharingQueries`
+(consulta pelo índice do devedor). O coletor roda **cada fonte em transação somente leitura própria**
+(`TenantExecution.callAsReadOnly`, com o ator da requisição: RLS do tenant); a fonte que falha vai para `unavailable`
+(log técnico WARN `Fonte de compartilhamento indisponível`, `source`, `error`, `rootCause` — classe da causa mais
+específica — e `sqlState`, nunca a mensagem, que pode trazer parâmetros da consulta) e o rascunho segue com as demais,
+com alerta. O rascunho e a lista de provedores sem cadastro **não seguram conexão** enquanto as fontes rodam
+(`propagation = NOT_SUPPORTED`; a leitura da solicitação e a montagem com a trilha em transações curtas próprias).
+
+| Fonte | O que registra (por devedor) | Chave | Evidência (link e permissão) |
+| --- | --- | --- | --- |
+| `debt` | credores com títulos do devedor, atuais e anteriores (cessões em `title_ownership`); contagem de títulos | `debt.creditor:<id>` | ficha do credor (`ORGANIZATION_AREA_VIEW` + `CREDITOR_VIEW`) |
+| `communication` | mensagens das conversas do devedor que passaram pelo provedor — recebidas (`INBOUND`) ou enviadas a ele (`provider_message_id` ou `sent_at`); a que ficou na fila ou falhou antes do envio não conta —, agrupadas pelo **provedor da conta de canal** (`WHATSAPP_CLOUD`, `SMTP`, `SANDBOX`) | `communication.<provedor>` | conversa mais recente daquele provedor (`INBOX_VIEW`) |
+| `telephony` | chamadas que chegaram à plataforma (discagem iniciada, id do provedor ou atendida), por provedor (`TWILIO`, `PLIVO`, `ALVARIA`, `TARIFANDO`, `SANDBOX`); a recusada pelo porteiro não conta | `telephony.<provedor>` | `/telefonia/chamadas?devedor=` (`TELEPHONY_SUPERVISE` + `DEBTOR_VIEW`) |
+| `payment` | cobranças Pix que chegaram ao PSP — registradas (`registered_at`), pagas ou recusadas por ele (`FAILED`, exceto `PIX_ACCOUNT_INACTIVE`, que encerra sem chamar o PSP); cancelada ou vencida antes do registro não conta —, por **conta Pix** (o PSP é identificado pela conta) | `payment.pix_account:<id>` | `/pagamentos/instrucoes?devedor=` (`PAYMENT_VIEW`) |
+| `assistant` | turnos do assistente com chamada ao modelo (`model_calls > 0`), por provedor de IA (`bedrock`, `sandbox`) | `assistant.<provedor>` | turno mais recente (`ASSISTANT_REVIEW`) |
+| `legal` | casos jurídicos com **escritório parceiro** responsável (`responsible_type = LAW_FIRM`) | `legal.law_firm:<id>` | caso jurídico mais recente (`LEGAL_VIEW`) |
+| `publicapi` | tokens de integração cujos lotes de importação trouxeram títulos do devedor | `publicapi.token:<id>` | token (`PUBLIC_API_TOKEN_VIEW`) |
+
+Prestadores em uso (`recipientsInUse`): contas de canal ativas, plataformas de telefonia ativas, contas Pix ativas e o
+provedor de IA configurado na instância (`LanguageModelPort`) **só se a assessoria tiver política do assistente
+publicada e ligada** (`status = PUBLISHED`, `mode <> OFF`); escritórios, credores e integrações não entram no cadastro
+de operadores.
+
+**O que não foi possível (registrado):** histórico de troca de escritório do caso jurídico (só o escritório atual é
+guardado; a troca fica na trilha de auditoria) e as medidas extrajudiciais/provedores do jurídico (hoje todos manuais,
+texto livre); consultas da API pública por devedor (o log de acesso guarda o padrão da rota, não o id — só a carga por
+lote é rastreável, e um título regravado guarda só o último lote); boleto e link de pagamento (sem prestador registrado);
+o SMTP é o servidor de envio da plataforma (sem conta por empresa) — o nome da empresa vem do cadastro de operadores.
+
+### 8.2 Cadastro de operadores e suboperadores (compliance)
+
+Tabela `compliance.data_processor` (`V0508`, RLS, `check` de papel, garantia, país ISO, chave e período; única por
+assessoria e chave): chave do provedor (casa com a das fontes; manual = `custom.<nome>`), empresa, papel (`OPERATOR`,
+`SUB_OPERATOR`, `JOINT_CONTROLLER`), finalidade, categorias de dados (texto curto), país (ISO alfa-2) e — fora do Brasil
+— a **garantia do art. 33** (obrigatória no domínio e no banco), referência do contrato/DPA (texto curto, sem anexos),
+vigência e ativo. A chave não muda (outro provedor é outro cadastro).
+
+- API `/api/v1/compliance/data-processors`: `GET /` (lista), `GET /unregistered` (prestadores em uso sem cadastro),
+  `GET /{id}`, `POST /` (`data_processor.duplicate` 409 para chave repetida), `PUT /{id}`. Permissão
+  `DATA_SUBJECT_REQUEST_MANAGE` (a mesma das bases legais e das solicitações); **alterar e `GET /unregistered` exigem
+  todos os credores** (o cadastro é da assessoria; a lista de provedores em uso traz contas de canal, telefonia e Pix de
+  todos os credores — com escopo parcial, 403 sem vazamento). A tela só busca e mostra a seção para quem pode cadastrar. Auditoria `data_processor.registered` (estado inicial) e `data_processor.updated` (antes e
+  depois de cada campo alterado).
+- Sem semente: o sistema não cria cadastros sozinhos; a tela mostra os **provedores em uso sem cadastro** para cadastrar
+  com a chave, o nome e a finalidade pré-preenchidos (decisão 1103).
+- **Operador manual** (`custom.<nome>`, ex.: hospedagem, suporte): nenhuma fonte registra o uso dele, mas trata dados de
+  todos os titulares; ativo e vigente, entra no rascunho de todo titular localizado (§8.3, decisão 1122).
+
+### 8.3 Rascunho de resposta
+
+`GET /api/v1/compliance/data-subject-requests/{id}/response-draft` (`DataSubjectResponseDraftUseCases`):
+
+- **Regras**: só `CONFIRMATION` e `INFORMATION_SHARING` (`dsr.draft_unavailable`, 422); identidade confirmada
+  (`dsr.identity_not_verified`, 409); solicitação aberta (`dsr.draft_closed`, 409); `DATA_SUBJECT_REQUEST_MANAGE` e
+  **todos os credores** (403 sem vazamento), o mesmo alcance de atuar no pedido.
+- **Montagem**: fatos das fontes agregados por chave (ex.: duas contas do mesmo provedor viram um destinatário), base
+  legal **vigente** de cada credor (`LegalBasisRecord`), cadastro do operador de cada prestador e, com titular
+  localizado, os **operadores cadastrados à mão** ativos e vigentes (`custom.*`, como prestadores, sem período nem
+  contagem, com a finalidade do cadastro na tabela e no texto — sem eles a frase de completude seria falsa); o texto vem do
+  `ResponseDraftComposer` (domínio, sem Spring): linguagem simples, sem códigos internos, enums ou jargão; nome,
+  finalidade e país do cadastro do operador quando houver; "Não compartilhamos com outras empresas" só quando todas as
+  fontes responderam. Cada parágrafo traz as chaves dos destinatários de onde veio (explicabilidade). Titular não
+  localizado (sem devedor ou anonimizado): não há tratamento/compartilhamento a informar.
+- **Alertas**: `PROCESSOR_UNREGISTERED`, `PROCESSOR_NOT_CURRENT` (inativo ou fora da vigência),
+  `CREDITOR_WITHOUT_LEGAL_BASIS`, `SOURCE_UNAVAILABLE` (perigo) e `TEXT_TOO_LONG` (acima dos 4.000 caracteres da resposta).
+- **Só sob pedido**: a tela não monta o rascunho ao abrir a solicitação; a pessoa clica em "Montar resposta sugerida"
+  (e "Montar de novo"), porque cada montagem lê dado pessoal e entra na trilha (decisão 1127).
+- **Rastreabilidade**: cada geração registra `SENSITIVE_DATA_VIEWED` (`resource=debtor`, `resourceId`,
+  `view=data_subject_response_draft`, `requestId`, `requestType`, `recipients`) e a auditoria
+  `data_subject_request.response_draft_generated` (`debtorId`, `recipients`, códigos dos alertas, fontes indisponíveis,
+  `textSha256`). A resposta devolve `textSha256`; a conclusão (`POST /{id}/complete`, campo opcional `draftSha256`)
+  registra na auditoria `fromDraft`, `draftSha256` e `draftEdited` (o texto concluído difere do sugerido) e no log de
+  negócio `data_subject_request.completed` os atributos `fromDraft` e `draftEdited`.
+
+### 8.4 Telas e navegação
+
+- **Solicitação** (`request-detail`): cartão "Resposta sugerida" (`ResponseDraftCard`) nos dois tipos, para quem tem
+  todos os credores: estado inicial com "Montar resposta sugerida" (nada é consultado ao abrir), carregando, erro
+  ("Tentar novamente") e "confirme a identidade"; alertas com atalhos
+  (`app-config-link`, nova aba: "Cadastrar operador" → `/compliance/operadores?chave=`, "Registrar base legal" →
+  `/compliance/bases-legais?credor=`; "Montar de novo" para fonte indisponível); tabela agrupada (credores, prestadores,
+  escritórios, integrações) com finalidade, período, registros, base legal ou cadastro do operador e os links da
+  evidência **só quando a pessoa abre a tela de destino**; atalho para a configuração do provedor (contas de canal,
+  plataformas de telefonia, contas Pix, políticas do assistente); prévia do texto (somente leitura) com "Vem de:" em
+  cada parágrafo. "Usar como resposta" (só em atendimento; antes, a orientação do próximo passo) abre a conclusão com o
+  texto editável; o diálogo envia o resumo do rascunho.
+- **Operadores e suboperadores** (`/compliance/operadores`, menu Compliance, `DATA_SUBJECT_REQUEST_MANAGE`): provedores
+  em uso sem cadastro no topo (só para quem tem todos os credores: "Cadastrar" e atalho para a configuração do provedor,
+  com as permissões das constantes das rotas de destino), lista com país, garantia,
+  contrato e situação; formulário com país (mais comuns + "Outro país") e garantia só fora do Brasil; `?chave=` abre o
+  cadastro (edição se existe; senão, novo com o que se sabe). Sem todos os credores, consulta somente (botões ocultos).
+- **Fluidez**: a fila de solicitações aceita `?devedor=` (só o id; aviso "Solicitações do titular" com link ao devedor e
+  "Ver todas"; sem todos os credores, a fila do titular ainda abre — o servidor confere o devedor visível); a solicitação
+  leva a "todas as solicitações do titular"; a ficha do devedor mostra as solicitações em "Relacionados" (kinds
+  `dataSubjectRequest`/`dataSubjectRequestList`, `DATA_SUBJECT_REQUEST_MANAGE`); a lista de chamadas ganhou o filtro
+  `?devedor=` (com `DEBTOR_VIEW`, como o filtro por operador).
+
+### 8.5 Testes
+
+`ResponseDraftComposerTest` (inclusive operador manual), `DataProcessorTest`, `DataSharingFactTest`,
+`DataSharingCollectorTest` (SQLState), `AssistantDataSharingTest` (provedor de IA só com política publicada) (unidade);
+`DataSubjectResponseDraftIT` (PostgreSQL: credores, mensagens, chamadas, Pix e escritório reais; mensagem na fila e
+cobrança cancelada antes do registro não contam; agregação por provedor; operador manual ativo e vigente no texto,
+inativo e vencido fora; isolamento de outro devedor e de outra assessoria; cadastro do operador no texto; prestadores
+sem cadastro, 403 com escopo parcial; 403 sem permissão e com escopo parcial sem vazamento; log de acesso; auditoria do
+uso). Front: `response-draft-card.spec` (nada consultado ao abrir), `processor-list.spec` (sem chamada sem todos os
+credores), `data-sharing.spec` (permissões dos atalhos = rotas), `request-list.spec` (filtro do titular).

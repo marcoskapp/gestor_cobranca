@@ -9,13 +9,21 @@ import { pagedQuery } from '../../../shared/data/paged-query';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { errorMessage } from '../../../shared/validation/error-messages';
 import { RetentionApi } from '../data/compliance.api';
-import { RETENTION_ACTION_LABELS, RETENTION_CATEGORY_LABELS } from '../data/compliance.labels';
+import {
+  RETENTION_ACTION_LABELS,
+  RETENTION_CATEGORY_HINTS,
+  RETENTION_CATEGORY_LABELS,
+  retentionPeriod,
+} from '../data/compliance.labels';
 import { RetentionPolicyView, RetentionRunItemView, RetentionRunView } from '../data/compliance.models';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 
-/** Configuração da política de uma categoria (prazo em meses e habilitação). */
+/**
+ * Configuração da política de uma categoria: prazo na unidade da categoria (dias ou meses), dentro dos limites dela,
+ * e habilitação — só nas categorias sem padrão do sistema (as com padrão descartam sempre).
+ */
 @Component({
   selector: 'app-retention-policy-form',
   imports: [ReactiveFormsModule, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
@@ -30,18 +38,37 @@ import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
         <p class="app-dialog-message">
           Ação ao fim do prazo: {{ actions[data.action] }}.
           @if (!data.executableHere) {
-            Esta política é aplicada pelo módulo dono dos dados.
+            O descarte é automático, todos os dias.
           } @else {
             Prazos maiores exigidos pela base legal de cada credor prevalecem.
           }
         </p>
-        <app-field class="app-full-width mb-3" label="Prazo de retenção (meses)" hint="Contado a partir da última movimentação." [error]="form.controls.retentionMonths.invalid ? (error()) : undefined">
-          <input appInput type="number" formControlName="retentionMonths" min="1" max="1200" />
+        <app-field
+          class="app-full-width mb-3"
+          [label]="'Prazo (' + unitLabel + ')'"
+          [hint]="hint"
+          [hintEnd]="range"
+          [error]="form.controls.period.invalid ? error() : undefined"
+        >
+          <input appInput type="number" formControlName="period" [min]="data.minAmount" [max]="data.maxAmount" />
         </app-field>
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch" id="retention-dialogs-enabled" formControlName="enabled" />
-          <label class="form-check-label" for="retention-dialogs-enabled">Política habilitada</label>
-        </div>
+        @if (data.defaultAmount === null) {
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" id="retention-dialogs-enabled" formControlName="enabled" />
+            <label class="form-check-label" for="retention-dialogs-enabled">Política habilitada</label>
+          </div>
+        } @else {
+          <p class="app-muted mb-0">
+            Padrão do sistema: {{ formatPeriod(data.defaultAmount, data.unit) }}. O descarte desta categoria está sempre ativo: ajuste
+            só o prazo.
+            @if (data.configured) {
+              <button class="btn btn-link p-0 align-baseline" type="button" (click)="useDefault()" [disabled]="saving()">
+                Usar o padrão
+              </button>
+              <span class="d-block small">Apaga o prazo da assessoria: a categoria passa a seguir o padrão do sistema.</span>
+            }
+          </p>
+        }
       </div>
       <div class="modal-footer">
         <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
@@ -56,16 +83,41 @@ export class RetentionPolicyForm {
   private readonly api = inject(RetentionApi);
   protected readonly categories = RETENTION_CATEGORY_LABELS;
   protected readonly actions = RETENTION_ACTION_LABELS;
+  protected readonly formatPeriod = retentionPeriod;
   protected readonly saving = signal(false);
+  protected readonly unitLabel = this.data.unit === 'DAYS' ? 'dias' : 'meses';
+  protected readonly hint = RETENTION_CATEGORY_HINTS[this.data.category];
+  protected readonly range = `De ${this.data.minAmount} a ${this.data.maxAmount}`;
 
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
-    retentionMonths: this.fb.control<number | null>(this.data.retentionMonths, [Validators.required, Validators.min(1), Validators.max(1200)]),
-    enabled: [this.data.enabled],
+    // já preenchido: o prazo da assessoria ou, sem ele, o padrão do sistema
+    period: this.fb.control<number | null>(this.data.retentionAmount ?? this.data.defaultAmount, [
+      Validators.required,
+      Validators.min(this.data.minAmount),
+      Validators.max(this.data.maxAmount),
+    ]),
+    // categoria com padrão do sistema descarta sempre (o servidor recusa desabilitar)
+    enabled: [this.data.defaultAmount !== null || this.data.enabled],
   });
 
   protected error(): string {
-    return errorMessage(this.form.controls.retentionMonths.errors);
+    return errorMessage(this.form.controls.period.errors);
+  }
+
+  /**
+   * Volta ao padrão do sistema: apaga o prazo da assessoria no servidor (com trilha), em vez de gravar o número do
+   * padrão como prazo próprio — assim a categoria acompanha o padrão se ele mudar.
+   */
+  protected useDefault(): void {
+    if (this.saving()) {
+      return;
+    }
+    this.saving.set(true);
+    this.api
+      .resetToDefault(this.data.category)
+      .pipe(finalize(() => this.saving.set(false)))
+      .subscribe((saved) => this.ref.close(saved));
   }
 
   protected save(): void {
@@ -76,7 +128,7 @@ export class RetentionPolicyForm {
     const v = this.form.getRawValue();
     this.saving.set(true);
     this.api
-      .configure(this.data.category, v.retentionMonths ?? 0, v.enabled)
+      .configure(this.data.category, v.period ?? 0, this.data.defaultAmount !== null || v.enabled)
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe((saved) => this.ref.close(saved));
   }

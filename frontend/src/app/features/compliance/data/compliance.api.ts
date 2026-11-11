@@ -9,6 +9,8 @@ import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
   AttemptView,
   CreateRestrictionRequest,
+  DataProcessorDetails,
+  DataProcessorView,
   DataSubjectRequestFilter,
   DataSubjectRequestView,
   EffectivePolicyView,
@@ -17,7 +19,9 @@ import {
   OpenDataSubjectRequest,
   PolicyView,
   PublishPolicyRequest,
+  RecipientInUseView,
   RegisterLegalBasisRequest,
+  ResponseDraftView,
   RestrictionFilter,
   RestrictionView,
   RetentionPolicyView,
@@ -182,8 +186,14 @@ export class DataSubjectRequestsApi {
     return this.http.post<DataSubjectRequestView>(`${this.base}/${id}/execute`, null);
   }
 
-  complete(id: string, response: string): Observable<DataSubjectRequestView> {
-    return this.http.post<DataSubjectRequestView>(`${this.base}/${id}/complete`, { response });
+  /** `draftSha256`: resumo da resposta sugerida, quando o texto partiu dela (registra o uso e se foi editado). */
+  complete(id: string, response: string, draftSha256: string | null = null): Observable<DataSubjectRequestView> {
+    return this.http.post<DataSubjectRequestView>(`${this.base}/${id}/complete`, draftSha256 ? { response, draftSha256 } : { response });
+  }
+
+  /** Resposta sugerida (confirmação de tratamento e informação sobre compartilhamento); erros tratados pelo cartão. */
+  responseDraft(id: string): Observable<ResponseDraftView> {
+    return this.http.get<ResponseDraftView>(`${this.base}/${id}/response-draft`, { context: silentErrorContext() });
   }
 
   reject(id: string, response: string): Observable<DataSubjectRequestView> {
@@ -192,6 +202,30 @@ export class DataSubjectRequestsApi {
 
   downloadResult(id: string): Observable<string> {
     return this.files.download(`${this.base}/${id}/result`, 'dados-do-titular.json');
+  }
+}
+
+/** Cadastro de operadores e suboperadores (LGPD art. 37 e 39). */
+@Injectable({ providedIn: 'root' })
+export class DataProcessorsApi {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${BASE}/data-processors`;
+
+  list(): Observable<DataProcessorView[]> {
+    return this.http.get<DataProcessorView[]>(this.base);
+  }
+
+  /** Prestadores configurados na assessoria ainda sem cadastro. */
+  unregistered(): Observable<RecipientInUseView[]> {
+    return this.http.get<RecipientInUseView[]>(`${this.base}/unregistered`);
+  }
+
+  register(providerKey: string, details: DataProcessorDetails): Observable<DataProcessorView> {
+    return this.http.post<DataProcessorView>(this.base, { providerKey, ...details });
+  }
+
+  update(id: string, details: DataProcessorDetails): Observable<DataProcessorView> {
+    return this.http.put<DataProcessorView>(`${this.base}/${id}`, details);
   }
 }
 
@@ -204,8 +238,14 @@ export class RetentionApi {
     return this.http.get<RetentionPolicyView[]>(`${this.base}/policies`);
   }
 
-  configure(category: string, retentionMonths: number, enabled: boolean): Observable<RetentionPolicyView> {
-    return this.http.put<RetentionPolicyView>(`${this.base}/policies/${category}`, { retentionMonths, enabled });
+  /** `retentionAmount` na unidade da categoria (`RetentionPolicyView.unit`). */
+  configure(category: string, retentionAmount: number, enabled: boolean): Observable<RetentionPolicyView> {
+    return this.http.put<RetentionPolicyView>(`${this.base}/policies/${category}`, { retentionAmount, enabled });
+  }
+
+  /** "Usar o padrão": apaga o prazo da assessoria e a categoria volta ao padrão do sistema (só categoria com padrão). */
+  resetToDefault(category: string): Observable<RetentionPolicyView> {
+    return this.http.delete<RetentionPolicyView>(`${this.base}/policies/${category}`);
   }
 
   run(category: string, dryRun: boolean): Observable<RetentionRunView> {

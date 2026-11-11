@@ -4,7 +4,7 @@
  * processamento assíncrono, em blocos, retomável e idempotente. A gravação de devedores e títulos
  * é delegada ao módulo debt ({@code DebtIngestionPort}); este módulo guarda a origem e o histórico
  * de cada carga. Os arquivos de importação seguem a política {@code IMPORT_FILES} do compliance
- * ({@code RetentionUseCases.policyFor}).
+ * ({@code RetentionUseCases.retentionFor}).
  */
 @ApplicationModule(displayName = "Ingestion",
         allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "compliance :: usecases"})

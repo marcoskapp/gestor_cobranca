@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.scoring.application.service;
 
+import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases.AppliedRetention;
 import br.com.gestorcobranca.scoring.application.ScoringProperties;
 import br.com.gestorcobranca.scoring.application.port.out.FactStore;
 import br.com.gestorcobranca.scoring.application.port.out.SnapshotStore;
@@ -61,11 +63,12 @@ class OutcomeService {
     private final CurrentActor currentActor;
     private final ScoringMetrics metrics;
     private final ScoringProperties properties;
+    private final RetentionUseCases retention;
     private final Clock clock;
 
     OutcomeService(SnapshotStore snapshots, FactStore facts, ScoringRunRepository runs, ScoringModelRepository models,
                    ApplicationEventPublisher events, BusinessEventLogger businessEvents, CurrentActor currentActor,
-                   ScoringMetrics metrics, ScoringProperties properties, Clock clock) {
+                   ScoringMetrics metrics, ScoringProperties properties, RetentionUseCases retention, Clock clock) {
         this.snapshots = snapshots;
         this.facts = facts;
         this.runs = runs;
@@ -75,6 +78,7 @@ class OutcomeService {
         this.currentActor = currentActor;
         this.metrics = metrics;
         this.properties = properties;
+        this.retention = retention;
         this.clock = clock;
     }
 
@@ -143,18 +147,24 @@ class OutcomeService {
         return measured;
     }
 
-    /** Retenção de fatos e snapshots apurados. */
+    /**
+     * Retenção de fatos e snapshots apurados, pelos prazos da assessoria (tela de Retenção, categorias
+     * {@code SCORING_*} do compliance) ou o padrão do sistema ({@code app.scoring.*-retention-days}).
+     */
     int purge() {
         Instant now = Instant.now(clock);
+        AppliedRetention factRetention = applied(ScoringRetentionDefaults.CASE_FACTS);
+        AppliedRetention snapshotRetention = applied(ScoringRetentionDefaults.FEATURE_SNAPSHOTS);
+        Instant factCutoff = factRetention.cutoff(now);
         int facts = 0;
         for (int i = 0; i < MAX_CHUNKS; i++) {
-            int n = this.facts.purgeOlderThan(now.minus(Duration.ofDays(properties.factRetentionDays())), PURGE_CHUNK);
+            int n = this.facts.purgeOlderThan(factCutoff, PURGE_CHUNK);
             facts += n;
             if (n < PURGE_CHUNK) {
                 break;
             }
         }
-        LocalDate limit = LocalDate.ofInstant(now, TimeConfig.BUSINESS_ZONE).minusDays(properties.snapshotRetentionDays());
+        LocalDate limit = LocalDate.ofInstant(snapshotRetention.cutoff(now), TimeConfig.BUSINESS_ZONE);
         int rows = 0;
         for (int i = 0; i < MAX_CHUNKS; i++) {
             int n = snapshots.purgeResolvedBefore(limit, PURGE_CHUNK);
@@ -165,7 +175,22 @@ class OutcomeService {
         }
         metrics.purged("facts", facts);
         metrics.purged("snapshots", rows);
+        if (facts + rows > 0) {
+            // origem do prazo: TENANT (configurado pela assessoria) ou SYSTEM_DEFAULT (padrão do sistema)
+            LOG.atInfo().addKeyValue("process", "scoring.retention").addKeyValue("facts", facts)
+                    .addKeyValue("snapshots", rows)
+                    .addKeyValue("factDays", factRetention.amount()).addKeyValue("factSource", factRetention.source())
+                    .addKeyValue("snapshotDays", snapshotRetention.amount())
+                    .addKeyValue("snapshotSource", snapshotRetention.source())
+                    .log("Retenção de fatos e snapshots do score executada");
+        }
         return facts + rows;
+    }
+
+    /** As categorias do scoring têm padrão do sistema e não podem ser desligadas: sempre há prazo. */
+    private AppliedRetention applied(String category) {
+        return retention.retentionFor(category)
+                .orElseThrow(() -> new IllegalStateException("Retenção sem prazo para a categoria " + category));
     }
 
     /** Execuções em andamento há mais de 24 h (job esgotou as tentativas) ficam como falhas. */

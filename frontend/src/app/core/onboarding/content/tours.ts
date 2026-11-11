@@ -484,9 +484,9 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'compliance.request-detail',
-    version: 1,
+    version: 2,
     title: 'Atendimento ao titular',
-    summary: 'Etapas, ação automática, resposta e evidências.',
+    summary: 'Etapas, ação automática, resposta sugerida e evidências.',
     steps: [
       {
         anchor: 'dsr-steps',
@@ -499,9 +499,35 @@ export const TOURS: readonly TourDefinition[] = [
         body: 'Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada.',
       },
       {
+        anchor: 'dsr-draft',
+        title: 'Resposta sugerida',
+        body: 'Em confirmação e compartilhamento, "Montar resposta sugerida" lista com quem os dados foram compartilhados e sugere o texto. Confira e use.',
+        placement: 'above',
+      },
+      {
         anchor: 'dsr-evidence',
         title: 'Evidências',
         body: 'Restrições criadas pelo pedido recebem o comprovante anexado.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'compliance.processors',
+    version: 1,
+    title: 'Operadores e suboperadores',
+    summary: 'Quem trata dados dos devedores em nome da assessoria.',
+    steps: [
+      {
+        anchor: 'processors-missing',
+        title: 'Provedores sem cadastro',
+        // a seção só existe para quem cadastra (todos os credores): para quem consulta, o passo é pulado
+        body: 'Prestadores configurados no sistema que ainda não têm cadastro. Cadastre a empresa, a finalidade, o país e o contrato.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Cadastro',
+        body: 'Nome, finalidade e país entram na resposta ao titular. Fora do Brasil, informe a garantia do art. 33.',
         placement: 'above',
       },
     ],
@@ -578,14 +604,14 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'compliance.retention',
-    version: 1,
+    version: 2,
     title: 'Retenção de dados',
     summary: 'Prazos de guarda, simulação e anonimização.',
     steps: [
       {
         anchor: 'retention-policies',
         title: 'Políticas por categoria',
-        body: 'Nascem desabilitadas. Defina o prazo e habilite quando a política estiver aprovada.',
+        body: 'Onde há padrão do sistema, ele vale até você ajustar o prazo. As demais nascem desabilitadas: defina o prazo e habilite quando aprovado.',
       },
       {
         anchor: 'retention-dry-run',
