@@ -41,7 +41,12 @@ O limite efetivo é sempre o menor entre a política do credor e o perfil. A ges
 
 Por credor: endereço (`/portal/<nome>`), ativo ou não, nome e cores (contraste mínimo verificado), logotipo, carteiras habilitadas, canais do código, confirmação adicional, validade do link, aviso de privacidade e texto de atendimento. A tela mostra o funil dos últimos 30 dias e as sessões, com opção de encerrar.
 
-Antes de ativar: publicar os templates `PORTAL_CODIGO_<CANAL>`, `PORTAL_LINK_<CANAL>` e `PORTAL_ATENDIMENTO_<CANAL>` nos canais habilitados (WhatsApp exige aprovação no provedor) e ter a política de negociação do credor publicada e uma conta Pix ativa.
+Antes de ativar: publicar os templates `PORTAL_CODIGO_<CANAL>` (finalidade **Autenticação (código de acesso)**; no
+
+Template de código com outra finalidade é recusado no envio (`message.access_code_template_invalid`): o devedor vê
+"código enviado" e nada chega. **Assessorias com o portal já ativo antes desta regra precisam recriar o
+`PORTAL_CODIGO_<CANAL>` nessa finalidade antes da atualização** (no WhatsApp, com nova aprovação da Meta).
+WhatsApp, também a categoria Autenticação da Meta — decisão 1084), `PORTAL_LINK_<CANAL>` e `PORTAL_ATENDIMENTO_<CANAL>` nos canais habilitados (WhatsApp exige aprovação no provedor) e ter a política de negociação do credor publicada e uma conta Pix ativa.
 
 ## Indicadores
 

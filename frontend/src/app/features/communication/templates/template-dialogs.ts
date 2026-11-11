@@ -13,7 +13,7 @@ import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { TemplatesApi } from '../data/communication.api';
 import { CHANNEL_LABELS, PROVIDER_CATEGORY_LABELS, PURPOSE_LABELS, VARIABLE_EXAMPLES, VARIABLE_TYPE_LABELS } from '../data/communication.labels';
 import { ApprovalRequest, ChannelType, ProviderCategory, TemplatePurpose, TemplateView, VariableType } from '../data/communication.models';
-import { OTP_MAX_LENGTH, categoryProblems, variableProblems } from '../data/communication.rules';
+import { OTP_MAX_LENGTH, categoryProblems, purposeProblems, variableProblems } from '../data/communication.rules';
 
 export interface TemplateDialogData {
   /** Rascunho a editar; ou base de uma nova versão (`asNewVersion`). */
@@ -177,7 +177,7 @@ export class TemplateDialog {
   protected readonly problems = computed(() => {
     const v = this.value();
     return v.body.trim()
-      ? [...variableProblems(v.body, v.channel === 'EMAIL' ? v.subject : null, v.variables), ...categoryProblems(v.channel, v.providerCategory, v.variables)]
+      ? [...variableProblems(v.body, v.channel === 'EMAIL' ? v.subject : null, v.variables), ...categoryProblems(v.channel, v.providerCategory, v.variables), ...purposeProblems(v.channel, v.purpose, v.channel === 'WHATSAPP' ? v.providerCategory : null, v.channel === 'EMAIL' ? v.subject : null, v.body, v.variables)]
       : [];
   });
 

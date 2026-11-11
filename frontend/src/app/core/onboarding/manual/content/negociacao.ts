@@ -158,7 +158,7 @@ export const MANUAL: ModuleManual = {
       id: 'negotiation.policy-detail',
       title: 'Versão da política de cobrança',
       objective: 'Encargos, descontos, parcelamento, escada de concessões e sobreposições de uma versão da política.',
-      purpose: ['Sobreposições por carteira ou faixa de atraso substituem grupos inteiros das regras base; a mais específica vence. Propostas guardam a versão usada.'],
+      purpose: ['Sobreposições por carteira ou faixa de atraso substituem grupos inteiros das regras base; a mais específica vence. Cada uma tem um nome, mostrado na aba, e um código (gerado do nome quando fica vazio) que aparece na memória de cálculo. Propostas guardam a versão usada.'],
       profiles: ['GESTOR', 'SUPERVISOR', 'AUDITOR'],
       inputs: ['Rascunho editado pela gestão.'],
       outputs: ['Versão publicada com vigência, aplicada às novas simulações.'],

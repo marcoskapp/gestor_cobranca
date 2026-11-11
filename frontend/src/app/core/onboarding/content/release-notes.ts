@@ -3,6 +3,17 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 22,
+    date: '2026-11-11',
+    title: 'Conversa com o primeiro nome preenchido e políticas mais legíveis',
+    items: [
+      { text: 'Na conversa, ao escolher um template, o primeiro nome do devedor já vem preenchido e a prévia aparece pronta.', route: '/conversas' },
+      { text: 'O código de acesso ao portal não aparece mais na conversa, e o template dele tem finalidade própria ("Autenticação"), com texto curto só com o código.', route: '/conversas/templates' },
+      { text: 'Nas políticas de negociação, cada sobreposição tem um nome legível na aba, e os campos das regras ficam alinhados.', route: '/negociacao/politicas' },
+      { text: 'Quem já usa o portal: recrie os templates PORTAL_CODIGO_* com a finalidade "Autenticação (código de acesso)" (no WhatsApp, com nova aprovação da Meta); com outra finalidade, o código não é enviado.', route: '/conversas/templates' },
+    ],
+  },
+  {
     version: 21,
     date: '2026-11-11',
     title: 'Portal do devedor: acesso a qualquer hora e resposta sem bloqueio',

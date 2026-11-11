@@ -9,6 +9,7 @@ import {
   prefillVariables,
   stationChannels,
   categoryProblems,
+  purposeProblems,
   charCount,
   composerMode,
   mergeTimeline,
@@ -146,6 +147,19 @@ describe('regras da caixa de entrada', () => {
     expect(categoryProblems('WHATSAPP', 'AUTHENTICATION', [{ ...code, type: 'TEXT' }])).toHaveLength(1);
     expect(categoryProblems('WHATSAPP', 'UTILITY', [code, { name: 'minutos', type: 'INTEGER', required: true }])).toEqual([]);
     expect(categoryProblems('SMS', null, [code, { name: 'minutos', type: 'INTEGER', required: true }])).toEqual([]);
+  });
+
+  it('finalidade autenticação: corpo curto, só o código e a validade; no WhatsApp, categoria da Meta', () => {
+    const code = { name: 'codigo', type: 'CODE' as const, required: true };
+    const minutes = { name: 'minutos', type: 'INTEGER' as const, required: true };
+    expect(purposeProblems('EMAIL', 'AUTHENTICATION', null, 'Código', 'Seu código é {{codigo}} ({{minutos}} min).', [code, minutes])).toEqual([]);
+    expect(purposeProblems('WHATSAPP', 'AUTHENTICATION', 'AUTHENTICATION', null, '{{codigo}}', [code])).toEqual([]);
+    expect(purposeProblems('SMS', 'AUTHENTICATION', null, null, 'x'.repeat(301), [code])[0]).toContain('até 300');
+    expect(purposeProblems('EMAIL', 'AUTHENTICATION', null, null, 'Pague {{valor}}', [code, { name: 'valor', type: 'MONEY', required: true }])).toHaveLength(1);
+    expect(purposeProblems('WHATSAPP', 'AUTHENTICATION', 'UTILITY', null, '{{codigo}}', [code])[0]).toContain('categoria');
+    expect(purposeProblems('WHATSAPP', 'SERVICE', 'AUTHENTICATION', null, '{{codigo}}', [code])[0]).toContain('exige a finalidade');
+    expect(purposeProblems('WHATSAPP', 'COLLECTION', 'UTILITY', null, 'Olá', [])).toEqual([]);
+    expect(purposeProblems('EMAIL', 'AUTHENTICATION', null, 'Código {{codigo}}', '{{codigo}}', [code])[0]).toContain('assunto');
   });
 
   it('template do credor tem precedência sobre o da assessoria; de outro credor não aparece', () => {

@@ -8,14 +8,19 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { MessagesApi, TemplatesApi } from '../data/communication.api';
 import { VARIABLE_TYPE_LABELS } from '../data/communication.labels';
 import { ConversationView, MessageView, TemplateView } from '../data/communication.models';
-import { charCount, composerMode, idempotencyKey, windowText } from '../data/communication.rules';
+import { charCount, composerMode, idempotencyKey, prefillVariables, windowText } from '../data/communication.rules';
+import { DebtorNames } from '../../debt/data/debt.lookups';
+import { UNRESOLVED_NAME, nameMap } from '../../../shared/data/name-map';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 
-/** Templates publicados do canal: o do credor tem precedência sobre o da assessoria (mesmo código). */
+/**
+ * Templates publicados do canal: o do credor tem precedência sobre o da assessoria (mesmo código). O de autenticação
+ * (código de acesso ao portal) só sai pelo portal e não aparece aqui (decisão 1084).
+ */
 export function applicableTemplates(list: readonly TemplateView[], creditorId: string | null): TemplateView[] {
   const byCode = new Map<string, TemplateView>();
   for (const t of list) {
-    if (t.creditorId !== null && t.creditorId !== creditorId) {
+    if (t.purpose === 'AUTHENTICATION' || (t.creditorId !== null && t.creditorId !== creditorId)) {
       continue;
     }
     const current = byCode.get(t.code);
@@ -46,7 +51,7 @@ export function applicableTemplates(list: readonly TemplateView[], creditorId: s
       </app-field>
     } @else {
       <app-field class="mb-2" label="Template">
-        <select appInput [ngModel]="templateId()" (ngModelChange)="templateId.set($event)">
+        <select appInput [ngModel]="templateId()" (ngModelChange)="selectTemplate($event)">
           @for (t of templates(); track t.id; let first = $first) {
             @if (first) {
               <option value="" disabled>Selecione</option>
@@ -119,6 +124,15 @@ export class Composer {
   protected readonly templates = computed(() => applicableTemplates(this.allTemplates(), this.conversation().creditorId));
   protected readonly template = computed(() => this.templates().find((t) => t.id === this.templateId()) ?? null);
 
+  /** Nome do devedor da conversa (lookup leve, só id → nome), para preencher o primeiro nome do template. */
+  private readonly debtors = nameMap(inject(DebtorNames), () => [this.conversation().debtorId]);
+  private readonly debtorName = computed(() => {
+    const id = this.conversation().debtorId;
+    const name = id ? this.debtors.names().get(id) : undefined;
+    // não resolvido (erro, fora do escopo): não preenche "Indisponível" como nome
+    return name && name !== UNRESOLVED_NAME ? name : null;
+  });
+
   protected readonly ready = computed(() => {
     if (this.mode() === 'free-text') {
       return this.text().trim().length > 0;
@@ -133,17 +147,58 @@ export class Composer {
       this.conversationId();
       untracked(() => this.reset());
     });
+    // o nome chegou depois da escolha do template: completa o primeiro nome (sem apagar o que o operador digitou)
+    effect(() => {
+      const name = this.debtorName();
+      const t = this.template();
+      if (name && t) {
+        untracked(() => this.prefill(t, name));
+      }
+    });
   }
+
+  /** Escolha do template: o primeiro nome do devedor da conversa já vem preenchido, com a prévia. */
+  protected selectTemplate(id: string): void {
+    this.templateId.set(id);
+    this.values.set({});
+    this.preview.set(null);
+    this.previewRequest++;
+    const t = this.template();
+    if (t) {
+      this.prefill(t, this.debtorName());
+    }
+  }
+
+  private prefill(t: TemplateView, name: string | null): void {
+    const known = prefillVariables(t.variables, name);
+    const missing = Object.entries(known).filter(([k]) => !this.values()[k]?.trim());
+    if (!missing.length) {
+      return;
+    }
+    this.values.update((v) => ({ ...v, ...Object.fromEntries(missing) }));
+    if (this.ready()) {
+      this.refreshPreview();
+    }
+  }
+
+  /** Pedido de prévia vigente: resposta de pedido anterior (outro template ou valores já mudados) é descartada. */
+  private previewRequest = 0;
 
   protected setValue(name: string, value: string): void {
     this.values.update((v) => ({ ...v, [name]: value }));
     this.preview.set(null);
+    this.previewRequest++;
   }
 
   protected refreshPreview(): void {
     const t = this.template();
     if (t) {
-      this.templatesApi.preview(t.id, this.filledValues()).subscribe((p) => this.preview.set(p.body));
+      const request = ++this.previewRequest;
+      this.templatesApi.preview(t.id, this.filledValues()).subscribe((p) => {
+        if (request === this.previewRequest) {
+          this.preview.set(p.body);
+        }
+      });
     }
   }
 
@@ -179,6 +234,7 @@ export class Composer {
     this.templateId.set('');
     this.values.set({});
     this.preview.set(null);
+    this.previewRequest++;
     this.key = idempotencyKey();
   }
 }

@@ -119,6 +119,27 @@ export function overriddenRules(base: PolicyRules, o: PolicyOverride): PolicyRul
   };
 }
 
+/** Nome de exibição da sobreposição: o informado ou, nas antigas, o código legível (ATRASO_LONGO → "Atraso longo"). */
+export function overrideLabel(o: Pick<PolicyOverride, 'code' | 'name'>): string {
+  const name = o.name?.trim();
+  if (name) {
+    return name;
+  }
+  const words = o.code.toLowerCase().split('_').filter(Boolean).join(' ');
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : o.code;
+}
+
+/** Código sugerido a partir do nome ("Atraso longo" → ATRASO_LONGO): sem acentos, maiúsculas, dígitos e _. */
+export function overrideCodeFrom(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+}
+
 export function specificity(o: Pick<PolicyOverride, 'portfolioId' | 'minDaysOverdue' | 'maxDaysOverdue'>): number {
   return (o.portfolioId ? 2 : 0) + (o.minDaysOverdue !== null || o.maxDaysOverdue !== null ? 1 : 0);
 }

@@ -104,13 +104,16 @@ class ChannelSeeder {
             TemplateCatalog.Template t = template.withAgency(seed.spec.tradeName());
             List<TemplateView> existing = rt.as(estrategia, () -> templates.search(
                     new TemplateFilter(null, t.code(), t.channel(), null), PageQuery.of(0, 20))).content();
-            if (existing.stream().anyMatch(v -> "PUBLISHED".equals(v.status()))) {
+            // publicado com a finalidade do catálogo: nada a fazer; com outra (sandbox de antes de uma mudança, como a
+            // finalidade autenticação do código de acesso), publica uma versão nova
+            if (existing.stream().anyMatch(v -> "PUBLISHED".equals(v.status()) && t.purpose().equals(v.purpose()))) {
                 continue;
             }
-            TemplateView draft = existing.stream().filter(v -> "DRAFT".equals(v.status())).findFirst()
+            TemplateView draft = existing.stream()
+                    .filter(v -> "DRAFT".equals(v.status()) && t.purpose().equals(v.purpose())).findFirst()
                     .orElseGet(() -> rt.as(estrategia, () -> templates.createDraft(new CreateTemplateCommand(null,
                             t.code(), t.channel(), new TemplateContent(t.name(), t.purpose(), t.subject(), t.body(),
-                            t.variables(), null, null, null)))));
+                            t.variables(), null, null, t.providerCategory())))));
             if ("WHATSAPP".equals(t.channel()) && !"APPROVED".equals(draft.approvalStatus())) {
                 // aprovação da Meta simulada: no sandbox não há envio real ao provedor
                 rt.as(estrategia, () -> templates.registerApproval(draft.id(), new ApprovalCommand("APPROVED",

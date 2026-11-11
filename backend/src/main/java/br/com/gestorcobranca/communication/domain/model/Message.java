@@ -402,6 +402,11 @@ public class Message extends TenantScopedEntity {
         return contactCategory;
     }
 
+    /** Código de acesso pedido pelo devedor: o conteúdo não aparece em nenhuma tela. */
+    public boolean isAuthentication() {
+        return CATEGORY_AUTHENTICATION.equals(contactCategory);
+    }
+
     public boolean isTransactional() {
         return CATEGORY_TRANSACTIONAL.equals(contactCategory);
     }

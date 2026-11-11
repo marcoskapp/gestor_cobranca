@@ -9,7 +9,7 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { PortfolioLookup } from '../../organization/data/organization.lookups';
 import { OVERRIDE_GROUP_LABELS } from '../data/negotiation.labels';
 import { OVERRIDE_GROUPS, OverrideGroup, PolicyOverride, PolicyRules } from '../data/negotiation.models';
-import { cloneTerms, overriddenGroups } from '../data/negotiation.rules';
+import { cloneTerms, overriddenGroups, overrideCodeFrom, overrideLabel } from '../data/negotiation.rules';
 
 export interface DateDialogData {
   title: string;
@@ -79,6 +79,8 @@ export interface OverrideDialogData {
   base: PolicyRules;
   /** Sobreposição existente (edição do seletor e dos grupos substituídos). */
   override: PolicyOverride | null;
+  /** Códigos das demais sobreposições da política (o código gerado do nome não pode repetir). */
+  takenCodes?: readonly string[];
 }
 
 /**
@@ -96,8 +98,11 @@ export interface OverrideDialogData {
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
         <div class="app-form-grid">
-          <app-field label="Código" hint="Maiúsculas, dígitos e _ (aparece na memória de cálculo)">
-            <input appInput formControlName="code" maxlength="40" required ngbAutofocus />
+          <app-field label="Nome" hint="Como aparece na política (ex.: Atraso longo)">
+            <input appInput formControlName="name" maxlength="80" required ngbAutofocus />
+          </app-field>
+          <app-field label="Código (opcional)" hint="Aparece na memória de cálculo; vazio = gerado a partir do nome">
+            <input appInput formControlName="code" maxlength="40" />
           </app-field>
           <div class="app-span-all">
             <app-entity-picker [control]="form.controls.portfolio" [source]="portfolios" label="Carteira" [single]="true" hint="Vazio = todas as carteiras do credor." />
@@ -141,6 +146,7 @@ export class OverrideDialog {
 
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
+    name: [this.data.override ? overrideLabel(this.data.override) : ''],
     code: [this.data.override?.code ?? ''],
     portfolio: this.fb.control<string[]>(this.data.override?.portfolioId ? [this.data.override.portfolioId] : []),
     minDaysOverdue: this.fb.control<number | null>(this.data.override?.minDaysOverdue ?? null),
@@ -161,13 +167,18 @@ export class OverrideDialog {
 
   protected save(): void {
     const v = this.form.getRawValue();
-    const code = v.code.trim().toUpperCase();
+    const name = v.name.trim();
+    const code = (v.code.trim() || overrideCodeFrom(name)).toUpperCase();
     const min = v.minDaysOverdue === null || (v.minDaysOverdue as unknown) === '' ? null : Number(v.minDaysOverdue);
     const max = v.maxDaysOverdue === null || (v.maxDaysOverdue as unknown) === '' ? null : Number(v.maxDaysOverdue);
     const portfolioId = v.portfolio[0] ?? null;
     this.problem.set(
-      !/^[A-Z0-9_]{2,40}$/.test(code)
-        ? 'Código: 2 a 40 caracteres em maiúsculas, dígitos ou _.'
+      !name
+        ? 'Informe o nome da sobreposição.'
+        : !/^[A-Z0-9_]{2,40}$/.test(code)
+          ? 'Código: 2 a 40 caracteres em maiúsculas, dígitos ou _.'
+          : (this.data.takenCodes ?? []).includes(code)
+            ? `Já existe uma sobreposição com o código ${code}; informe outro código ou ajuste o nome.`
         : !portfolioId && min === null && max === null
           ? 'Informe a carteira ou a faixa de atraso.'
           : min !== null && max !== null && max < min
@@ -184,6 +195,7 @@ export class OverrideDialog {
       this.selected().has(g) ? ((previous?.[g] as PolicyRules[G] | null) ?? cloneTerms(this.data.base[g])) : null;
     this.ref.close({
       code,
+      name,
       portfolioId,
       minDaysOverdue: min,
       maxDaysOverdue: max,

@@ -17,6 +17,8 @@ import java.util.UUID;
  * @param portfolioId    carteira do credor (opcional)
  * @param minDaysOverdue início da faixa de atraso, inclusive (opcional)
  * @param maxDaysOverdue fim da faixa de atraso, inclusive (opcional)
+ * @param name           nome de exibição (opcional, até 80 caracteres; ex.: "Atraso longo"); sem ele, as telas
+ *                       mostram o código em forma legível
  */
 @org.springframework.modulith.NamedInterface("usecases")
 public record PolicyOverride(
@@ -29,11 +31,22 @@ public record PolicyOverride(
         PolicyRules.Installments installments,
         PolicyRules.Validity validity,
         List<PolicyRules.ConcessionLevel> ladder,
-        PolicyRules.BreakRule breakRule) {
+        PolicyRules.BreakRule breakRule,
+        String name) {
 
     public PolicyOverride {
         discountTiers = discountTiers == null ? null : List.copyOf(discountTiers);
         ladder = ladder == null ? null : List.copyOf(ladder);
+        name = name == null || name.isBlank() ? null : name.trim();
+    }
+
+    /** Sem nome de exibição (políticas gravadas antes do nome). */
+    public PolicyOverride(String code, UUID portfolioId, Integer minDaysOverdue, Integer maxDaysOverdue,
+                          PolicyRules.Charges charges, List<PolicyRules.DiscountTier> discountTiers,
+                          PolicyRules.Installments installments, PolicyRules.Validity validity,
+                          List<PolicyRules.ConcessionLevel> ladder, PolicyRules.BreakRule breakRule) {
+        this(code, portfolioId, minDaysOverdue, maxDaysOverdue, charges, discountTiers, installments, validity, ladder,
+                breakRule, null);
     }
 
     boolean hasBand() {
@@ -71,6 +84,8 @@ public record PolicyOverride(
     void validate(PolicyRules base) {
         Guard.require(code != null && code.matches("[A-Z0-9_]{2,40}"), "policy.terms.override_code_invalid",
                 "Código da sobreposição: 2 a 40 caracteres em maiúsculas, dígitos ou _");
+        Guard.require(name == null || name.length() <= 80, "policy.terms.override_name_too_long",
+                "Nome da sobreposição " + code + ": até 80 caracteres");
         Guard.require(specificity() > 0, "policy.terms.override_without_selector",
                 "Sobreposição " + code + " precisa de carteira ou faixa de atraso");
         Guard.require(minDaysOverdue == null || minDaysOverdue >= 0, "policy.terms.override_band_invalid",

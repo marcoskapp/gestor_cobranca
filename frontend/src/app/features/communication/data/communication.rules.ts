@@ -3,7 +3,7 @@
  * de novo (janela do WhatsApp, porteiro de contato, dono da conversa, escopo).
  */
 import { CHANNEL_LABELS, DENIAL_REASON_LABELS, FAILURE_LABELS, SENDER_LABELS } from './communication.labels';
-import { ChannelType, ConversationView, HandoffView, InboxFilter, MessageView, ProviderCategory, SlaStatus, TemplateView, VariableInput } from './communication.models';
+import { ChannelType, ConversationView, HandoffView, InboxFilter, MessageView, ProviderCategory, SlaStatus, TemplatePurpose, TemplateView, VariableInput } from './communication.models';
 
 export type InboxTab = 'mine' | 'queue' | 'assistant' | 'all';
 
@@ -212,6 +212,43 @@ export function categoryProblems(
     return ['Template de autenticação tem uma única variável: o código (tipo código, obrigatória). A validade é configurada no próprio template na Meta.'];
   }
   return [];
+}
+
+/** Corpo máximo de um template de finalidade autenticação (`ProviderTemplateRules.AUTHENTICATION_BODY_MAX`). */
+export const AUTHENTICATION_BODY_MAX = 300;
+
+/**
+ * Finalidade autenticação (código de acesso ao portal, decisão 1084): a mesma regra do servidor — corpo curto, só o
+ * código (obrigatório) e, no máximo, a validade (número); no WhatsApp, categoria de autenticação da Meta. A categoria de
+ * autenticação, por sua vez, só com essa finalidade.
+ */
+export function purposeProblems(
+  channel: ChannelType,
+  purpose: TemplatePurpose,
+  category: ProviderCategory | null,
+  subject: string | null,
+  body: string,
+  declared: readonly Pick<VariableInput, 'name' | 'type' | 'required'>[],
+): string[] {
+  if (purpose !== 'AUTHENTICATION') {
+    return channel === 'WHATSAPP' && category === 'AUTHENTICATION' ? ['A categoria de autenticação da Meta exige a finalidade "Autenticação (código de acesso)".'] : [];
+  }
+  const problems: string[] = [];
+  if (body.length > AUTHENTICATION_BODY_MAX) {
+    problems.push(`Template de autenticação com corpo de até ${AUTHENTICATION_BODY_MAX} caracteres.`);
+  }
+  if (subject && /\{\{\s*[a-zA-Z]/.test(subject)) {
+    problems.push('No template de autenticação, o assunto não leva variáveis (o código vai só no corpo).');
+  }
+  const codes = declared.filter((v) => v.type === 'CODE');
+  const others = declared.filter((v) => v.type !== 'CODE');
+  if (codes.length !== 1 || !codes[0].required || others.some((v) => v.type !== 'INTEGER') || others.length > 1) {
+    problems.push('Template de autenticação tem só o código (tipo código, obrigatório) e, no máximo, a validade (número).');
+  }
+  if (channel === 'WHATSAPP' && category !== 'AUTHENTICATION') {
+    problems.push('No WhatsApp, o template de autenticação usa a categoria "Autenticação" da Meta.');
+  }
+  return problems;
 }
 
 /** Chave de idempotência do envio (repetir o mesmo envio não duplica a mensagem). */

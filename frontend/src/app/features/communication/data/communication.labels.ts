@@ -43,6 +43,7 @@ export const PURPOSE_LABELS: Record<TemplatePurpose, string> = {
   AGREEMENT: 'Acordo',
   PAYMENT: 'Pagamento',
   SERVICE: 'Atendimento',
+  AUTHENTICATION: 'Autenticação (código de acesso)',
 };
 
 /** Categoria do template no WhatsApp (Meta). */

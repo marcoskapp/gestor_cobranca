@@ -42,7 +42,7 @@ public final class NegotiationCatalog {
                     // atraso longo (acima de 1 ano): mais desconto à vista sobre o principal
                     List.of(new PolicyOverride("ATRASO_LONGO", null, 361, null, null,
                             List.of(tier(1, "40", "100", "100"), tier(6, "10", "80", "50"), tier(12, "0", "50", "20")),
-                            null, null, null, null)));
+                            null, null, null, null, "Atraso longo (mais de 1 ano)")));
             case RETAIL -> new PolicyTerms(rules(charges("2", "2", "10"),
                     List.of(tier(1, "30", "100", "100"), tier(4, "10", "80", "50"), tier(10, "0", "40", "0")),
                     installments(10, "40", "15"), new Validity(3, 7), new BreakRule(2, 5)), List.of());

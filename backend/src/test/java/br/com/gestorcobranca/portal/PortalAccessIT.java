@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.portal;
 
+import br.com.gestorcobranca.communication.application.port.in.MessageUseCases;
+import br.com.gestorcobranca.communication.application.port.in.TemplateUseCases.VariableInput;
 import br.com.gestorcobranca.compliance.application.port.in.ContactPolicyUseCases.ChannelRuleInput;
 import br.com.gestorcobranca.compliance.application.port.in.ContactPolicyUseCases.PublishPolicyCommand;
 import br.com.gestorcobranca.portal.application.port.in.PortalOperationsUseCases.AccessLinkView;
@@ -22,6 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Acesso seguro do devedor contra PostgreSQL real e pela cadeia HTTP: documento + código, link de uso
@@ -52,6 +55,11 @@ class PortalAccessIT extends PortalTestSupport {
 
         UUID challenge = requestCode(CPF_MARIA);
         String code = sentCode(challenge);
+        // o código não aparece em tela nenhuma: a mensagem mostra só que foi enviado (decisão 1084)
+        UUID messageId = system(() -> jdbcTemplate.queryForObject(
+                "select message_id from portal.access_challenge where id = ?", UUID.class, challenge));
+        assertThat(asAdmin(() -> messages.get(messageId)).content())
+                .isEqualTo("Código de acesso ao portal enviado (oculto por segurança).").doesNotContain(code);
         Response wrong = verify(challenge, code.equals("000000") ? "111111" : "000000", null);
         assertThat(wrong.status()).isEqualTo(401);
         assertThat(wrong.json().get("code").asString()).isEqualTo("portal.access_invalid");
@@ -127,6 +135,23 @@ class PortalAccessIT extends PortalTestSupport {
                   from portal.access_challenge, generate_series(1, ?)
                  where id = ?
                 """, copies, challenge));
+    }
+
+    @Test
+    void accessCodeOnlyWithAuthenticationTemplateAndThatTemplateIsReservedForIt() {
+        // o template de autenticação não sai pelo envio comum (operador, campanha, assistente)
+        assertThatThrownBy(() -> asManager(() -> messages.send(new MessageUseCases.SendMessageCommand(null, maria, creditorA,
+                null, "WHATSAPP", null, "PORTAL_CODIGO_WHATSAPP", Map.of("codigo", "123456"), null, null, null))))
+                .hasFieldOrPropertyWithValue("code", "message.authentication_template_reserved");
+        // versão nova do template do código com outra finalidade: o código não é enviado (a resposta é a mesma)
+        publishWhatsAppTemplate("PORTAL_CODIGO_WHATSAPP", "Seu código é {{codigo}}.",
+                List.of(new VariableInput("codigo", "CODE", true, 15)), null);
+        UUID challenge = requestCode(CPF_MARIA);
+        drainJobs("communication.");
+        assertThat(count("select count(*) from portal.access_challenge where id = ? and message_id is null", challenge))
+                .isEqualTo(1);
+        assertThat(count("select count(*) from communication.message where conversation_id in "
+                + "(select id from communication.conversation where debtor_id = ?)", maria)).isZero();
     }
 
     @Test

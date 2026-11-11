@@ -26,7 +26,7 @@ import { CreditorNames, PortfolioNames } from '../../organization/data/organizat
 import { IndexesApi, PoliciesApi } from '../data/negotiation.api';
 import { OVERRIDE_GROUP_LABELS, overrideScope } from '../data/negotiation.labels';
 import { PolicyOverride, PolicyRules, PolicyTerms, PolicyView } from '../data/negotiation.models';
-import { cloneTerms, overriddenGroups, specificity, termsProblems } from '../data/negotiation.rules';
+import { cloneTerms, overriddenGroups, overrideLabel, specificity, termsProblems } from '../data/negotiation.rules';
 import { DateDialog, DateDialogData, OverrideDialog, OverrideDialogData } from './policy-dialogs';
 import { RulesEditor } from './rules-editor';
 
@@ -56,6 +56,8 @@ export class PolicyDetail {
   private readonly breadcrumbs = inject(BreadcrumbService);
 
   protected readonly groupLabels = OVERRIDE_GROUP_LABELS;
+  /** Nome de exibição da sobreposição (o código fica no resumo, para a memória de cálculo). */
+  protected readonly label = overrideLabel;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.POLICY_MANAGE));
 
   protected readonly policy = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
@@ -161,7 +163,12 @@ export class PolicyDetail {
     }
     this.dialog
       .open<OverrideDialog, OverrideDialogData, PolicyOverride>(OverrideDialog, {
-        data: { creditorId: p.creditorId, base: d.base, override: index === null ? null : d.overrides[index] },
+        data: {
+          creditorId: p.creditorId,
+          base: d.base,
+          override: index === null ? null : d.overrides[index],
+          takenCodes: d.overrides.filter((_, i) => i !== index).map((o) => o.code),
+        },
       })
       .afterClosed()
       .subscribe((o) => {

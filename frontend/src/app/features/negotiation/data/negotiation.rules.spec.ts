@@ -15,6 +15,8 @@ import {
   planFromFields,
   savingShare,
   sideBySide,
+  overrideCodeFrom,
+  overrideLabel,
   specificity,
   termsProblems,
 } from './negotiation.rules';
@@ -185,5 +187,14 @@ describe('forma de pagamento sem ambiguidade com a entrada', () => {
     expect(planFieldsProblem({ mode: 'INSTALLMENTS', parcels: 1, downPayment: null })).toContain('2 parcelas');
     expect(planFieldsProblem({ mode: 'DOWN', parcels: 12, downPayment: 100 }, 12)).toBe('Entrada + 12 parcelas são 13 pagamentos; o limite é 12.');
     expect(planFieldsProblem({ mode: 'DOWN', parcels: 11, downPayment: 100 }, 12)).toBeNull();
+  });
+});
+
+describe('nome da sobreposição da política', () => {
+  it('mostra o nome informado ou, nas antigas, o código legível; o código sai do nome', () => {
+    expect(overrideLabel({ code: 'ATRASO_LONGO', name: 'Atraso longo (mais de 1 ano)' })).toBe('Atraso longo (mais de 1 ano)');
+    expect(overrideLabel({ code: 'ATRASO_LONGO', name: null })).toBe('Atraso longo');
+    expect(overrideLabel({ code: 'CARTEIRA_X_12' })).toBe('Carteira x 12');
+    expect(overrideCodeFrom('Atraso longo — cartões 2ª via')).toBe('ATRASO_LONGO_CARTOES_2_VIA');
   });
 });

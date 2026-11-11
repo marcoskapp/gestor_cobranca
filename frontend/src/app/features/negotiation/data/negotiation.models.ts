@@ -85,6 +85,8 @@ export interface PolicyRules {
 /** `PolicyOverride`: grupos não nulos substituem os da base por inteiro. */
 export interface PolicyOverride {
   code: string;
+  /** Nome de exibição ("Atraso longo"); sem ele, as telas mostram o código em forma legível. */
+  name?: string | null;
   portfolioId: string | null;
   minDaysOverdue: number | null;
   maxDaysOverdue: number | null;

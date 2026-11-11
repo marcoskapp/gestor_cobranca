@@ -10,7 +10,8 @@ export type DraftStatus = 'PENDING' | 'SENT' | 'DISCARDED' | 'EXPIRED';
 export type DraftMode = 'SHADOW' | 'COPILOT';
 export type TemplateStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
 export type ApprovalStatus = 'NOT_REQUIRED' | 'PENDING' | 'APPROVED' | 'REJECTED';
-export type TemplatePurpose = 'COLLECTION' | 'REMINDER' | 'NOTIFICATION' | 'AGREEMENT' | 'PAYMENT' | 'SERVICE';
+/** `AUTHENTICATION`: código de acesso ao portal (corpo curto, só o código e a validade; decisão 1084). */
+export type TemplatePurpose = 'COLLECTION' | 'REMINDER' | 'NOTIFICATION' | 'AGREEMENT' | 'PAYMENT' | 'SERVICE' | 'AUTHENTICATION';
 export type VariableType = 'FIRST_NAME' | 'MONEY' | 'DATE' | 'INTEGER' | 'URL' | 'CODE' | 'TEXT';
 /** Categoria do template no provedor (só WhatsApp). `AUTHENTICATION`: código de acesso no formato da Meta. */
 export type ProviderCategory = 'UTILITY' | 'MARKETING' | 'AUTHENTICATION';

@@ -26,7 +26,8 @@ export class PublishedTemplates {
     return this.api.search({ creditorId: null, code: null, channel: null, status: 'PUBLISHED' }, { page: 0, size: 200 }).pipe(
       map((page) =>
         page.content
-          .filter((t) => t.creditorId === null || t.creditorId === creditorId)
+          // o de autenticação (código de acesso ao portal) só sai pelo portal (decisão 1084)
+          .filter((t) => t.purpose !== 'AUTHENTICATION' && (t.creditorId === null || t.creditorId === creditorId))
           .map((t): TemplateRef => ({ code: t.code, channel: t.channel, creditorId: t.creditorId, name: t.name, templateVersion: t.templateVersion, variables: t.variables })),
       ),
       catchError(() => of(null)),

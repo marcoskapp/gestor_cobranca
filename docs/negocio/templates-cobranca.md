@@ -213,6 +213,12 @@ habilitado no portal.
 ### 5.1 `PORTAL_CODIGO_WHATSAPP` — código de acesso
 Categoria na Meta: **Autenticação** (no sistema: **Categoria na Meta = Autenticação**)
 
+Finalidade no sistema: **Autenticação (código de acesso)** — obrigatória nos três canais (`PORTAL_CODIGO_WHATSAPP`,
+`_SMS`, `_EMAIL`; decisão 1084). Corpo de até 300 caracteres; variáveis com os nomes exatos `codigo` (código,
+obrigatória) e, no SMS e no e-mail, `minutos` (número); assunto do e-mail sem variáveis. Com outra finalidade o código
+**não é enviado** (o devedor vê "código enviado" e nada chega); e um template dessa finalidade não aparece no envio pela
+conversa, pela estação nem pelas campanhas. O código não fica legível na conversa.
+
 A Meta fixa o texto do template de autenticação; na criação, escolha o idioma `pt_BR`, marque o aviso de segurança e
 informe a validade do código (10 minutos, a mesma de `app.portal.access.code-ttl`) e o botão **copiar código**. O texto
 fica assim:

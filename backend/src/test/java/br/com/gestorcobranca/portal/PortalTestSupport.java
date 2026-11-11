@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.portal;
 
+import br.com.gestorcobranca.communication.domain.repository.MessageRepository;
 import br.com.gestorcobranca.communication.application.port.in.ChannelAccountUseCases;
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases;
 import br.com.gestorcobranca.communication.application.port.in.TemplateUseCases;
@@ -130,6 +131,8 @@ abstract class PortalTestSupport extends IntegrationTest {
     @Autowired
     JdbcTemplate jdbcTemplate;
     @Autowired
+    MessageRepository messageStore;
+    @Autowired
     JsonMapper json;
     @Autowired
     ApplicationContext applicationContext;
@@ -206,8 +209,10 @@ abstract class PortalTestSupport extends IntegrationTest {
                 new ChannelRuleInput("SMS", LocalTime.MIDNIGHT, LocalTime.MIDNIGHT, ALL_DAYS, null, null, null, false)))));
         asAdmin(() -> channels.create(new ChannelAccountUseCases.CreateAccountCommand("WHATSAPP", "SANDBOX", null, "WhatsApp sandbox",
                 "sandbox-number", null, null, Map.of())));
-        template("PORTAL_CODIGO_WHATSAPP", "Seu código de acesso é {{codigo}}. Vale por {{minutos}} minutos.",
-                List.of(new VariableInput("codigo", "CODE", true, null), new VariableInput("minutos", "INTEGER", true, null)));
+        // código de acesso: finalidade autenticação, no formato de autenticação da Meta (decisão 1084)
+        publishWhatsAppTemplate("PORTAL_CODIGO_WHATSAPP",
+                "{{codigo}} é o seu código de verificação. Para sua segurança, não o compartilhe.",
+                List.of(new VariableInput("codigo", "CODE", true, 15)), "AUTHENTICATION");
         template("PORTAL_LINK_WHATSAPP", "Acesse o portal: {{link}} (vale por {{horas}} horas).",
                 List.of(new VariableInput("link", "URL", true, null), new VariableInput("horas", "INTEGER", true, null)));
         template("PORTAL_ATENDIMENTO_WHATSAPP", "Recebemos seu pedido {{protocolo}}. Um atendente vai responder aqui.",
@@ -232,7 +237,8 @@ abstract class PortalTestSupport extends IntegrationTest {
     void publishWhatsAppTemplate(String code, String body, List<VariableInput> variables, String providerCategory) {
         asManager(() -> {
             TemplateView draft = templates.createDraft(new CreateTemplateCommand(null, code, "WHATSAPP",
-                    new TemplateContent("Portal", "SERVICE", null, body, variables, null, null, providerCategory)));
+                    new TemplateContent("Portal", "AUTHENTICATION".equals(providerCategory) ? "AUTHENTICATION" : "SERVICE",
+                            null, body, variables, null, null, providerCategory)));
             templates.registerApproval(draft.id(), new ApprovalCommand("APPROVED", code.toLowerCase(), "meta-1", null, null));
             return templates.publish(draft.id());
         });
@@ -272,7 +278,10 @@ abstract class PortalTestSupport extends IntegrationTest {
         return UUID.fromString(r.json().get("challengeId").asString());
     }
 
-    /** Código enviado ao devedor (lido da mensagem do communication, como o devedor o receberia). */
+    /**
+     * Código enviado ao devedor, lido do texto que vai ao provedor (como o devedor o recebe). As telas não o mostram:
+     * a visão da mensagem oculta o código (decisão 1084).
+     */
     String sentCode(UUID challengeId) {
         // o envio é assíncrono (fora da requisição): aguarda a mensagem ser registrada
         long deadline = System.currentTimeMillis() + 15_000;
@@ -293,7 +302,7 @@ abstract class PortalTestSupport extends IntegrationTest {
             fail("código não enviado para o desafio " + challengeId);
         }
         UUID sentMessage = messageId;
-        String content = asAdmin(() -> messages.get(sentMessage)).content();
+        String content = system(() -> messageStore.findById(sentMessage).orElseThrow().getContent());
         Matcher m = CODE.matcher(content);
         if (!m.find()) {
             fail("mensagem sem código: " + content);

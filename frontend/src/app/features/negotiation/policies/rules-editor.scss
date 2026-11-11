@@ -1,4 +1,5 @@
 .re-group {
+  container-type: inline-size;
   min-width: 0;
   margin: 0 0 12px;
   padding: 8px 12px 4px;
@@ -16,20 +17,32 @@
   }
 }
 
+// grade de colunas iguais: campos alinhados entre si e entre os grupos, sem o último esticado sozinho na linha
 .re-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
+  align-items: start;
+  gap: 0 12px;
 
   app-field {
-    flex: 1 1 170px;
     min-width: 0;
     margin-bottom: 8px;
   }
 
+  // ação da linha (remover encargo): largura natural, sem ocupar a coluna inteira
+  > .btn {
+    justify-self: start;
+  }
+
   .re-wide {
-    flex-basis: 260px;
+    grid-column: span 2;
+  }
+}
+
+// a largura que importa é a do grupo (não a da janela): com uma coluna só, o campo largo não transborda
+@container (max-width: 380px) {
+  .re-row .re-wide {
+    grid-column: auto;
   }
 }
 

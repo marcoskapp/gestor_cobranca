@@ -49,9 +49,19 @@ final class CommunicationViews {
                 d.getMessageId(), d.getCreatedAt());
     }
 
+    /** Texto mostrado no lugar do código de acesso: ele só vai ao provedor, nunca à tela (decisão 1084). */
+    static final String HIDDEN_ACCESS_CODE = "Código de acesso ao portal enviado (oculto por segurança).";
+
+    /** Assunto mostrado no lugar do real (o assunto também é renderizado com as variáveis). */
+    static final String HIDDEN_ACCESS_CODE_SUBJECT = "Código de acesso ao portal";
+
     static MessageView message(Message m) {
+        // código de acesso: ninguém o lê na conversa (operador, assistente, histórico do devedor) — nem no assunto
+        boolean hidden = m.isAuthentication();
+        String content = hidden && m.getContent() != null ? HIDDEN_ACCESS_CODE : m.getContent();
+        String subject = hidden && m.getSubject() != null ? HIDDEN_ACCESS_CODE_SUBJECT : m.getSubject();
         return new MessageView(m.getId(), m.getConversationId(), m.getChannel().name(), m.getDirection().name(),
-                m.getSenderType().name(), m.getSenderId(), m.getTemplateId(), m.getSubject(), m.getContent(),
+                m.getSenderType().name(), m.getSenderId(), m.getTemplateId(), subject, content,
                 m.getContentPurgedAt() != null, m.getStatus().name(), m.getStatusAt(), m.getFailureCode(),
                 m.getFailureDetail(), m.getSendAttempts(), m.getCampaignExecutionId(), m.getQueuedAt(), m.getSentAt(),
                 m.getDeliveredAt(), m.getReadAt(), m.getFailedAt(), m.getReceivedAt(), m.getCreatedAt());

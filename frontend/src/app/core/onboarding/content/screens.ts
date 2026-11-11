@@ -680,7 +680,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'communication.inbox',
-    version: 4,
+    version: 5,
     path: '/conversas',
     tourId: 'communication.inbox',
     changes: [
@@ -690,18 +690,26 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
       { version: 3, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
       { version: 4, items: ['Conversa que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar atendimento".'] },
+      { version: 5, items: ['Ao escolher o template, o primeiro nome do devedor da conversa já vem preenchido e a prévia aparece pronta.', 'A mensagem com o código de acesso ao portal aparece como "Código de acesso ao portal enviado (oculto por segurança)": o código não fica legível na conversa.'] },
     ],
   },
-  { key: 'communication.templates', version: 1, path: '/conversas/templates', tourId: 'communication.templates' },
+  {
+    key: 'communication.templates',
+    version: 2,
+    path: '/conversas/templates',
+    tourId: 'communication.templates',
+    changes: [{ version: 2, items: ['Finalidade "Autenticação (código de acesso)": o template do código de acesso ao portal tem corpo curto, só o código e a validade; no WhatsApp, categoria de autenticação da Meta. O código só sai com template dessa finalidade.'] }],
+  },
   { key: 'communication.channels', version: 1, path: '/conversas/canais' },
   {
     key: 'communication.conversation',
-    version: 3,
+    version: 4,
     path: '/conversas/:id',
     tourId: 'communication.inbox',
     changes: [
       { version: 2, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
       { version: 3, items: ['Conversa que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar atendimento".'] },
+      { version: 4, items: ['Ao escolher o template, o primeiro nome do devedor da conversa já vem preenchido e a prévia aparece pronta.', 'A mensagem com o código de acesso ao portal aparece como "Código de acesso ao portal enviado (oculto por segurança)": o código não fica legível na conversa.'] },
     ],
   },
   { key: 'campaign.list', version: 1, path: '/campanhas', tourId: 'campaign.list' },
@@ -741,7 +749,21 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'legal.firms', version: 1, path: '/juridico/escritorios' },
   { key: 'legal.settings', version: 1, path: '/juridico/parametros' },
   { key: 'negotiation.policies', version: 1, path: '/negociacao/politicas', tourId: 'negotiation.policies' },
-  { key: 'negotiation.policy-detail', version: 1, path: '/negociacao/politicas/:id', tourId: 'negotiation.policy-detail' },
+  {
+    key: 'negotiation.policy-detail',
+    version: 2,
+    path: '/negociacao/politicas/:id',
+    tourId: 'negotiation.policy-detail',
+    changes: [
+      {
+        version: 2,
+        items: [
+          'Cada sobreposição tem um nome (ex.: "Atraso longo"), mostrado na aba; o código, que vai para a memória de cálculo, é gerado a partir do nome se ficar vazio.',
+          'Campos das regras alinhados em colunas iguais (o parcelamento não fica mais desencontrado).',
+        ],
+      },
+    ],
+  },
   { key: 'negotiation.indexes', version: 1, path: '/negociacao/indices' },
   { key: 'negotiation.authority', version: 1, path: '/negociacao/alcadas', tourId: 'negotiation.authority' },
   { key: 'portal.configs', version: 1, path: '/autonegociacao' },

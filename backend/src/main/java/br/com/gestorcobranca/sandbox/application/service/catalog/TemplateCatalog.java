@@ -13,12 +13,18 @@ public final class TemplateCatalog {
     private static final String AGENCY = "[NOME DA ASSESSORIA]";
     private static final String OPT_OUT = "\n\nPara não receber mais mensagens, responda SAIR.";
 
+    /** @param providerCategory categoria no provedor (WhatsApp; nula = utilidade) */
     public record Template(String code, String channel, String name, String purpose, String subject, String body,
-                           List<VariableInput> variables) {
+                           List<VariableInput> variables, String providerCategory) {
+
+        public Template(String code, String channel, String name, String purpose, String subject, String body,
+                        List<VariableInput> variables) {
+            this(code, channel, name, purpose, subject, body, variables, null);
+        }
 
         public Template withAgency(String agency) {
             return new Template(code, channel, name, purpose, subject == null ? null : subject.replace(AGENCY, agency),
-                    body.replace(AGENCY, agency), variables);
+                    body.replace(AGENCY, agency), variables, providerCategory);
         }
     }
 
@@ -61,10 +67,10 @@ public final class TemplateCatalog {
                 new Template("COBRANCA_RETOMADA_SMS", "SMS", "Retomada por SMS", "COLLECTION", null,
                         AGENCY + ": {{nome}}, temos um assunto do seu interesse. Responda esta mensagem. SAIR para não "
                                 + "receber.", List.of(nome)),
-                new Template("PORTAL_CODIGO_WHATSAPP", "WHATSAPP", "Portal — código de acesso", "SERVICE", null,
-                        "Seu código de acesso é {{codigo}}. Vale por {{minutos}} minutos.",
-                        List.of(new VariableInput("codigo", "CODE", true, null),
-                                new VariableInput("minutos", "INTEGER", true, null))),
+                // código de acesso: finalidade autenticação (decisão 1084); no WhatsApp, formato de autenticação da Meta
+                new Template("PORTAL_CODIGO_WHATSAPP", "WHATSAPP", "Portal — código de acesso", "AUTHENTICATION", null,
+                        "{{codigo}} é o seu código de verificação. Para sua segurança, não o compartilhe.",
+                        List.of(new VariableInput("codigo", "CODE", true, 15)), "AUTHENTICATION"),
                 new Template("PORTAL_LINK_WHATSAPP", "WHATSAPP", "Portal — link de acesso", "SERVICE", null,
                         "Acesse o portal de negociação: {{link}} (vale por {{horas}} horas).",
                         List.of(new VariableInput("link", "URL", true, null),
@@ -72,7 +78,7 @@ public final class TemplateCatalog {
                 new Template("PORTAL_ATENDIMENTO_WHATSAPP", "WHATSAPP", "Portal — pedido de atendimento", "SERVICE", null,
                         "Recebemos seu pedido {{protocolo}}. Um atendente vai responder por aqui.",
                         List.of(new VariableInput("protocolo", "CODE", true, null))),
-                new Template("PORTAL_CODIGO_EMAIL", "EMAIL", "Portal — código de acesso (e-mail)", "SERVICE",
+                new Template("PORTAL_CODIGO_EMAIL", "EMAIL", "Portal — código de acesso (e-mail)", "AUTHENTICATION",
                         "Seu código de acesso — " + AGENCY,
                         "Seu código de acesso ao portal é {{codigo}}. Ele vale por {{minutos}} minutos.",
                         List.of(new VariableInput("codigo", "CODE", true, null),

@@ -156,7 +156,10 @@ seguintes voltam a ser `COLLECTION`. A regra é a mesma na verificação prévia
 **Mensagem pedida pelo devedor (decisões 1082 e 1083)** — só o sistema (não campanha nem usuário), só com template e só
 chamada pelo portal (regra de arquitetura): `sendOnDebtorRequest` (confirmação do pedido de atendimento,
 `contact_category = RESPONSE`) e `sendAccessCode` (código de acesso, `AUTHENTICATION`: só restrições e anonimização, sem
-janela, feriados nem limites; `V1007`, compliance `V0505`), pelo mesmo `queue` do envio comum.
+janela, feriados nem limites; `V1007`, compliance `V0505`), pelo mesmo `queue` do envio comum. O código exige template
+de finalidade `AUTHENTICATION` (decisão 1084, `V1009`; `ProviderTemplateRules.validatePurpose`: corpo até 300
+caracteres, só o código e no máximo a validade, no WhatsApp categoria de autenticação da Meta) e a `MessageView` dele
+traz só "Código de acesso ao portal enviado (oculto por segurança)." — o texto real só vai ao provedor.
 
 **Job `communication.send`** (`JobQueue`, retentativas com backoff, DEAD): mensagem não `QUEUED` → nada; conta
 inativa/sem adaptador → `FAILED/ACCOUNT_UNAVAILABLE`; janela fechada para texto → `FAILED/WHATSAPP_WINDOW_CLOSED`;

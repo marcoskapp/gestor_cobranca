@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "8bc43d5e2deb473b",
+ "contentVersion": "0513874832971bb4",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -2349,7 +2349,7 @@
    "objective": "Textos aprovados por canal, com variáveis conferidas, versões e aprovação do WhatsApp.",
    "purpose": [
     "Escreva o texto com variáveis como nome e valor da dívida. Dados pessoais como documento, telefone e e-mail não são aceitos no texto.",
-    "Templates de WhatsApp precisam ser aprovados no provedor antes de publicar. Informe a categoria na Meta: utilidade para avisos e lembretes; autenticação só para o código de acesso do portal, com uma única variável, o código."
+    "Templates de WhatsApp precisam ser aprovados no provedor antes de publicar. Informe a categoria na Meta: utilidade para avisos e lembretes; autenticação só para o código de acesso do portal, com uma única variável, o código. O template do código de acesso ao portal usa a finalidade \"Autenticação (código de acesso)\": texto curto (até 300 caracteres), assunto sem variáveis, só o código e, fora do WhatsApp, a validade em minutos; com outra finalidade o código não é enviado."
    ],
    "profiles": [
     "GESTOR",
@@ -3540,7 +3540,7 @@
    "title": "Versão da política de cobrança",
    "objective": "Encargos, descontos, parcelamento, escada de concessões e sobreposições de uma versão da política.",
    "purpose": [
-    "Sobreposições por carteira ou faixa de atraso substituem grupos inteiros das regras base; a mais específica vence. Propostas guardam a versão usada."
+    "Sobreposições por carteira ou faixa de atraso substituem grupos inteiros das regras base; a mais específica vence. Cada uma tem um nome, mostrado na aba, e um código (gerado do nome quando fica vazio) que aparece na memória de cálculo. Propostas guardam a versão usada."
    ],
    "profiles": [
     "GESTOR",

@@ -16,6 +16,7 @@ import br.com.gestorcobranca.negotiation.domain.service.DecimalMath;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -67,6 +68,31 @@ class PolicyModelTest {
         assertThatThrownBy(() -> new PolicyTerms(base, List.of(override("FAIXA_A", null, 0, 90, 12),
                 override("FAIXA_B", null, 90, 180, 12))).validate())
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("interceptam");
+    }
+
+    @Test
+    void overrideDisplayNameIsOptionalTrimmedAndLimited() {
+        PolicyOverride named = new PolicyOverride("ATRASO_LONGO", null, 361, null, null, null,
+                new Installments(6, new BigDecimal("50"), new BigDecimal("10"), null, null, ScheduleFrequency.MONTHLY, null), null, null, null,
+                "  Atraso longo  ");
+        assertThat(named.name()).isEqualTo("Atraso longo");
+        assertThat(override("SEM_NOME", null, 0, 90, 12).name()).isNull();
+        PolicyOverride tooLong = new PolicyOverride("NOME_LONGO", null, 0, 90, null, null,
+                new Installments(6, new BigDecimal("50"), new BigDecimal("10"), null, null, ScheduleFrequency.MONTHLY, null), null, null, null,
+                "x".repeat(81));
+        assertThatThrownBy(() -> new PolicyTerms(base, List.of(tooLong)).validate())
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("até 80 caracteres");
+    }
+
+    /** Política gravada antes do nome (decisão 1085) continua lendo; com nome, ida e volta preservam o valor. */
+    @Test
+    void overrideNameIsOptionalInStoredTerms() {
+        JsonMapper mapper = JsonMapper.builder().build();
+        PolicyOverride old = mapper.readValue("{\"code\":\"ATRASO_LONGO\",\"minDaysOverdue\":361}", PolicyOverride.class);
+        assertThat(old.name()).isNull();
+        PolicyOverride named = new PolicyOverride("ATRASO_LONGO", null, 361, null, null, null, null, null, null, null,
+                "Atraso longo");
+        assertThat(mapper.readValue(mapper.writeValueAsString(named), PolicyOverride.class)).isEqualTo(named);
     }
 
     @Test

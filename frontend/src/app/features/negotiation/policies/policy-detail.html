@@ -109,14 +109,14 @@
           </button>
           @for (o of draft()?.overrides ?? []; track $index; let i = $index) {
             <button type="button" role="tab" class="pd-tab" [class.pd-tab--on]="selectedOverride() === i" [attr.aria-selected]="selectedOverride() === i" (click)="selectedOverride.set(i)">
-              {{ o.code }}
+              {{ label(o) }}
               <span class="app-muted">{{ scope(o) }}</span>
             </button>
           }
         </div>
         @if (draft()?.overrides?.[selectedOverride()]; as o) {
           <p class="pd-override">
-            <span><strong>{{ o.code }}</strong> · {{ scope(o) }} · especificidade {{ specificityText(o) }} · substitui {{ groupsText(o) }}</span>
+            <span><strong>{{ label(o) }}</strong> <span class="app-muted app-mono">{{ o.code }}</span> · {{ scope(o) }} · especificidade {{ specificityText(o) }} · substitui {{ groupsText(o) }}</span>
             @if (editable()) {
               <span>
                 <button class="btn btn-link" type="button" (click)="editOverride(selectedOverride())">Editar seletor e grupos</button>

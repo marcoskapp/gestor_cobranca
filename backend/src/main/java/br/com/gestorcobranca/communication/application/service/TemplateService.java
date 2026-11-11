@@ -239,6 +239,7 @@ class TemplateService implements TemplateUseCases {
         ProviderTemplateRules.validate(channel, category, declared);
         TemplatePurpose purpose = CommunicationEnums.parse(TemplatePurpose.class, c.purpose(), "template.purpose_invalid",
                 "Finalidade");
+        ProviderTemplateRules.validatePurpose(channel, purpose, category, c.subject(), c.body(), declared);
         String providerName = c.providerTemplateName() == null || c.providerTemplateName().isBlank() ? null
                 : c.providerTemplateName().trim().toLowerCase(Locale.ROOT);
         return new MessageTemplate.Content(c.name(), purpose, c.subject(), c.body(), variables.toJson(declared),

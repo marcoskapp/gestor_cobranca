@@ -9,6 +9,7 @@ import br.com.gestorcobranca.communication.domain.model.Message;
 import br.com.gestorcobranca.communication.domain.model.MessageTemplate;
 import br.com.gestorcobranca.communication.domain.model.OwnerType;
 import br.com.gestorcobranca.communication.domain.model.SenderType;
+import br.com.gestorcobranca.communication.domain.model.TemplatePurpose;
 import br.com.gestorcobranca.communication.domain.repository.ConversationRepository;
 import br.com.gestorcobranca.communication.domain.repository.MessageRepository;
 import br.com.gestorcobranca.communication.domain.repository.MessageTemplateRepository;
@@ -101,6 +102,10 @@ class MessageService implements MessageUseCases {
                 "message.campaign_requires_system", "Envio de campanha é feito pelo processo da campanha");
         Conversation conversation = conversationFor(command, sender);
         Content content = content(conversation, sender, command.templateCode(), command.variables(), command.text());
+        // o template de autenticação é do código de acesso: só sai por sendAccessCode (decisão 1084)
+        Guard.require(content.template() == null || content.template().getPurpose() != TemplatePurpose.AUTHENTICATION,
+                "message.authentication_template_reserved",
+                "Template de finalidade Autenticação só é enviado pelo portal, com o código de acesso");
         Message message = queue(conversation, sender, content, command.campaignExecutionId(), null, idempotencyKey);
         return CommunicationViews.message(message);
     }
@@ -132,6 +137,11 @@ class MessageService implements MessageUseCases {
         }
         Conversation conversation = conversationFor(command, sender);
         Content content = content(conversation, sender, command.templateCode(), command.variables(), null);
+        // a isenção de horário do código vale para o código, não para um texto qualquer (decisão 1084)
+        Guard.require(!Message.CATEGORY_AUTHENTICATION.equals(category)
+                        || content.template().getPurpose() == TemplatePurpose.AUTHENTICATION,
+                "message.access_code_template_invalid",
+                "O código de acesso só sai com template de finalidade Autenticação");
         return CommunicationViews.message(queue(conversation, sender, content, null, null, idempotencyKey, category));
     }
 
