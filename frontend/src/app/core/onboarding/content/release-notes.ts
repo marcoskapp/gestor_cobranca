@@ -3,6 +3,17 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 24,
+    date: '2026-11-11',
+    title: 'Resposta garantida a quem procurou e aviso no portal',
+    items: [
+      { text: 'Se a resposta a quem procurou não chegar ao devedor, a conversa volta a aguardar e a próxima resposta continua liberada; a liberação vale por até 72 h desde a mensagem do devedor.', route: '/conversas' },
+      { text: 'Transferência pedida pelo assistente mantém o devedor aguardando um atendente, e o operador responde sem esbarrar nos limites da cobrança.', route: '/conversas' },
+      { text: 'No portal, acima do limite diário de códigos, o devedor vê que pode pedir um novo código a partir de amanhã.', route: '/autonegociacao' },
+      { text: 'Saúde das políticas: o uso do desconto ignora as faixas em que a política não prevê desconto.', route: '/negociacao/politicas/saude' },
+    ],
+  },
+  {
     version: 23,
     date: '2026-11-11',
     title: 'Saúde das políticas e atalhos para a configuração',

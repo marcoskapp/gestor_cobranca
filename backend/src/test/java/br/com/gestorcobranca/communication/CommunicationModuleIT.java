@@ -218,6 +218,28 @@ class CommunicationModuleIT extends CommunicationTestSupport {
     }
 
     @Test
+    void replyDeniedAtSendTimeLetsTheDebtorKeepWaiting() {
+        MessageView first = asOperator(operatorX, () -> messages.send(template(null, null)));
+        drainCommunication();
+        UUID conversationId = first.conversationId();
+        asAdmin(() -> {
+            sandbox.simulateInbound(whatsapp.id(), "5511987654321", "Quero negociar");
+            return null;
+        });
+        MessageView reply = asOperator(operatorX, () -> messages.send(text(conversationId, "Claro, posso ajudar.")));
+        assertThat(reply.status()).isEqualTo("QUEUED");
+        assertThat(conversation(conversationId).awaitingSince()).isNull();
+        // restrição criada antes do envio: a resposta é negada no job e o devedor volta a aguardar (decisão 1090)
+        UUID restriction = system(() -> restrictions.create(new CreateRestrictionCommand(debtor, null, "WHATSAPP",
+                "DEBTOR_REQUEST", null, null, "Pediu pausa", "DEBTOR", null, null)).id());
+        drainCommunication();
+        assertThat(message(reply.id()).status()).isEqualTo("FAILED");
+        // a devolução roda na reação à falha, depois do commit
+        awaitTrue("espera devolvida", () -> conversation(conversationId).awaitingSince() != null);
+        system(() -> restrictions.revoke(restriction, "Revogado"));
+    }
+
+    @Test
     void debtorRequestFromThePortalAwaitsReply() {
         MessageView first = asOperator(operatorX, () -> messages.send(template(null, null)));
         drainCommunication();

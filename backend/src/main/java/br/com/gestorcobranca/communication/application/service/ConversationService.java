@@ -239,6 +239,10 @@ class ConversationService implements ConversationUseCases {
                         "Somente o dono ou a supervisão transferem a conversa");
             }
         }
+        if (actor.isAssistant()) {
+            // o aviso do assistente não conta como resposta: quem escreveu continua aguardando um atendente (decisão 1090)
+            c.awaitHumanAfterAssistantHandoff(Instant.now(clock));
+        }
         return view(ownership.escalate(c, new ConversationOwnership.Change(HandoffKind.ESCALATION, reason(command.reasonCode()),
                 command.summary(), command.summary(), profile(command.requiredProfile()), command.referenceType(),
                 command.referenceId())));

@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -179,12 +180,25 @@ export class PortalEntry implements OnInit {
   }
 }
 
-/** Bloqueio progressivo: quanto tempo esperar, em linguagem simples. */
-export function lockMessage(error: unknown): string | null {
+/**
+ * Bloqueio (progressivo ou teto diário de códigos): quando tentar de novo, em linguagem simples. O teto diário vem
+ * marcado pelo servidor (`reason`); o progressivo, em minutos até uma hora, depois pelo horário de liberação.
+ */
+export function lockMessage(error: unknown, now: Date = new Date()): string | null {
   const seconds = retryAfterSeconds(error);
   if (seconds === null) {
     return null;
   }
-  const minutes = Math.max(1, Math.ceil(seconds / 60));
-  return `Muitas tentativas seguidas. Por segurança, tente de novo em ${minutes} minuto${minutes > 1 ? 's' : ''}.`;
+  const reason = error instanceof HttpErrorResponse ? (error.error as { reason?: string } | null)?.reason : undefined;
+  if (reason === 'DAILY_CODE_CAP') {
+    return 'Muitos pedidos de código hoje. Por segurança, peça um novo código a partir de amanhã.';
+  }
+  if (seconds < 3600) {
+    const minutes = Math.max(1, Math.ceil(seconds / 60));
+    return `Muitas tentativas seguidas. Por segurança, tente de novo em ${minutes} minuto${minutes > 1 ? 's' : ''}.`;
+  }
+  const release = new Date(now.getTime() + seconds * 1000);
+  const time = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(release);
+  const sameDay = release.toDateString() === now.toDateString();
+  return `Muitas tentativas seguidas. Por segurança, tente de novo ${sameDay ? '' : 'amanhã, '}a partir das ${time}.`;
 }

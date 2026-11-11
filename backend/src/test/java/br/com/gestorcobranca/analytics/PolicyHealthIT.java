@@ -53,6 +53,14 @@ class PolicyHealthIT extends AnalyticsTestSupport {
                         null);
                 jdbc.update("update negotiation.agreement set envelope_usage = 95, max_days_overdue = 400 where id = ?", ag);
             }
+            // faixa sem desconto previsto (máximo zero): o uso 0% não entra na média do desconto (decisão 1091)
+            UUID noDiscountDebtor = f.debtor();
+            UUID noDiscountCase = f.collectionCase(noDiscountDebtor, creditorA, portfolioA, "OPEN", true, "1000.00",
+                    "1000.00", "QUEUE", queue, null, today().minusDays(20));
+            UUID noDiscount = f.agreement(creditorA, noDiscountDebtor, portfolioA, noDiscountCase, "HUMAN", "USER", operatorX,
+                    "PHONE", formalized, "1000.00", 1, "IN_PAYMENT", null, null);
+            jdbc.update("update negotiation.agreement set envelope_usage = 0, max_days_overdue = 20, max_discount_amount = 0 "
+                    + "where id = ?", noDiscount);
             // devedor vulnerável: fica fora da análise
             UUID vulnerable = f.debtor();
             UUID kase = f.collectionCase(vulnerable, creditorA, portfolioA, "OPEN", true, "1000.00", "1000.00", "QUEUE",
@@ -102,6 +110,10 @@ class PolicyHealthIT extends AnalyticsTestSupport {
         assertThat(longDelay.averageEnvelopeUsage()).isEqualByComparingTo("95");
         assertThat(longDelay.portalSimulations()).isEqualTo(25);
         assertThat(longDelay.portalWithoutOfferShare()).isEqualByComparingTo("0.8");
+        SegmentHealth shortDelay = view.segments().stream()
+                .filter(s -> portfolioA.equals(s.portfolioId()) && "D0_30".equals(s.delayBucket())).findFirst().orElseThrow();
+        assertThat(shortDelay.agreements()).isEqualTo(1);
+        assertThat(shortDelay.averageEnvelopeUsage()).isNull();
         assertThat(view.suggestions()).extracting(PolicyHealthQueries.SuggestionView::kind)
                 .contains("HIGH_EARLY_BREAK", "PORTAL_WITHOUT_OFFER");
 

@@ -131,7 +131,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     title: 'Uso do desconto máximo',
     what: 'Quanto do desconto máximo permitido pela política os acordos usaram, em média, e a fatia que usou 90% ou mais.',
     how: 'Para cada acordo, desconto concedido ÷ desconto máximo da política para a forma de pagamento; média dos acordos do recorte.',
-    use: 'Desconto sempre no limite com boa adimplência sugere que o limite está apertado; desconto quase nunca usado sugere uma escada generosa demais. Atenção: faixa ou forma de pagamento sem desconto previsto na política aparece com 0%.',
+    use: 'Desconto sempre no limite com boa adimplência sugere que o limite está apertado; desconto quase nunca usado sugere uma escada generosa demais. Acordos sem desconto previsto na política não entram na conta.',
     screens: ['negotiation.policy-health'],
   },
   {

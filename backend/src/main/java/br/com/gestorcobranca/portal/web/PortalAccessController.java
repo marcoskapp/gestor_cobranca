@@ -115,9 +115,11 @@ class PortalAccessController {
 
     @ExceptionHandler(AccessLockedException.class)
     ResponseEntity<ProblemDetail> locked(AccessLockedException e) {
-        long seconds = Math.max(1, Duration.between(Instant.now(), e.until()).toSeconds());
+        // arredonda para cima: truncar faria o fim do bloqueio cair antes do horário real
+        long seconds = Math.max(1, (Duration.between(Instant.now(), e.until()).toMillis() + 999) / 1000);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
         problem.setProperty("code", "portal.access_locked");
+        problem.setProperty("reason", e.dailyCodeCap() ? "DAILY_CODE_CAP" : "THROTTLE");
         problem.setProperty("retryAfterSeconds", seconds);
         problem.setProperty("requestId", MDC.get(MdcKeys.REQUEST_ID));
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))

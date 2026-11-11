@@ -77,14 +77,26 @@ public interface PortalAccessUseCases {
     final class AccessLockedException extends RuntimeException {
 
         private final transient Instant until;
+        private final boolean dailyCodeCap;
 
         public AccessLockedException(Instant until) {
-            super("Muitas tentativas. Aguarde alguns minutos e tente de novo.");
+            this(until, false);
+        }
+
+        public AccessLockedException(Instant until, boolean dailyCodeCap) {
+            super(dailyCodeCap ? "Limite diário de códigos atingido. Peça um novo código amanhã."
+                    : "Muitas tentativas. Aguarde alguns minutos e tente de novo.");
             this.until = until;
+            this.dailyCodeCap = dailyCodeCap;
         }
 
         public Instant until() {
             return until;
+        }
+
+        /** Teto diário de códigos — igual para documento com e sem cadastro (decisão 1090). */
+        public boolean dailyCodeCap() {
+            return dailyCodeCap;
         }
     }
 }

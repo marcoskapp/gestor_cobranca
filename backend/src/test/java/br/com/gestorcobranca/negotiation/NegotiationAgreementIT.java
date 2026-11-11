@@ -271,6 +271,9 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
         ProposalView draft = propose(sim, 0, null, new PlanInput(3, null, null), null);
         assertThat(draft.status()).isEqualTo("DRAFT");
         AgreementView agreement = acceptAndFormalize(draft.id());
+        // o acordo guarda o desconto máximo da política na formalização (decisão 1091)
+        assertThat(count("select count(*) from negotiation.agreement where id = ? and max_discount_amount is not null",
+                agreement.id())).isEqualTo(1);
         assertThat(agreement.installments()).hasSize(3);
         assertThat(agreement.breakRule().overdueInstallments()).isEqualTo(2);
 

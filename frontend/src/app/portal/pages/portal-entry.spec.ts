@@ -59,5 +59,14 @@ describe('PortalEntry', () => {
     const error = new HttpErrorResponse({ status: 429, error: { code: 'portal.access_locked', retryAfterSeconds: 900 } });
     expect(lockMessage(error)).toContain('15 minutos');
     expect(lockMessage(new HttpErrorResponse({ status: 401 }))).toBeNull();
+    // teto diário de códigos (marcado pelo servidor): "amanhã", mesmo com o relógio do aparelho perto da meia-noite
+    const locked = (seconds: number, reason = 'THROTTLE') =>
+      new HttpErrorResponse({ status: 429, error: { code: 'portal.access_locked', reason, retryAfterSeconds: seconds } });
+    const afternoon = new Date(2026, 10, 11, 15, 0);
+    expect(lockMessage(locked(9 * 3600, 'DAILY_CODE_CAP'), afternoon)).toContain('peça um novo código a partir de amanhã');
+    expect(lockMessage(locked(30, 'DAILY_CODE_CAP'), new Date(2026, 10, 11, 23, 59, 30))).toContain('a partir de amanhã');
+    // bloqueio progressivo longo: pelo horário de liberação, hoje ou amanhã
+    expect(lockMessage(locked(2 * 3600), afternoon)).toContain('tente de novo a partir das 17:00');
+    expect(lockMessage(locked(23 * 3600), afternoon)).toContain('tente de novo amanhã, a partir das 14:00');
   });
 });

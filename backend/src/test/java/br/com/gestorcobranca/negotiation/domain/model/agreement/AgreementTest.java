@@ -64,7 +64,7 @@ class AgreementTest {
                 UUID.randomUUID(), null, null, UUID.randomUUID(), 1, null, D0, 1, new BigDecimal("25"), 60, "PHONE",
                 AgreementOrigin.HUMAN, "USER", UUID.randomUUID(), "USER", UUID.randomUUID(), null, null, m("1644.00"),
                 m("10.00"), total, Money.ZERO, total, m("634.00"), breakInstallments, toleranceDays, null, 0, total,
-                acceptance, T0);
+                acceptance, T0, m("100.00"));
     }
 
     private static UUID installmentId(Agreement a, int number) {

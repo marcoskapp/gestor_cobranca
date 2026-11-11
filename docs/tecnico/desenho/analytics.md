@@ -207,7 +207,8 @@ As três views novas excluem devedor com `compliance.vulnerability_marker` **ati
 não é exposto) e não têm dado pessoal. Vale o estado **atual** do marcador (registrar ou retirar muda os números de
 períodos passados). Por diferença com o relatório de conversão daria para inferir a **existência** de um marcador num
 recorte mínimo — sem a categoria —, informação que os perfis com acesso já veem pelo selo na ficha (`DEBTOR_VIEW`/
-`CASE_VIEW`); um perfil personalizado com `REPORT_VIEW` e sem visão de caso ou devedor exigiria mínimo de células. Faixas de valor do acordo: `V0_1K`, `V1K_5K`, `V5K_20K`, `V20K_PLUS` (não se
+`CASE_VIEW`); um perfil personalizado com `REPORT_VIEW` e sem visão de caso ou devedor exigiria mínimo de células. O uso do desconto só conta onde havia desconto a conceder (`agreement.max_discount_amount` > 0, decisão 1091; nulo nos
+acordos anteriores ao dado conta como antes). Faixas de valor do acordo: `V0_1K`, `V1K_5K`, `V5K_20K`, `V20K_PLUS` (não se
 aplicam ao portal). Regras de sugestão em `PolicyHealthRules` (domínio, puro; limites na decisão 1087), comparando o
 recorte com o resto do credor; sem amostra madura no resto, vale só o limite absoluto. Testes: `PolicyHealthRulesTest`
 e `PolicyHealthIT`. Tela: `/negociacao/politicas/saude` (`features/negotiation/policies/policy-health.ts`).

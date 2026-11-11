@@ -198,8 +198,11 @@ from incentive.commission_statement s;
 -- ------------------------------------------------------ saúde da política (decisão 1087)
 -- Acordos para calibrar a política: uso do desconto máximo e maior atraso. Devedores com marcador de vulnerabilidade
 -- ATIVO ficam fora (atendimento cuidadoso não é base para calibrar desconto) — filtrados aqui, sem expor o marcador.
+-- Uso do desconto só onde havia desconto a conceder (máximo > 0, decisão 1091); acordo anterior ao dado (nulo) conta.
 create view analytics.src_policy_agreement with (security_invoker = true) as
-select a.tenant_id, a.id as agreement_id, a.envelope_usage, a.max_days_overdue
+select a.tenant_id, a.id as agreement_id,
+       case when a.max_discount_amount is null or a.max_discount_amount > 0 then a.envelope_usage end as envelope_usage,
+       a.max_days_overdue
 from negotiation.agreement a
 where not exists (select 1 from compliance.vulnerability_marker m
                   where m.debtor_id = a.debtor_id and m.status = 'ACTIVE');

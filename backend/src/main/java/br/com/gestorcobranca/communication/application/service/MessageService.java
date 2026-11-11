@@ -2,6 +2,7 @@ package br.com.gestorcobranca.communication.application.service;
 
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases;
+import br.com.gestorcobranca.communication.application.CommunicationProperties;
 import br.com.gestorcobranca.communication.domain.model.ChannelAccount;
 import br.com.gestorcobranca.communication.domain.model.ChannelType;
 import br.com.gestorcobranca.communication.domain.model.Conversation;
@@ -63,13 +64,15 @@ class MessageService implements MessageUseCases {
     private final JobQueue jobQueue;
     private final CommunicationMetrics metrics;
     private final ResponseTargetProvider responseTargets;
+    private final CommunicationProperties properties;
     private final Clock clock;
 
     MessageService(MessageRepository messages, ConversationRepository conversations, MessageTemplateRepository templates,
                    TemplateVariables templateVariables, ChannelResolver channels, ConversationAccess access,
                    ConversationOwnership ownership, MessageRecorder recorder, ContactGate gate, DebtorUseCases debtors,
                    DebtorContactUseCases debtorContacts, CaseReader cases, AccessScope accessScope, JobQueue jobQueue,
-                   CommunicationMetrics metrics, ResponseTargetProvider responseTargets, Clock clock) {
+                   CommunicationMetrics metrics, ResponseTargetProvider responseTargets, CommunicationProperties properties,
+                   Clock clock) {
         this.messages = messages;
         this.conversations = conversations;
         this.templates = templates;
@@ -86,6 +89,7 @@ class MessageService implements MessageUseCases {
         this.jobQueue = jobQueue;
         this.metrics = metrics;
         this.responseTargets = responseTargets;
+        this.properties = properties;
         this.clock = clock;
     }
 
@@ -252,7 +256,8 @@ class MessageService implements MessageUseCases {
         if (Message.CATEGORY_AUTHENTICATION.equals(requestedCategory)) {
             message.markAuthentication();
         } else if (Message.CATEGORY_RESPONSE.equals(requestedCategory)
-                || ((sender == SenderType.USER || sender == SenderType.ASSISTANT) && c.awaitingReply())) {
+                || ((sender == SenderType.USER || sender == SenderType.ASSISTANT)
+                && c.awaitingReplyWithin(now, properties.responseExemptionMaxAge()))) {
             message.markResponse();
         }
         // verificação prévia: pedido já negado é registrado como falha, sem enfileirar

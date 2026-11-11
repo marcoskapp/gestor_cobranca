@@ -102,7 +102,7 @@ class AgreementRecorder {
                 attribution.preNegotiatorId(), e.priced().gross().total(), e.priced().discount().total(),
                 e.plan().negotiated(), e.plan().financingInterest(), e.plan().total(), e.plan().downPayment(),
                 breakRule.overdueInstallments(), breakRule.toleranceDays(), p.getReplacedAgreementId(),
-                p.getRenegotiationNumber(), incremental, p.getAcceptance().copy(), now), schedule,
+                p.getRenegotiationNumber(), incremental, p.getAcceptance().copy(), now, r.maxDiscount()), schedule,
                 titleParts(e.priced().titles(), e.plan().financingInterest()));
         if (replaced != null) {
             Agreement.Ending ending = replaced.renegotiatedBy(agreement.getId(), today, now);

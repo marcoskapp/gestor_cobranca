@@ -101,7 +101,7 @@ class PortalAccessIT extends PortalTestSupport {
     }
 
     @Test
-    void dailyCodeCapPerDocumentSendsNothingMoreButAnswersTheSame() {
+    void dailyCodeCapPerDocumentLocksUntilMidnightLikeAnyOtherDocument() {
         UUID first = requestCode(CPF_MARIA);
         sentCode(first);
         // mais 13 códigos do mesmo documento hoje (14 no total): o 15º ainda sai
@@ -112,15 +112,24 @@ class PortalAccessIT extends PortalTestSupport {
         // com 15 no dia, chega ao teto (decisão 1083)
         Response capped = post("/api/portal/v1/sites/" + slug + "/access/code",
                 Map.of("document", CPF_MARIA, "channel", "WHATSAPP"), null);
-        assertThat(capped.status()).isEqualTo(202);
-        assertThat(capped.json().get("codeRequired").asBoolean()).isTrue();
-        UUID challenge = UUID.fromString(capped.json().get("challengeId").asString());
-        // nenhum código enviado: o desafio não tem devedor nem mensagem
-        assertThat(count("select count(*) from portal.access_challenge where id = ? and debtor_id is null and message_id is null",
-                challenge)).isEqualTo(1);
+        // bloqueio visível até a meia-noite (decisão 1090), sem desafio novo e sem mensagem
+        assertThat(capped.status()).isEqualTo(429);
+        assertThat(capped.json().get("retryAfterSeconds").asLong()).isPositive().isLessThanOrEqualTo(86_400);
+        assertThat(capped.json().get("reason").asText()).isEqualTo("DAILY_CODE_CAP");
+        assertThat(count("select count(*) from portal.access_challenge where tenant_id = ?", tenant)).isEqualTo(15);
         assertThat(count("select count(*) from shared.access_log where event_type = 'PORTAL_CODE_REQUESTED' "
-                + "and details ->> 'challengeId' = ? and details ->> 'dailyCap' = 'true' and details ->> 'match' = 'true'",
-                challenge.toString())).isEqualTo(1);
+                + "and details ->> 'dailyCap' = 'true' and details ->> 'match' = 'true'")).isEqualTo(1);
+        // documento sem cadastro no teto recebe o mesmo bloqueio (não revela quem é devedor)
+        UUID decoy = requestCode(CPF_UNKNOWN);
+        copyChallenge(decoy, 14);
+        Response unknown = post("/api/portal/v1/sites/" + slug + "/access/code",
+                Map.of("document", CPF_UNKNOWN, "channel", "WHATSAPP"), null);
+        assertThat(unknown.status()).isEqualTo(429);
+        assertThat(unknown.json().get("reason").asText()).isEqualTo("DAILY_CODE_CAP");
+        // no teto, novos pedidos não somam no bloqueio progressivo: a resposta segue sendo o teto, não "15 minutos"
+        Response again = post("/api/portal/v1/sites/" + slug + "/access/code",
+                Map.of("document", CPF_UNKNOWN, "channel", "WHATSAPP"), null);
+        assertThat(again.json().get("reason").asText()).isEqualTo("DAILY_CODE_CAP");
     }
 
     /** Cópias do desafio (mesmo documento, mesmo dia), para chegar ao teto diário sem esbarrar no limite por janela. */

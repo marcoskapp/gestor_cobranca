@@ -99,4 +99,48 @@ class ConversationAndMessageTest {
         assertThat(in.getContent()).isNull();
         assertThat(in.purgeContent(T0)).isFalse();
     }
+
+    /** Decisão 1090: prazo da isenção, resposta que não chegou e transferência pelo assistente. */
+    @Test
+    void awaitingReplyHasDeadlineCanResumeAndSurvivesAssistantHandoff() {
+        Conversation c = whatsapp();
+        c.registerInbound(T0);
+        assertThat(c.awaitingReplyWithin(T0.plus(Duration.ofHours(71)), Duration.ofHours(72))).isTrue();
+        assertThat(c.awaitingReplyWithin(T0.plus(Duration.ofHours(73)), Duration.ofHours(72))).isFalse();
+
+        // a resposta encerra a espera; se ela não chegar ao devedor, a espera volta — o prazo segue contando da
+        // mensagem do devedor (a falha não o renova)
+        Instant reply = T0.plusSeconds(60);
+        c.registerOutbound(SenderType.USER, reply);
+        assertThat(c.awaitingReply()).isFalse();
+        c.resumeAwaiting(reply);
+        assertThat(c.getAwaitingSince()).isEqualTo(T0);
+        // conversa encerrada não volta a aguardar
+        Conversation closed = whatsapp();
+        closed.registerInbound(T0);
+        closed.registerOutbound(SenderType.USER, reply);
+        closed.close(java.util.UUID.randomUUID(), "Resolvido", reply.plusSeconds(5));
+        closed.resumeAwaiting(reply);
+        assertThat(closed.awaitingReply()).isFalse();
+        // saiu outra mensagem depois: a falha da anterior não reabre a espera
+        Conversation d = whatsapp();
+        d.registerInbound(T0);
+        d.registerOutbound(SenderType.USER, reply);
+        d.registerOutbound(SenderType.USER, reply.plusSeconds(30));
+        d.resumeAwaiting(reply);
+        assertThat(d.awaitingReply()).isFalse();
+
+        // transferência pelo assistente com o devedor escrevendo nas últimas 24 h: aguarda um atendente
+        Conversation e = whatsapp();
+        e.registerInbound(T0);
+        e.registerOutbound(SenderType.ASSISTANT, T0.plusSeconds(10));
+        e.awaitHumanAfterAssistantHandoff(T0.plusSeconds(20));
+        assertThat(e.getAwaitingSince()).isEqualTo(T0);
+        // mensagem do devedor antiga (fora da janela de 24 h): não
+        Conversation f = whatsapp();
+        f.registerInbound(T0);
+        f.registerOutbound(SenderType.ASSISTANT, T0.plusSeconds(10));
+        f.awaitHumanAfterAssistantHandoff(T0.plus(Duration.ofHours(25)));
+        assertThat(f.awaitingReply()).isFalse();
+    }
 }

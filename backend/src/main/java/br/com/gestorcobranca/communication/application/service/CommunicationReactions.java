@@ -50,11 +50,12 @@ class CommunicationReactions {
     private final InteractionUseCases interactions;
     private final TabulationUseCases tabulations;
     private final CommunicationMetrics metrics;
+    private final AwaitingReplyRestorer awaiting;
     private final Clock clock;
 
     CommunicationReactions(ConversationRepository conversations, ConversationOwnership ownership, CaseReader cases,
                            CaseWorkUseCases work, InteractionUseCases interactions, TabulationUseCases tabulations,
-                           CommunicationMetrics metrics, Clock clock) {
+                           CommunicationMetrics metrics, AwaitingReplyRestorer awaiting, Clock clock) {
         this.conversations = conversations;
         this.ownership = ownership;
         this.cases = cases;
@@ -62,11 +63,17 @@ class CommunicationReactions {
         this.interactions = interactions;
         this.tabulations = tabulations;
         this.metrics = metrics;
+        this.awaiting = awaiting;
         this.clock = clock;
     }
 
     void messageStatusChanged(MessageStatusChanged e) {
         metrics.eventConsumed("message_status");
+        if ("OUTBOUND".equals(e.direction()) && "FAILED".equals(e.status())) {
+            // resposta a quem procurou que não chegou (job, provedor ou webhook): devolve a espera (decisão 1090)
+            awaiting.undelivered(e.messageId());
+            return;
+        }
         boolean sent = "OUTBOUND".equals(e.direction()) && "SENT".equals(e.status());
         boolean received = "INBOUND".equals(e.direction()) && "RECEIVED".equals(e.status());
         if (!sent && !received) {
@@ -131,6 +138,10 @@ class CommunicationReactions {
         if (!first.isOpen()) {
             return; // encerrada entre a leitura e o lock: o pedido não alcança conversa fechada
         }
+        if ("ASSISTANT".equals(e.requestedByType())) {
+            // transferência pedida pelo assistente (ex.: proposta acima da alçada): quem escreveu aguarda um atendente
+            first.awaitHumanAfterAssistantHandoff(e.occurredAt());
+        }
         if (e.debtorInitiated()) {
             // o devedor pediu atendimento: aguarda resposta (tempo de espera na caixa e resposta sem limites de
             // frequência, decisão 1081), como numa mensagem recebida
@@ -139,7 +150,12 @@ class CommunicationReactions {
         ownership.escalate(first, change);
         for (Conversation other : targets.subList(1, targets.size())) {
             if (other.getCaseId() == null || !other.getCaseId().equals(first.getCaseId())) {
-                ownership.escalate(conversations.findByIdForUpdate(other.getId()).orElseThrow(), change);
+                Conversation locked = conversations.findByIdForUpdate(other.getId()).orElseThrow();
+                if ("ASSISTANT".equals(e.requestedByType())) {
+                    // o devedor pode ter escrito em outra das conversas (inócuo onde não escreveu nas últimas 24 h)
+                    locked.awaitHumanAfterAssistantHandoff(e.occurredAt());
+                }
+                ownership.escalate(locked, change);
             }
         }
     }

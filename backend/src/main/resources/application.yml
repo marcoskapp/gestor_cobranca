@@ -318,6 +318,8 @@ app:
     # descarte diário do conteúdo de mensagens (política MESSAGE_CONTENT do compliance)
     retention-cron: "0 40 2 * * *"
     retention-batch: 500
+    # resposta a quem procurou fica fora dos limites de frequência por até este prazo desde o início da espera
+    response-exemption-max-age: PT72H
     webhook:
       max-body-bytes: 262144
       requests-per-minute: 600

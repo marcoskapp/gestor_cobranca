@@ -273,6 +273,39 @@ public class Conversation extends TenantScopedEntity {
     }
 
     /**
+     * Aguarda retorno há no máximo {@code maxAge}: a resposta fica fora dos limites de frequência da cobrança só nesse
+     * prazo (decisão 1090); depois, mesmo sem resposta, a próxima mensagem volta a ser cobrança.
+     */
+    public boolean awaitingReplyWithin(Instant now, Duration maxAge) {
+        return awaitingSince != null && !awaitingSince.isBefore(now.minus(maxAge));
+    }
+
+    /**
+     * A resposta que encerrou a espera não chegou ao devedor (negada ou com falha no envio): volta a aguardar, se nenhuma
+     * mensagem saiu depois do enfileiramento dela ({@code since}). O prazo da isenção conta da última mensagem do
+     * devedor — a resposta que falhou não o renova (decisão 1090).
+     */
+    public void resumeAwaiting(Instant since) {
+        if (status != ConversationStatus.OPEN || awaitingSince != null || since == null) {
+            return;
+        }
+        if (lastOutboundAt == null || !lastOutboundAt.isAfter(since)) {
+            this.awaitingSince = lastInboundAt != null && !lastInboundAt.isAfter(since) ? lastInboundAt : since;
+        }
+    }
+
+    /**
+     * Transferência pedida pelo assistente numa conversa em que o devedor escreveu nas últimas 24 h: o aviso do
+     * assistente não conta como resposta — quem procurou continua aguardando um atendente (decisão 1090).
+     */
+    public void awaitHumanAfterAssistantHandoff(Instant now) {
+        if (status == ConversationStatus.OPEN && awaitingSince == null && lastInboundAt != null
+                && lastInboundAt.isAfter(now.minus(WHATSAPP_SESSION_WINDOW))) {
+            this.awaitingSince = lastInboundAt;
+        }
+    }
+
+    /**
      * Mensagem enviada (enfileirada). Resposta de operador ou assistente encerra a espera.
      *
      * @return tempo de espera encerrado por esta resposta, se havia espera

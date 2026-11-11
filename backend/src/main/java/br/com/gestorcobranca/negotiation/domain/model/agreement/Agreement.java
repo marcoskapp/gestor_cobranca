@@ -93,6 +93,9 @@ public class Agreement extends TenantScopedEntity {
     private Money updatedAmount;
     @Column(name = "discount_amount", nullable = false, updatable = false, precision = 19, scale = 2)
     private Money discountAmount;
+    /** Desconto máximo da política na formalização (nulo nos acordos anteriores ao dado; decisão 1091). */
+    @Column(name = "max_discount_amount", updatable = false, precision = 19, scale = 2)
+    private Money maxDiscountAmount;
     @Column(name = "negotiated_amount", nullable = false, updatable = false, precision = 19, scale = 2)
     private Money negotiatedAmount;
     @Column(name = "financing_interest", nullable = false, updatable = false, precision = 19, scale = 2)
@@ -157,7 +160,7 @@ public class Agreement extends TenantScopedEntity {
                         Money discountAmount, Money negotiatedAmount, Money financingInterest, Money totalAmount,
                         Money downPayment, int breakOverdueInstallments, int breakToleranceDays,
                         UUID replacedAgreementId, int renegotiationNumber, Money incrementalAmount,
-                        AcceptanceEvidence acceptance, Instant formalizedAt) {
+                        AcceptanceEvidence acceptance, Instant formalizedAt, Money maxDiscountAmount) {
     }
 
     public record ScheduleEntry(int number, LocalDate dueDate, Money amount) {
@@ -202,6 +205,7 @@ public class Agreement extends TenantScopedEntity {
         this.preNegotiatorId = t.preNegotiatorId();
         this.updatedAmount = t.updatedAmount();
         this.discountAmount = t.discountAmount();
+        this.maxDiscountAmount = t.maxDiscountAmount();
         this.negotiatedAmount = t.negotiatedAmount();
         this.financingInterest = t.financingInterest();
         this.totalAmount = t.totalAmount();
@@ -535,6 +539,7 @@ public class Agreement extends TenantScopedEntity {
     public UUID getPreNegotiatorId() { return preNegotiatorId; }
     public Money getUpdatedAmount() { return updatedAmount; }
     public Money getDiscountAmount() { return discountAmount; }
+    public Money getMaxDiscountAmount() { return maxDiscountAmount; }
     public Money getNegotiatedAmount() { return negotiatedAmount; }
     public Money getFinancingInterest() { return financingInterest; }
     public Money getTotalAmount() { return totalAmount; }

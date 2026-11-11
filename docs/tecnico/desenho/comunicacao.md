@@ -152,6 +152,13 @@ assistente sai com `contact_category = RESPONSE` (`V1006`; compliance `V0504`). 
 semanal nem intervalo mínimo e não conta a tentativa nesses limites; todas as restrições (inclusive a suspensão pedida pelo
 credor), a janela de horário, os feriados e a anonimização valem. Respondida a espera (`registerOutbound`), as mensagens
 seguintes voltam a ser `COLLECTION`. A regra é a mesma na verificação prévia e no envio (a categoria fica na mensagem).
+Decisão 1090: a isenção vale até `response-exemption-max-age` (72 h) desde o início da espera
+(`Conversation.awaitingReplyWithin`); resposta `RESPONSE` que não chega (negada no job, conta inativa, janela fechada,
+recusa do provedor na hora ou pelo webhook, tentativas esgotadas) devolve a espera, se nada saiu depois — na reação a
+`MessageStatusChanged` com `FAILED`, depois do commit da falha e com a conversa relida sob lock (`AwaitingReplyRestorer`
+→ `Conversation.resumeAwaiting`); o prazo segue contando da última mensagem do devedor (a falha não o renova); a negada na
+verificação prévia não encerrou a espera e não precisa de devolução; transferência pedida pelo assistente com
+mensagem do devedor nas últimas 24 h mantém a espera para o operador (`awaitHumanAfterAssistantHandoff`).
 
 **Mensagem pedida pelo devedor (decisões 1082 e 1083)** — só o sistema (não campanha nem usuário), só com template e só
 chamada pelo portal (regra de arquitetura): `sendOnDebtorRequest` (confirmação do pedido de atendimento,

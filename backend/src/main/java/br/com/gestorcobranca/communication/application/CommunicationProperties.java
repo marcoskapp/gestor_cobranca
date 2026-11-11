@@ -14,10 +14,13 @@ import java.time.Duration;
  * @param whatsapp        WhatsApp Cloud API
  * @param sandbox         provedor simulado (local/teste)
  * @param realtime        avisos em tempo real da caixa de entrada (SSE + LISTEN/NOTIFY)
+ * @param responseExemptionMaxAge prazo, desde a mensagem do devedor que abriu a espera, em que a resposta a quem procurou fica fora dos limites
+ *                                de frequência da cobrança (decisões 1081 e 1090); depois, volta a ser cobrança
  */
 @ConfigurationProperties(prefix = "app.communication")
 public record CommunicationProperties(Integer sendMaxAttempts, String retentionCron, Integer retentionBatch,
-                                      Webhook webhook, WhatsApp whatsapp, Sandbox sandbox, Realtime realtime) {
+                                      Webhook webhook, WhatsApp whatsapp, Sandbox sandbox, Realtime realtime,
+                                      Duration responseExemptionMaxAge) {
 
     public CommunicationProperties {
         sendMaxAttempts = sendMaxAttempts == null ? 6 : sendMaxAttempts;
@@ -27,6 +30,10 @@ public record CommunicationProperties(Integer sendMaxAttempts, String retentionC
         whatsapp = whatsapp == null ? new WhatsApp(null, null, null) : whatsapp;
         sandbox = sandbox == null ? new Sandbox(false, null) : sandbox;
         realtime = realtime == null ? new Realtime(null, null, null, null, null, null, null) : realtime;
+        responseExemptionMaxAge = responseExemptionMaxAge == null ? Duration.ofHours(72) : responseExemptionMaxAge;
+        if (responseExemptionMaxAge.isNegative() || responseExemptionMaxAge.isZero()) {
+            throw new IllegalArgumentException("app.communication.response-exemption-max-age deve ser positivo");
+        }
     }
 
     /**
