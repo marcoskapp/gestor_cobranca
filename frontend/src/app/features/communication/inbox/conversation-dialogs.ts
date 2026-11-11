@@ -5,10 +5,10 @@ import { EntityPicker } from '../../../shared/components/entity-picker/entity-pi
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { FORM_FIELD } from '../../../shared/forms/field';
-import { UserLookup } from '../../admin/data/user.lookup';
 import { DebtorLookup } from '../../debt/data/debt.lookups';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { ConversationsApi } from '../data/communication.api';
+import { ConversationAssignees } from '../data/conversation-assignees';
 import { ConversationView } from '../data/communication.models';
 
 export interface ConversationDialogData {
@@ -79,7 +79,7 @@ export class IdentifyDialog {
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body d-grid gap-3">
         <p class="app-dialog-message mb-0">O operador passa a ser o dono desta conversa e do caso; as demais conversas abertas do caso acompanham.</p>
-        <app-entity-picker [control]="form.controls.user" [source]="users" label="Operador" [single]="true" />
+        <app-entity-picker [control]="form.controls.user" [source]="users" label="Operador" [single]="true" hint="Só quem vê a caixa de entrada, responde e atende este credor." />
         <app-field label="Motivo (opcional)">
           <input appInput formControlName="reason" maxlength="300" />
         </app-field>
@@ -95,7 +95,8 @@ export class AssignConversationDialog {
   protected readonly data = inject<ConversationDialogData>(DIALOG_DATA);
   private readonly ref = inject<DialogRef<ConversationView>>(DialogRef);
   private readonly api = inject(ConversationsApi);
-  protected readonly users = inject(UserLookup);
+  /** Só quem o servidor aceita como dono da conversa (mesma regra da atribuição). */
+  protected readonly users = inject(ConversationAssignees).source(this.data.conversation.id);
   protected readonly saving = signal(false);
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({ user: this.fb.control<string[]>([]), reason: ['', Validators.maxLength(300)] });

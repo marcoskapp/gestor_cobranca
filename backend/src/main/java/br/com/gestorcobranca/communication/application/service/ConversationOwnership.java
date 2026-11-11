@@ -15,7 +15,6 @@ import br.com.gestorcobranca.communication.domain.repository.ConversationHandoff
 import br.com.gestorcobranca.communication.domain.repository.ConversationRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
-import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
@@ -51,6 +50,7 @@ class ConversationOwnership {
     private final ConversationDraftRepository drafts;
     private final CaseReader cases;
     private final CaseWorkUseCases work;
+    private final ConversationAssignees assignees;
     private final CurrentActor currentActor;
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
@@ -59,13 +59,14 @@ class ConversationOwnership {
 
     ConversationOwnership(ConversationRepository conversations, ConversationHandoffRepository handoffs,
                           ConversationDraftRepository drafts, CaseReader cases, CaseWorkUseCases work,
-                          CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,
+                          ConversationAssignees assignees, CurrentActor currentActor, AuditTrail auditTrail, BusinessEventLogger businessEvents,
                           CommunicationMetrics metrics, Clock clock) {
         this.conversations = conversations;
         this.handoffs = handoffs;
         this.drafts = drafts;
         this.cases = cases;
         this.work = work;
+        this.assignees = assignees;
         this.currentActor = currentActor;
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
@@ -108,12 +109,17 @@ class ConversationOwnership {
         return apply(c, target, Change.of(HandoffKind.RELEASE, "RELEASE", reason));
     }
 
-    /** Atribui a um operador: exige caso (o collection valida operador ativo, permissão e escopo). */
+    /**
+     * Atribui a um operador elegível ({@link ConversationAssignees#isEligible}, a mesma regra da lista). Com caso ativo,
+     * o comando vai ao caso (o collection grava o histórico de atribuição); sem caso, o dono é da própria conversa.
+     */
     Conversation assign(Conversation c, UUID userId, String reason) {
-        CaseView kase = activeCase(c).orElseThrow(() -> new BusinessRuleException("conversation.assign_requires_case",
-                "Atribuição a operador exige conversa vinculada a um caso ativo; o operador pode assumi-la"));
-        Owner target = fromCase(work.assign(kase.id(), new AssignCommand(userId, null, text(reason, "Conversa atribuída"))),
-                c, false);
+        Optional<CaseView> kase = activeCase(c);
+        assignees.requireEligible(userId, kase.map(CaseView::creditorId).orElse(c.getCreditorId()), kase.isPresent());
+        Owner target = kase.isPresent()
+                ? fromCase(work.assign(kase.get().id(), new AssignCommand(userId, null, text(reason, "Conversa atribuída"))),
+                        c, false)
+                : Owner.user(userId, c.getOwnerTeamId());
         return apply(c, target, Change.of(HandoffKind.ASSIGNMENT, "ASSIGNMENT", reason));
     }
 

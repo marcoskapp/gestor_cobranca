@@ -12,8 +12,8 @@ const percentOnly: GoalUnitOptions = { units: ['PERCENT'], basis: 'PLAN', metric
 const both: GoalUnitOptions = { units: ['CURRENCY', 'PERCENT'], basis: 'NO_PLAN', metric: null, planCode: null, planVersion: null, planName: null };
 const goal = (patch: Partial<GoalView> = {}): GoalView => ({ id: 'g-1', period: '2026-11', subjectType: 'USER', subjectId: 'u-x', target: 80000, unit: 'CURRENCY', ...patch });
 
-async function open(data: GoalDialogData, options: GoalUnitOptions) {
-  const { http } = setup(GoalDialog, ['COMMISSION_PLAN_MANAGE'], 'u-1', [
+async function open(data: GoalDialogData, options: GoalUnitOptions, permissions = ['COMMISSION_PLAN_MANAGE', 'PERFORMANCE_VIEW_ALL']) {
+  const { http } = setup(GoalDialog, permissions, 'u-1', [
     { provide: DIALOG_DATA, useValue: data },
     { provide: DialogRef, useValue: { close, titleId: 'gd-title' } },
   ]);
@@ -120,6 +120,12 @@ describe('GoalDialog (meta do período em R$ ou %)', () => {
     submit(fixture, el);
     const req = http.expectOne((r) => r.method === 'PUT');
     expect(req.request.body).toEqual({ period: '2026-11', subjectType: 'TEAM', subjectId: 't-1', target: 15.25, unit: 'PERCENT' });
+  });
+
+  it('sem visão de desempenho: a opção "Negociador" fica oculta e a meta nova é por equipe', async () => {
+    const { el } = await open({ period: '2026-11' }, both, ['COMMISSION_PLAN_MANAGE']);
+    expect(el.querySelector('#gd-user')).toBeNull();
+    expect(el.querySelector<HTMLInputElement>('#gd-team')!.checked).toBe(true);
   });
 
   it('sem plano que defina a unidade: exige a escolha e trocar de unidade limpa o valor', async () => {

@@ -198,6 +198,27 @@ anonimização do devedor, resumo, resposta e protocolo são substituídos e os 
 - **Detecção de vulnerabilidade fora do assistente** (IA9: caixa de entrada, transcrições) — depende da decisão 371.
 - **Reclamação aberta a partir do caso ou da ficha do devedor:** o diálogo `ComplaintFormDialog` aceita credor,
   devedor e caso pré-preenchidos; o botão nas fichas fica para a integração das frentes D/E.
+
+## 6. Responsável por solicitação de titular (LGPD art. 18, compliance)
+
+Regra única (`DataSubjectRequestAssignees.isEligible`), usada pela lista da tela e pela gravação: **usuário ativo, com
+`DATA_SUBJECT_REQUEST_MANAGE` e acesso a todos os credores** — o mesmo alcance que os comandos da solicitação exigem de
+quem atua (`loadForCommand` → `requireAllCreditors`), porque o atendimento alcança todos os dados do titular na
+assessoria.
+
+- Lista: `GET /api/v1/compliance/data-subject-requests/assignable-users?q=&ids=&page=&size=`
+  (`DATA_SUBJECT_REQUEST_MANAGE` + todos os credores, sem `USER_VIEW`) devolve só id e nome dos elegíveis, ordenados
+  por nome (busca sem acento e sem diferenciar maiúsculas), até 50 por página e 50 ids na resolução de nomes; cada
+  consulta registra `USER_DIRECTORY_QUERIED` no log de acesso (`resource=data_subject_request_assignee`, `returned`),
+  nunca o texto buscado.
+- Gravação: `POST /{id}/assign` e `POST /{id}/start` com responsável recusam (`422`, `dsr.assignee_invalid`, "O
+  responsável precisa estar ativo, atender solicitações de titulares e ter acesso a todos os credores"; "Responsável não
+  encontrado" para id inexistente) — nada é gravado nem auditado.
+- Tela (`request-detail`): o seletor "Atribuir responsável" usa a lista acima (`RequestAssignees`), não o cadastro de
+  usuários; o botão aparece para quem tem acesso a todos os credores (antes exigia `USER_VIEW`). Os nomes de
+  responsável e de quem confirmou a identidade vêm de `/users/display-names` (só id e nome).
+- Dependência nova do módulo: `compliance → identity :: usecases` (`UserDirectory`), sem ciclo
+  ([visão geral](../../arquitetura/visao-geral.md) §2.1).
 - **Indicador de reclamações nos painéis** (`analytics`): hoje o indicador por credor fica na tela de reclamações; levar
   para o painel de confiabilidade exige mudar o contrato de leitura do analytics (frente F).
 - **Selo na lista de casos e na fila do operador** (além da ficha): depende de expor `vulnerable` nas listagens do

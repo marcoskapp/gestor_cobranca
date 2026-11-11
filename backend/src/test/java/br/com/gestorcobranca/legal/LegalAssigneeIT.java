@@ -7,9 +7,11 @@ import br.com.gestorcobranca.legal.application.port.in.LawFirmUseCases.LawFirmVi
 import br.com.gestorcobranca.legal.application.port.in.LegalAssigneeUseCases;
 import br.com.gestorcobranca.legal.application.port.in.LegalAssigneeUseCases.AssigneeView;
 import br.com.gestorcobranca.legal.application.port.in.LegalAssigneeUseCases.Purpose;
+import br.com.gestorcobranca.legal.application.port.in.LegalDeadlineUseCases.DeadlineCommand;
 import br.com.gestorcobranca.legal.application.port.in.LegalMatterUseCases.AssignCommand;
 import br.com.gestorcobranca.legal.application.port.in.LegalMatterUseCases.MatterView;
 import br.com.gestorcobranca.legal.application.port.in.LegalMatterUseCases.ReferCommand;
+import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.paging.PageQuery;
@@ -26,6 +28,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +47,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * nunca alcança outra assessoria.
  */
 class LegalAssigneeIT extends LegalTestSupport {
+
+    private static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
 
     @Autowired
     LegalAssigneeUseCases assignees;
@@ -144,5 +149,54 @@ class LegalAssigneeIT extends LegalTestSupport {
         provision("lassign2");
         assertThat(ids(asLawyer(() -> assignees.search(Purpose.FIRM_MEMBER, null, null, null, new PageQuery(0, 50)))
                 .content())).doesNotContain(lawyerA, partnerA).contains(lawyer);
+    }
+
+    @Test
+    void savingRefusesWhoTheFieldListDoesNotShow() {
+        MatterView matter = refer();
+        UUID operatorRole = system(() -> roles.list().stream().filter(r -> r.code().equals(DefaultRoles.OPERADOR))
+                .findFirst().orElseThrow().id());
+        // operador com todos os credores, mas sem LEGAL_MANAGE: antes aceito no prazo e no escritório
+        UUID operator = user("Operador O", "o", operatorRole, true, Set.of());
+        LocalDate today = LocalDate.now(ZONE);
+
+        // prazo: fora da lista → recusado; o advogado da lista → gravado
+        assertThat(ids(asLawyer(() -> assignees.search(Purpose.DEADLINE_RESPONSIBLE, matter.id(), null, null,
+                new PageQuery(0, 50))).content())).contains(lawyer).doesNotContain(operator);
+        assertThatThrownBy(() -> asLawyer(() -> deadlines.create(matter.id(), deadline(today, operator))))
+                .isInstanceOf(BusinessRuleException.class).extracting("code").isEqualTo("legal_deadline.responsible_invalid");
+        assertThat(asLawyer(() -> deadlines.create(matter.id(), deadline(today, lawyer))).responsibleUserId())
+                .isEqualTo(lawyer);
+
+        // advogado interno do caso: o operador não aparece e não é gravado
+        assertThat(ids(asLawyer(() -> assignees.search(Purpose.MATTER_RESPONSIBLE, matter.id(), null, null,
+                new PageQuery(0, 50))).content())).doesNotContain(operator);
+        assertThatThrownBy(() -> asManager(() -> matters.assign(matter.id(), new AssignCommand("INTERNAL", operator,
+                null)))).isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("legal_matter.responsible_invalid");
+
+        // vínculo ao escritório: sem LEGAL_MANAGE → recusado (a lista FIRM_MEMBER não o mostra)
+        allowLawFirms();
+        LawFirmView firm = asManager(() -> firms.create(new LawFirmCommand("Lima Advogados", "11.444.777/0001-61",
+                null, null)));
+        assertThat(ids(asLawyer(() -> assignees.search(Purpose.FIRM_MEMBER, null, null, null, new PageQuery(0, 50)))
+                .content())).doesNotContain(operator).contains(partner);
+        assertThatThrownBy(() -> asManager(() -> firms.addMember(firm.id(), operator)))
+                .isInstanceOf(BusinessRuleException.class).extracting("code").isEqualTo("law_firm.user_invalid");
+        asManager(() -> firms.addMember(firm.id(), partner));
+
+        // advogado parceiro: prazo só para colegas do escritório (o advogado interno some da lista e é recusado)
+        asManager(() -> matters.assign(matter.id(), new AssignCommand("LAW_FIRM", partner, firm.id())));
+        assertThat(ids(asPartner(() -> assignees.search(Purpose.DEADLINE_RESPONSIBLE, matter.id(), null, null,
+                new PageQuery(0, 50))).content())).containsExactly(partner);
+        assertThatThrownBy(() -> asPartner(() -> deadlines.create(matter.id(), deadline(today, lawyer))))
+                .isInstanceOf(BusinessRuleException.class).extracting("code").isEqualTo("legal_deadline.responsible_invalid");
+        assertThat(asPartner(() -> deadlines.create(matter.id(), deadline(today, partner))).responsibleUserId())
+                .isEqualTo(partner);
+    }
+
+    private static DeadlineCommand deadline(LocalDate start, UUID responsible) {
+        return new DeadlineCommand("RESPONSE", "Manifestação", null, null, start, "INTIMATION", 10, "BUSINESS_DAYS",
+                null, responsible);
     }
 }

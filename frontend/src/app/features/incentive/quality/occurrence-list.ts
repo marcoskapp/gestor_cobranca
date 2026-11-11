@@ -28,6 +28,7 @@ import { OCCURRENCE_TYPE_LABELS, REFERENCE_TYPE_LABELS } from '../data/incentive
 import { OccurrenceType, OccurrenceView, ReferenceType } from '../data/incentive.models';
 import { REASON_MAX, REASON_MIN } from '../data/incentive.rules';
 import { incentiveError } from '../statements/statement-dialogs';
+import { EvaluableUserSource } from './evaluable-user-source';
 import { personRangeFilter } from './person-range-filter';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -93,7 +94,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export class OccurrenceDialog {
   private readonly ref = inject<DialogRef<OccurrenceView>>(DialogRef);
   private readonly api = inject(QualityApi);
-  protected readonly users = inject(UserLookup);
+  /** Mesma fonte da monitoria: negociadores que o servidor aceita como alvo da ocorrência. */
+  protected readonly users = inject(EvaluableUserSource);
   protected readonly types = Object.entries(OCCURRENCE_TYPE_LABELS) as [OccurrenceType, string][];
   protected readonly references = Object.entries(REFERENCE_TYPE_LABELS) as [ReferenceType, string][];
   protected readonly today = toDateStruct(zonedNow().date);

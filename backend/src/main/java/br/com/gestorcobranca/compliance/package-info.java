@@ -9,7 +9,7 @@
  * de qualquer contato e registram a tentativa por {@code ContactGate#authorizeAndRecord}.
  */
 @ApplicationModule(displayName = "Compliance",
-        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases"})
+        allowedDependencies = {"shared", "organization :: usecases", "identity :: usecases", "debt :: usecases"})
 package br.com.gestorcobranca.compliance;
 
 import org.springframework.modulith.ApplicationModule;

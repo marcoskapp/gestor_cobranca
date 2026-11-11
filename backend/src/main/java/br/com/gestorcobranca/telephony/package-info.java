@@ -14,8 +14,8 @@
  * {@code docs/tecnico/desenho/telefonia.md}.
  */
 @ApplicationModule(displayName = "Telephony",
-        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "compliance :: usecases",
-                "collection :: usecases"})
+        allowedDependencies = {"shared", "organization :: usecases", "identity :: usecases", "debt :: usecases",
+                "compliance :: usecases", "collection :: usecases"})
 package br.com.gestorcobranca.telephony;
 
 import org.springframework.modulith.ApplicationModule;

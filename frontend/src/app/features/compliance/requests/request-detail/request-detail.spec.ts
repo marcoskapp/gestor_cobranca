@@ -89,4 +89,21 @@ describe('RequestDetail', () => {
     expect(document.querySelector('ngb-tooltip-window')?.textContent).toContain('acesso a todos os credores');
     http.expectNone((r) => r.url.includes('/result'));
   });
+
+  function assignButton(fixture: ComponentFixture<RequestDetail>): HTMLButtonElement | undefined {
+    return [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((b) => b.textContent?.includes('Atribuir'));
+  }
+
+  it('atribuir aparece para quem tem acesso a todos os credores, mesmo sem acesso ao cadastro de usuários', async () => {
+    user.set(fakeUser({ permissions: ['DATA_SUBJECT_REQUEST_MANAGE'], allCreditors: true }));
+    const fixture = await render();
+    expect(assignButton(fixture)).toBeDefined();
+    http.expectNone((r) => r.url.includes('/users'));
+  });
+
+  it('sem acesso a todos os credores, atribuir fica oculto (o servidor recusaria)', async () => {
+    user.set(fakeUser({ permissions: ['DATA_SUBJECT_REQUEST_MANAGE'], allCreditors: false }));
+    const fixture = await render();
+    expect(assignButton(fixture)).toBeUndefined();
+  });
 });

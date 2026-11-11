@@ -72,7 +72,9 @@ public interface DisputeUseCases {
 
     /**
      * Redistribui as contestações abertas de um analista ({@code DISPUTE_MANAGE}): para outro analista, ou, sem destino,
-     * para o analista elegível com menos contestações abertas (sem elegível, ficam sem responsável).
+     * para o analista elegível com menos contestações abertas (sem elegível, ficam sem responsável). O destino informado
+     * precisa ser elegível em todos os credores das contestações abertas da origem (mesma regra de
+     * {@link CaseAssigneeUseCases.Purpose#DISPUTE_REDISTRIBUTION_TARGET}).
      */
     RedistributionResult redistribute(UUID fromAssigneeId, UUID toAssigneeId, String reason);
 

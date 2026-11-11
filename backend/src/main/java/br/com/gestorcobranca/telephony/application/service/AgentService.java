@@ -49,12 +49,13 @@ class AgentService implements AgentUseCases {
     private final CurrentActor currentActor;
     private final AuditTrail auditTrail;
     private final ProviderResolver resolver;
+    private final AgentCandidates candidates;
     private final Clock clock;
 
     AgentService(AgentRepository agents, AgentEndpointRepository endpointRepository, AgentEndpoints endpoints,
                  TelephonyAccountRepository accounts, AccountRouter router, DialerCampaignRepository campaigns,
                  PresenceRecorder presence, DialerTicks ticks, AccessScope accessScope, CurrentActor currentActor,
-                 AuditTrail auditTrail, ProviderResolver resolver, Clock clock) {
+                 AuditTrail auditTrail, ProviderResolver resolver, AgentCandidates candidates, Clock clock) {
         this.agents = agents;
         this.endpointRepository = endpointRepository;
         this.endpoints = endpoints;
@@ -67,6 +68,7 @@ class AgentService implements AgentUseCases {
         this.currentActor = currentActor;
         this.auditTrail = auditTrail;
         this.resolver = resolver;
+        this.candidates = candidates;
         this.clock = clock;
     }
 
@@ -76,6 +78,11 @@ class AgentService implements AgentUseCases {
         Guard.require(command != null, "agent.required", "Dados do operador obrigatórios");
         Instant now = Instant.now(clock);
         Agent agent = agents.findByUserIdForUpdate(userId).orElse(null);
+        // Habilitar (ou manter habilitado) exige usuário elegível, pela mesma regra da lista de usuários habilitáveis;
+        // desabilitar um operador que perdeu a permissão ou foi desativado continua possível.
+        if (agent == null || command.active()) {
+            candidates.requireEligible(userId);
+        }
         if (agent == null) {
             agent = agents.saveAndFlush(new Agent(userId, command.extension(), now));
             if (!command.active()) {

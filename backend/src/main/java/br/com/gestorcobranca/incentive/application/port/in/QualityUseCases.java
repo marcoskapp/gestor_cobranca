@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,10 +27,22 @@ public interface QualityUseCases {
     EvaluationView evaluate(EvaluationCommand command);
 
     /**
-     * Quem o ator pode avaliar (escopo de {@link #evaluate}): todos, com visão total, ou os membros das equipes que
-     * supervisiona. Nunca inclui o próprio ator (ninguém avalia o próprio atendimento). Exige {@code QUALITY_EVALUATE}.
+     * Quem o ator pode avaliar (escopo de {@link #evaluate}): todos, com visão total, ou os negociadores
+     * ({@code CASE_WORK}, habilitados) das equipes que supervisiona. Nunca inclui o próprio ator (ninguém avalia o
+     * próprio atendimento). Exige {@code QUALITY_EVALUATE}.
      */
     EvaluableUsers evaluableUsers();
+
+    /**
+     * Busca de negociadores avaliáveis para o seletor da monitoria e da ocorrência de conduta, pela mesma regra que
+     * {@link #evaluate} e {@link #registerOccurrence} aplicam ao gravar: {@code CASE_WORK}, habilitado (ativo ou
+     * aguardando ativação), no escopo de quem registra e nunca o próprio ator. Só id e nome; exige
+     * {@code QUALITY_EVALUATE} (não exige {@code USER_VIEW}).
+     *
+     * @param query trecho do nome (sem diferenciar maiúsculas e acentos); vazio lista todos
+     * @param ids   quando informado, só esses ids (até {@value AssignableUserView#MAX_IDS}) entre os elegíveis
+     */
+    PageResponse<AssignableUserView> searchEvaluable(String query, Set<UUID> ids, PageQuery page);
 
     /**
      * Avaliações que o próprio ator já registrou para estes atendimentos (até {@code 200} ids do mesmo tipo): a tela

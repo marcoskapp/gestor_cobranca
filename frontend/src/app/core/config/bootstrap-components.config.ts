@@ -47,7 +47,12 @@ export function provideBootstrapComponentDefaults(): EnvironmentProviders {
       inputDatepicker.container = 'body';
       inputDatepicker.popperOptions = (options) => ({ ...options, strategy: 'fixed' });
 
-      inject(NgbTypeaheadConfig).focusFirst = false;
+      const typeahead = inject(NgbTypeaheadConfig);
+      typeahead.focusFirst = false;
+      // sugestões da busca (seletores de registro) também no body, em posição fixa: num diálogo com rolagem a lista
+      // não fica cortada mostrando só a primeira opção
+      typeahead.container = 'body';
+      typeahead.popperOptions = (options) => ({ ...options, strategy: 'fixed' });
     }),
   ]);
 }

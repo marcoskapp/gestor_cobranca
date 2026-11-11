@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -8,8 +8,8 @@ import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppValidators, Limits } from '../../../shared/validation/validators';
-import { UserLookup } from '../../admin/data/user.lookup';
 import { CaseWorkApi, QueuesApi } from '../data/collection.api';
+import { CollectionAssignees } from '../data/collection-assignees';
 import { STRATEGY_LABELS } from '../data/collection.labels';
 import { UserNames } from '../data/collection.lookups';
 import { DistributionResult, QueueView } from '../data/collection.models';
@@ -132,11 +132,11 @@ export class DistributeDialog {
     </div>
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="run()" novalidate>
       <div class="modal-body">
-        <app-entity-picker [control]="form.controls.from" [source]="users" label="Operador de origem" [single]="true" />
+        <app-entity-picker [control]="form.controls.from" [source]="fromUsers" label="Operador de origem" [single]="true" hint="Quem tem casos ativos, inclusive inativos." />
         @if (form.controls.from.touched && form.controls.from.invalid) {
           <p class="app-field-error" role="alert">Escolha o operador de origem.</p>
         }
-        <app-entity-picker [control]="form.controls.to" [source]="users" label="Operadores de destino" hint="Vazio = os casos voltam às filas." />
+        <app-entity-picker [control]="form.controls.to" [source]="toUsers()" label="Operadores de destino" hint="Vazio = os casos voltam às filas. Só operadores ativos que trabalham casos." />
         @if (sameUser()) {
           <p class="app-field-error" role="alert">O operador de origem não pode estar entre os destinos.</p>
         }
@@ -155,7 +155,7 @@ export class RedistributeDialog {
   private readonly ref = inject<DialogRef<DistributionResult>>(DialogRef);
   private readonly api = inject(CaseWorkApi);
   private readonly notifications = inject(NotificationService);
-  protected readonly users = inject(UserLookup);
+  private readonly assignees = inject(CollectionAssignees);
   protected readonly maxReason = Limits.reason;
   protected readonly running = signal(false);
 
@@ -165,6 +165,11 @@ export class RedistributeDialog {
     to: this.fb.control<string[]>([]),
     reason: ['', [Validators.maxLength(Limits.reason)]],
   });
+  /** Origem: quem tem casos ativos no seu escopo, ativo ou não (carteira de quem saiu). */
+  protected readonly fromUsers = this.assignees.source('CASE_REDISTRIBUTION_SOURCE');
+  private readonly fromId = toSignal(this.form.controls.from.valueChanges, { initialValue: this.form.controls.from.value });
+  /** Destinos: a mesma regra da gravação (ativos, trabalham casos, alcançam seu escopo), sem a origem. */
+  protected readonly toUsers = computed(() => this.assignees.source('CASE_REDISTRIBUTION_TARGET', { fromUserId: this.fromId()[0] ?? null }));
   private readonly picks = signal(0);
   protected readonly sameUser = computed(() => {
     this.picks();

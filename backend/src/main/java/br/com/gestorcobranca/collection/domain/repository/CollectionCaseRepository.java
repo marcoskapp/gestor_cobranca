@@ -43,6 +43,14 @@ public interface CollectionCaseRepository {
     /** Casos ativos atribuídos ao operador (redistribuição). */
     List<CollectionCase> findActiveByAssignee(UUID userId, int limit);
 
+    /**
+     * Operadores (ativos ou não) com casos ativos atribuídos nos credores informados — origem possível de uma
+     * redistribuição.
+     *
+     * @param creditorIds credores do escopo (nulo = todos; vazio = nenhum)
+     */
+    java.util.Set<UUID> findActiveAssigneeIds(java.util.Set<UUID> creditorIds);
+
     /** Caso ativo do devedor na carteira (no máximo um, garantido por índice único). */
     Optional<CollectionCase> findActiveByDebtorAndPortfolio(UUID debtorId, UUID portfolioId);
 

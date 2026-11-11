@@ -60,6 +60,13 @@ interface UserJpaRepository extends JpaRepository<User, UUID>, JpaSpecificationE
     List<User> findActiveByRoleIds(Collection<UUID> roleIds);
 
     @Override
+    List<User> findByStatusIn(Collection<UserStatus> statuses);
+
+    @Override
+    @Query("select distinct u from User u join u.roleIds r where r in :roleIds and u.status in :statuses")
+    List<User> findByRoleIdsAndStatusIn(Collection<UUID> roleIds, Collection<UserStatus> statuses);
+
+    @Override
     default Page<User> search(String text, UserStatus status, UUID roleId, UUID businessUnitId, Set<UUID> withinCreditors,
                               Pageable pageable) {
         Specification<User> spec = Specification.unrestricted();

@@ -37,6 +37,17 @@ public interface DisputeRepository {
     /** Contestações abertas por responsável (ausente = nenhuma). */
     java.util.Map<UUID, Long> countOpenByAssignees(java.util.Collection<UUID> assigneeIds);
 
+    /**
+     * Responsáveis (ativos ou não) por contestações abertas nos credores informados — origem possível de uma
+     * redistribuição.
+     *
+     * @param creditorIds credores do escopo (nulo = todos; vazio = nenhum)
+     */
+    Set<UUID> findOpenAssigneeIds(Set<UUID> creditorIds);
+
+    /** Credores das contestações abertas do responsável, nos credores informados (nulo = todos; vazio = nenhum). */
+    Set<UUID> findOpenCreditorIdsByAssignee(UUID assigneeId, Set<UUID> creditorIds);
+
     /** Contestações do devedor com ajuste sugerido pendente. */
     List<Dispute> findPendingAdjustmentsByDebtorId(UUID debtorId);
 

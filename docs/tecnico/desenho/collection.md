@@ -123,8 +123,34 @@ operador). O caso pertence à **primeira fila ativa por prioridade** (empate pel
   `CaseDistributor` — rodízio que continua após o último contemplado (`round_robin_cursor`) ou menor carga —, respeitando
   o escopo de credores e a capacidade de cada membro (operadores ativos com `CASE_WORK` das equipes da fila).
 * `POST /redistributions` (`CASE_ASSIGN`): casos ativos de um operador (no escopo de quem executa) para outros operadores
-  por menor carga, ou de volta às filas; casos sem destino possível voltam à fila.
-* `POST /cases/{id}/assign` (`CASE_ASSIGN`): a operador ativo com `CASE_WORK` e acesso ao credor, ou a uma equipe.
+  por menor carga, ou de volta às filas; casos sem destino possível voltam à fila. Destino aceito: ativo, com
+  `CASE_WORK`, diferente da origem e com acesso a ao menos um credor do escopo de quem redistribui
+  (`CaseWorkers#canReceiveRedistribution`; fora disso `422 case.assignee_invalid`). A origem pode ser qualquer usuário
+  (inclusive inativo — carteira de quem saiu); só os casos no escopo de quem executa são movidos.
+* `POST /cases/{id}/assign` (`CASE_ASSIGN`): a operador ativo com `CASE_WORK` e acesso ao credor
+  (`CaseWorkers#canWork`, a mesma regra de `CaseAssigneeUseCases#isCaseWorker`), ou a uma equipe.
+
+### 3.3.1 Usuários atribuíveis (lista = gravação)
+
+`GET /assignable-users?purpose=…` (`CaseAssigneeUseCases`, `CaseAssigneeService`) alimenta os campos de responsável da
+cobrança no lugar do cadastro de usuários (`/users`, que exige `USER_VIEW` e traz e-mail). Devolve só `id`, `name` e
+`active`, paginado (até 50 por página, até 50 `ids` na resolução do que já está escolhido), busca por nome sem
+diferenciar maiúsculas e acentos (`NameSearch`), e cada consulta registra `USER_DIRECTORY_QUERIED` no log de acesso
+(`resource=collection_assignee`, `purpose`, `caseId`/`creditorId` quando houver, `returned` — nunca o texto buscado).
+A elegibilidade é **a mesma função** que o serviço aplica ao gravar, com a mesma permissão e o mesmo escopo:
+
+| `purpose` | Quem aparece | Regra única (lista e gravação) | Permissão / escopo |
+| --- | --- | --- | --- |
+| `CASE_WORKER` (+ `caseId`) | atribuir caso; responsável da tarefa (agendar e `reassign`) | ativo, `CASE_WORK` e acesso ao credor do caso — `CaseWorkers#canWork` em `CaseWorkService.assign` e `TaskService.requireAssignee` | `CASE_ASSIGN`; caso visível (404 fora do escopo) |
+| `CASE_REDISTRIBUTION_SOURCE` | "de" da redistribuição de casos | quem tem casos ativos atribuídos nos credores do escopo de quem consulta, **ativo ou não** | `CASE_ASSIGN` |
+| `CASE_REDISTRIBUTION_TARGET` (+ `fromUserId` opcional) | "para" da redistribuição de casos | `CaseWorkers#canReceiveRedistribution` | `CASE_ASSIGN` |
+| `DISPUTE_POOL_MEMBER` (+ `creditorId`; vazio = grupo geral) | incluir analista no grupo de distribuição | `DisputeAssignments#isEligibleForPool` (ativo, `DISPUTE_WORK`/`DISPUTE_MANAGE`, acesso ao credor do grupo) e ainda fora do grupo (`409 dispute_pool.duplicated` na gravação) | `DISPUTE_MANAGE`; credor no escopo, grupo geral exige todos os credores |
+| `DISPUTE_REDISTRIBUTION_SOURCE` | "de" da redistribuição de contestações | responsáveis por contestações abertas nos credores do escopo, **ativos ou não** | `DISPUTE_MANAGE` |
+| `DISPUTE_REDISTRIBUTION_TARGET` (+ `fromUserId` opcional) | "para" da redistribuição de contestações | `DisputeAssignments#isEligibleForAll`: elegível em todos os credores das contestações abertas da origem (no escopo), diferente da origem; `DisputeAssignments.redistribute` confere antes de mover (`422 dispute.assignee_invalid`) | `DISPUTE_MANAGE` |
+
+Inativos só aparecem como origem de redistribuição (rótulo "(inativo)" na tela). Na tela, o "para" é recalculado quando
+o "de" muda e o analista do grupo quando o credor muda (a escolha anterior é limpa). A atribuição de conversa
+(communication) usa `CaseAssigneeUseCases#isCaseWorker` na sua regra (`comunicacao.md` §3).
 
 ### 3.4 Dono do atendimento (compatível com `comunicacao.md` §2 e `assistente.md`)
 
@@ -284,7 +310,10 @@ REDISTRIBUTION|RELEASE`, motivo, quem). `DisputeAccess#requireWork`: `DISPUTE_MA
 `DISPUTE_WORK` só as próprias (sem responsável → `TAKE` implícito); outra pessoa → `409 dispute.assigned_to_other`.
 Responsável elegível: ativo, com `DISPUTE_WORK`/`DISPUTE_MANAGE` e acesso ao credor (`UserDirectory`). Distribuição
 `LEAST_LOADED` (`DisputeDistributor`): menos abertas, depois atribuição mais antiga, entre os membros de
-`collection.dispute_pool_member` (gerais ou do credor). `POST /disputes/redistributions` move em lote (com motivo).
+`collection.dispute_pool_member` (gerais ou do credor). `POST /disputes/redistributions` move em lote (com motivo);
+com destino informado, ele precisa ser elegível em todos os credores das contestações abertas da origem
+(`DisputeAssignments#isEligibleForAll`). Regras únicas de elegibilidade (`isEligible`, `isEligibleForPool`,
+`isEligibleForAll`) valem na gravação, em `assignee-options` e nas listas de §3.3.1.
 
 ### 7.2 Prazos
 
@@ -573,6 +602,7 @@ descrições só no banco, criptografadas).
 | `/debtors/{debtorId}/interactions` | `GET` (`CASE_VIEW`, paginado; §8.5) |
 | `/queues` · `/queues/{id}` · `/queues/{id}/summary` · `/queues/{id}/activate|deactivate` · `/queues/reroute` · `/queues/{id}/distribute` | CRUD + ações |
 | `/redistributions` | `POST` |
+| `/assignable-users?purpose=…[&caseId][&creditorId][&fromUserId][&q][&ids]` | `GET` (`CASE_ASSIGN` ou `DISPUTE_MANAGE`, conforme o campo; §3.3.1) |
 | `/tabulations` · `/tabulations/{id}` · `/activate|deactivate` | CRUD + ações (com `followUp` e `disputeType`, §4.1) |
 | `/cases/{id}/interactions` | `GET`, `POST` (201; 200 se reenvio de integração) |
 | `/interactions/{id}` | `GET` (`CASE_VIEW`; só `{interactionId, caseId}`, no escopo do caso da interação, fora dele 404; volta da monitoria ao histórico, decisão 1077) |

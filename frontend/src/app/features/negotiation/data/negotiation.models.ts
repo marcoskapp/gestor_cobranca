@@ -204,6 +204,12 @@ export interface ProfileRequest {
 
 export type SubjectType = 'USER' | 'ASSISTANT_POLICY';
 
+/** Quem pode receber alçada (`AuthorityUseCases.AssignableUserView`): só id e nome de exibição. */
+export interface AssignableUserView {
+  id: string;
+  name: string;
+}
+
 export interface AuthorityAssignmentView {
   id: string;
   subjectType: SubjectType;

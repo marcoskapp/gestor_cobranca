@@ -79,7 +79,7 @@
   emptyMessage="Nenhum registro encontrado."
 >
   <ng-template appCell="occurredAt" [appCellOf]="query.rows()" let-e>{{ e.occurredAt | appDate }}</ng-template>
-  <ng-template appCell="action" [appCellOf]="query.rows()" let-e><span class="app-mono">{{ e.action }}</span></ng-template>
+  <ng-template appCell="action" [appCellOf]="query.rows()" let-e><span class="app-mono text-break">{{ e.action }}</span></ng-template>
   <ng-template appCell="entity" [appCellOf]="query.rows()" let-e>{{ entityLabel(e.entityType) }}</ng-template>
   <ng-template appCell="actor" [appCellOf]="query.rows()" let-e>{{ e.actorName ?? e.actorType ?? '—' }}</ng-template>
   <ng-template appCell="reason" [appCellOf]="query.rows()" let-e>{{ e.reason ?? '—' }}</ng-template>

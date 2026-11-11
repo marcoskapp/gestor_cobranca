@@ -51,7 +51,11 @@ public interface ConversationUseCases {
     /** Devolve à fila (o dono, ou quem tem {@code CASE_ASSIGN}). */
     ConversationView release(UUID conversationId, String reason);
 
-    /** Atribui a um operador (conversa com caso; o collection valida operador e escopo). */
+    /**
+     * Atribui a um operador elegível — a mesma regra de {@link ConversationAssigneeUseCases}: ativo, {@code INBOX_VIEW}
+     * e {@code MESSAGE_SEND}; com caso ativo, também {@code CASE_WORK} e acesso ao credor do caso (o comando vai ao caso,
+     * no collection); sem caso, acesso ao credor da conversa (sem credor: todos os credores) e o dono é da conversa.
+     */
     ConversationView assign(UUID conversationId, UUID userId, String reason);
 
     /** Devolve ao assistente de IA (o dono, ou quem tem {@code CASE_ASSIGN}). */

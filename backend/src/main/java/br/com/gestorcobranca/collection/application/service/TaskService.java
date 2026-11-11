@@ -106,7 +106,13 @@ class TaskService implements TaskUseCases {
         Instant dueAt = dueLocal.atZone(TimeConfig.BUSINESS_ZONE).toInstant();
         Guard.require(!dueAt.isAfter(now.plus(MAX_HORIZON_DAYS, ChronoUnit.DAYS)), "task.due_too_far",
                 "Data da tarefa além de %d dias".formatted(MAX_HORIZON_DAYS));
-        UUID assignee = assigneeUserId != null ? requireAssignee(assigneeUserId, c) : defaultAssignee(c);
+        UUID byDefault = defaultAssignee(c);
+        if (assigneeUserId != null && !assigneeUserId.equals(byDefault) && access.actor().isUser()) {
+            // escolher outro responsável é atribuir — no agendamento e no retorno da tabulação (a tela só mostra o
+            // campo com CASE_ASSIGN; o servidor confere)
+            accessScope.requirePermission(Permission.CASE_ASSIGN);
+        }
+        UUID assignee = assigneeUserId != null ? requireAssignee(assigneeUserId, c) : byDefault;
         CollectionTask task = tasks.save(new CollectionTask(c, type, dueAt, settings.current().callbackTolerance(), assignee,
                 note, originInteractionId, now));
         auditTrail.record(AuditEntry.of("task.scheduled", "task", task.getId())
@@ -258,10 +264,11 @@ class TaskService implements TaskUseCases {
         return actor.isUser() ? actor.id() : null;
     }
 
+    /** Mesma regra da lista de responsáveis ({@link CaseWorkers#canWork}, {@code CASE_WORKER}). */
     private UUID requireAssignee(UUID userId, CollectionCase c) {
         UserSummary user = users.find(userId).filter(UserSummary::active)
                 .orElseThrow(() -> new BusinessRuleException("task.assignee_invalid", "Responsável inexistente ou inativo"));
-        Guard.require(user.permissions().contains(Permission.CASE_WORK.name()) && user.canAccessCreditor(c.getCreditorId()),
+        Guard.require(CaseWorkers.canWork(user, c.getCreditorId()),
                 "task.assignee_invalid", "O responsável não pode trabalhar casos deste credor");
         return user.id();
     }

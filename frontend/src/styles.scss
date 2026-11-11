@@ -691,3 +691,9 @@ time {
 // prevalecem sobre as classes globais acima (ex.: `.app-control-offset`, `.app-filters__actions`)
 // por virem depois delas.
 @import 'density';
+
+// Sugestões dos seletores de registro (`ngbTypeahead`) anexadas ao body: acima dos diálogos (o menu do Bootstrap fica
+// abaixo do `.modal`), abaixo de tooltips e avisos
+ngb-typeahead-window.dropdown-menu {
+  z-index: $zindex-popover;
+}

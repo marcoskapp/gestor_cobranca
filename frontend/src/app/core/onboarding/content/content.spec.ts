@@ -214,8 +214,8 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/assistente/turnos/t-1?revisao=r-1')?.tourId).toBe('assistant.turn');
     expect(findScreen('/assistente/qualidade')?.tourId).toBe('assistant.quality');
     // estação: atendimento guardado por caso, painel lateral e acordo sem sair do caso (revisão de 2026-11); v9: aba "Mais" com seta e contagem
-    // v10: endereço único do caso (J9); v11: selo de vulnerabilidade; v12: "Avaliado por você" no histórico
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(12);
+    // v10: endereço único do caso (J9); v11: selo de vulnerabilidade; v12: "Avaliado por você" no histórico; v13: responsável do retorno só entre quem pode trabalhar o caso
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(13);
     expect(findTour('collection.station')?.version).toBe(4);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(4);
     // aprovações no padrão único (revisão 11/2026, 3.1): decisão da fila antes do detalhe (":id" casaria o caminho)

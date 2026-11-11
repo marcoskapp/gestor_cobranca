@@ -228,7 +228,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.queue',
-    version: 11,
+    version: 13,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -262,8 +262,7 @@ export const SCREENS: readonly ScreenGuide[] = [
         items: ['Cada caso tem um endereço só: ao abrir um caso na estação, o endereço passa a ser o do caso, que você pode copiar e compartilhar; o menu continua marcando a estação.'],
       },
       { version: 11, items: ['Selo de vulnerabilidade no cabeçalho quando o devedor tem marcador ativo (a categoria só aparece para quem pode vê-la).'] },
-      { version: 12, items: ['Histórico: a interação que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar" (cada avaliador avalia um atendimento uma vez).'] },
-    ],
+      { version: 12, items: ['Histórico: a interação que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar" (cada avaliador avalia um atendimento uma vez).'] }, { version: 13, items: ['Agendar retorno para outra pessoa: a lista mostra só quem pode trabalhar o caso.'] }],
   },
   {
     key: 'collection.case',
@@ -308,24 +307,22 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.cases',
-    version: 3,
+    version: 4,
     path: '/cobranca/casos',
     tourId: 'collection.cases',
     changes: [
       { version: 2, items: ['Filtro "Devedor (nome ou CPF/CNPJ)": o CPF ou CNPJ precisa estar completo.', 'Clique no título das colunas com seta para ordenar. Saldo, atraso e próxima ação.', 'Filtros, página e ordenação ficam no endereço: ao abrir um registro e voltar, a lista volta como estava.'] },
-      { version: 3, items: ['Filtro por carteira. Os números do painel operacional abrem esta lista já filtrada.', 'No celular, os filtros ficam no botão "Filtros (n)", com quantos estão aplicados.'] },
-    ],
+      { version: 3, items: ['Filtro por carteira. Os números do painel operacional abrem esta lista já filtrada.', 'No celular, os filtros ficam no botão "Filtros (n)", com quantos estão aplicados.'] }, { version: 4, items: ['Atribuir caso: a lista mostra só operadores ativos que trabalham casos e têm acesso ao credor do caso.'] }],
   },
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
   {
     key: 'collection.queues',
-    version: 3,
+    version: 4,
     path: '/cobranca/filas',
     tourId: 'collection.queues',
     changes: [
       { version: 2, items: ['O nome da fila abre a lista de casos dessa fila.'] },
-      { version: 3, items: ['Critério "Só devedores com marcador de vulnerabilidade": crie uma fila de atendimento cuidadoso para esses casos.'] },
-    ],
+      { version: 3, items: ['Critério "Só devedores com marcador de vulnerabilidade": crie uma fila de atendimento cuidadoso para esses casos.'] }, { version: 4, items: ['Redistribuir casos: "de" mostra quem tem casos ativos (inclusive quem saiu, marcado como inativo); "para" mostra só quem pode receber.'] }],
   },
   {
     key: 'collection.tabulations',
@@ -361,10 +358,10 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.dispute-config',
-    version: 2,
+    version: 3,
     path: '/cobranca/contestacoes/configuracao',
     tourId: 'collection.dispute-config',
-    changes: [{ version: 2, items: ['Aba "E-mails em quarentena": respostas do credor por e-mail que falharam numa verificação, para liberar ao analista ou descartar com motivo.'] }],
+    changes: [{ version: 2, items: ['Aba "E-mails em quarentena": respostas do credor por e-mail que falharam numa verificação, para liberar ao analista ou descartar com motivo.'] }, { version: 3, items: ['Grupo de analistas e redistribuição: as listas mostram só quem pode atuar nas contestações do credor; o credor vem antes do analista.'] }],
   },
   {
     key: 'collection.dispute',
@@ -598,15 +595,15 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'incentive.plan-rules', version: 2, path: '/remuneracao/planos/:id/regras', tourId: 'incentive.plan-rules', changes: [{ version: 2, items: ['Botão "Ficha do plano" no cabeçalho para voltar ao plano.'] }] },
   {
     key: 'incentive.goals',
-    version: 2,
+    version: 3,
     path: '/remuneracao/metas',
-    changes: [{ version: 2, items: ['A meta agora tem unidade: escolha "Valor (R$)", digitado com centavos pela direita, ou "Percentual (%)". Quando o plano só aceita uma, ela já vem marcada.'] }],
+    changes: [{ version: 2, items: ['A meta agora tem unidade: escolha "Valor (R$)", digitado com centavos pela direita, ou "Percentual (%)". Quando o plano só aceita uma, ela já vem marcada.'] }, { version: 3, items: ['Meta por negociador: a lista mostra só negociadores no seu escopo.'] }],
   },
   { key: 'incentive.periods', version: 1, path: '/remuneracao/periodos' },
   { key: 'incentive.exports', version: 1, path: '/remuneracao/exportacao' },
   {
     key: 'incentive.evaluations',
-    version: 4,
+    version: 5,
     path: '/remuneracao/qualidade/avaliacoes',
     changes: [
       { version: 2, items: ['Avalie a partir do atendimento: "Avaliar" em Chamadas e gravações, na conversa e no histórico do caso abre o formulário com o negociador, a referência e a data preenchidos.', 'Cada avaliação tem o link "Ver" de volta para o caso, a conversa, o acordo ou a chamada avaliada.'] },
@@ -617,10 +614,9 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Sem atendimento de origem, a monitoria é uma avaliação geral (sem identificador para digitar), com o caminho para avaliar no próprio atendimento.',
         ],
       },
-      { version: 4, items: ['Cada avaliador avalia um atendimento uma vez: o que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar"; outro avaliador ainda pode avaliá-lo.', 'A avaliação feita no histórico do caso aponta para a interação avaliada, e "Ver interação" volta ao histórico do caso.'] },
-    ],
+      { version: 4, items: ['Cada avaliador avalia um atendimento uma vez: o que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar"; outro avaliador ainda pode avaliá-lo.', 'A avaliação feita no histórico do caso aponta para a interação avaliada, e "Ver interação" volta ao histórico do caso.'] }, { version: 5, items: ['Avaliação geral: a lista mostra só negociadores que você pode avaliar (sem você), só pelo nome.'] }],
   },
-  { key: 'incentive.occurrences', version: 1, path: '/remuneracao/qualidade/ocorrencias' },
+  { key: 'incentive.occurrences', version: 2, path: '/remuneracao/qualidade/ocorrencias', changes: [{ version: 2, items: ['Registrar ocorrência: a lista mostra só negociadores que você pode avaliar (sem você).'] }] },
   { key: 'incentive.quality-forms', version: 1, path: '/remuneracao/qualidade/formularios' },
   { key: 'incentive.attribution', version: 1, path: '/remuneracao/atribuicoes/:id' },
   { key: 'telephony.campaigns', version: 1, path: '/telefonia/campanhas', tourId: 'telephony.campaigns' },
@@ -644,9 +640,9 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'telephony.agents',
-    version: 2,
+    version: 3,
     path: '/telefonia/operadores',
-    changes: [{ version: 2, items: ['Com mais de uma plataforma de telefonia, "Ramais por plataforma" define o ramal do operador em cada conta ou o marca como fora dela.'] }],
+    changes: [{ version: 2, items: ['Com mais de uma plataforma de telefonia, "Ramais por plataforma" define o ramal do operador em cada conta ou o marca como fora dela.'] }, { version: 3, items: ['Habilitar operador: a lista mostra só quem está ativo e tem permissão para usar a telefonia.'] }],
   },
   {
     key: 'telephony.accounts',
@@ -680,7 +676,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'communication.inbox',
-    version: 5,
+    version: 6,
     path: '/conversas',
     tourId: 'communication.inbox',
     changes: [
@@ -690,8 +686,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
       { version: 3, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
       { version: 4, items: ['Conversa que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar atendimento".'] },
-      { version: 5, items: ['Ao escolher o template, o primeiro nome do devedor da conversa já vem preenchido e a prévia aparece pronta.', 'A mensagem com o código de acesso ao portal aparece como "Código de acesso ao portal enviado (oculto por segurança)": o código não fica legível na conversa.'] },
-    ],
+      { version: 5, items: ['Ao escolher o template, o primeiro nome do devedor da conversa já vem preenchido e a prévia aparece pronta.', 'A mensagem com o código de acesso ao portal aparece como "Código de acesso ao portal enviado (oculto por segurança)": o código não fica legível na conversa.'] }, { version: 6, items: ['Atribuir conversa: a lista mostra só quem pode ver e responder na caixa de entrada e, com caso, trabalhar o caso; conversa sem caso também pode ser atribuída.'] }],
   },
   {
     key: 'communication.templates',
@@ -744,9 +739,9 @@ export const SCREENS: readonly ScreenGuide[] = [
     ],
   },
   { key: 'legal.matters', version: 1, path: '/juridico/casos' },
-  { key: 'legal.matter-detail', version: 2, path: '/juridico/casos/:id', tourId: 'legal.matter-detail', changes: [{ version: 2, items: ['Abas sem ícones e valores do caso em cartões; "Custas e despesas" fica em vermelho quando passa do orçamento.'] }] },
+  { key: 'legal.matter-detail', version: 3, path: '/juridico/casos/:id', tourId: 'legal.matter-detail', changes: [{ version: 2, items: ['Abas sem ícones e valores do caso em cartões; "Custas e despesas" fica em vermelho quando passa do orçamento.'] }, { version: 3, items: ['Responsável por prazo: o servidor aplica a mesma regra da lista (acesso ao jurídico e ao credor; escritório parceiro só entre colegas).'] }] },
   { key: 'legal.rules', version: 1, path: '/juridico/regras' },
-  { key: 'legal.firms', version: 1, path: '/juridico/escritorios' },
+  { key: 'legal.firms', version: 2, path: '/juridico/escritorios', changes: [{ version: 2, items: ['Vincular advogado: só quem tem acesso ao jurídico e ainda não pertence a outro escritório.'] }] },
   { key: 'legal.settings', version: 1, path: '/juridico/parametros' },
   {
     key: 'negotiation.policies',
@@ -772,7 +767,7 @@ export const SCREENS: readonly ScreenGuide[] = [
     ],
   },
   { key: 'negotiation.indexes', version: 1, path: '/negociacao/indices' },
-  { key: 'negotiation.authority', version: 1, path: '/negociacao/alcadas', tourId: 'negotiation.authority' },
+  { key: 'negotiation.authority', version: 2, path: '/negociacao/alcadas', tourId: 'negotiation.authority', changes: [{ version: 2, items: ['Atribuir alçada: a lista mostra só usuários habilitados com acesso ao credor escolhido (sem você); trocar o credor desmarca quem não o acessa.'] }] },
   { key: 'portal.configs', version: 1, path: '/autonegociacao' },
   {
     key: 'portal.requests',
@@ -868,7 +863,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'compliance.requests', version: 1, path: '/compliance/solicitacoes-titulares', tourId: 'compliance.requests' },
   {
     key: 'compliance.request-detail',
-    version: 4,
+    version: 5,
     path: '/compliance/solicitacoes-titulares/:id',
     tourId: 'compliance.request-detail',
     changes: [
@@ -877,8 +872,7 @@ export const SCREENS: readonly ScreenGuide[] = [
         version: 3,
         items: ['Sem acesso a todos os credores, "Baixar dados do titular" aparece desabilitado e explica o motivo ao passar o mouse, tocar ou chegar pelo teclado.'],
       },
-      { version: 4, items: ['Atribuir e Recusar em cinza ao lado da próxima ação (em azul); para voltar à lista, use a trilha no topo.'] },
-    ],
+      { version: 4, items: ['Atribuir e Recusar em cinza ao lado da próxima ação (em azul); para voltar à lista, use a trilha no topo.'] }, { version: 5, items: ['Atribuir: a lista mostra só quem pode atender a solicitação (ativo, atende solicitações de titulares e com acesso a todos os credores), com a lista inteira visível no diálogo.'] }],
   },
   {
     key: 'compliance.retention',
@@ -913,10 +907,10 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'organization.settings', version: 1, path: '/organizacao/configuracoes' },
   {
     key: 'governance.access-log',
-    version: 2,
+    version: 3,
     path: '/governanca/log-de-acesso',
     tourId: 'governance.access-log',
-    changes: [{ version: 2, items: ['O filtro por usuário só aparece para quem pode consultar o cadastro de usuários.'] }],
+    changes: [{ version: 2, items: ['O filtro por usuário só aparece para quem pode consultar o cadastro de usuários.'] }, { version: 3, items: ['A tabela cabe na largura da tela: IP e rota longos quebram dentro da célula, sem barra de rolagem lateral.'] }],
   },
   {
     key: 'governance.audit',

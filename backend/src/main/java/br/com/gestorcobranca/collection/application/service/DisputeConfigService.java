@@ -205,10 +205,7 @@ class DisputeConfigService implements DisputeConfigUseCases {
                 continue;
             }
             UserSummary u = byId.get(m.getUserId());
-            boolean eligible = u != null && (m.getCreditorId() == null
-                    ? u.active() && (u.permissions().contains(Permission.DISPUTE_WORK.name())
-                    || u.permissions().contains(Permission.DISPUTE_MANAGE.name()))
-                    : DisputeAssignments.isEligible(u, m.getCreditorId()));
+            boolean eligible = DisputeAssignments.isEligibleForPool(u, m.getCreditorId());
             out.add(new PoolMemberView(m.getId(), m.getCreditorId(), m.getUserId(), u == null ? null : u.name(), eligible,
                     counts.getOrDefault(m.getUserId(), 0L)));
         }
@@ -223,13 +220,10 @@ class DisputeConfigService implements DisputeConfigUseCases {
         Guard.require(userId != null, "dispute_pool.user_required", "Analista obrigatório");
         UserSummary user = users.find(userId).orElseThrow(() -> new br.com.gestorcobranca.shared.domain.BusinessRuleException(
                 "dispute_pool.user_invalid", "Analista inexistente"));
-        boolean works = user.active() && (user.permissions().contains(Permission.DISPUTE_WORK.name())
-                || user.permissions().contains(Permission.DISPUTE_MANAGE.name()));
-        Guard.require(works && (creditorId == null || user.canAccessCreditor(creditorId)), "dispute_pool.user_invalid",
+        // mesma regra da lista de analistas (CaseAssigneeService, DISPUTE_POOL_MEMBER)
+        Guard.require(DisputeAssignments.isEligibleForPool(user, creditorId), "dispute_pool.user_invalid",
                 "O analista precisa estar ativo, trabalhar contestações e ter acesso ao credor");
-        boolean exists = pool.findByActiveTrue().stream()
-                .anyMatch(m -> m.getUserId().equals(userId) && Objects.equals(m.getCreditorId(), creditorId));
-        if (exists) {
+        if (memberIds(pool.findByActiveTrue(), creditorId).contains(userId)) {
             throw new ConflictException("dispute_pool.duplicated", "O analista já está neste grupo");
         }
         DisputePoolMember member = pool.save(new DisputePoolMember(creditorId, userId));
@@ -237,6 +231,12 @@ class DisputeConfigService implements DisputeConfigUseCases {
                 .creditor(creditorId).created("userId", userId));
         return new PoolMemberView(member.getId(), creditorId, userId, user.name(), true,
                 disputes.countOpenByAssignees(List.of(userId)).getOrDefault(userId, 0L));
+    }
+
+    /** Usuários já no grupo do credor (nulo = grupo geral), entre os membros ativos informados. */
+    static Set<UUID> memberIds(List<DisputePoolMember> active, UUID creditorId) {
+        return active.stream().filter(m -> Objects.equals(m.getCreditorId(), creditorId))
+                .map(DisputePoolMember::getUserId).collect(Collectors.toSet());
     }
 
     @Override

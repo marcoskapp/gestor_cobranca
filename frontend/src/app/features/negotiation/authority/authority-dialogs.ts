@@ -1,15 +1,16 @@
 import { Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize } from 'rxjs';
+import { EMPTY, Observable, catchError, filter, finalize, map, of, switchMap } from 'rxjs';
 import { toApiError } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
-import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
+import { EntityPicker, EntitySource } from '../../../shared/components/entity-picker/entity-picker';
+import { Option } from '../../../shared/models/lookup';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { applyServerErrors } from '../../../shared/validation/server-errors';
 import { AppValidators } from '../../../shared/validation/validators';
-import { UserLookup } from '../../admin/data/user.lookup';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { AuthorityApi } from '../data/negotiation.api';
 import { AuthorityAssignmentView, ProfileRequest, ProfileView, SubjectType } from '../data/negotiation.models';
@@ -161,7 +162,7 @@ export interface AssignAuthorityData {
           </div>
         </fieldset>
         @if (form.controls.subjectType.value === 'USER') {
-          <app-entity-picker [control]="form.controls.user" [source]="users" label="Usuário" [single]="true" hint="Ninguém atribui alçada a si mesmo." />
+          <app-entity-picker [control]="form.controls.user" [source]="users" label="Usuário" [single]="true" hint="Ninguém atribui alçada a si mesmo. Com credor escolhido, só aparece quem tem acesso a ele." />
         } @else {
           <app-field class="mb-3" label="Id da política do assistente" hint="A política do assistente vincula o perfil ao ser publicada; use aqui só para ajuste manual.">
             <input appInput formControlName="assistantPolicyId" autocomplete="off" />
@@ -191,7 +192,14 @@ export class AssignAuthorityDialog {
   private readonly ref = inject<DialogRef<AuthorityAssignmentView>>(DialogRef);
   private readonly api = inject(AuthorityApi);
   private readonly notifications = inject(NotificationService);
-  protected readonly users = inject(UserLookup);
+  /**
+   * Quem pode receber a alçada, pela mesma regra do servidor (`/authority-assignments/assignable-users`): habilitado
+   * (inclusive aguardando ativação), sem a própria pessoa e, com credor escolhido, só quem tem acesso a ele.
+   */
+  protected readonly users: EntitySource = {
+    search: (q: string) => this.assignable({ q: q || null }),
+    resolve: (ids: string[]) => (ids.length ? this.assignable({ ids: ids.join(',') }) : of<Option[]>([])),
+  };
   protected readonly creditors = inject(CreditorLookup);
   protected readonly saving = signal(false);
   protected readonly problem = signal<string | null>(null);
@@ -203,6 +211,38 @@ export class AssignAuthorityDialog {
     creditor: this.fb.control<string[]>([]),
     profileId: ['', [AppValidators.notBlank]],
   });
+
+  constructor() {
+    // trocar o credor pode tirar da lista quem já foi escolhido (sem acesso ao novo credor): limpa e explica
+    // trocar o credor confere se a pessoa escolhida acessa o novo credor (a última troca vale; falha avisa)
+    this.form.controls.creditor.valueChanges
+      .pipe(
+        map(() => this.form.controls.user.value[0]),
+        filter((chosen): chosen is string => !!chosen),
+        switchMap((chosen) =>
+          this.users.resolve([chosen]).pipe(
+            map((found) => ({ chosen, found })),
+            catchError(() => {
+              this.problem.set('Não foi possível conferir a pessoa escolhida para esse credor. Tente de novo.');
+              return EMPTY;
+            }),
+          ),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe(({ chosen, found }) => {
+        if (!found.length && this.form.controls.user.value[0] === chosen) {
+          this.form.controls.user.setValue([]);
+          this.problem.set('A pessoa escolhida não tem acesso a esse credor: escolha outra.');
+        }
+      });
+  }
+
+  private assignable(filter: { q?: string | null; ids?: string | null }): Observable<Option[]> {
+    return this.api
+      .assignableUsers(this.form.controls.creditor.value[0] ?? null, filter)
+      .pipe(map((page) => page.content.map((u) => ({ value: u.id, label: u.name }))));
+  }
 
   protected save(): void {
     const v = this.form.getRawValue();

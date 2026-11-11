@@ -158,7 +158,7 @@
               emptyMessage="Nenhum título nos credores do seu escopo."
             >
               <ng-template appCell="title" [appCellOf]="titleRows()" let-t>
-                <a class="app-numeric" [routerLink]="['/titulos', t.id]">{{ titleLabel(t) }}</a>
+                <a class="app-numeric text-wrap" [routerLink]="['/titulos', t.id]">{{ titleLabel(t) }}</a>
                 @if (t.disputeBlocked) {
                   <span class="debt-flag" ngbTooltip="Em contestação: cobrança bloqueada"><app-icon name="hammer" />Contestação</span>
                 }

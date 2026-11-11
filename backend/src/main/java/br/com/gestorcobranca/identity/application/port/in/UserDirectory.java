@@ -19,6 +19,14 @@ public interface UserDirectory {
     /** Usuários ativos que possuem a permissão (ex.: CASE_WORK para distribuição). */
     List<UserSummary> activeUsersWithPermission(String permission);
 
+    /**
+     * Usuários habilitados — ativos ou aguardando ativação (nunca os desativados) —, para atribuições que podem ser
+     * preparadas antes do primeiro acesso (ex.: alçada de negociação e meta no onboarding).
+     *
+     * @param permission permissão exigida (ex.: CASE_WORK); nula = qualquer usuário habilitado
+     */
+    List<UserSummary> enabledUsers(String permission);
+
     /** Membros ativos de uma equipe. */
     List<UserSummary> activeTeamMembers(UUID teamId);
 
@@ -32,14 +40,21 @@ public interface UserDirectory {
     Optional<String> workEmail(UUID userId);
 
     /**
-     * @param permissions  permissões efetivas (união dos perfis ativos)
-     * @param teamIds      equipes ativas do usuário
+     * @param active            situação ativa (autentica)
+     * @param pendingActivation criado e aguardando a definição de senha pelo link de ativação
+     * @param permissions       permissões efetivas (união dos perfis ativos)
+     * @param teamIds           equipes ativas do usuário
      */
-    record UserSummary(UUID id, String name, boolean active, boolean allCreditors, Set<UUID> creditorIds,
-                       Set<String> permissions, Set<UUID> teamIds) {
+    record UserSummary(UUID id, String name, boolean active, boolean pendingActivation, boolean allCreditors,
+                       Set<UUID> creditorIds, Set<String> permissions, Set<UUID> teamIds) {
 
         public boolean canAccessCreditor(UUID creditorId) {
             return allCreditors || creditorIds.contains(creditorId);
+        }
+
+        /** Ativo ou aguardando ativação (não desativado). */
+        public boolean enabled() {
+            return active || pendingActivation;
         }
     }
 }

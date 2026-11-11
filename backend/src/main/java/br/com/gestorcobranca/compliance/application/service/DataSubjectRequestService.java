@@ -81,6 +81,7 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
     private final FileStorage fileStorage;
     private final StoredFileCleanup fileCleanup;
     private final RequestDeadlines deadlines;
+    private final DataSubjectRequestAssignees assignees;
     private final Clock clock;
 
     DataSubjectRequestService(DataSubjectRequestRepository requests, LegalBasisRecordRepository legalBases,
@@ -88,7 +89,8 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
                               DebtorUseCases debtors, DebtTitleUseCases titles, BlindIndex blindIndex,
                               AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
                               AccessLogger accessLogger, BusinessEventLogger businessEvents, FileStorage fileStorage,
-                              StoredFileCleanup fileCleanup, ComplianceProperties properties, Clock clock) {
+                              StoredFileCleanup fileCleanup, ComplianceProperties properties,
+                              DataSubjectRequestAssignees assignees, Clock clock) {
         this.requests = requests;
         this.legalBases = legalBases;
         this.exportBuilder = exportBuilder;
@@ -105,6 +107,7 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
         this.fileCleanup = fileCleanup;
         this.deadlines = new RequestDeadlines(properties.dataSubjectRequest().dueDays(),
                 properties.dataSubjectRequest().defaultDueDays(), TimeConfig.BUSINESS_ZONE);
+        this.assignees = assignees;
         this.clock = clock;
     }
 
@@ -171,6 +174,9 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
     @Override
     public RequestView start(UUID requestId, UUID assignee) {
         DataSubjectRequest request = loadForCommand(requestId);
+        if (assignee != null) {
+            assignees.requireEligible(assignee);
+        }
         RequestStatus previous = request.getStatus();
         UUID previousAssignee = request.getAssignedTo();
         request.start(assignee);
@@ -184,6 +190,7 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
     @Override
     public RequestView assign(UUID requestId, UUID assignee) {
         DataSubjectRequest request = loadForCommand(requestId);
+        assignees.requireEligible(assignee);
         UUID previous = request.getAssignedTo();
         request.assign(assignee);
         requests.save(request);

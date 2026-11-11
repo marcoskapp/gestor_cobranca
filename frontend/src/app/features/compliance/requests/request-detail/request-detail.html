@@ -13,7 +13,7 @@
 @if (current(); as r) {
   @let a = actions()!;
   <app-page-header [title]="typeLabels[r.type]" [subtitle]="'Solicitação de ' + r.requesterName + ' · recebida em ' + (r.receivedAt | appDate)">
-    @if (a.assign && canViewUsers()) {
+    @if (a.assign && canAssign()) {
       <button class="btn btn-outline-secondary" type="button" (click)="assign(r)">
         <app-icon name="person-plus" />
         Atribuir

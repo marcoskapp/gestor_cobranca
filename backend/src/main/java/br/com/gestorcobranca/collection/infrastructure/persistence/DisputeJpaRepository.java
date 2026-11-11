@@ -129,6 +129,55 @@ interface DisputeJpaRepository extends JpaRepository<Dispute, UUID>, JpaSpecific
         return counts;
     }
 
+    @Override
+    default java.util.Set<UUID> findOpenAssigneeIds(java.util.Set<UUID> creditorIds) {
+        if (creditorIds != null && creditorIds.isEmpty()) {
+            return java.util.Set.of();
+        }
+        return java.util.Set.copyOf(creditorIds == null ? openAssigneeIds() : openAssigneeIdsIn(creditorIds));
+    }
+
+    @Query("""
+            select distinct d.assigneeId from Dispute d
+             where d.assigneeId is not null
+               and d.status in (br.com.gestorcobranca.collection.domain.model.DisputeStatus.OPEN,
+                                br.com.gestorcobranca.collection.domain.model.DisputeStatus.UNDER_REVIEW)
+            """)
+    List<UUID> openAssigneeIds();
+
+    @Query("""
+            select distinct d.assigneeId from Dispute d
+             where d.assigneeId is not null and d.creditorId in :creditorIds
+               and d.status in (br.com.gestorcobranca.collection.domain.model.DisputeStatus.OPEN,
+                                br.com.gestorcobranca.collection.domain.model.DisputeStatus.UNDER_REVIEW)
+            """)
+    List<UUID> openAssigneeIdsIn(Collection<UUID> creditorIds);
+
+    @Override
+    default java.util.Set<UUID> findOpenCreditorIdsByAssignee(UUID assigneeId, java.util.Set<UUID> creditorIds) {
+        if (assigneeId == null || (creditorIds != null && creditorIds.isEmpty())) {
+            return java.util.Set.of();
+        }
+        return java.util.Set.copyOf(creditorIds == null ? openCreditorIds(assigneeId)
+                : openCreditorIdsIn(assigneeId, creditorIds));
+    }
+
+    @Query("""
+            select distinct d.creditorId from Dispute d
+             where d.assigneeId = :assigneeId
+               and d.status in (br.com.gestorcobranca.collection.domain.model.DisputeStatus.OPEN,
+                                br.com.gestorcobranca.collection.domain.model.DisputeStatus.UNDER_REVIEW)
+            """)
+    List<UUID> openCreditorIds(UUID assigneeId);
+
+    @Query("""
+            select distinct d.creditorId from Dispute d
+             where d.assigneeId = :assigneeId and d.creditorId in :creditorIds
+               and d.status in (br.com.gestorcobranca.collection.domain.model.DisputeStatus.OPEN,
+                                br.com.gestorcobranca.collection.domain.model.DisputeStatus.UNDER_REVIEW)
+            """)
+    List<UUID> openCreditorIdsIn(UUID assigneeId, Collection<UUID> creditorIds);
+
     @Query("""
             select d.assigneeId, count(d) from Dispute d
              where d.assigneeId in :assigneeIds

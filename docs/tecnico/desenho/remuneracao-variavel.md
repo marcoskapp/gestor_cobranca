@@ -99,14 +99,23 @@ decisão 1072), com o caminho para avaliar no próprio atendimento.
   mostra o botão) e atendimento sem pessoa (assistente, sistema) não é avaliado por aqui. Sem formulário ativo, o botão
   avisa onde criar.
 * **Botão só no escopo (decisão 1075)**: `GET /incentive/quality/evaluable-users` (`QUALITY_EVALUATE`) devolve quem o ator
-  pode avaliar — `{all: true}` com visão total ou `{all: false, userIds}` com os membros das equipes que supervisiona,
-  sempre sem o próprio ator (mesma regra de `requireVisible` no registro). O `EvaluationLauncher` carrega uma vez por
-  pessoa logada e só mostra "Avaliar" para atendimento dessas pessoas (até a resposta, ou se ela falhar, não mostra); o
-  seletor de negociador da avaliação geral usa a mesma lista (`EvaluableUserSource`: com equipe, parte dos membros e mostra
-  só o nome, via `/users/display-names`; com visão total, a busca de usuários ativos). Perfil personalizado com
+  pode avaliar — `{all: true}` com visão total ou `{all: false, userIds}` com os negociadores avaliáveis das equipes que
+  supervisiona, sempre sem o próprio ator. O `EvaluationLauncher` carrega uma vez por
+  pessoa logada e só mostra "Avaliar" para atendimento dessas pessoas (até a resposta, ou se ela falhar, não mostra). Perfil personalizado com
   `QUALITY_EVALUATE` e sem permissão de desempenho recebe 403 (registrado como `ACCESS_DENIED` uma vez por sessão) e não vê
   o botão. Antes, o supervisor via "Avaliar"
   num atendimento do gestor e recebia 403 (`SCOPE_DENIED`) ao registrar.
+* **Quem pode ser escolhido (lista = gravação)**: um único predicado (`IncentiveAssignees.eligibility`) alimenta os
+  seletores e a gravação. **Avaliável** (monitoria e ocorrência de conduta): negociador (`CASE_WORK`) habilitado — ativo
+  ou aguardando ativação, nunca desativado —, no escopo de quem registra (`IncentiveAccess.visibleUsers`: todos ou os
+  membros das equipes que supervisiona) e nunca a própria pessoa. Lista: `GET /incentive/quality/evaluable-users/search`
+  (`QUALITY_EVALUATE`, sem `USER_VIEW`; `q`, `ids`, até 50 por página); fora do escopo continua 403 (`SCOPE_DENIED`), o
+  restante é recusado com `quality_evaluation.user_not_eligible` / `conduct.user_not_eligible`. O seletor da avaliação
+  geral e o da ocorrência usam a mesma fonte (`EvaluableUserSource`). **Meta individual nova**: negociador (`CASE_WORK`)
+  habilitado no escopo de quem define (a própria pessoa pode ter meta). Lista: `GET /incentive/goals/assignable-users`
+  (`COMMISSION_PLAN_MANAGE`); recusa `goal.subject_not_eligible`. A regra vale só na atribuição nova: a meta já
+  existente de quem foi desligado depois continua legível e editável (o fechamento ainda a lê). Toda busca registra
+  `USER_DIRECTORY_QUERIED` (`resource = incentive_assignee`, `purpose`, `returned`; nunca o texto buscado); só id e nome.
 * **Uma avaliação por avaliador e atendimento (decisões 1076 e 1078)**: `evaluate` recusa a segunda avaliação do mesmo
   avaliador para a mesma referência (409 `quality_evaluation.already_evaluated`; índice único parcial
   `ux_quality_evaluation_evaluator_reference`, migration `V1891`, cobre a corrida entre dois envios e vira o mesmo 409 no
@@ -408,10 +417,10 @@ Feature `frontend/src/app/features/incentive`, rotas em `/remuneracao` (seção 
 | Planos de remuneração | `/remuneracao/planos` | `COMMISSION_PLAN_MANAGE` | `GET/POST /plans` |
 | Plano (regras, versões, simular, publicar, nova versão, aposentar, descartar rascunho) | `/remuneracao/planos/:id` | idem | `GET /plans/{id}`, `POST …/simulations`, `…/publish`, `…/versions`, `…/retire`, `DELETE /plans/{id}` |
 | Regras do rascunho | `/remuneracao/planos/:id/regras` | idem | `PUT /plans/{id}` |
-| Metas por período (unidade R$ ou %) | `/remuneracao/metas` | `COMMISSION_PLAN_MANAGE` | `GET/PUT /goals`, `GET /goals/unit-options`, `DELETE /goals/{id}` |
+| Metas por período (unidade R$ ou %) | `/remuneracao/metas` | `COMMISSION_PLAN_MANAGE` | `GET/PUT /goals`, `GET /goals/unit-options`, `GET /goals/assignable-users`, `DELETE /goals/{id}` |
 | Períodos de apuração | `/remuneracao/periodos` | `COMMISSION_STATEMENT_MANAGE` | `GET /periods`, `POST /periods/{p}/close` |
 | Exportação para a folha | `/remuneracao/exportacao` | `COMMISSION_STATEMENT_APPROVE` | `GET/POST /exports`, `GET /exports/{id}/file` |
-| Monitoria, ocorrências e formulários | `/remuneracao/qualidade/{avaliacoes,ocorrencias,formularios}` | `PERFORMANCE_VIEW_*`, `QUALITY_EVALUATE` (registro); dispensa de ocorrência com `COMMISSION_STATEMENT_MANAGE` | `/quality/forms`, `/quality/evaluations`, `/quality/occurrences` (+ `dismiss`), `/quality/evaluable-users` e `/quality/evaluations/mine` (`QUALITY_EVALUATE`) |
+| Monitoria, ocorrências e formulários | `/remuneracao/qualidade/{avaliacoes,ocorrencias,formularios}` | `PERFORMANCE_VIEW_*`, `QUALITY_EVALUATE` (registro); dispensa de ocorrência com `COMMISSION_STATEMENT_MANAGE` | `/quality/forms`, `/quality/evaluations`, `/quality/occurrences` (+ `dismiss`), `/quality/evaluable-users`, `/quality/evaluable-users/search` e `/quality/evaluations/mine` (`QUALITY_EVALUATE`) |
 | Atribuição de crédito do acordo (link no detalhe do acordo) | `/remuneracao/atribuicoes/:agreementId` | `PERFORMANCE_VIEW_*`, `AGREEMENT_VIEW` | `GET /attributions/{agreementId}` |
 
 Regras de tela (o servidor continua decidindo):
@@ -424,5 +433,5 @@ Regras de tela (o servidor continua decidindo):
 - **Exportação**: o arquivo baixado de novo é conferido com o SHA-256 registrado.
 - **Desempenho**: reaproveita `app-kpi-card` e `app-bar-chart` do `analytics` sem alterá-los; taxas sempre com a base; indicadores sem fonte listados (`unavailableMetrics`).
 
-Testes: `data/incentive.rules.spec.ts`, `data/plan-rules.spec.ts`, `statements/statements.spec.ts`, `plans/plans.spec.ts`, `incentive-pages.spec.ts` (períodos, exportação, metas, ocorrências, monitoria, desempenho, atribuição), `goals/goal-dialog.spec.ts` (unidade da meta), `quality/evaluation-dialog.spec.ts` (formulário de monitoria); backend `PlanDraftAndGoalRemovalIT`, `GoalUnitIT`.
+Testes: `data/incentive.rules.spec.ts`, `data/plan-rules.spec.ts`, `statements/statements.spec.ts`, `plans/plans.spec.ts`, `incentive-pages.spec.ts` (períodos, exportação, metas, ocorrências, monitoria, desempenho, atribuição), `goals/goal-dialog.spec.ts` (unidade da meta), `quality/evaluation-dialog.spec.ts` (formulário de monitoria); `data/incentive-assignees.spec.ts` e `quality/evaluable-user-source.spec.ts` (seletores de pessoa); backend `PlanDraftAndGoalRemovalIT`, `GoalUnitIT`, `IncentiveAssigneeIT` e `IncentiveAssigneesTest` (lista = gravação).
 

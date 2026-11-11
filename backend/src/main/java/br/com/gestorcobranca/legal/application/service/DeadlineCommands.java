@@ -8,24 +8,28 @@ import br.com.gestorcobranca.legal.domain.model.LegalMatter;
 import br.com.gestorcobranca.legal.domain.model.StartEvent;
 import br.com.gestorcobranca.legal.domain.repository.ExtrajudicialMeasureRepository;
 import br.com.gestorcobranca.legal.domain.repository.LawsuitRepository;
-import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
+import br.com.gestorcobranca.legal.application.port.in.LegalAssigneeUseCases.Purpose;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-/** Conversão e validação do comando de prazo (processo e medida do próprio caso jurídico). */
+/**
+ * Conversão e validação do comando de prazo (processo e medida do próprio caso jurídico). O responsável segue a mesma
+ * regra da lista do campo ({@link LegalAssigneeService}, {@link Purpose#DEADLINE_RESPONSIBLE}).
+ */
 @Component
 class DeadlineCommands {
 
     private final LawsuitRepository lawsuits;
     private final ExtrajudicialMeasureRepository measures;
-    private final UserDirectory users;
+    private final LegalAssigneeService assignees;
 
-    DeadlineCommands(LawsuitRepository lawsuits, ExtrajudicialMeasureRepository measures, UserDirectory users) {
+    DeadlineCommands(LawsuitRepository lawsuits, ExtrajudicialMeasureRepository measures,
+                     LegalAssigneeService assignees) {
         this.lawsuits = lawsuits;
         this.measures = measures;
-        this.users = users;
+        this.assignees = assignees;
     }
 
     /**
@@ -45,10 +49,10 @@ class DeadlineCommands {
                             "Medida não pertence ao caso jurídico"));
         }
         if (command.responsibleUserId() != null) {
-            users.find(command.responsibleUserId()).filter(UserDirectory.UserSummary::active)
-                    .filter(u -> u.canAccessCreditor(matter.getCreditorId()))
-                    .orElseThrow(() -> new BusinessRuleException("legal_deadline.responsible_invalid",
-                            "Responsável inexistente, inativo ou sem acesso ao credor"));
+            assignees.requireEligible(Purpose.DEADLINE_RESPONSIBLE, matter, command.responsibleUserId(),
+                    "legal_deadline.responsible_invalid",
+                    "Responsável inexistente, inativo, sem a permissão do jurídico ou sem acesso ao credor; "
+                            + "no escritório parceiro, só os colegas do escritório");
         }
         CountingMode mode = command.countingMode() == null || command.countingMode().isBlank()
                 ? CountingMode.BUSINESS_DAYS

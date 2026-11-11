@@ -2,6 +2,7 @@ package br.com.gestorcobranca.incentive.application.service;
 
 import br.com.gestorcobranca.identity.application.port.in.WorkforceQueries.TeamStructure;
 import br.com.gestorcobranca.identity.application.port.in.WorkforceQueries.WorkforceMember;
+import br.com.gestorcobranca.incentive.application.port.in.AssignableUserView;
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases;
 import br.com.gestorcobranca.incentive.application.port.in.IncentiveProvisioning;
 import br.com.gestorcobranca.incentive.application.service.PlanResolver.ResolvedPlan;
@@ -29,6 +30,8 @@ import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.Permission;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,12 +63,14 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final GoalUnitPolicy goalUnits;
+    private final IncentiveAssignees assignees;
     private final Clock clock;
 
     CommissionPlanService(CommissionPlanRepository plans, LedgerRepository ledger, StatementRepository statements,
                           PlanRulesCodec codec, StatementCalculator calculator, Workforce workforce,
                           IncentiveAccess access, AuditTrail auditTrail, BusinessEventLogger businessEvents,
-                          GoalUnitPolicy goalUnits, Clock clock) {
+                          GoalUnitPolicy goalUnits, IncentiveAssignees assignees, Clock clock) {
+        this.assignees = assignees;
         this.plans = plans;
         this.ledger = ledger;
         this.statements = statements;
@@ -258,9 +263,16 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
         Guard.require(command.unit() != null && !command.unit().isBlank(), "goal.unit_required",
                 "Informe se a meta é em valor (R$) ou percentual (%)");
         GoalUnit unit = StatementService.enumOf(GoalUnit.class, command.unit(), "goal.unit_invalid");
+        Guard.require(command.subjectId() != null, "goal.subject_required", "Informe o negociador ou a equipe");
+        Optional<GoalTarget> existing = plans.findGoal(start, type, command.subjectId());
+        if (existing.isEmpty() && type == GoalTarget.SubjectType.USER) {
+            // atribuição nova: mesma regra da lista do campo; a meta já existente de quem foi desligado depois segue
+            // editável (o fechamento ainda a lê)
+            assignees.requireEligible(IncentiveAssignees.Purpose.GOAL, command.subjectId(), "goal.subject_not_eligible",
+                    "Escolha um negociador habilitado (ativo ou aguardando ativação) no seu escopo");
+        }
         GoalUnitPolicy.Resolution allowed = goalUnits.resolve(start, type, command.subjectId());
         Guard.require(allowed.allowed().contains(unit), "goal.unit_not_allowed", unitRefusal(allowed));
-        Optional<GoalTarget> existing = plans.findGoal(start, type, command.subjectId());
         BigDecimal before = existing.map(GoalTarget::getTargetValue).orElse(null);
         GoalUnit unitBefore = existing.map(GoalTarget::getUnit).orElse(null);
         GoalTarget goal = existing.orElseGet(() -> new GoalTarget(start, type, command.subjectId(), command.target(), unit));
@@ -271,6 +283,13 @@ class CommissionPlanService implements CommissionPlanUseCases, IncentiveProvisio
                 .meta("period", command.period().toString())
                 .meta("subjectType", type).meta("subjectId", command.subjectId()).meta("unitBasis", allowed.basis()));
         return goalView(goal);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AssignableUserView> searchGoalUsers(String query, Set<UUID> ids, PageQuery page) {
+        access.requirePermission(Permission.COMMISSION_PLAN_MANAGE);
+        return assignees.search(IncentiveAssignees.Purpose.GOAL, query, ids, page);
     }
 
     @Override

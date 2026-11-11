@@ -2,13 +2,15 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize, startWith } from 'rxjs';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { Icon } from '../../../shared/components/icon/icon';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { FORM_FIELD } from '../../../shared/forms/field';
-import { UserLookup } from '../../admin/data/user.lookup';
 import { TeamLookup } from '../../collection/data/collection.lookups';
+import { IncentiveAssignees } from '../data/incentive-assignees';
 import { CommissionPlansApi } from '../data/incentive.api';
 import { GoalSubjectType, GoalUnit, GoalView, YearMonth } from '../data/incentive.models';
 import { monthLabel } from '../data/incentive.rules';
@@ -49,10 +51,12 @@ let nextId = 0;
         } @else {
           <fieldset class="mb-3">
             <legend class="form-label">Meta de</legend>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" id="gd-user" value="USER" formControlName="subjectType" />
-              <label class="form-check-label" for="gd-user">Negociador</label>
-            </div>
+            @if (canSetUserGoal) {
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" id="gd-user" value="USER" formControlName="subjectType" />
+                <label class="form-check-label" for="gd-user">Negociador</label>
+              </div>
+            }
             <div class="form-check form-check-inline">
               <input class="form-check-input" type="radio" id="gd-team" value="TEAM" formControlName="subjectType" />
               <label class="form-check-label" for="gd-team">Equipe</label>
@@ -109,7 +113,8 @@ export class GoalDialog {
   protected readonly data = inject<GoalDialogData>(DIALOG_DATA);
   private readonly ref = inject<DialogRef<GoalView>>(DialogRef);
   private readonly api = inject(CommissionPlansApi);
-  protected readonly users = inject(UserLookup);
+  /** Negociadores que podem receber meta nova (mesma regra do servidor; sem `USER_VIEW`). */
+  protected readonly users = inject(IncentiveAssignees).source('GOAL');
   protected readonly teams = inject(TeamLookup);
   protected readonly uid = `gd-${++nextId}`;
   protected readonly month = monthLabel(this.data.period);
@@ -123,9 +128,20 @@ export class GoalDialog {
   protected readonly notice = signal<string | null>(null);
   private readonly submitted = signal(false);
 
+  /**
+   * Meta por negociador só para quem tem visão de desempenho (o escopo define quem pode receber a meta, decisão 1098);
+   * sem ela, a opção fica oculta e a meta é por equipe.
+   */
+  protected readonly canSetUserGoal = inject(AuthService).hasAnyPermission([
+    Permission.PERFORMANCE_VIEW_ALL,
+    Permission.PERFORMANCE_VIEW_TEAM,
+    Permission.PERFORMANCE_VIEW_OWN,
+    Permission.COMMISSION_STATEMENT_MANAGE,
+    Permission.COMMISSION_STATEMENT_APPROVE,
+  ]);
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
-    subjectType: this.fb.control<GoalSubjectType>(this.data.goal?.subjectType ?? 'USER'),
+    subjectType: this.fb.control<GoalSubjectType>(this.data.goal?.subjectType ?? (this.canSetUserGoal ? 'USER' : 'TEAM')),
     user: this.fb.control<string[]>([]),
     team: this.fb.control<string[]>([]),
     unit: this.fb.control<GoalUnit | null>(this.data.goal?.unit ?? null, Validators.required),
@@ -133,7 +149,7 @@ export class GoalDialog {
     percent: this.fb.control<number | null>(this.data.goal?.unit === 'PERCENT' ? this.data.goal.target : null, [Validators.required, goalPercentValidator]),
   });
   private readonly value = toSignal(this.form.valueChanges.pipe(startWith(this.form.getRawValue())), { initialValue: this.form.getRawValue() });
-  protected readonly type = computed(() => this.value().subjectType ?? 'USER');
+  protected readonly type = computed(() => this.value().subjectType ?? (this.canSetUserGoal ? 'USER' : 'TEAM'));
   protected readonly unit = toSignal(this.form.controls.unit.valueChanges.pipe(startWith(this.form.controls.unit.value)), { initialValue: this.form.controls.unit.value });
 
   /** Negociador/equipe escolhido, como chave estável ("USER|id") para não recarregar a cada tecla. */

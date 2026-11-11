@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 25,
+    date: '2026-11-11',
+    title: 'Atribuir só a quem pode atuar',
+    items: [
+      { text: 'Nos campos de responsável (casos, retornos, redistribuição, contestações, conversas, solicitações de titulares, ramais, monitoria, ocorrências, metas, alçadas e jurídico), a lista mostra só quem pode atuar naquele item, só pelo nome, e o sistema recusa quem estiver fora da regra.', route: '/cobranca/casos' },
+      { text: 'Em diálogos, a lista de busca aparece inteira, por cima do diálogo, em vez de mostrar só a primeira opção.', route: '/compliance/solicitacoes-titulares' },
+      { text: 'Tabelas sem barra de rolagem lateral: Log de acesso, Trilha de auditoria, Títulos, títulos do devedor e da ficha do caso (no painel estreito, o vencimento vai para a dica do atraso).', route: '/governanca/log-de-acesso' },
+    ],
+  },
+  {
     version: 24,
     date: '2026-11-11',
     title: 'Resposta garantida a quem procurou e aviso no portal',

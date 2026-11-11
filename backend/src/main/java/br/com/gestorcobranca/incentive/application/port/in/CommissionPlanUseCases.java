@@ -1,12 +1,15 @@
 package br.com.gestorcobranca.incentive.application.port.in;
 
 import br.com.gestorcobranca.incentive.domain.model.plan.PlanRules;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /** Planos de comissão versionados, metas por período e simulação (requer {@code COMMISSION_PLAN_MANAGE}). */
@@ -41,9 +44,20 @@ public interface CommissionPlanUseCases {
 
     /**
      * Define a meta do período com a unidade escolhida; recusa ({@code goal.unit_not_allowed}) a
-     * unidade diferente da métrica da meta do plano que vai usá-la ({@link #goalUnitOptions}).
+     * unidade diferente da métrica da meta do plano que vai usá-la ({@link #goalUnitOptions}). A meta
+     * individual <b>nova</b> exige negociador elegível ({@link #searchGoalUsers}; {@code goal.subject_not_eligible});
+     * a meta já existente segue editável mesmo que a pessoa tenha sido desligada depois.
      */
     GoalView setGoal(GoalCommand command);
+
+    /**
+     * Negociadores que podem receber meta individual nova, pela mesma regra de {@link #setGoal}: {@code CASE_WORK},
+     * habilitado (ativo ou aguardando ativação) e no escopo de quem define. Só id e nome; sem {@code USER_VIEW}.
+     *
+     * @param query trecho do nome (sem diferenciar maiúsculas e acentos); vazio lista todos
+     * @param ids   quando informado, só esses ids (até {@value AssignableUserView#MAX_IDS}) entre os elegíveis
+     */
+    PageResponse<AssignableUserView> searchGoalUsers(String query, Set<UUID> ids, PageQuery page);
 
     /** Unidades aceitas para a meta de um negociador ou equipe no período, pela métrica do plano vigente. */
     GoalUnitOptions goalUnitOptions(YearMonth period, String subjectType, UUID subjectId);

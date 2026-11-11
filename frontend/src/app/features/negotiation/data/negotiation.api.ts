@@ -7,6 +7,7 @@ import { toHttpParams } from '../../../core/http/http-params';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
   AssignAuthorityRequest,
+  AssignableUserView,
   AuthorityAssignmentView,
   CreatePolicyRequest,
   EffectiveAuthorityView,
@@ -125,6 +126,17 @@ export class AuthorityApi {
 
   assign(request: AssignAuthorityRequest): Observable<AuthorityAssignmentView> {
     return this.http.post<AuthorityAssignmentView>(`${BASE}/authority-assignments`, request);
+  }
+
+  /**
+   * Quem pode receber alçada para o credor (`null` = atribuição geral), pela mesma regra da atribuição: habilitado,
+   * sem a própria pessoa e, por credor, com acesso a ele. Só id e nome; sem `USER_VIEW`.
+   */
+  assignableUsers(creditorId: string | null, filter: { q?: string | null; ids?: string | null }): Observable<PageResponse<AssignableUserView>> {
+    return this.http.get<PageResponse<AssignableUserView>>(`${BASE}/authority-assignments/assignable-users`, {
+      params: toHttpParams({ creditorId, size: 20, ...filter }),
+      context: silentErrorContext(),
+    });
   }
 
   unassign(id: string): Observable<void> {

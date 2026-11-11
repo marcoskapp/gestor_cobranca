@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.incentive.web;
 
+import br.com.gestorcobranca.incentive.application.port.in.AssignableUserView;
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases;
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases.GoalCommand;
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases.GoalUnitOptions;
@@ -8,6 +9,8 @@ import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCase
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases.PlanView;
 import br.com.gestorcobranca.incentive.application.port.in.CommissionPlanUseCases.SimulationView;
 import br.com.gestorcobranca.incentive.domain.model.plan.PlanRules;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.web.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,6 +39,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -129,6 +133,16 @@ class CommissionPlanController {
     GoalView setGoal(@Valid @RequestBody GoalRequest request) {
         return plans.setGoal(new GoalCommand(request.period(), request.subjectType(), request.subjectId(), request.target(),
                 request.unit()));
+    }
+
+    @GetMapping("/goals/assignable-users")
+    @PreAuthorize("hasAuthority('COMMISSION_PLAN_MANAGE')")
+    @Operation(summary = "Negociadores que podem receber meta individual nova (só id e nome, paginado)")
+    PageResponse<AssignableUserView> goalUsers(@RequestParam(required = false) String q,
+                                               @RequestParam(required = false) Set<UUID> ids,
+                                               @RequestParam(required = false) Integer page,
+                                               @RequestParam(required = false) Integer size) {
+        return plans.searchGoalUsers(q, ids, PageQuery.of(page, size));
     }
 
     @GetMapping("/goals/unit-options")

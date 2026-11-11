@@ -8,7 +8,8 @@
 //   - acesso-negado aviso "Acesso negado" (toast) ou a página de acesso negado da rota;
 //   - cartoes      cartões irmãos na mesma linha (sobreposição vertical relevante) com topos diferentes (> 1 px);
 //   - rolagem      o documento rola (scrollHeight > innerHeight ou scrollWidth > innerWidth): só a área de
-//                  conteúdo (`main.app-content`) pode rolar;
+//                  conteúdo (`main.app-content`) pode rolar; ou uma tabela (`.table-responsive`) fica mais larga
+//                  que o espaço dela e ganha barra horizontal (texto longo sem quebra, como IPv6 e rotas);
 //   - erro-js      exceção não tratada no navegador.
 // Ação visível e desabilitada com o motivo (`app-disabled-action`, exceção decidida pelo responsável) não é problema:
 // ela não chama o servidor nem mostra "Acesso negado"; só os 403 e os avisos "Acesso negado" contam.
@@ -144,13 +145,17 @@ async function auditProfile(browser: Browser, spec: string): Promise<ProfileResu
           }
         }
       }
-      return { scrollHeight: doc.scrollHeight, scrollWidth: doc.scrollWidth, innerHeight, innerWidth, misaligned };
+      const wideTables = [...document.querySelectorAll('.table-responsive')]
+        .filter((t) => t.clientWidth > 0 && t.scrollWidth > t.clientWidth + 1)
+        .map((t) => `${t.closest('app-data-table')?.querySelector('caption')?.textContent?.trim() || 'tabela'}: ${t.scrollWidth} px em ${t.clientWidth} px`);
+      return { scrollHeight: doc.scrollHeight, scrollWidth: doc.scrollWidth, innerHeight, innerWidth, misaligned, wideTables };
     }, ALIGN_TOLERANCE_PX).catch(() => null);
     if (layout) {
       for (const m of layout.misaligned) report('cartoes', m);
       if (layout.scrollHeight > layout.innerHeight || layout.scrollWidth > layout.innerWidth) {
         report('rolagem', `documento ${layout.scrollWidth}×${layout.scrollHeight} na janela ${layout.innerWidth}×${layout.innerHeight}`);
       }
+      for (const t of layout.wideTables) report('rolagem', `tabela com barra horizontal — ${t}`);
     }
   };
 

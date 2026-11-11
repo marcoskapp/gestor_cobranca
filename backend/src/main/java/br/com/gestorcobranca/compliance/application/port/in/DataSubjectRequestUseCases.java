@@ -30,9 +30,16 @@ public interface DataSubjectRequestUseCases {
      */
     RequestView verifyIdentity(UUID requestId, UUID debtorId);
 
-    /** Inicia o atendimento; {@code assignee} nulo mantém o responsável atual. */
+    /**
+     * Inicia o atendimento; {@code assignee} nulo mantém o responsável atual. Responsável informado precisa ser elegível
+     * ({@code dsr.assignee_invalid}), pela mesma regra de {@link DataSubjectRequestAssigneeUseCases}.
+     */
     RequestView start(UUID requestId, UUID assignee);
 
+    /**
+     * Atribui o responsável: usuário ativo, com {@code DATA_SUBJECT_REQUEST_MANAGE} e acesso a todos os credores
+     * ({@code dsr.assignee_invalid}) — a mesma regra da lista de {@link DataSubjectRequestAssigneeUseCases}.
+     */
     RequestView assign(UUID requestId, UUID assignee);
 
     /** Executa a ação automática do tipo (somente ACCESS, PORTABILITY, ANONYMIZATION, OPPOSITION). */

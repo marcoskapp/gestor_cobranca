@@ -6,6 +6,7 @@ import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory.UserSummary;
+import br.com.gestorcobranca.legal.application.port.in.LegalAssigneeUseCases.Purpose;
 import br.com.gestorcobranca.legal.application.port.in.LegalMatterUseCases;
 import br.com.gestorcobranca.legal.domain.model.ClosureReason;
 import br.com.gestorcobranca.legal.domain.model.ConductModel;
@@ -96,6 +97,7 @@ class LegalMatterService implements LegalMatterUseCases {
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final Clock clock;
+    private final LegalAssigneeService assignees;
 
     LegalMatterService(LegalMatterRepository matters, StageHistoryRepository history,
                        ViabilityAssessmentRepository assessments, CreditorAuthorizationRepository authorizations,
@@ -109,7 +111,8 @@ class LegalMatterService implements LegalMatterUseCases {
                        MatterRequirements requirements, AuthorizationRecorder authorizationRecorder,
                        AgreementLinks agreementLinks, ForensicCalendars calendars, LegalSettingsProvider settings,
                        LegalAccess access, AccessScope accessScope, AuditTrail auditTrail,
-                       BusinessEventLogger businessEvents, Clock clock) {
+                       BusinessEventLogger businessEvents, Clock clock, LegalAssigneeService assignees) {
+        this.assignees = assignees;
         this.matters = matters;
         this.history = history;
         this.assessments = assessments;
@@ -272,9 +275,12 @@ class LegalMatterService implements LegalMatterUseCases {
             case INTERNAL -> {
                 Guard.requireState(conduct.allowsInternal(), "legal_matter.internal_disabled",
                         "A assessoria definiu que os casos jurídicos são conduzidos por escritórios parceiros");
-                UserSummary user = requireUser(command.userId(), m);
-                Guard.require(members.findByUserIdAndActiveTrue(user.id()).isEmpty(), "legal_matter.responsible_external",
-                        "Usuário de escritório parceiro: atribua ao escritório");
+                Guard.require(command.userId() != null, "legal_matter.responsible_required", "Responsável obrigatório");
+                // mesma regra da lista do campo (MATTER_RESPONSIBLE): ativo, LEGAL_MANAGE, acesso ao credor e interno
+                UserSummary user = assignees.requireEligible(Purpose.MATTER_RESPONSIBLE, m, command.userId(),
+                        "legal_matter.responsible_invalid", "Responsável inexistente, inativo, sem a permissão do "
+                                + "jurídico, sem acesso ao credor do caso ou vinculado a escritório parceiro "
+                                + "(nesse caso, atribua ao escritório)");
                 changed = m.assignInternal(user.id());
             }
             case LAW_FIRM -> {

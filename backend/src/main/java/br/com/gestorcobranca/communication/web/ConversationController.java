@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.communication.web;
 
+import br.com.gestorcobranca.communication.application.port.in.ConversationAssigneeUseCases;
+import br.com.gestorcobranca.communication.application.port.in.ConversationAssigneeUseCases.AssigneeView;
 import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases;
 import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases.ConversationDetail;
 import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases.ConversationView;
@@ -38,11 +40,14 @@ class ConversationController {
 
     private final ConversationUseCases conversations;
     private final MessageUseCases messages;
+    private final ConversationAssigneeUseCases assignees;
     private final CurrentActor currentActor;
 
-    ConversationController(ConversationUseCases conversations, MessageUseCases messages, CurrentActor currentActor) {
+    ConversationController(ConversationUseCases conversations, MessageUseCases messages,
+                           ConversationAssigneeUseCases assignees, CurrentActor currentActor) {
         this.conversations = conversations;
         this.messages = messages;
+        this.assignees = assignees;
         this.currentActor = currentActor;
     }
 
@@ -122,6 +127,21 @@ class ConversationController {
     @PreAuthorize("hasAuthority('MESSAGE_SEND')")
     ConversationView release(@PathVariable UUID id, @Valid @RequestBody(required = false) ReasonRequest request) {
         return conversations.release(id, reason(request));
+    }
+
+    /**
+     * Operadores a quem a conversa pode ser atribuída (mesma regra da atribuição): só id e nome, sem exigir
+     * {@code USER_VIEW}; paginada (até {@value ConversationAssigneeUseCases#MAX_PAGE_SIZE} por página).
+     *
+     * @param ids ids separados por vírgula, para exibir o nome do que já está escolhido
+     */
+    @GetMapping("/{id}/assignable-users")
+    @PreAuthorize("hasAuthority('INBOX_MANAGE')")
+    PageResponse<AssigneeView> assignableUsers(@PathVariable UUID id, @RequestParam(required = false) String q,
+                                               @RequestParam(required = false) Set<UUID> ids,
+                                               @RequestParam(required = false) Integer page,
+                                               @RequestParam(required = false) Integer size) {
+        return assignees.search(id, q, ids, PageQuery.of(page, size));
     }
 
     @PostMapping("/{id}/assign")

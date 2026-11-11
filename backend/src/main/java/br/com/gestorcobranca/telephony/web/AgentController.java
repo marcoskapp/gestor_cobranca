@@ -1,6 +1,10 @@
 package br.com.gestorcobranca.telephony.web;
 
 import br.com.gestorcobranca.shared.web.ApiPaths;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.telephony.application.port.in.AgentCandidateUseCases;
+import br.com.gestorcobranca.telephony.application.port.in.AgentCandidateUseCases.CandidateView;
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases;
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.AgentView;
 import br.com.gestorcobranca.telephony.application.port.in.AgentUseCases.ConfigureAgentCommand;
@@ -22,10 +26,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -38,10 +44,27 @@ class AgentController {
 
     private final AgentUseCases agents;
     private final SoftphoneUseCases softphone;
+    private final AgentCandidateUseCases candidates;
 
-    AgentController(AgentUseCases agents, SoftphoneUseCases softphone) {
+    AgentController(AgentUseCases agents, SoftphoneUseCases softphone, AgentCandidateUseCases candidates) {
         this.agents = agents;
         this.softphone = softphone;
+        this.candidates = candidates;
+    }
+
+    /**
+     * Usuários que podem ser habilitados como operador: só id e nome dos elegíveis (mesma regra de {@code configure}),
+     * sem exigir {@code USER_VIEW}; paginada (até {@value AgentCandidateUseCases#MAX_PAGE_SIZE} por página).
+     *
+     * @param ids ids separados por vírgula, para exibir o nome do que já está escolhido
+     */
+    @GetMapping("/agents/assignable-users")
+    @PreAuthorize("hasAuthority('TELEPHONY_MANAGE')")
+    PageResponse<CandidateView> assignableUsers(@RequestParam(required = false) String q,
+                                                @RequestParam(required = false) Set<UUID> ids,
+                                                @RequestParam(required = false) Integer page,
+                                                @RequestParam(required = false) Integer size) {
+        return candidates.search(q, ids, PageQuery.of(page, size));
     }
 
     @PutMapping("/agents/{userId}")

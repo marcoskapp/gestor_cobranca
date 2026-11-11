@@ -13,7 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -46,31 +49,46 @@ class UserDirectoryService implements UserDirectory {
         if (userIds == null || userIds.isEmpty()) {
             return List.of();
         }
-        return users.findAllByIdIn(userIds).stream().map(this::summary).toList();
+        return summaries(users.findAllByIdIn(userIds));
     }
 
     @Override
     public List<UserSummary> activeUsersWithPermission(String permission) {
-        Permission required = Permission.valueOf(permission);
-        Set<UUID> roleIds = roles.findAll().stream()
+        Set<UUID> roleIds = roleIdsWith(Permission.valueOf(permission));
+        if (roleIds.isEmpty()) {
+            return List.of();
+        }
+        return summaries(users.findActiveByRoleIds(roleIds));
+    }
+
+    private Set<UUID> roleIdsWith(Permission required) {
+        return roles.findAll().stream()
                 .filter(Role::isActive)
                 .filter(r -> r.getPermissions().contains(required))
                 .map(Role::getId)
                 .collect(Collectors.toSet());
+    }
+
+    @Override
+    public List<UserSummary> enabledUsers(String permission) {
+        List<UserStatus> enabled = List.of(UserStatus.ACTIVE, UserStatus.PENDING_ACTIVATION);
+        if (permission == null) {
+            return summaries(users.findByStatusIn(enabled));
+        }
+        Set<UUID> roleIds = roleIdsWith(Permission.valueOf(permission));
         if (roleIds.isEmpty()) {
             return List.of();
         }
-        return users.findActiveByRoleIds(roleIds).stream().map(this::summary).toList();
+        return summaries(users.findByRoleIdsAndStatusIn(roleIds, enabled));
     }
 
     @Override
     public List<UserSummary> activeTeamMembers(UUID teamId) {
         return teams.findById(teamId)
                 .filter(Team::isActive)
-                .map(team -> users.findAllByIdIn(team.getMemberIds()).stream()
+                .map(team -> summaries(users.findAllByIdIn(team.getMemberIds()).stream()
                         .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-                        .map(this::summary)
-                        .toList())
+                        .toList()))
                 .orElse(List.of());
     }
 
@@ -87,8 +105,31 @@ class UserDirectoryService implements UserDirectory {
         return users.findById(userId).filter(u -> u.getStatus() == UserStatus.ACTIVE).map(User::getEmail);
     }
 
+    /**
+     * Resumos em lote (listas de atribuíveis, a cada busca): perfis e equipes ativas lidos uma vez, sem consulta por
+     * usuário; a regra de permissões efetivas continua no {@link AccessProfileResolver}.
+     */
+    private List<UserSummary> summaries(List<User> list) {
+        if (list.isEmpty()) {
+            return List.of();
+        }
+        Set<UUID> roleIds = list.stream().flatMap(u -> u.getRoleIds().stream()).collect(Collectors.toSet());
+        Map<UUID, Role> rolesById = roles.findAllByIdIn(roleIds).stream().collect(Collectors.toMap(Role::getId, r -> r));
+        Map<UUID, Set<UUID>> teamsByMember = new HashMap<>();
+        for (Team team : teams.findAll()) {
+            if (team.isActive()) {
+                team.getMemberIds().forEach(m -> teamsByMember.computeIfAbsent(m, k -> new HashSet<>()).add(team.getId()));
+            }
+        }
+        return list.stream().map(u -> new UserSummary(u.getId(), u.getName(), u.getStatus() == UserStatus.ACTIVE,
+                u.getStatus() == UserStatus.PENDING_ACTIVATION, u.isAllCreditors(), u.getCreditorIds(),
+                profileResolver.resolve(u, rolesById).permissionNames(),
+                Set.copyOf(teamsByMember.getOrDefault(u.getId(), Set.of())))).toList();
+    }
+
     private UserSummary summary(User user) {
-        return new UserSummary(user.getId(), user.getName(), user.getStatus() == UserStatus.ACTIVE, user.isAllCreditors(),
-                user.getCreditorIds(), profileResolver.resolve(user).permissionNames(), teamsOf(user.getId()));
+        return new UserSummary(user.getId(), user.getName(), user.getStatus() == UserStatus.ACTIVE,
+                user.getStatus() == UserStatus.PENDING_ACTIVATION, user.isAllCreditors(), user.getCreditorIds(),
+                profileResolver.resolve(user).permissionNames(), teamsOf(user.getId()));
     }
 }

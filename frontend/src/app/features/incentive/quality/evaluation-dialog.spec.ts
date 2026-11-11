@@ -8,7 +8,7 @@ import { provideAppLocale } from '../../../core/config/app-locale';
 import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config';
 import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
-import { UserLookup } from '../../admin/data/user.lookup';
+import { IncentiveAssignees } from '../data/incentive-assignees';
 import { QualityApi } from '../data/incentive.api';
 import { QualityForm } from '../data/incentive.models';
 import type { EvaluationDialogData } from './evaluation-launcher';
@@ -50,7 +50,7 @@ describe('EvaluationDialog (registro de monitoria)', () => {
         { provide: DIALOG_DATA, useValue: data },
         { provide: DialogRef, useValue: { close } },
         { provide: QualityApi, useValue: { evaluate, evaluableUsers: () => of({ all: true, userIds: [] }) } },
-        { provide: UserLookup, useValue: { search: () => of([]), resolve: () => of([]) } },
+        { provide: IncentiveAssignees, useValue: { source: () => ({ search: () => of([]), resolve: () => of([]) }) } },
         {
           provide: AuthService,
           useValue: {

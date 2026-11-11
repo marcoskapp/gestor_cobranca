@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.compliance.web;
 
+import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestAssigneeUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestAssigneeUseCases.AssigneeView;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.OpenRequestCommand;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.RequestFilter;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -36,9 +39,26 @@ import java.util.UUID;
 class DataSubjectRequestController {
 
     private final DataSubjectRequestUseCases requests;
+    private final DataSubjectRequestAssigneeUseCases assignees;
 
-    DataSubjectRequestController(DataSubjectRequestUseCases requests) {
+    DataSubjectRequestController(DataSubjectRequestUseCases requests, DataSubjectRequestAssigneeUseCases assignees) {
         this.requests = requests;
+        this.assignees = assignees;
+    }
+
+    /**
+     * Usuários atribuíveis como responsável: só id e nome dos elegíveis (mesma regra de {@code assign}/{@code start}),
+     * sem exigir {@code USER_VIEW}; paginada (até {@value DataSubjectRequestAssigneeUseCases#MAX_PAGE_SIZE} por página).
+     *
+     * @param ids ids separados por vírgula, para exibir o nome do que já está escolhido
+     */
+    @GetMapping("/assignable-users")
+    @PreAuthorize("hasAuthority('DATA_SUBJECT_REQUEST_MANAGE')")
+    PageResponse<AssigneeView> assignableUsers(@RequestParam(required = false) String q,
+                                               @RequestParam(required = false) Set<UUID> ids,
+                                               @RequestParam(required = false) Integer page,
+                                               @RequestParam(required = false) Integer size) {
+        return assignees.search(q, ids, PageQuery.of(page, size));
     }
 
     @GetMapping

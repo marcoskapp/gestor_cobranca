@@ -103,7 +103,7 @@
           <thead>
             <tr>
               <th scope="col">Título</th>
-              <th scope="col">Vencimento</th>
+              <th scope="col" class="sp-tertiary">Vencimento</th>
               <th scope="col">Atraso</th>
               <th scope="col" class="text-end sp-secondary">Valor original</th>
               <th scope="col" class="text-end">Saldo</th>
@@ -122,8 +122,11 @@
                     <span class="sp-flag"><app-icon name="hammer" />Contestação</span>
                   }
                 </td>
-                <td>{{ t.dueDate | appDate: 'date' }}</td>
-                <td><app-overdue-badge [days]="t.daysOverdue" [status]="t.status" /></td>
+                <td class="sp-tertiary">{{ t.dueDate | appDate: 'date' }}</td>
+                <td [ngbTooltip]="'Vencimento ' + (t.dueDate | appDate: 'date')">
+                  <app-overdue-badge [days]="t.daysOverdue" [status]="t.status" />
+                  <span class="visually-hidden sp-due-sr">Vencimento {{ t.dueDate | appDate: 'date' }}</span>
+                </td>
                 <td class="text-end sp-secondary"><app-amount [value]="t.principalAmount" /></td>
                 <td class="text-end" [ngbTooltip]="'Valor original ' + amountText(t.principalAmount)"><app-amount [value]="t.openBalance" /></td>
                 <td class="sp-secondary"><app-status-chip domain="title" [status]="t.status" /></td>

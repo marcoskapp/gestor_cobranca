@@ -3,6 +3,7 @@ package br.com.gestorcobranca.legal.application.service;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory.UserSummary;
 import br.com.gestorcobranca.legal.application.port.in.LawFirmUseCases;
+import br.com.gestorcobranca.legal.application.port.in.LegalAssigneeUseCases.Purpose;
 import br.com.gestorcobranca.legal.domain.model.LawFirm;
 import br.com.gestorcobranca.legal.domain.model.LawFirmMember;
 import br.com.gestorcobranca.legal.domain.repository.LawFirmMemberRepository;
@@ -41,12 +42,15 @@ class LawFirmService implements LawFirmUseCases {
     private final AccessLogger accessLogger;
     private final CurrentActor currentActor;
     private final Clock clock;
+    private final LegalAssigneeService assignees;
 
     LawFirmService(LawFirmRepository firms, LawFirmMemberRepository members, UserDirectory users, LegalAccess access,
-                   AuditTrail auditTrail, AccessLogger accessLogger, CurrentActor currentActor, Clock clock) {
+                   AuditTrail auditTrail, AccessLogger accessLogger, CurrentActor currentActor, Clock clock,
+                   LegalAssigneeService assignees) {
         this.firms = firms;
         this.members = members;
         this.users = users;
+        this.assignees = assignees;
         this.access = access;
         this.auditTrail = auditTrail;
         this.accessLogger = accessLogger;
@@ -142,11 +146,12 @@ class LawFirmService implements LawFirmUseCases {
         if (!firm.isActive()) {
             throw new ConflictException("law_firm.inactive", "Escritório inativo");
         }
-        UserSummary user = users.find(userId).filter(UserSummary::active)
-                .orElseThrow(() -> new BusinessRuleException("law_firm.user_invalid", "Usuário inexistente ou inativo"));
-        if (members.findByUserIdAndActiveTrue(userId).isPresent()) {
+        if (userId != null && members.findByUserIdAndActiveTrue(userId).isPresent()) {
             throw new ConflictException("law_firm.member_duplicate", "Usuário já vinculado a um escritório");
         }
+        // mesma regra da lista do campo (FIRM_MEMBER): ativo, com LEGAL_MANAGE e sem escritório
+        UserSummary user = assignees.requireEligible(Purpose.FIRM_MEMBER, null, userId, "law_firm.user_invalid",
+                "Usuário inexistente, inativo ou sem a permissão do jurídico");
         LawFirmMember member = members.save(new LawFirmMember(firm.getId(), userId, Instant.now(clock)));
         auditTrail.record(AuditEntry.of("law_firm.member_added", ENTITY, firm.getId()).meta("userId", userId));
         accessLogger.log(AccessEvent.of(AccessEventType.SCOPE_CHANGED, currentActor.get(),

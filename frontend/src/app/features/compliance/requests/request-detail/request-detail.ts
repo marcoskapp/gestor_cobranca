@@ -16,9 +16,10 @@ import { nameMap } from '../../../../shared/data/name-map';
 import { valueOr } from '../../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { DSR_FINAL_STATUSES } from '../../../../shared/status/status';
-import { UserLookup } from '../../../admin/data/user.lookup';
+import { USER_NAMES_BATCH, USER_NAMES_PERMISSIONS, UserNames } from '../../../admin/data/user-names';
 import { DebtorLookup, DebtorNames } from '../../../debt/data/debt.lookups';
 import { DataSubjectRequestsApi, RestrictionsApi } from '../../data/compliance.api';
+import { RequestAssignees } from '../../data/request-assignees';
 import {
   EXECUTABLE_REQUEST_TYPES,
   FILE_REQUEST_TYPES,
@@ -88,7 +89,8 @@ export class RequestDetail {
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
   private readonly debtorLookup = inject(DebtorLookup);
-  private readonly userLookup = inject(UserLookup);
+  /** Só quem o servidor aceita ao atribuir (ativo, atende titulares e tem acesso a todos os credores). */
+  private readonly assignees = inject(RequestAssignees);
 
   protected readonly typeLabels = REQUEST_TYPE_LABELS;
   protected readonly channelLabels = REQUEST_CHANNEL_LABELS;
@@ -104,14 +106,19 @@ export class RequestDetail {
   });
 
   protected readonly canOpenDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
-  protected readonly canViewUsers = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
+  /** Nomes de quem atende (`/users/display-names`: só id e nome). */
+  protected readonly canViewUsers = computed(() => this.auth.hasAnyPermission(USER_NAMES_PERMISSIONS));
+  /** Atribuir exige acesso a todos os credores, como os demais comandos da solicitação (e a lista de responsáveis). */
+  protected readonly canAssign = computed(() => this.auth.user()?.allCreditors ?? false);
   protected readonly canManageRestrictions = computed(() => this.auth.hasPermission(Permission.CONTACT_RESTRICTION_MANAGE));
   /** O arquivo reúne o titular em todos os credores, sem máscara: baixar exige acesso a todos (como gerar). */
   protected readonly canDownloadResult = computed(() => this.auth.user()?.allCreditors ?? false);
 
   protected readonly debtors = nameMap(inject(DebtorNames), () => [this.canOpenDebtor() ? this.current()?.debtorId : null]);
-  protected readonly users = nameMap(this.userLookup, () =>
-    this.canViewUsers() ? [this.current()?.assignedTo, this.current()?.identityVerifiedBy] : [],
+  protected readonly users = nameMap(
+    inject(UserNames),
+    () => (this.canViewUsers() ? [this.current()?.assignedTo, this.current()?.identityVerifiedBy] : []),
+    { batch: USER_NAMES_BATCH },
   );
 
   /** Restrições criadas por esta solicitação (oposição): onde o comprovante do pedido é anexado. */
@@ -173,8 +180,9 @@ export class RequestDetail {
       title: 'Atribuir responsável',
       message: 'O responsável acompanha o prazo e responde ao titular.',
       label: 'Responsável',
+      hint: 'Só quem atende solicitações de titulares e tem acesso a todos os credores',
       confirmLabel: 'Atribuir',
-      source: this.userLookup,
+      source: this.assignees,
       required: true,
     });
     this.apply(

@@ -62,6 +62,8 @@ public interface CaseWorkUseCases {
     /**
      * Redistribui os casos ativos de um operador (ausência, desligamento): entre os operadores
      * informados pela estratégia de menor carga, ou de volta às filas quando nenhum for informado.
+     * Destino aceito: ativo, {@code CASE_WORK}, diferente da origem e com acesso a ao menos um credor do
+     * escopo de quem redistribui (mesma regra de {@link CaseAssigneeUseCases.Purpose#CASE_REDISTRIBUTION_TARGET}).
      */
     DistributionResult redistribute(RedistributeCommand command);
 

@@ -4,8 +4,8 @@ import { finalize } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { Limits } from '../../../shared/validation/validators';
-import { UserLookup } from '../../admin/data/user.lookup';
 import { CaseWorkApi } from '../data/collection.api';
+import { CollectionAssignees } from '../data/collection-assignees';
 import { TeamLookup } from '../data/collection.lookups';
 import { CaseView } from '../data/collection.models';
 import { FORM_FIELD } from '../../../shared/forms/field';
@@ -41,7 +41,7 @@ export interface AssignDialogData {
           </div>
         </div>
         @if (form.controls.target.value === 'user') {
-          <app-entity-picker [control]="form.controls.user" [source]="users" label="Operador" [single]="true" hint="Precisa ter acesso ao credor e permissão de trabalhar casos." />
+          <app-entity-picker [control]="form.controls.user" [source]="users" label="Operador" [single]="true" hint="Só operadores ativos que trabalham casos deste credor." />
         } @else {
           <app-entity-picker [control]="form.controls.team" [source]="teams" label="Equipe" [single]="true" />
         }
@@ -71,7 +71,8 @@ export class AssignDialog {
   private readonly ref = inject<DialogRef<CaseView>>(DialogRef);
   private readonly api = inject(CaseWorkApi);
   private readonly notifications = inject(NotificationService);
-  protected readonly users = inject(UserLookup);
+  /** Só quem o servidor aceita como operador do caso (mesma regra da gravação). */
+  protected readonly users = inject(CollectionAssignees).source('CASE_WORKER', { caseId: this.data.caseView.id });
   protected readonly teams = inject(TeamLookup);
   protected readonly maxReason = Limits.reason;
   protected readonly saving = signal(false);

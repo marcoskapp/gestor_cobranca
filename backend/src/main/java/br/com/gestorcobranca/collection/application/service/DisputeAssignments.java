@@ -120,6 +120,15 @@ class DisputeAssignments {
         Guard.require(!from.equals(to), "dispute.redistribution_same", "Origem e destino são o mesmo analista");
         Guard.require(reason != null && !reason.isBlank() && reason.trim().length() <= 500,
                 "dispute.redistribution_reason_required", "Motivo obrigatório (até 500 caracteres)");
+        if (to != null) {
+            // mesma regra da lista de destinos (CaseAssigneeService, DISPUTE_REDISTRIBUTION_TARGET)
+            Set<UUID> creditors = disputes.findOpenCreditorIdsByAssignee(from, creditorFilter);
+            UserSummary target = users.find(to).orElseThrow(() -> new BusinessRuleException("dispute.assignee_invalid",
+                    "Analista inexistente"));
+            Guard.require(isEligibleForAll(target, creditors), "dispute.assignee_invalid",
+                    "O analista de destino precisa estar ativo, trabalhar contestações e ter acesso aos credores de todas "
+                            + "as contestações em aberto da origem");
+        }
         List<Dispute> open = disputes.search(new DisputeSearchCriteria(creditorFilter, null, OPEN, null, null, from,
                 false, null, null, null, false, false, null), PageRequest.of(0, 1000, Sort.by("internalDueDate", "id")))
                 .getContent();
@@ -182,9 +191,27 @@ class DisputeAssignments {
                 .sorted(Comparator.comparing(UserSummary::name)).toList();
     }
 
+    /**
+     * Regra única de quem pode ser responsável por contestação do credor: ativo, {@code DISPUTE_WORK} ou
+     * {@code DISPUTE_MANAGE} e acesso ao credor. Usada na gravação e nas listas ({@code assigneeOptions},
+     * {@code CaseAssigneeService}).
+     */
     static boolean isEligible(UserSummary user, UUID creditorId) {
-        return user.active() && user.canAccessCreditor(creditorId)
-                && (user.permissions().contains(Permission.DISPUTE_WORK.name())
+        return worksDisputes(user) && user.canAccessCreditor(creditorId);
+    }
+
+    /** Membro de grupo de distribuição: {@link #isEligible} no credor do grupo; grupo geral (nulo), só trabalhar contestações. */
+    static boolean isEligibleForPool(UserSummary user, UUID creditorId) {
+        return creditorId == null ? worksDisputes(user) : isEligible(user, creditorId);
+    }
+
+    /** Destino de redistribuição: {@link #isEligible} em todos os credores informados (vazio = só trabalhar contestações). */
+    static boolean isEligibleForAll(UserSummary user, Set<UUID> creditorIds) {
+        return worksDisputes(user) && creditorIds.stream().allMatch(user::canAccessCreditor);
+    }
+
+    private static boolean worksDisputes(UserSummary user) {
+        return user != null && user.active() && (user.permissions().contains(Permission.DISPUTE_WORK.name())
                 || user.permissions().contains(Permission.DISPUTE_MANAGE.name()));
     }
 

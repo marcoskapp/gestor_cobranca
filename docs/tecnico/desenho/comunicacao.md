@@ -85,7 +85,19 @@ Regras:
   exige **motivo** e **resumo** e indica o **perfil exigido** (ex.: `SUPERVISOR`), filtro da fila na caixa de
   entrada; o caso é devolvido à fila no collection (o assistente pode devolver casos que conduz — `release`).
 - Operador assume (`take-over`) conversa da fila, sem dono ou do assistente; conversa de outro operador só com
-  `CASE_ASSIGN` (`409 conversation.assigned_to_other`). Atribuir a operador (`INBOX_MANAGE`) exige caso.
+  `CASE_ASSIGN` (`409 conversation.assigned_to_other`).
+- Atribuir a operador (`INBOX_MANAGE`): a lista da tela (`GET /conversations/{id}/assignable-users`,
+  `ConversationAssigneeService`) e a gravação (`ConversationOwnership#assign`) usam a mesma regra,
+  `ConversationAssignees#isEligible`: usuário ativo com `INBOX_VIEW` e `MESSAGE_SEND` (vê a conversa e responde) e
+  - **com caso ativo**: também a regra do collection para trabalhar o caso (`CaseAssigneeUseCases#isCaseWorker`:
+    `CASE_WORK` e acesso ao credor do caso); o comando vai ao caso (`CaseWorkUseCases.assign`) e o dono se propaga às
+    conversas abertas do caso;
+  - **sem caso**: acesso ao credor da conversa (conversa sem credor — contato não identificado — exige todos os
+    credores, como `ConversationAccess`); o dono é só da conversa (`Owner.user`, equipe atual mantida).
+  Fora da regra: `422 conversation.assignee_invalid`. A lista devolve só id e nome (até 50 por página, até 50 `ids`),
+  sem exigir `USER_VIEW`, e registra `USER_DIRECTORY_QUERIED` no log de acesso (`resource=conversation_assignee`,
+  `conversationId`, `withCase`, `returned` — nunca o texto buscado). O módulo passa a depender de `identity :: usecases`
+  (`UserDirectory`) para essa regra.
 - Devolver à fila ou ao assistente: o dono, ou quem tem `CASE_ASSIGN`.
 - Toda mudança grava `ConversationHandoff` (append-only: de, para, natureza, motivo, resumo criptografado, perfil,
   ator, referência), auditoria, `conversation.handoff` (`assistant.handoff` quando o assistente transfere) e
@@ -274,6 +286,7 @@ consulta periódica espaçada como rede de segurança. Parâmetros em `app.commu
 | `/inbox/stream` (SSE) | `GET` | `INBOX_VIEW` |
 | `/conversations/{id}/read|identify|take-over|release|assistant|close` · `/drafts/{draftId}/send|discard` | `POST` | `MESSAGE_SEND` |
 | `/conversations/{id}/assign|handoff` | `POST` | `INBOX_MANAGE` |
+| `/conversations/{id}/assignable-users[?q][&ids]` (só id e nome; §3) | `GET` | `INBOX_MANAGE` |
 | `/sandbox/inbound` (só com sandbox) | `POST` | `CHANNEL_MANAGE` |
 
 Escopo por credor em tudo (`AccessScope`: 404 leitura, 403 comando, listagens filtradas); contas e templates da

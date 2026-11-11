@@ -1,6 +1,6 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { urlTab } from '../../../shared/data/url-state';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
 import { Observable, finalize } from 'rxjs';
@@ -16,9 +16,9 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { AppValidators } from '../../../shared/validation/validators';
-import { UserLookup } from '../../admin/data/user.lookup';
 import { CreditorLookup, CreditorNames } from '../../organization/data/organization.lookups';
 import { DisputeConfigApi, DisputesApi } from '../data/collection.api';
+import { CollectionAssignees } from '../data/collection-assignees';
 import { DisputeMailQuarantine } from './dispute-mail-quarantine';
 import { DEADLINE_SOURCE_LABELS, DISPUTE_OUTCOME_LABELS, DISPUTE_TYPE_LABELS } from '../data/collection.labels';
 import { DeadlineRuleView, DisputeSettingsRequest, DisputeTemplateView, DisputeType } from '../data/collection.models';
@@ -32,6 +32,13 @@ export const DISPUTE_CONFIG_LIMITS = {
   evidenceLinkDays: { min: 1, max: 30 },
   responseDays: { min: 1, max: 90 },
 } as const;
+
+/** Limpa a escolha de um seletor (quando o contexto da lista dele muda). */
+function clear(control: FormControl<string[]>): void {
+  if (control.value.length) {
+    control.setValue([]);
+  }
+}
 
 const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required, Validators.min(DISPUTE_CONFIG_LIMITS[key].min), Validators.max(DISPUTE_CONFIG_LIMITS[key].max)];
 
@@ -177,8 +184,10 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
               }
             </ul>
             <div class="row g-3 align-items-start">
-              <div class="col-md-5"><app-entity-picker [control]="memberUser" [source]="users" label="Analista" [single]="true" /></div>
               <div class="col-md-5"><app-entity-picker [control]="memberCreditor" [source]="creditorSource" label="Credor (vazio = todos)" [single]="true" /></div>
+              <div class="col-md-5">
+                <app-entity-picker [control]="memberUser" [source]="memberUsers()" label="Analista" [single]="true" hint="Só analistas ativos com acesso ao credor e fora do grupo." />
+              </div>
               <div class="col-md-2 app-control-offset">
                 <button class="btn btn-outline-primary" type="button" (click)="addMember()" [disabled]="busy() || !memberUser.value.length">Incluir</button>
               </div>
@@ -189,8 +198,8 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
             <h2 class="app-card__title" id="dc-redistribute">Redistribuir</h2>
             <p class="app-muted">Move todas as contestações em aberto de um analista (férias, desligamento). Sem destino, voltam à fila ou seguem a distribuição automática.</p>
             <div class="row g-3 align-items-start">
-              <div class="col-md-4"><app-entity-picker [control]="fromUser" [source]="users" label="De" [single]="true" /></div>
-              <div class="col-md-4"><app-entity-picker [control]="toUser" [source]="users" label="Para (opcional)" [single]="true" /></div>
+              <div class="col-md-4"><app-entity-picker [control]="fromUser" [source]="fromUsers" label="De" [single]="true" hint="Quem tem contestações em aberto, inclusive inativos." /></div>
+              <div class="col-md-4"><app-entity-picker [control]="toUser" [source]="toUsers()" label="Para (opcional)" [single]="true" hint="Só analistas com acesso aos credores das contestações de origem." /></div>
               <app-field class="col-md-4" label="Motivo">
                 <input appInput [formControl]="redistributeReason" maxlength="500" />
               </app-field>
@@ -310,7 +319,7 @@ export class DisputeConfigPage {
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
-  protected readonly users = inject(UserLookup);
+  private readonly assignees = inject(CollectionAssignees);
 
   protected readonly types = DISPUTE_TYPE_LABELS;
   protected readonly sourceLabels = DEADLINE_SOURCE_LABELS;
@@ -354,6 +363,18 @@ export class DisputeConfigPage {
   protected readonly memberCreditor = new FormControl<string[]>([], { nonNullable: true });
   protected readonly fromUser = new FormControl<string[]>([], { nonNullable: true });
   protected readonly toUser = new FormControl<string[]>([], { nonNullable: true });
+  private readonly memberCreditorId = toSignal(this.memberCreditor.valueChanges, { initialValue: this.memberCreditor.value });
+  private readonly fromUserId = toSignal(this.fromUser.valueChanges, { initialValue: this.fromUser.value });
+  /** Analistas que o servidor aceita no grupo do credor escolhido (vazio = grupo geral). */
+  protected readonly memberUsers = computed(() =>
+    this.assignees.source('DISPUTE_POOL_MEMBER', { creditorId: this.memberCreditorId()[0] ?? null }),
+  );
+  /** Origem: responsáveis por contestações em aberto no seu escopo, ativos ou não (carteira de quem saiu). */
+  protected readonly fromUsers = this.assignees.source('DISPUTE_REDISTRIBUTION_SOURCE');
+  /** Destino: a mesma regra da gravação (acesso aos credores das contestações da origem), sem a origem. */
+  protected readonly toUsers = computed(() =>
+    this.assignees.source('DISPUTE_REDISTRIBUTION_TARGET', { fromUserId: this.fromUserId()[0] ?? null }),
+  );
   protected readonly redistributeReason = new FormControl('', { nonNullable: true, validators: [AppValidators.notBlank] });
   protected readonly templateForm = this.fb.group({
     subject: ['', [AppValidators.notBlank, Validators.maxLength(200)]],
@@ -361,6 +382,9 @@ export class DisputeConfigPage {
   });
 
   constructor() {
+    // a lista do campo dependente muda com o contexto: a escolha anterior pode não valer mais
+    this.memberCreditor.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => clear(this.memberUser));
+    this.fromUser.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => clear(this.toUser));
     effect(() => {
       const s = this.current();
       if (s) {

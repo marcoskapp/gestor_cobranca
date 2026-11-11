@@ -57,6 +57,19 @@ class IncentiveAccess {
         throw new ScopeAccessDeniedException();
     }
 
+    /** Tem alguma visão de desempenho (próprio, equipe ou todos)? Sem ela, {@link #scope()} nega com 403. */
+    boolean hasPerformanceScope() {
+        Actor actor = actor();
+        return actor.has(Permission.PERFORMANCE_VIEW_ALL) || actor.has(Permission.COMMISSION_STATEMENT_MANAGE)
+                || actor.has(Permission.COMMISSION_STATEMENT_APPROVE) || actor.has(Permission.PERFORMANCE_VIEW_TEAM)
+                || actor.has(Permission.PERFORMANCE_VIEW_OWN);
+    }
+
+    /** Usuários visíveis ao ator; null = todos; vazio quando não há visão de desempenho (sem 403). */
+    Set<UUID> visibleUsersOrNone() {
+        return hasPerformanceScope() ? visibleUsers() : Set.of();
+    }
+
     /** Usuários visíveis ao ator; null = todos. */
     Set<UUID> visibleUsers() {
         Scope scope = scope();

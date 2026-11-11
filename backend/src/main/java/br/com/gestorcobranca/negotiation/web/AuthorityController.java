@@ -2,10 +2,13 @@ package br.com.gestorcobranca.negotiation.web;
 
 import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases.AssignCommand;
+import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases.AssignableUserView;
 import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases.AssignmentView;
 import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases.EffectiveAuthorityView;
 import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases.ProfileCommand;
 import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases.ProfileView;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.web.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -87,6 +90,20 @@ class AuthorityController {
     AssignmentView assign(@Valid @RequestBody AssignRequest request) {
         return authority.assign(new AssignCommand(request.subjectType(), request.subjectId(), request.creditorId(),
                 request.profileId()));
+    }
+
+    /**
+     * Quem pode receber alçada para o credor (vazio = atribuição geral): só id e nome, paginado, pela mesma regra da
+     * atribuição. {@code ids} (separados por vírgula) traz o nome do que já está escolhido.
+     */
+    @GetMapping("/authority-assignments/assignable-users")
+    @PreAuthorize("hasAuthority('AUTHORITY_MANAGE')")
+    PageResponse<AssignableUserView> assignableUsers(@RequestParam(required = false) UUID creditorId,
+                                                     @RequestParam(required = false) String q,
+                                                     @RequestParam(required = false) Set<UUID> ids,
+                                                     @RequestParam(required = false) Integer page,
+                                                     @RequestParam(required = false) Integer size) {
+        return authority.assignableUsers(creditorId, q, ids, PageQuery.of(page, size));
     }
 
     @DeleteMapping("/authority-assignments/{id}")

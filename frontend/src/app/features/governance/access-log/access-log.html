@@ -73,7 +73,9 @@
     </span>
   </ng-template>
   <ng-template appCell="actor" [appCellOf]="query.rows()" let-e>{{ actor(e) }}</ng-template>
-  <ng-template appCell="route" [appCellOf]="query.rows()" let-e><span class="app-mono">{{ e.route ?? '—' }}</span></ng-template>
+  <!-- IPv6 e rotas longas quebram dentro da célula: a tabela cabe na largura da tela -->
+  <ng-template appCell="clientIp" [appCellOf]="query.rows()" let-e><span class="app-mono text-break">{{ e.clientIp ?? '—' }}</span></ng-template>
+  <ng-template appCell="route" [appCellOf]="query.rows()" let-e><span class="app-mono text-break">{{ e.route ?? '—' }}</span></ng-template>
   <ng-template appCell="actions" [appCellOf]="query.rows()" let-e>
     <button class="btn btn-sm btn-outline-secondary border-0"
       type="button"

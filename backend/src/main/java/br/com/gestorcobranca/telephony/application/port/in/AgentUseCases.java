@@ -14,7 +14,11 @@ import java.util.UUID;
  */
 public interface AgentUseCases {
 
-    /** Habilita ou altera o operador na telefonia (ramal/usuário SIP). */
+    /**
+     * Habilita ou altera o operador na telefonia (ramal/usuário SIP). Criar o operador, habilitá-lo ou mantê-lo
+     * habilitado exige usuário ativo com {@code TELEPHONY_USE} ({@code agent.user_invalid}) — a mesma regra da lista de
+     * {@link AgentCandidateUseCases}; desabilitar um operador já configurado não exige.
+     */
     AgentView configure(UUID userId, ConfigureAgentCommand command);
 
     /** Todos os operadores habilitados com a presença atual (supervisão). */

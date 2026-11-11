@@ -1,5 +1,8 @@
 package br.com.gestorcobranca.negotiation.application.port.in;
 
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
@@ -32,6 +35,25 @@ public interface AuthorityUseCases {
      */
     AssignmentView assign(AssignCommand command);
 
+    /** Limite de resultados por página de {@link #assignableUsers}. */
+    int ASSIGNABLE_MAX_PAGE_SIZE = 50;
+
+    /** Limite de ids na resolução de nomes já escolhidos em {@link #assignableUsers}. */
+    int ASSIGNABLE_MAX_IDS = 50;
+
+    /**
+     * Usuários que podem receber alçada para o credor ({@code creditorId} nulo = todos), pela mesma regra que
+     * {@link #assign} aplica ao gravar: habilitado (ativo ou aguardando ativação — a alçada pode ser preparada no
+     * onboarding), nunca o próprio ator e, na atribuição por credor, com acesso a esse credor. Não exige
+     * {@code NEGOTIATION_PROPOSE}: a permissão é dada no perfil de acesso, que pode vir depois; sem ela a alçada
+     * não tem efeito. Exige o mesmo escopo do ator que a atribuição (credor no escopo; geral = todos os credores).
+     * Só id e nome; cada consulta vai para o log de acesso ({@code USER_DIRECTORY_QUERIED}).
+     *
+     * @param query trecho do nome (sem diferenciar maiúsculas e acentos); vazio lista todos
+     * @param ids   quando informado, só esses ids (até {@value #ASSIGNABLE_MAX_IDS}) entre os elegíveis
+     */
+    PageResponse<AssignableUserView> assignableUsers(UUID creditorId, String query, Set<UUID> ids, PageQuery page);
+
     void unassign(UUID assignmentId);
 
     /** @param subjectType filtro opcional (com {@code subjectId}) */
@@ -42,6 +64,10 @@ public interface AuthorityUseCases {
 
     /** Alçada efetiva do ator corrente para o credor. */
     EffectiveAuthorityView mine(UUID creditorId);
+
+    /** Leitura mínima de quem pode receber alçada: id e nome de exibição. */
+    record AssignableUserView(UUID id, String name) {
+    }
 
     /**
      * @param code          ignorado em {@code updateProfile}

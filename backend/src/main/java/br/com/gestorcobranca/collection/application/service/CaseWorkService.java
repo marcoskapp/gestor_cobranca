@@ -324,11 +324,14 @@ class CaseWorkService implements CaseWorkUseCases {
             return new DistributionResult(0, released.size(), released);
         }
         Map<UUID, UserSummary> members = new LinkedHashMap<>();
+        Set<UUID> actorCreditors = access.creditorFilter();
         for (UUID userId : new TreeSet<>(command.toUserIds())) {
-            UserSummary user = users.find(userId).filter(UserSummary::active)
-                    .filter(u -> u.permissions().contains(Permission.CASE_WORK.name()))
+            // mesma regra da lista de destinos (CaseAssigneeService, CASE_REDISTRIBUTION_TARGET)
+            UserSummary user = users.find(userId)
+                    .filter(u -> CaseWorkers.canReceiveRedistribution(u, command.fromUserId(), actorCreditors))
                     .orElseThrow(() -> new BusinessRuleException("case.assignee_invalid",
-                            "Operador de destino inexistente, inativo ou sem permissão para trabalhar casos"));
+                            "Operador de destino inexistente, inativo, sem permissão para trabalhar casos ou sem acesso "
+                                    + "aos credores do seu escopo"));
             members.put(user.id(), user);
         }
         List<CaseDistributor.Member> plannerMembers = members.values().stream()
@@ -395,13 +398,15 @@ class CaseWorkService implements CaseWorkUseCases {
 
     // ------------------------------------------------------------------ apoio
 
+    /** Mesma regra da lista de operadores do caso ({@link CaseWorkers#canWork}, {@code CASE_WORKER}). */
     private UserSummary requireWorker(UUID userId, UUID creditorId) {
         UserSummary user = users.find(userId).filter(UserSummary::active)
                 .orElseThrow(() -> new BusinessRuleException("case.assignee_invalid", "Operador inexistente ou inativo"));
-        Guard.require(user.permissions().contains(Permission.CASE_WORK.name()), "case.assignee_invalid",
-                "O usuário não tem permissão para trabalhar casos");
-        Guard.require(user.canAccessCreditor(creditorId), "case.assignee_out_of_scope",
-                "O operador não tem acesso ao credor do caso");
+        if (!CaseWorkers.canWork(user, creditorId)) {
+            boolean works = user.permissions().contains(Permission.CASE_WORK.name());
+            throw new BusinessRuleException(works ? "case.assignee_out_of_scope" : "case.assignee_invalid",
+                    works ? "O operador não tem acesso ao credor do caso" : "O usuário não tem permissão para trabalhar casos");
+        }
         return user;
     }
 

@@ -36,6 +36,12 @@ public interface UserRepository {
 
     List<User> findActiveByRoleIds(Collection<UUID> roleIds);
 
+    /** Usuários nas situações informadas. */
+    List<User> findByStatusIn(Collection<UserStatus> statuses);
+
+    /** Usuários com algum dos perfis e numa das situações informadas. */
+    List<User> findByRoleIdsAndStatusIn(Collection<UUID> roleIds, Collection<UserStatus> statuses);
+
     /**
      * @param withinCreditors nulo = sem restrição; senão só usuários sem "todos os credores" e cujos
      *                        credores estão todos neste conjunto

@@ -23,7 +23,7 @@ import { FORM_FIELD } from '../../../shared/forms/field';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { describeStatus } from '../../../shared/status/status';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
-import { UserLookup } from '../../admin/data/user.lookup';
+import { AgentCandidates } from '../data/agent-candidates';
 import { AgentsApi, DialerCampaignsApi, TelephonyAccountsApi } from '../data/telephony.api';
 import { AgentEndpointsDialog, AgentEndpointsDialogData } from './agent-endpoints-dialog';
 import { PAUSE_REASON_LABELS, TELEPHONY_ERROR_LABELS } from '../data/telephony.labels';
@@ -47,7 +47,7 @@ export interface AgentDialogData {
     <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body d-grid gap-3">
         @if (!data.agent) {
-          <app-entity-picker [control]="form.controls.user" [source]="users" label="Usuário" [single]="true" />
+          <app-entity-picker [control]="form.controls.user" [source]="users" label="Usuário" [single]="true" hint="Só usuários ativos com permissão de usar a telefonia" />
         }
         <app-field label="Ramal padrão ou usuário SIP" hint="Vale nas plataformas em que o operador não tem ramal próprio (configure em &quot;Ramais por plataforma&quot;)" error="Informe o ramal.">
           <input appInput formControlName="extension" maxlength="64" required autocomplete="off" />
@@ -71,7 +71,8 @@ export class AgentDialog {
   protected readonly data = inject<AgentDialogData>(DIALOG_DATA);
   private readonly ref = inject<DialogRef<AgentView>>(DialogRef);
   private readonly api = inject(AgentsApi);
-  protected readonly users = inject(UserLookup);
+  /** Só quem o servidor aceita ao gravar o ramal (usuário ativo com permissão de usar a telefonia). */
+  protected readonly users = inject(AgentCandidates);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
   private readonly fb = inject(FormBuilder).nonNullable;

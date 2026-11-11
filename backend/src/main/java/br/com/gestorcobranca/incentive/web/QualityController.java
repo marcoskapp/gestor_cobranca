@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.incentive.web;
 
+import br.com.gestorcobranca.incentive.application.port.in.AssignableUserView;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.CriterionInput;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.EvaluableUsers;
@@ -38,6 +39,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /** Monitoria de qualidade (formulários, avaliações 0–10) e ocorrências de conduta. */
@@ -88,6 +90,19 @@ class QualityController {
     @PreAuthorize("hasAuthority('QUALITY_EVALUATE')")
     EvaluableUsers evaluableUsers() {
         return quality.evaluableUsers();
+    }
+
+    /**
+     * Negociadores que o ator pode avaliar (ou em quem registrar ocorrência), só id e nome, paginado — mesma regra da
+     * gravação. {@code ids} (separados por vírgula) traz o nome do que já está escolhido.
+     */
+    @GetMapping("/evaluable-users/search")
+    @PreAuthorize("hasAuthority('QUALITY_EVALUATE')")
+    PageResponse<AssignableUserView> searchEvaluable(@RequestParam(required = false) String q,
+                                                     @RequestParam(required = false) Set<UUID> ids,
+                                                     @RequestParam(required = false) Integer page,
+                                                     @RequestParam(required = false) Integer size) {
+        return quality.searchEvaluable(q, ids, PageQuery.of(page, size));
     }
 
     /** Avaliações do próprio ator para estes atendimentos: a tela mostra "Avaliado por você" em vez de "Avaliar". */

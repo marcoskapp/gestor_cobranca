@@ -100,6 +100,28 @@ interface CollectionCaseJpaRepository extends JpaRepository<CollectionCase, UUID
     List<CollectionCase> activeByAssignee(UUID userId, Limit limit);
 
     @Override
+    default java.util.Set<UUID> findActiveAssigneeIds(java.util.Set<UUID> creditorIds) {
+        if (creditorIds != null && creditorIds.isEmpty()) {
+            return java.util.Set.of();
+        }
+        return java.util.Set.copyOf(creditorIds == null ? activeAssigneeIds() : activeAssigneeIdsIn(creditorIds));
+    }
+
+    @Query("""
+            select distinct c.assigneeUserId from CollectionCase c
+             where c.assigneeUserId is not null
+               and c.status <> br.com.gestorcobranca.collection.domain.model.CaseStatus.CLOSED
+            """)
+    List<UUID> activeAssigneeIds();
+
+    @Query("""
+            select distinct c.assigneeUserId from CollectionCase c
+             where c.assigneeUserId is not null and c.creditorId in :creditorIds
+               and c.status <> br.com.gestorcobranca.collection.domain.model.CaseStatus.CLOSED
+            """)
+    List<UUID> activeAssigneeIdsIn(Collection<UUID> creditorIds);
+
+    @Override
     @Query("""
             select c from CollectionCase c
              where c.debtorId = :debtorId and c.portfolioId = :portfolioId

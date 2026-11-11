@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
+import br.com.gestorcobranca.identity.application.port.in.UserDirectory.UserSummary;
 import br.com.gestorcobranca.negotiation.application.port.in.AuthorityProvisioning;
 import br.com.gestorcobranca.negotiation.application.port.in.AuthorityUseCases;
 import br.com.gestorcobranca.negotiation.domain.model.authority.AssignmentSubject;
@@ -18,6 +19,9 @@ import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
+import br.com.gestorcobranca.shared.paging.NameSearch;
+import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -31,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 @Service
 @Transactional
@@ -125,9 +130,12 @@ class AuthorityService implements AuthorityUseCases, AuthorityProvisioning {
                 "A alçada do portal é do canal: use o id " + AssignmentSubject.PORTAL_CHANNEL_ID);
         requireAssignmentScope(command.creditorId());
         if (subject == AssignmentSubject.USER) {
-            // usuários ainda não ativados podem receber alçada (preparação do onboarding);
-            // desativados não autenticam, então a atribuição não tem efeito
-            users.find(command.subjectId()).orElseThrow(() -> new ResourceNotFoundException("user", command.subjectId()));
+            // mesma regra da lista do campo (assignableUsers): habilitado — usuários ainda não ativados podem receber
+            // alçada (preparação do onboarding) —, nunca o próprio ator e com acesso ao credor da atribuição
+            UserSummary user = users.find(command.subjectId())
+                    .orElseThrow(() -> new ResourceNotFoundException("user", command.subjectId()));
+            Guard.require(assignable(command.creditorId()).test(user), "authority.subject_not_eligible",
+                    "O usuário precisa estar ativo (ou aguardando ativação) e ter acesso ao credor da atribuição");
         }
         AuthorityProfile profile = loadProfile(command.profileId());
         Guard.require(command.creditorId() == null ? profile.getCreditorIds().isEmpty()
@@ -158,6 +166,36 @@ class AuthorityService implements AuthorityUseCases, AuthorityProvisioning {
         logAccessChange(subject, command.subjectId(), command.creditorId(), profile.getCode(), operation);
         metrics.authorityChanged(operation);
         return view(assignment);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AssignableUserView> assignableUsers(UUID creditorId, String query, Set<UUID> ids,
+                                                            PageQuery page) {
+        accessScope.requirePermission(Permission.AUTHORITY_MANAGE);
+        Guard.require(ids == null || ids.size() <= ASSIGNABLE_MAX_IDS, "authority.assignable_ids_limit",
+                "Informe no máximo %d usuários por consulta".formatted(ASSIGNABLE_MAX_IDS));
+        requireAssignmentScope(creditorId);
+        List<AssignableUserView> candidates = users.enabledUsers(null).stream().filter(assignable(creditorId))
+                .map(u -> new AssignableUserView(u.id(), u.name())).toList();
+        PageResponse<AssignableUserView> result = NameSearch.page(candidates, AssignableUserView::id,
+                AssignableUserView::name, query, ids, page, ASSIGNABLE_MAX_PAGE_SIZE);
+        Map<String, String> details = new LinkedHashMap<>();
+        details.put("resource", ASSIGNMENT);
+        details.put("creditorId", creditorId == null ? "ALL" : creditorId.toString());
+        details.put("returned", String.valueOf(result.content().size()));
+        accessLogger.log(AccessEvent.of(AccessEventType.USER_DIRECTORY_QUERIED, currentActor.get(), details));
+        return result;
+    }
+
+    /**
+     * Predicado único de quem pode receber alçada de usuário (lista e gravação): habilitado (ativo ou aguardando
+     * ativação), nunca o próprio ator e, na atribuição por credor, com acesso ao credor. {@code NEGOTIATION_PROPOSE}
+     * não é exigida: a alçada pode ser preparada antes da permissão (sem ela, não tem efeito).
+     */
+    private Predicate<UserSummary> assignable(UUID creditorId) {
+        UUID self = currentActor.actorId();
+        return u -> u.enabled() && !u.id().equals(self) && (creditorId == null || u.canAccessCreditor(creditorId));
     }
 
     @Override

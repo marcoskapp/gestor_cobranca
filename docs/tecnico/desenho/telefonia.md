@@ -242,7 +242,7 @@ tabulação desativada ou interação com mais de 7 dias → não registra (mét
 
 ## 7. Presença do operador (ACD)
 
-`Agent` (tabela `agent`): ramal/usuário SIP configurado pelo gestor e estado `OFFLINE`, `AVAILABLE`, `ON_CALL`,
+`Agent` (tabela `agent`): ramal/usuário SIP configurado pelo gestor (§7.1) e estado `OFFLINE`, `AVAILABLE`, `ON_CALL`,
 `WRAP_UP`, `PAUSED` (com motivo do catálogo: `BREAK`, `LUNCH`, `RESTROOM`, `TRAINING`, `FEEDBACK`, `MEETING`,
 `BACKOFFICE`, `TECHNICAL_ISSUE`, `OTHER`; os quatro do meio são pausas produtivas). O operador escolhe entrar
 (opcionalmente numa campanha ativa do seu escopo), disponível, pausa e sair; `ON_CALL`/`WRAP_UP` são conduzidos pelas
@@ -253,8 +253,25 @@ grava um intervalo **append-only** (`presence_interval`) e `agent.presence_chang
 **Por que no telephony e não no identity.** O estado é do discador: muda a cada chamada (subsegundo), é lido e
 bloqueado na distribuição (`SKIP LOCKED`) junto com a chamada, e depende de ramal e campanha — conceitos da telefonia.
 O identity continua dono de autenticação e sessões (tempo logado do incentive, decisão 24 da remuneração variável); a
-presença do discador acrescenta disponível/pausa/em chamada sem acoplar o identity ao discador, e o grafo não permite
-telephony → identity. Os intervalos de presença ficam disponíveis para o incentive/analytics por evento ou view (§11).
+presença do discador acrescenta disponível/pausa/em chamada sem acoplar o identity ao discador. O telephony só consulta
+o identity pela porta pública `UserDirectory` (elegibilidade do operador, §7.1); o identity não conhece o discador. Os
+intervalos de presença ficam disponíveis para o incentive/analytics por evento ou view (§11).
+
+### 7.1 Quem pode ser habilitado como operador
+
+Regra única (`AgentCandidates.isEligible`), usada pela lista da tela e pela gravação: **usuário existente, ativo e com
+`TELEPHONY_USE`**.
+
+- Lista: `GET /telephony/agents/assignable-users?q=&ids=&page=&size=` (`TELEPHONY_MANAGE`, sem `USER_VIEW`) devolve só
+  id e nome dos elegíveis, ordenados por nome (busca sem acento e sem diferenciar maiúsculas), até 50 por página e
+  50 ids na resolução de nomes; cada consulta registra `USER_DIRECTORY_QUERIED` no log de acesso
+  (`resource=telephony_agent_candidate`, `returned`), nunca o texto buscado. Alimenta "Habilitar operador"
+  (`AgentCandidates` no front, no lugar do cadastro de usuários).
+- Gravação: `PUT /telephony/agents/{userId}` recusa (`422`, `agent.user_invalid`, "O usuário precisa estar ativo e ter
+  permissão para usar a telefonia") criar o operador, habilitá-lo ou mantê-lo habilitado para usuário inexistente,
+  desativado, pendente de ativação ou sem `TELEPHONY_USE`. **Desabilitar** um operador já configurado que perdeu a
+  elegibilidade continua permitido (limpeza). O ramal por plataforma (`/endpoints/{accountId}`) exige o operador já
+  configurado.
 
 ## 8. Gravações
 
@@ -349,7 +366,8 @@ toque e atendimento; nos testes os eventos vêm de `POST /telephony/sandbox/call
 | `CALL_RECORDING_LISTEN` (nova) | supervisor, gestor, admin | ouvir/baixar gravações (finalidade + log de acesso) |
 
 REST (`/api/v1/telephony`): `calls` (POST clique para ligar, GET busca com `operator=me`, `awaiting-tabulation`, `{id}`,
-`{id}/hangup`, `{id}/tabulation`, `{id}/recording`), `agents` (PUT `{userId}`, GET, POST `{userId}/logout`),
+`{id}/hangup`, `{id}/tabulation`, `{id}/recording`), `agents` (PUT `{userId}`, GET, POST `{userId}/logout`,
+GET `assignable-users` — usuários habilitáveis, §7.1),
 `presence/me` (GET, `login`, `available`, `pause`, `campaign`, `heartbeat`, `logout`), `dialer-campaigns` (CRUD,
 `activate`, `pause`, `finish`, `reload`, `entries`, `stats`), `accounts` (CRUD, `credentials`, `activate`,
 `deactivate`, `providers`, `comparison`), `routes` (GET, PUT, DELETE), `agents/endpoints` e

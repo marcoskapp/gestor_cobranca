@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.incentive.application.service;
 
+import br.com.gestorcobranca.incentive.application.port.in.AssignableUserView;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases;
 import br.com.gestorcobranca.incentive.domain.model.quality.ConductOccurrence;
 import br.com.gestorcobranca.incentive.domain.model.quality.EvaluationReferenceType;
@@ -37,18 +38,20 @@ class QualityService implements QualityUseCases {
 
     private static final long MAX_RANGE_DAYS = 400;
     private static final int MAX_OWN_LOOKUP = 200;
+    private static final String NOT_EVALUABLE = "Escolha um negociador habilitado da sua equipe (ou da assessoria, com "
+            + "visão total); ninguém avalia o próprio atendimento";
 
     private final QualityRepository quality;
-    private final Workforce workforce;
+    private final IncentiveAssignees assignees;
     private final IncentiveAccess access;
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final Clock clock;
 
-    QualityService(QualityRepository quality, Workforce workforce, IncentiveAccess access, AuditTrail auditTrail,
-                   BusinessEventLogger businessEvents, Clock clock) {
+    QualityService(QualityRepository quality, IncentiveAssignees assignees, IncentiveAccess access,
+                   AuditTrail auditTrail, BusinessEventLogger businessEvents, Clock clock) {
         this.quality = quality;
-        this.workforce = workforce;
+        this.assignees = assignees;
         this.access = access;
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
@@ -59,12 +62,17 @@ class QualityService implements QualityUseCases {
     @Transactional(readOnly = true)
     public EvaluableUsers evaluableUsers() {
         access.requirePermission(Permission.QUALITY_EVALUATE);
-        Set<UUID> visible = access.visibleUsers();
-        if (visible == null) {
+        if (access.visibleUsers() == null) {
             return new EvaluableUsers(true, List.of());
         }
-        UUID self = access.actor().id();
-        return new EvaluableUsers(false, visible.stream().filter(id -> !id.equals(self)).sorted().toList());
+        return new EvaluableUsers(false, assignees.eligibleIds(IncentiveAssignees.Purpose.EVALUATION));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AssignableUserView> searchEvaluable(String query, Set<UUID> ids, PageQuery page) {
+        access.requirePermission(Permission.QUALITY_EVALUATE);
+        return assignees.search(IncentiveAssignees.Purpose.EVALUATION, query, ids, page);
     }
 
     @Override
@@ -101,8 +109,8 @@ class QualityService implements QualityUseCases {
         access.requirePermission(Permission.QUALITY_EVALUATE);
         Guard.require(command.userId() != null, "quality_evaluation.user_required", "Informe o negociador avaliado");
         access.requireVisible(command.userId(), "quality_evaluation");
-        Guard.require(workforce.member(command.userId()).isPresent(), "quality_evaluation.user_not_found",
-                "Negociador inexistente");
+        assignees.requireEligible(IncentiveAssignees.Purpose.EVALUATION, command.userId(),
+                "quality_evaluation.user_not_eligible", NOT_EVALUABLE);
         QualityForm form = quality.findForm(command.formId())
                 .orElseThrow(() -> ResourceNotFoundException.of("quality_form", command.formId()));
         EvaluationReferenceType referenceType = StatementService.enumOf(EvaluationReferenceType.class,
@@ -154,7 +162,8 @@ class QualityService implements QualityUseCases {
         access.requirePermission(Permission.QUALITY_EVALUATE);
         Guard.require(command.userId() != null, "conduct.user_required", "Informe o negociador");
         access.requireVisible(command.userId(), "conduct_occurrence");
-        Guard.require(workforce.member(command.userId()).isPresent(), "conduct.user_not_found", "Negociador inexistente");
+        assignees.requireEligible(IncentiveAssignees.Purpose.EVALUATION, command.userId(), "conduct.user_not_eligible",
+                NOT_EVALUABLE);
         OccurrenceType type = StatementService.enumOf(OccurrenceType.class, command.type() == null ? "" : command.type(),
                 "conduct.type_invalid");
         EvaluationReferenceType referenceType = command.referenceType() == null || command.referenceType().isBlank() ? null

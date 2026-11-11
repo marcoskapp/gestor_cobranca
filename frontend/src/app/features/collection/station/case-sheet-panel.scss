@@ -139,7 +139,8 @@
   font-size: 0.75em;
 }
 
-// tabela de títulos: na ficha estreita (1366 px) ficam Título · Vencimento · Atraso · Saldo; o valor
+// tabela de títulos: na ficha estreita (1366 px) ficam Título · Vencimento · Atraso · Saldo (no painel lateral, sem o
+// vencimento, que vai para o tooltip do atraso); o valor
 // original vai para o tooltip do saldo e a situação aparece de novo quando há espaço
 .sp-titles {
   container-type: inline-size;
@@ -148,6 +149,22 @@
 @container (max-width: 560px) {
   .sp-secondary {
     display: none;
+  }
+}
+
+// ficha mais estreita (painel lateral): o vencimento vai para o tooltip do atraso, sem barra lateral na tabela
+// o vencimento escrito (oculto na tela) só existe para o leitor de tela quando a coluna some
+.sp-due-sr {
+  display: none;
+}
+
+@container (max-width: 420px) {
+  .sp-tertiary {
+    display: none;
+  }
+
+  .sp-due-sr {
+    display: inline;
   }
 }
 

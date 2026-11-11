@@ -166,7 +166,7 @@ abstract class LegalTestSupport extends IntegrationTest {
         return id;
     }
 
-    private UUID user(String name, String key, UUID roleId, boolean allCreditors, Set<UUID> creditorIds) {
+    UUID user(String name, String key, UUID roleId, boolean allCreditors, Set<UUID> creditorIds) {
         UUID id = system(() -> userManagement.create(new CreateUserCommand(name, key + "-"
                 + UUID.randomUUID().toString().substring(0, 6) + "@teste.com", null, Set.of(roleId), allCreditors,
                 creditorIds)).id());

@@ -58,7 +58,7 @@ shared ◄── organization ◄── identity
               ▲   ▲
               │   └─ debt ◄── ingestion
               │       ▲  ▲
-              │       │  └── compliance
+              │       │  └── compliance  (→ debt, organization, identity [responsável por solicitação de titular])
               │       │        ▲
               ├── collection ──┘  (collection → debt, organization, identity, compliance)
               │       ▲
@@ -67,9 +67,9 @@ shared ◄── organization ◄── identity
               ├── payment            (→ negotiation [usecases e spi, ADR-0010], debt, organization)
               │       ▲
               ├── settlement         (→ payment, negotiation, organization)
-              ├── communication      (→ collection [usecases e spi, ADR-0010], debt, compliance, organization)
+              ├── communication      (→ collection [usecases e spi, ADR-0010], debt, compliance, identity [atribuíveis], organization)
               ├── campaign           (→ communication, collection, negotiation, portal [link de acesso], debt, compliance, organization)
-              ├── telephony          (→ collection, compliance, debt, organization)
+              ├── telephony          (→ collection, compliance, debt, identity [operador habilitável], organization)
               ├── portal             (→ negotiation, payment, communication, collection [contestação do devedor], debt, organization)
               ├── complaint          (→ collection, debt, identity, organization)
               ├── scoring            (→ collection, debt, payment, organization)

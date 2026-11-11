@@ -65,6 +65,17 @@ describe('ScheduleDialog (DialogService + ngbDatepicker)', () => {
     expect(notifications.success).toHaveBeenCalled();
   });
 
+  it('responsável vem da lista restrita do caso (mesma regra da gravação), não do cadastro de usuários', async () => {
+    const { el } = await open({ caseId: 'k-1', canChooseAssignee: true });
+    el.querySelector<HTMLInputElement>('.app-picker__input')!.dispatchEvent(new Event('focus'));
+    await tick();
+    const req = http.expectOne((r) => r.url === '/api/v1/collection/assignable-users');
+    expect(req.request.params.get('purpose')).toBe('CASE_WORKER');
+    expect(req.request.params.get('caseId')).toBe('k-1');
+    req.flush({ content: [{ id: 'u-1', name: 'Ana', active: true }], page: 0, size: 20, totalElements: 1, totalPages: 1 });
+    http.expectNone((r) => r.url.startsWith('/api/v1/users'));
+  });
+
   it('reagendamento preenche a data atual do agendamento no campo', async () => {
     const day = addDays(zonedNow().date, 5);
     const [y, m, d] = day.split('-');

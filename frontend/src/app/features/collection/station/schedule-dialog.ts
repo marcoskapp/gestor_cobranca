@@ -10,8 +10,8 @@ import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { toDateStruct } from '../../../shared/models/dates';
 import { AppValidators } from '../../../shared/validation/validators';
-import { UserLookup } from '../../admin/data/user.lookup';
 import { TasksApi } from '../data/collection.api';
+import { CollectionAssignees } from '../data/collection-assignees';
 import { TASK_TYPE_LABELS } from '../data/collection.labels';
 import { TaskType, TaskView } from '../data/collection.models';
 import { formatLocalDateTime, isPastLocal, toLocalDateTime, zonedNow } from '../data/collection.rules';
@@ -66,7 +66,7 @@ export interface ScheduleDialogData {
           @if (!data.task) {
             @if (data.canChooseAssignee) {
               <div class="col-12">
-                <app-entity-picker [control]="form.controls.assignee" [source]="users" label="Responsável" hint="Vazio = operador do caso (ou a fila)." [single]="true" />
+                <app-entity-picker [control]="form.controls.assignee" [source]="users" label="Responsável" hint="Vazio = operador do caso (ou a fila). Só quem trabalha casos deste credor." [single]="true" />
               </div>
             }
             <app-field class="col-12" label="Observação" hint="Sem dados pessoais além do necessário para o retorno.">
@@ -92,7 +92,8 @@ export class ScheduleDialog {
   private readonly ref = inject<DialogRef<TaskView>>(DialogRef);
   private readonly api = inject(TasksApi);
   private readonly notifications = inject(NotificationService);
-  protected readonly users = inject(UserLookup);
+  /** Só quem o servidor aceita como responsável da tarefa (mesma regra da gravação). */
+  protected readonly users = inject(CollectionAssignees).source('CASE_WORKER', { caseId: this.data.caseId });
 
   protected readonly types = Object.entries(TASK_TYPE_LABELS).map(([value, label]) => ({ value: value as TaskType, label }));
   protected readonly today = toDateStruct(zonedNow().date);
