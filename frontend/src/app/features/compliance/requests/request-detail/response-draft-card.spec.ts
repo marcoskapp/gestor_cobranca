@@ -160,6 +160,17 @@ describe('ResponseDraftCard', () => {
     expect(used).toEqual({ text: draft.text, sha256: draft.textSha256 });
   });
 
+  it('o próprio componente é o cartão: espaçamento padrão entre cartões, região rotulada e âncora do tour', async () => {
+    const host = (await render()).nativeElement as HTMLElement;
+    expect(host.classList).toContain('app-card');
+    expect(host.getAttribute('role')).toBe('region');
+    expect(host.getAttribute('aria-labelledby')).toBe('resposta-sugerida');
+    expect(host.querySelector('#resposta-sugerida')).not.toBeNull();
+    expect(host.getAttribute('data-tour')).toBe('dsr-draft');
+    // um cartão interno não receberia a margem entre cartões vizinhos (o problema que motivou a mudança)
+    expect(host.querySelector('section.app-card')).toBeNull();
+  });
+
   it('antes de iniciar o atendimento explica o próximo passo, sem botão que não funciona', async () => {
     permissions = ['DATA_SUBJECT_REQUEST_MANAGE'];
     const el = await loaded(await render({ ...request, status: 'IDENTITY_VERIFIED' }));

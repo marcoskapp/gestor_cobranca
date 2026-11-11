@@ -29,11 +29,19 @@ export interface DraftUse {
  */
 @Component({
   selector: 'app-response-draft-card',
+  // o próprio componente é o cartão (como `creditor-dispute-contacts`): assim vale o espaçamento padrão entre cartões
+  // vizinhos (`.app-card + .app-card`), que um <section> interno não recebe
+  host: {
+    class: 'app-card d-block',
+    role: 'region',
+    'aria-labelledby': 'resposta-sugerida',
+    'data-tour': 'dsr-draft',
+    '[attr.aria-busy]': 'draft.isLoading()',
+  },
   imports: [RouterLink, ConfigLink, EmptyState, Icon, Skeleton, AppDatePipe],
   template: `
     @let r = request();
     @let state = availability();
-    <section class="app-card" aria-labelledby="resposta-sugerida" data-tour="dsr-draft" [attr.aria-busy]="draft.isLoading()">
       <div class="rd-head">
         <h2 class="app-card__title mb-0" id="resposta-sugerida">Resposta sugerida</h2>
         @if (d(); as v) {
@@ -195,7 +203,6 @@ export interface DraftUse {
           <span class="app-muted small ms-auto">{{ v.text.length }} / {{ v.textMaxLength }} caracteres</span>
         </div>
       }
-    </section>
   `,
   styles: `
     .rd-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
