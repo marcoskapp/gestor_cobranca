@@ -145,6 +145,14 @@ tentativas da cobrança nem restrições pedidas pelo credor; descadastro, restr
 valem) na verificação prévia e no envio; o restante (fila, job, conversa, timeline, `MessageStatusChanged`) é o fluxo
 normal.
 
+**Resposta a quem procurou (decisão 1081)** — enquanto a conversa aguarda resposta (`awaitingSince`: mensagem do devedor
+recebida ou pedido de atendimento feito por ele no portal, `HandoffRequested` com `referenceType =
+portal_service_request`, que marca a espera sem abrir a janela de 24 h do WhatsApp), a mensagem do operador ou do
+assistente sai com `contact_category = RESPONSE` (`V1006`; compliance `V0504`). O porteiro não aplica limites diário e
+semanal nem intervalo mínimo e não conta a tentativa nesses limites; todas as restrições (inclusive a suspensão pedida pelo
+credor), a janela de horário, os feriados e a anonimização valem. Respondida a espera (`registerOutbound`), as mensagens
+seguintes voltam a ser `COLLECTION`. A regra é a mesma na verificação prévia e no envio (a categoria fica na mensagem).
+
 **Job `communication.send`** (`JobQueue`, retentativas com backoff, DEAD): mensagem não `QUEUED` → nada; conta
 inativa/sem adaptador → `FAILED/ACCOUNT_UNAVAILABLE`; janela fechada para texto → `FAILED/WHATSAPP_WINDOW_CLOSED`;
 **`ContactGate#authorizeAndRecord` imediatamente antes do envio** (negado → `FAILED/CONTACT_DENIED`); provedor:
@@ -213,7 +221,7 @@ caso, canal, situação e "aguardando resposta" (ordenado pela espera mais antig
 ### 6.1 SLA de primeira resposta
 
 Meta por assessoria e canal (`communication.response_target`): aviso e limite em minutos corridos desde a primeira
-mensagem do devedor sem resposta (`awaitingSince`). Padrões, enquanto a assessoria não grava os seus: WhatsApp e SMS
+mensagem do devedor (ou pedido de atendimento dele pelo portal) sem resposta (`awaitingSince`). Padrões, enquanto a assessoria não grava os seus: WhatsApp e SMS
 15/60 min, e-mail 4/24 h (`ResponseTargets.DEFAULTS`). `GET /response-targets` (`INBOX_VIEW`) devolve os vigentes;
 `PUT /response-targets/{channel}` (`INBOX_MANAGE` + todos os credores, auditado `response_target.updated`) altera.
 

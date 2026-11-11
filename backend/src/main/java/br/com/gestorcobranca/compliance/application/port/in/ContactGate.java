@@ -38,7 +38,10 @@ public interface ContactGate {
      * @param category      COLLECTION (padrão, nulo) ou TRANSACTIONAL — resposta devida ao devedor (ex.: resultado
      *                      da contestação): sem limites de frequência nem intervalo mínimo e sem a suspensão de
      *                      cobrança pedida pelo credor; opt-out, demais restrições, janela, feriados e anonimização
-     *                      continuam valendo; a tentativa não conta para os limites de cobrança
+     *                      continuam valendo; a tentativa não conta para os limites de cobrança. RESPONSE —
+     *                      resposta a contato iniciado pelo devedor que aguarda retorno: sem limites de frequência
+     *                      nem intervalo mínimo, mas com todas as restrições (inclusive as do credor), janela,
+     *                      feriados e anonimização; não conta para os limites
      */
     record ContactRequest(UUID debtorId, UUID creditorId, String channel, String contactValue, Instant at,
                           String origin, String referenceType, UUID referenceId, String category) {

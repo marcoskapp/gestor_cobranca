@@ -256,6 +256,23 @@ public class Conversation extends TenantScopedEntity {
     }
 
     /**
+     * Pedido de atendimento do devedor fora da conversa (ex.: "falar com um atendente" no portal): passa a aguardar
+     * resposta, como uma mensagem recebida, mas sem abrir a janela de 24 h do WhatsApp (ela depende de mensagem do
+     * devedor no próprio canal).
+     */
+    public void registerDebtorRequest(Instant at) {
+        Guard.requireState(status == ConversationStatus.OPEN, "conversation.closed", "Conversa encerrada");
+        if (awaitingSince == null) {
+            this.awaitingSince = at;
+        }
+    }
+
+    /** O devedor procurou e aguarda retorno (mensagem recebida ou pedido de atendimento ainda sem resposta). */
+    public boolean awaitingReply() {
+        return awaitingSince != null;
+    }
+
+    /**
      * Mensagem enviada (enfileirada). Resposta de operador ou assistente encerra a espera.
      *
      * @return tempo de espera encerrado por esta resposta, se havia espera

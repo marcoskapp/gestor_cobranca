@@ -1193,6 +1193,21 @@ própria pessoa já avaliou e deixar o botão só para outros avaliadores.
 | --- | --- | --- | --- | --- |
 | 1080 | infra (sandbox) | **Com o túnel no ar, a aplicação do sandbox é recriada com o endereço https dele em `APP_BASE_URL`** (`tunnel.sh` grava `.sandbox-public-url`, fora do git; `--stop`, `down.sh` e `reset.sh` apagam; `up.sh` mantém enquanto o túnel roda). Assim o envio de link do portal do devedor e do canal com o credor, que exige `https://`, funciona na demonstração, e o link abre em qualquer aparelho. Escolhida pelo responsável entre as opções apresentadas. | Afrouxar a exigência de https no perfil sandbox (o sandbox deixaria de mostrar o comportamento real); HTTPS local com proxy e certificado próprio (imagem nova no Compose, aviso de certificado no navegador e link só na máquina local). | Reaproveita o túnel já aprovado (decisão 689), com certificado válido, sem ferramenta nova. Custo: a aplicação reinicia ao subir e ao derrubar o túnel, e o endereço muda a cada subida. |
 
+### Resposta a quem procurou o atendimento (11/11/2026) — decisão 1081
+
+Relato do responsável: o devedor pediu atendimento pelo portal, a conversa chegou à caixa de entrada, mas a resposta do
+operador foi recusada por "intervalo mínimo desde o último contato" (a confirmação automática do pedido tinha acabado de
+sair). O mesmo valia para a resposta a uma mensagem do devedor pelo WhatsApp.
+
+| # | Módulo | Decisão | Alternativas consideradas | Motivo |
+| --- | --- | --- | --- | --- |
+| 1081 | compliance, communication, portal **[revisar]** | **Nova categoria `RESPONSE` no porteiro de contato**: enquanto o devedor aguarda retorno (mensagem dele recebida ou pedido de atendimento feito por ele no portal), a resposta do operador ou do assistente não está sujeita aos limites diário e semanal nem ao intervalo mínimo, e não conta nesses limites. Valem todas as restrições (descadastro, pedido do devedor, legais **e a suspensão pedida pelo credor**), a janela de horário, os feriados e a anonimização. Uma resposta por espera: respondida, as mensagens seguintes voltam a ser cobrança. O pedido do portal passa a marcar a espera da conversa (aparece o tempo de espera na caixa de entrada), sem abrir a janela de 24 h do WhatsApp — fora dela, a resposta continua sendo por template aprovado (regra do WhatsApp). | Usar a categoria `TRANSACTIONAL` (ignoraria a suspensão pedida pelo credor, pensada para a resposta obrigatória da contestação); isentar qualquer mensagem de conversa com mensagem recebida nas últimas 24 h (abriria brecha para várias mensagens de cobrança seguidas); manter como está. | Os limites de frequência existem para conter o contato ativo de cobrança; quem procurou espera resposta, e negá-la prejudica o próprio devedor. Limitar a uma resposta por espera impede que a exceção vire canal de cobrança. |
+
+**Pendências da decisão 1081 (revisão de código; não implementadas):**
+- **Resposta que não chegou ao devedor:** a espera é encerrada quando a resposta entra na fila. Se o envio falhar depois (negado no envio, fora da janela de 24 h, conta inativa, provedor recusou), o devedor deixa de constar como "aguardando", e a próxima mensagem volta a ser cobrança. Proposta: retomar a espera quando a resposta (`RESPONSE`) falhar no envio.
+- **Prazo da isenção (para o responsável decidir):** hoje, uma mensagem antiga do devedor ainda sem resposta (inclusive um "ok" ou uma resposta automática) libera uma resposta fora dos limites, por mais tempo que tenha passado. Proposta: a isenção vale por um prazo configurável desde o início da espera (por exemplo, 72 h); depois disso, a mensagem volta a ser cobrança.
+- **Transferência pelo assistente (para o responsável decidir):** quando o devedor conversa com o assistente e pede um atendente ou uma condição acima da alçada, o aviso do assistente encerra a espera, e o operador que assume responde como cobrança. Proposta: tratar a transferência pedida dentro da conversa como contato iniciado pelo devedor.
+
 **Pendência (não implementada):** retificação de monitoria — o avaliador (ou quem gerencia a qualidade) substitui uma
 avaliação registrada por engano, com motivo e trilha de auditoria, e só a versão vigente entra na média. Hoje a avaliação é
 imutável (append-only) e, com a decisão 1076, não há como corrigir a nota de um atendimento já avaliado. Decisão do

@@ -277,6 +277,9 @@ class PortalNegotiationIT extends PortalTestSupport {
                 "select count(*) from communication.conversation where id = ? and owner_type = 'QUEUE'", conversation) == 1);
         assertThat(count("select count(*) from communication.conversation_handoff where conversation_id = ? "
                 + "and reason_code = 'DISPUTE'", conversation)).isEqualTo(1);
+        // pedido do devedor: a conversa aguarda resposta (tempo de espera na caixa; resposta sem limites de frequência)
+        assertThat(count("select count(*) from communication.conversation where id = ? and awaiting_since is not null",
+                conversation)).isEqualTo(1);
         // lista interna dos pedidos (INBOX_VIEW): sem a mensagem do devedor, só se ela existe; sem log de acesso
         var listed = asOperator(() -> portalOperations.serviceRequests(creditorA, null, PageQuery.of(0, 10)));
         assertThat(listed.content()).singleElement().satisfies(r -> {

@@ -10,9 +10,14 @@ package br.com.gestorcobranca.compliance.domain.model;
  *       os feriados e a anonimização; não se aplicam os limites de frequência nem o intervalo mínimo, nem a
  *       suspensão de cobrança pedida pelo credor ({@code CREDITOR_REQUEST}). A tentativa é registrada com a
  *       categoria e não conta para os limites de cobrança.</li>
+ *   <li>{@link #RESPONSE}: resposta a contato iniciado pelo devedor que aguarda retorno (mensagem recebida ou pedido de
+ *       atendimento pelo portal): não se aplicam os limites de frequência nem o intervalo mínimo — quem procurou espera
+ *       ser respondido —, mas valem todas as restrições (inclusive a suspensão pedida pelo credor), a janela, os
+ *       feriados e a anonimização. Registrada com a categoria, não conta para os limites de cobrança.</li>
  * </ul>
  */
 public enum ContactCategory {
     COLLECTION,
-    TRANSACTIONAL
+    TRANSACTIONAL,
+    RESPONSE
 }

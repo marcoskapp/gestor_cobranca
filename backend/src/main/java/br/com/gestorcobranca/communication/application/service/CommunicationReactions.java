@@ -128,6 +128,14 @@ class CommunicationReactions {
                 summary.length() > 2000 ? summary.substring(0, 2000) : summary, profile, e.referenceType(), e.referenceId());
         // a transferência alcança as demais conversas abertas do mesmo caso
         Conversation first = conversations.findByIdForUpdate(targets.getFirst().getId()).orElseThrow();
+        if (!first.isOpen()) {
+            return; // encerrada entre a leitura e o lock: o pedido não alcança conversa fechada
+        }
+        if (e.debtorInitiated()) {
+            // o devedor pediu atendimento: aguarda resposta (tempo de espera na caixa e resposta sem limites de
+            // frequência, decisão 1081), como numa mensagem recebida
+            first.registerDebtorRequest(e.occurredAt());
+        }
         ownership.escalate(first, change);
         for (Conversation other : targets.subList(1, targets.size())) {
             if (other.getCaseId() == null || !other.getCaseId().equals(first.getCaseId())) {

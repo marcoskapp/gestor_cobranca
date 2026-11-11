@@ -30,6 +30,7 @@ public class Message extends TenantScopedEntity {
     public static final String CONTACT_DENIED = "CONTACT_DENIED";
     public static final String CATEGORY_COLLECTION = "COLLECTION";
     public static final String CATEGORY_TRANSACTIONAL = "TRANSACTIONAL";
+    public static final String CATEGORY_RESPONSE = "RESPONSE";
 
     @Column(name = "conversation_id", nullable = false, updatable = false)
     private UUID conversationId;
@@ -101,7 +102,10 @@ public class Message extends TenantScopedEntity {
     @Column(name = "idempotency_key", length = 100, updatable = false)
     private String idempotencyKey;
 
-    /** COLLECTION (cobrança) ou TRANSACTIONAL (resposta devida ao devedor), repassada ao porteiro de contato. */
+    /**
+     * COLLECTION (cobrança), TRANSACTIONAL (resposta devida ao devedor) ou RESPONSE (resposta a quem procurou e aguarda
+     * retorno), repassada ao porteiro de contato.
+     */
     @Column(name = "contact_category", nullable = false, length = 20, updatable = false)
     private String contactCategory = CATEGORY_COLLECTION;
 
@@ -374,6 +378,16 @@ public class Message extends TenantScopedEntity {
         this.contactCategory = CATEGORY_TRANSACTIONAL;
         this.referenceType = referenceType;
         this.referenceId = referenceId;
+    }
+
+    /**
+     * Marca a mensagem nova como resposta a contato iniciado pelo devedor, que aguarda retorno (sem limites de
+     * frequência no porteiro). Só a cobrança vira resposta; a transacional continua transacional. Antes de gravar.
+     */
+    public void markResponse() {
+        if (CATEGORY_COLLECTION.equals(contactCategory)) {
+            this.contactCategory = CATEGORY_RESPONSE;
+        }
     }
 
     public String getContactCategory() {

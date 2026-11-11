@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.compliance.domain.service;
 
 import br.com.gestorcobranca.compliance.domain.model.ChannelRule;
+import br.com.gestorcobranca.compliance.domain.model.ContactCategory;
 import br.com.gestorcobranca.compliance.domain.model.ContactChannel;
 import br.com.gestorcobranca.compliance.domain.model.ContactPolicy;
 import br.com.gestorcobranca.compliance.domain.model.ContactRestriction;
@@ -256,20 +257,41 @@ class ContactRulesTest {
                 DenialReason.RESTRICTED_DEBTOR);
 
         Situation transactional = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false,
-                List.of(creditorSuspension), strict, BUSINESS, Set.of(), earlier, true);
+                List.of(creditorSuspension), strict, BUSINESS, Set.of(), earlier, ContactCategory.TRANSACTIONAL);
         assertThat(RULES.evaluate(transactional).allowed()).isTrue();
 
         // opt-out/pedido do devedor no canal, janela de horário e feriado continuam valendo
         Situation optedOut = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false,
                 List.of(restriction(null, ContactChannel.WHATSAPP, at.minusSeconds(60), null)), strict, BUSINESS,
-                Set.of(), List.of(), true);
+                Set.of(), List.of(), ContactCategory.TRANSACTIONAL);
         assertThat(RULES.evaluate(optedOut).reasons()).containsExactly(DenialReason.RESTRICTED_CHANNEL);
         Situation night = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, local(WEDNESDAY, 22, 0), false,
-                List.of(), strict, BUSINESS, Set.of(), List.of(), true);
+                List.of(), strict, BUSINESS, Set.of(), List.of(), ContactCategory.TRANSACTIONAL);
         assertThat(RULES.evaluate(night).reasons()).containsExactly(DenialReason.OUTSIDE_WINDOW);
         assertThat(RULES.evaluate(night).nextAllowedAt()).isEqualTo(local(WEDNESDAY.plusDays(1), 8, 0));
         Situation holiday = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false, List.of(), strict,
-                BUSINESS, Set.of(WEDNESDAY), List.of(), true);
+                BUSINESS, Set.of(WEDNESDAY), List.of(), ContactCategory.TRANSACTIONAL);
         assertThat(RULES.evaluate(holiday).reasons()).containsExactly(DenialReason.HOLIDAY);
+    }
+
+    /** Resposta a quem procurou: sem limites de frequência nem intervalo, mas a suspensão do credor e o resto valem. */
+    @Test
+    void responseToTheDebtorIgnoresFrequencyLimitsButKeepsCreditorSuspension() {
+        Instant at = local(WEDNESDAY, 10, 0);
+        ChannelRule strict = limits(1, 1, 600, true);
+        List<Instant> earlier = List.of(local(WEDNESDAY, 9, 50));
+        Situation response = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false, List.of(), strict,
+                BUSINESS, Set.of(), earlier, ContactCategory.RESPONSE);
+        assertThat(RULES.evaluate(response).allowed()).isTrue();
+
+        ContactRestriction creditorSuspension = new ContactRestriction(DEBTOR, CREDITOR, null,
+                RestrictionType.CREDITOR_REQUEST, null, "credor pediu suspensão", RestrictionSource.CREDITOR, at.minusSeconds(3600),
+                null, null);
+        Situation suspended = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false,
+                List.of(creditorSuspension), strict, BUSINESS, Set.of(), earlier, ContactCategory.RESPONSE);
+        assertThat(RULES.evaluate(suspended).reasons()).containsExactly(DenialReason.RESTRICTED_DEBTOR);
+        Situation night = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, local(WEDNESDAY, 22, 0), false,
+                List.of(), strict, BUSINESS, Set.of(), earlier, ContactCategory.RESPONSE);
+        assertThat(RULES.evaluate(night).reasons()).containsExactly(DenialReason.OUTSIDE_WINDOW);
     }
 }

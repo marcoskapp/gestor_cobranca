@@ -175,7 +175,7 @@ class ContactGateService implements ContactGate {
 
         return rules.evaluate(new Situation(p.debtorId(), p.creditorId(), p.channel(), p.contactHash(), p.at(),
                 p.anonymized(), restrictions.findActiveForGate(p.debtorId(), p.contactHash()), rule.orElse(null),
-                window, holidayDates, previous, p.category() == ContactCategory.TRANSACTIONAL));
+                window, holidayDates, previous, p.category()));
     }
 
     private ContactWindow tenantWindow() {

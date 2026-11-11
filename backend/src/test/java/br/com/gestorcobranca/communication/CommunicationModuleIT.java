@@ -8,18 +8,22 @@ import br.com.gestorcobranca.communication.application.port.in.ConversationUseCa
 import br.com.gestorcobranca.communication.application.port.in.ConversationUseCases.ProposeDraftCommand;
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases.MessageView;
 import br.com.gestorcobranca.communication.application.port.in.MessageUseCases.SendMessageCommand;
+import br.com.gestorcobranca.compliance.application.port.in.ContactPolicyUseCases.ChannelRuleInput;
+import br.com.gestorcobranca.compliance.application.port.in.ContactPolicyUseCases.PublishPolicyCommand;
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases.CreateRestrictionCommand;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.events.communication.HandoffRequested;
 import br.com.gestorcobranca.shared.paging.PageQuery;
+import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessException;
 
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -170,6 +174,49 @@ class CommunicationModuleIT extends CommunicationTestSupport {
         MessageView afterOptOut = asOperator(operatorX, () -> messages.send(text(conversationId, "Tudo bem.")));
         assertThat(afterOptOut.status()).isEqualTo("FAILED");
         assertThat(afterOptOut.failureCode()).isEqualTo("CONTACT_DENIED");
+    }
+
+    @Test
+    void replyToTheDebtorWhoReachedOutIgnoresFrequencyLimitsOnlyWhileAwaiting() {
+        // política do credor: 1 WhatsApp por dia e 2 h entre contatos, o dia todo
+        system(() -> policies.publish(new PublishPolicyCommand(creditorA, null, "limites", List.of(
+                new ChannelRuleInput("WHATSAPP", LocalTime.MIDNIGHT, LocalTime.MIDNIGHT, ALL_DAYS, 1, null, 120, false)))));
+        MessageView first = asOperator(operatorX, () -> messages.send(template(null, null)));
+        assertThat(first.status()).isEqualTo("QUEUED");
+        drainCommunication();
+        UUID conversationId = first.conversationId();
+        // sem o devedor procurar, a próxima é cobrança e esbarra nos limites
+        MessageView second = asOperator(operatorX, () -> messages.send(template(conversationId, null)));
+        assertThat(second.failureDetail()).contains("MIN_INTERVAL");
+
+        // o devedor responde: a resposta do operador sai, registrada como RESPONSE, sem contar para os limites
+        asAdmin(() -> {
+            sandbox.simulateInbound(whatsapp.id(), "5511987654321", "Quero negociar");
+            return null;
+        });
+        MessageView reply = asOperator(operatorX, () -> messages.send(text(conversationId, "Claro, posso ajudar.")));
+        assertThat(reply.status()).isEqualTo("QUEUED");
+        drainCommunication();
+        assertThat(message(reply.id()).status()).isNotEqualTo("FAILED");
+        assertThat(count("select count(*) from compliance.contact_attempt where reference_id = ? and category = 'RESPONSE'",
+                reply.id())).isEqualTo(1);
+        // respondido, a mensagem seguinte volta a ser cobrança
+        MessageView followUp = asOperator(operatorX, () -> messages.send(text(conversationId, "Algo mais?")));
+        assertThat(followUp.status()).isEqualTo("FAILED");
+        assertThat(followUp.failureDetail()).contains("MIN_INTERVAL");
+    }
+
+    @Test
+    void debtorRequestFromThePortalAwaitsReply() {
+        MessageView first = asOperator(operatorX, () -> messages.send(template(null, null)));
+        drainCommunication();
+        publishAndAwait(new HandoffRequested(Ids.newId(), tenant, Instant.now(), null, debtor, creditorA,
+                first.conversationId(), "DEBTOR_REQUESTED_HUMAN", null, "Pedido do portal", HandoffRequested.PORTAL_SERVICE_REQUEST,
+                Ids.newId(), "SYSTEM", Actor.SYSTEM_ID), "communication.handoff-requested");
+        ConversationView c = conversation(first.conversationId());
+        assertThat(c.awaitingSince()).isNotNull();
+        // o pedido não abre a janela de 24 h do WhatsApp (depende de mensagem do devedor no canal)
+        assertThat(c.sessionWindowOpen()).isFalse();
     }
 
     @Test

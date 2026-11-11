@@ -43,4 +43,17 @@ public record HandoffRequested(
         UUID referenceId,
         String requestedByType,
         UUID requestedById) implements IntegrationEvent {
+
+    /**
+     * {@code referenceType} do pedido de atendimento feito pelo devedor no portal (contato iniciado por ele). Tem efeito
+     * no consumidor: a conversa passa a aguardar resposta, e a resposta fica isenta dos limites de frequência (decisão
+     * 1081). Não reutilize este valor para outro tipo de referência.
+     */
+    public static final String PORTAL_SERVICE_REQUEST = "portal_service_request";
+
+    /** Pedido feito pelo próprio devedor: a conversa passa a aguardar resposta dele. */
+    public boolean debtorInitiated() {
+        return PORTAL_SERVICE_REQUEST.equals(referenceType);
+    }
+
 }

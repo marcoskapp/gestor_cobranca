@@ -110,7 +110,7 @@ class ServiceRequestDispatchJob implements JobHandler<ServiceRequestDispatchJob.
         }
         events.publishEvent(new HandoffRequested(Ids.newId(), context.tenantId(), now, null, request.getDebtorId(),
                 request.getCreditorId(), sent.conversationId(), request.getReason().handoffReason(), null,
-                summary(request), "portal_service_request", request.getId(), Actor.ActorType.SYSTEM.name(), Actor.SYSTEM_ID));
+                summary(request), HandoffRequested.PORTAL_SERVICE_REQUEST, request.getId(), Actor.ActorType.SYSTEM.name(), Actor.SYSTEM_ID));
         request.forwarded(sent.conversationId(), sent.messageId(), now);
         requests.save(request);
         audit(request, null);

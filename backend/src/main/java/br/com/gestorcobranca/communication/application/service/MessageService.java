@@ -182,6 +182,11 @@ class MessageService implements MessageUseCases {
                 content.template() == null ? null : content.template().getId(), content.variablesJson(),
                 content.subject(), content.body(), campaignExecutionId, draftId, idempotencyKey), now);
 
+        // quem procurou e aguarda retorno recebe a resposta sem os limites de frequência da cobrança (decisão 1081);
+        // respondida, as mensagens seguintes voltam a contar como cobrança
+        if ((sender == SenderType.USER || sender == SenderType.ASSISTANT) && c.awaitingReply()) {
+            message.markResponse();
+        }
         // verificação prévia: pedido já negado é registrado como falha, sem enfileirar
         ContactDecision decision = gate.evaluate(gateRequest(c, message, sender));
         if (!decision.allowed()) {

@@ -228,7 +228,8 @@ nunca é gravado. Busca por nome ou código do título não vai ao log de acesso
 
 Log de acesso: `INBOUND_MAIL_REJECTED` (e-mail do credor retido por autenticação SPF/DKIM/DMARC, vírus ou remetente fora do cadastro: e-mail, pedido, motivo, domínio do remetente e veredictos, sem conteúdo nem endereço completo), `FILE_DOWNLOADED` do original (`resource=dispute_mail_reply`, SHA-256), `MALWARE_DETECTED` (documento externo infectado: recurso, credor, SHA-256 e assinatura, sem o conteúdo), `RATE_LIMITED` com `scope=document_upload`, `FILE_DOWNLOADED` da evidência da correção de valor (`resource=title_amount_adjustment`).
 
-O porteiro de contato (compliance) passa a registrar `category` (`COLLECTION`, `TRANSACTIONAL`) em `contact.denied` e na
+O porteiro de contato (compliance) passa a registrar `category` (`COLLECTION`, `TRANSACTIONAL` e, desde a decisão 1081,
+`RESPONSE` — resposta a quem procurou e aguarda retorno) em `contact.denied` e na
 métrica `compliance.contact_gate.decisions{operation,outcome,category}`.
 
 ### 3.4 Atributos dos eventos de comunicação
