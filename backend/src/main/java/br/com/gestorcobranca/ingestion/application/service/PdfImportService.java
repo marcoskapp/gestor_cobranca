@@ -691,6 +691,8 @@ class PdfImportService implements PdfImportUseCases {
                 "pdf_template.import_not_validated", "Salve o mapa de uma importação aguardando validação ou aprovada");
         Guard.require(pdf.getMapOrigin() != MapOrigin.VISUAL && pdf.hasTextLayer(), "pdf_template.visual_not_reusable",
                 "Mapa de leitura visual não é reaplicável: só PDFs com camada de texto geram mapa salvo");
+        Guard.require(pdf.getMapOrigin() != MapOrigin.TEMPLATE, "pdf_template.already_in_use",
+                "Este mapa já é o mapa salvo do credor; ajuste o mapa para salvar uma versão nova");
         requireRevision(pdf, command.revision());
         // o mapa em si (sem as exclusões do usuário): os totais do documento conferem com tudo o que o mapa encontra
         PdfAnalysis.Result result = analysis.analyzeMap(pdf);
@@ -704,7 +706,9 @@ class PdfImportService implements PdfImportUseCases {
             version = latest.get().getTemplateVersion() + 1;
             if (latest.get().isActive()) {
                 latest.get().deactivate(currentActor.actorId(), clock.instant());
-                templates.save(latest.get());
+                // grava a desativação antes de inserir a nova versão: o índice único admite uma só ativa por layout
+                // (no flush, o Hibernate faria o insert antes do update e a nova versão esbarraria na anterior)
+                templates.saveAndFlush(latest.get());
             }
         }
         PdfLayoutTemplate template = templates.save(new PdfLayoutTemplate(pdf.getCreditorId(), command.name(), fingerprint,

@@ -44,7 +44,8 @@ class AnalyticsIsolationAndExportIT extends AnalyticsTestSupport {
             "src_agreement", "src_installment", "src_receipt", "src_payment_instruction", "src_divergence",
             "src_statement_import", "src_statement_line", "src_message", "src_call", "src_import_batch",
             "src_processing_job", "src_business_event", "src_performance_fact", "src_worked_case", "src_logged_time",
-            "src_case_snapshot", "src_commission_statement");
+            "src_case_snapshot", "src_commission_statement", "src_policy_agreement", "src_portal_simulation",
+            "src_portal_service_request");
     static final List<String> SNAPSHOTS = List.of("recovery_daily", "agreement_cohort", "portfolio_position",
             "case_position", "refresh_state");
 

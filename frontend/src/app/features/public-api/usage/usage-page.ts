@@ -94,7 +94,7 @@ function isoDay(date: Date): string {
             <app-bar-chart title="Por endpoint" categoryHeader="Endpoint" noteHeader="Dados" [summary]="'Endpoints mais chamados no período.'" [series]="[{ name: 'Requisições', color: '--app-chart-2' }]" [rows]="routeRows()" />
           </section>
           <section class="app-card" data-tour="usage-tokens">
-            <app-bar-chart title="Por token" categoryHeader="Token" noteHeader="Registros" [summary]="'Consumo de cada token no período.'" [series]="[{ name: 'Requisições', color: '--app-chart-3' }]" [rows]="tokenRows()" />
+            <app-bar-chart title="Por token" categoryHeader="Token" noteHeader="Registros" [summary]="'Consumo de cada token no período.'" [series]="[{ name: 'Requisições', color: '--app-chart-1' }]" [rows]="tokenRows()" />
           </section>
         </div>
       }

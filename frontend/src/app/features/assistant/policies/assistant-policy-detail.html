@@ -92,6 +92,7 @@
           </app-field>
           <div class="form-check"><input class="form-check-input" type="checkbox" id="ap-check-1" [checked]="true" [disabled]="true" /><label class="form-check-label" for="ap-check-1">WhatsApp</label></div>
           <p class="app-muted as-small">E-mail e SMS exigem templates por intenção; o assistente atende hoje só o WhatsApp (texto livre).</p>
+          <app-config-link route="/conversas/canais" label="Configurar canais (contas de WhatsApp)" [permissions]="['CHANNEL_MANAGE']" />
         </section>
 
         <section class="app-card" aria-labelledby="ap-hours" data-tour="assistant-hours">
@@ -144,6 +145,7 @@
                     <option [ngValue]="pr.id">{{ pr.name }} ({{ pr.code }})</option>
                   }
                 </select>
+                <app-config-link route="/negociacao/alcadas" label="Gerenciar perfis de alçada" [permissions]="['AUTHORITY_MANAGE']" />
               </app-field>
             } @else {
               <!-- sem gestão de alçadas, o perfil só é informado (a escolha e a lista de perfis ficam com quem gerencia alçadas) -->
@@ -151,7 +153,7 @@
                 <input appInput readonly [value]="d.authorityProfileId ? 'Perfil próprio da política' : 'Padrão (ASSISTENTE_INICIAL)'" />
               </app-field>
             }
-            <app-field label="Prompt" hint="Versões imutáveis, revisadas no código">
+            <app-field label="Prompt" hint="Versões imutáveis, revisadas no código (não há tela de edição: uma versão nova entra com a atualização do sistema)">
               <select appInput [ngModel]="(d.promptCode ?? p.promptCode) + '@' + (d.promptVersion ?? p.promptVersion)" (ngModelChange)="setPrompt($event)" [disabled]="!editable()">
                 @for (pr of prompts(); track pr.code + pr.version) {
                   <option [ngValue]="pr.code + '@' + pr.version">{{ pr.code }} v{{ pr.version }} · {{ pr.description }}</option>
@@ -205,6 +207,7 @@
             }
           </div>
           <p class="app-muted as-small">Os gatilhos obrigatórios não se desligam; a política troca só o perfil exigido na fila e acrescenta gatilhos.</p>
+          <app-config-link route="/negociacao/alcadas" label="Perfis de alçada (perfil exigido na fila)" [permissions]="['AUTHORITY_MANAGE']" />
           <div class="table-responsive">
             <table class="table table-sm align-middle mb-2" aria-label="Gatilhos obrigatórios e perfil exigido">
               <thead>
@@ -298,6 +301,7 @@
           <p class="app-muted as-small">O assistente gera o Pix imediato da parcela de um acordo formalizado do próprio devedor quando a conversa foi amigável e a conciliação tranquila. O sistema confere os critérios (identidade, acordo, nenhum gatilho de transferência, guardrail ou contestação, pedido explícito de pagar agora, limites); a IA nunca informa o valor. Nos modos sombra e copiloto só sugere ao operador.</p>
           <div class="app-form-grid row-gap-3">
             <div class="app-span-all">
+              <app-config-link class="mb-2" route="/pagamentos/contas-pix" label="Contas Pix (onde o Pix é gerado)" [permissions]="['INTEGRATION_MANAGE']" />
               <div class="form-check"><input class="form-check-input" type="checkbox" id="ap-check-4" [ngModel]="d.pixInConversation?.enabled ?? false" (ngModelChange)="setPixEnabled($event)" [disabled]="!editable()" /><label class="form-check-label" for="ap-check-4">Permitir que o assistente gere o Pix na conversa</label></div>
             </div>
             @if (d.pixInConversation?.enabled && d.pixInConversation; as pix) {

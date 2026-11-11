@@ -52,18 +52,18 @@ const DEFAULT_ROLES: Record<string, readonly string[]> = {
  * (quem tem a tarefa da área continua com ela). As seções recolhíveis cuidam dos perfis amplos (gestor, administrador).
  */
 const MENU_COUNTS: Record<string, number> = {
-  ADMIN: 93,
-  GESTOR: 77,
-  SUPERVISOR: 49,
+  ADMIN: 94,
+  GESTOR: 78,
+  SUPERVISOR: 50,
   OPERADOR: 16,
-  FINANCEIRO: 41,
-  AUDITOR: 49,
+  FINANCEIRO: 42,
+  AUDITOR: 50,
   JURIDICO: 19,
   ADVOGADO_PARCEIRO: 4,
-  ANALISTA_CARTEIRA: 15,
-  ESTRATEGIA: 33,
-  QUALIDADE: 25,
-  COMPLIANCE: 25,
+  ANALISTA_CARTEIRA: 16,
+  ESTRATEGIA: 34,
+  QUALIDADE: 26,
+  COMPLIANCE: 26,
   INTEGRACAO: 11,
 };
 

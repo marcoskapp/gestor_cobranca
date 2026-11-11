@@ -9,6 +9,7 @@ import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs'
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
+import { ConfigLink } from '../../../shared/components/config-link/config-link';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
@@ -43,6 +44,7 @@ const DAYS: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY
 @Component({
   selector: 'app-assistant-policy-detail',
   imports: [
+    ConfigLink,
     FormsModule,
     RouterLink,
     ...FORM_FIELD,

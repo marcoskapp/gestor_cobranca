@@ -115,6 +115,7 @@ export const NAVIGATION: readonly NavSection[] = [
       { label: 'Aprovações', icon: 'person-check', route: '/negociacao/aprovacoes', permissions: [P.NEGOTIATION_APPROVE] },
       { label: 'Acordos', icon: 'patch-check', route: '/negociacao/acordos', permissions: [P.AGREEMENT_VIEW] },
       { label: 'Políticas de cobrança', icon: 'shield-check', route: '/negociacao/politicas', permissions: [P.POLICY_AREA_VIEW], alsoRequires: [P.POLICY_VIEW] },
+      { label: 'Saúde das políticas', icon: 'clipboard-data', route: '/negociacao/politicas/saude', permissions: [P.POLICY_MANAGE, P.REPORT_VIEW] },
       { label: 'Índices de correção', icon: 'graph-down-arrow', route: '/negociacao/indices', permissions: [P.POLICY_AREA_VIEW], alsoRequires: [P.POLICY_VIEW] },
       { label: 'Alçadas', icon: 'shield-lock', route: '/negociacao/alcadas', permissions: [P.AUTHORITY_MANAGE] },
     ],

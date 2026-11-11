@@ -155,6 +155,24 @@ export const MANUAL: ModuleManual = {
       terms: ['politica-de-cobranca', 'escada-de-concessoes', 'versao-publicada'],
     },
     {
+      id: 'negotiation.policy-health',
+      title: 'Saúde das políticas',
+      objective: 'Como a política de cada credor está funcionando, por carteira e faixa de atraso, com sugestões de revisão.',
+      purpose: [
+        'Escolha o credor e o período: a tabela mostra acordos, quebra nos primeiros 60 dias, pago sobre acordado, uso do desconto máximo e o que acontece no portal.',
+        'As sugestões aparecem só com amostra suficiente e explicam o sinal e o que avaliar; elas não mudam a política: abra a política, crie um rascunho e publique o que decidir. Antes de ampliar desconto, prefira um teste controlado.',
+        'Devedores com marcador de vulnerabilidade ativo ficam fora (vale o estado atual do marcador: registrar ou retirar um muda os números de períodos passados), e a tela mostra só números agregados.',
+      ],
+      profiles: ['GESTOR', 'SUPERVISOR', 'FINANCEIRO', 'AUDITOR', 'ESTRATEGIA', 'ANALISTA_CARTEIRA', 'QUALIDADE', 'COMPLIANCE'],
+      inputs: ['Acordos, pagamentos e consultas do portal do período.'],
+      outputs: ['Sugestões de revisão da política, avaliadas por quem gerencia a política.'],
+      related: [
+        { screen: 'negotiation.policies', why: 'Abrir a política e criar o rascunho.' },
+        { screen: 'negotiation.authority', why: 'Ajustar o teto da alçada do portal.' },
+      ],
+      terms: ['politica-de-cobranca', 'escada-de-concessoes'],
+    },
+    {
       id: 'negotiation.policy-detail',
       title: 'Versão da política de cobrança',
       objective: 'Encargos, descontos, parcelamento, escada de concessões e sobreposições de uma versão da política.',

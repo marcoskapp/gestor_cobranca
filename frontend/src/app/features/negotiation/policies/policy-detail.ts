@@ -59,6 +59,8 @@ export class PolicyDetail {
   /** Nome de exibição da sobreposição (o código fica no resumo, para a memória de cálculo). */
   protected readonly label = overrideLabel;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.POLICY_MANAGE));
+  /** Saúde da política: quem altera a política ou analisa resultados (decisão 1087). */
+  protected readonly canSeeHealth = computed(() => this.auth.hasAnyPermission([Permission.POLICY_MANAGE, Permission.REPORT_VIEW]));
 
   protected readonly policy = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.policy, undefined);

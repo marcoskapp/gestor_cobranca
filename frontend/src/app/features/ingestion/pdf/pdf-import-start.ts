@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { manualParameter, manualPhrase } from '../../../core/onboarding/manual/manual-parameters.service';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -10,7 +10,8 @@ import { NotificationService } from '../../../core/notification/notification.ser
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { Icon } from '../../../shared/components/icon/icon';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
-import { PortfolioLookup } from '../../organization/data/organization.lookups';
+import { CreditorLookup, PortfolioLookup } from '../../organization/data/organization.lookups';
+import { PortfoliosApi } from '../../organization/data/organization.api';
 import { sizeText } from '../data/ingestion.labels';
 import { PdfImportsApi } from '../data/pdf-import.api';
 import { PDF_ACCEPT, UPLOAD_ERROR_LABELS, pdfFileProblem } from '../data/pdf-import.rules';
@@ -27,15 +28,18 @@ import { PDF_ACCEPT, UPLOAD_ERROR_LABELS, pdfFileProblem } from '../data/pdf-imp
     </app-page-header>
 
     <ol class="ps-how" aria-label="Como funciona" data-tour="pdf-how">
-      <li><strong>1. Envio</strong> — escolha a carteira e o PDF do credor.</li>
+      <li><strong>1. Envio</strong> — escolha o credor, a carteira e o PDF.</li>
       <li><strong>2. Mapa</strong> — o sistema descobre onde estão devedor, títulos e totais (com IA ou com o mapa já salvo do credor).</li>
       <li><strong>3. Validação</strong> — você confere o mapa e os títulos lado a lado com o PDF e os totais do documento.</li>
       <li><strong>4. Conferência</strong> — o lote segue para a conferência de sempre (formato, linhas, grandes totais e alertas).</li>
     </ol>
 
     <form class="app-card ps-form" [formGroup]="form" (ngSubmit)="send()" novalidate data-tour="pdf-upload">
-      <h2 class="app-card__title">Carteira e PDF</h2>
-      <app-entity-picker [control]="form.controls.portfolio" [source]="portfolios" label="Carteira" [single]="true" hint="Os títulos entram nesta carteira (e no seu credor)." />
+      <h2 class="app-card__title">Credor, carteira e PDF</h2>
+      <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor" [single]="true" hint="Primeiro o credor: as carteiras mostradas são só as dele." />
+      @if (creditorId()) {
+        <app-entity-picker [control]="form.controls.portfolio" [source]="portfolios" label="Carteira" [single]="true" hint="Os títulos entram nesta carteira." />
+      }
       <div class="ps-file">
         <input #input type="file" [accept]="accept" (change)="pick(input.files); input.value = ''" hidden />
         <button class="btn btn-outline-primary" type="button" (click)="input.click()">
@@ -57,7 +61,7 @@ import { PDF_ACCEPT, UPLOAD_ERROR_LABELS, pdfFileProblem } from '../data/pdf-imp
       }
       <div class="ps-actions">
         <a class="btn btn-link" routerLink="/importacao">Cancelar</a>
-        <button class="btn btn-primary" type="submit" [disabled]="sending() || !file() || !portfolioId()">
+        <button class="btn btn-primary" type="submit" [disabled]="sending() || !file() || !creditorId() || !portfolioId()">
           <app-icon name="magic" />
           Enviar e ler o PDF
         </button>
@@ -108,7 +112,9 @@ export class PdfImportStart {
   private readonly maxMb = manualParameter('ingestion.pdfMaxFileSizeMb');
   private readonly notifications = inject(NotificationService);
   private readonly router = inject(Router);
-  protected readonly portfolios = inject(PortfolioLookup).source();
+  protected readonly creditors = inject(CreditorLookup);
+  /** Carteiras só do credor escolhido. */
+  protected readonly portfolios = inject(PortfolioLookup).source(() => this.creditorId());
   protected readonly accept = PDF_ACCEPT;
   protected readonly size = sizeText;
   protected readonly file = signal<File | null>(null);
@@ -117,10 +123,48 @@ export class PdfImportStart {
 
   private readonly fb = inject(FormBuilder).nonNullable;
   private readonly initialPortfolio = inject(ActivatedRoute).snapshot.queryParamMap.get('carteira');
-  protected readonly form = this.fb.group({ portfolio: this.fb.control<string[]>(this.initialPortfolio ? [this.initialPortfolio] : []) });
+  protected readonly form = this.fb.group({
+    creditor: this.fb.control<string[]>([]),
+    portfolio: this.fb.control<string[]>(this.initialPortfolio ? [this.initialPortfolio] : []),
+  });
+  protected readonly creditorId = toSignal(this.form.controls.creditor.valueChanges.pipe(startWith(this.form.controls.creditor.value), map((v): string | null => v[0] ?? null)), {
+    initialValue: null,
+  });
   protected readonly portfolioId = toSignal(this.form.controls.portfolio.valueChanges.pipe(startWith(this.form.controls.portfolio.value), map((v): string | null => v[0] ?? null)), {
     initialValue: this.initialPortfolio,
   });
+
+  /** Credor da carteira recebida em `?carteira=`, conhecido depois da consulta ao servidor. */
+  private initialCreditor: string | null = null;
+
+  constructor() {
+    // vindo com ?carteira= (atalho de outra tela): o credor é o da carteira, salvo se a pessoa já escolheu outro
+    if (this.initialPortfolio) {
+      inject(PortfoliosApi)
+        .get(this.initialPortfolio)
+        .pipe(takeUntilDestroyed())
+        .subscribe({
+          next: (p) => {
+            this.initialCreditor = p.creditorId;
+            const chosen = this.form.controls.creditor.value[0];
+            if (!chosen) {
+              this.form.controls.creditor.setValue([p.creditorId]);
+            } else if (chosen !== p.creditorId && this.form.controls.portfolio.value[0] === this.initialPortfolio) {
+              this.form.controls.portfolio.setValue([]);
+            }
+          },
+          error: () => this.form.controls.portfolio.setValue([]),
+        });
+    }
+    // outro credor: a carteira escolhida deixa de valer (a do atalho só vale com o credor dela)
+    this.form.controls.creditor.valueChanges.pipe(takeUntilDestroyed()).subscribe((ids) => {
+      const portfolio = this.form.controls.portfolio.value[0];
+      const keepInitial = portfolio === this.initialPortfolio && !!ids[0] && ids[0] === this.initialCreditor;
+      if (portfolio && !keepInitial) {
+        this.form.controls.portfolio.setValue([]);
+      }
+    });
+  }
 
   protected pick(list: FileList | null): void {
     const f = list?.[0] ?? null;
@@ -135,7 +179,7 @@ export class PdfImportStart {
   protected send(): void {
     const f = this.file();
     const portfolioId = this.portfolioId();
-    if (!f || !portfolioId || this.sending()) {
+    if (!f || !this.creditorId() || !portfolioId || this.sending()) {
       return;
     }
     this.sending.set(true);

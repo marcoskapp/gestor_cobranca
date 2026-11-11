@@ -140,6 +140,13 @@ describe('PdfImportDetail', () => {
     expect(component.canApprove()).toBe(true);
   });
 
+  it('mapa que veio do mapa salvo do credor: sem "Salvar mapa", com o aviso de que ele está em uso', async () => {
+    const fixture = await render(view({ mapOrigin: 'TEMPLATE', templateId: 't-1', templateName: 'Histórico financeiro' }));
+    const el = fixture.nativeElement as HTMLElement;
+    expect([...el.querySelectorAll('button')].some((b) => b.textContent?.includes('Salvar mapa'))).toBe(false);
+    expect(el.querySelector('[data-testid="pdf-template-in-use"]')!.textContent).toContain('Mapa salvo do credor em uso: Histórico financeiro');
+  });
+
   it('leitura visual exige a confirmação de conferência', async () => {
     const fixture = await render(view({ mapOrigin: 'VISUAL', textLayer: false, totalsJustificationRequired: false, visualConfirmationRequired: true }));
     const component = fixture.componentInstance as unknown as { canApprove: () => boolean; visualConfirmed: { set: (v: boolean) => void } };

@@ -14,6 +14,8 @@ export const NEGOTIATION_PERMISSIONS = {
   proposals: [Permission.AGREEMENT_VIEW, Permission.NEGOTIATION_PROPOSE, Permission.NEGOTIATION_APPROVE],
   approvals: [Permission.NEGOTIATION_APPROVE],
   agreements: [Permission.AGREEMENT_VIEW],
+  /** Saúde da política (decisão 1087): quem altera a política ou analisa resultados (o servidor também exige). */
+  policyHealth: [Permission.POLICY_MANAGE, Permission.REPORT_VIEW],
 } as const;
 
 /** `/negociacao`: simulador, propostas, aprovações, acordos, políticas versionadas, índices e alçadas. */
@@ -75,6 +77,13 @@ export const NEGOTIATION_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: NEGOTIATION_PERMISSIONS.policies, allPermissions: NEGOTIATION_PERMISSIONS.policyData },
     loadComponent: () => import('./policies/policy-list').then((m) => m.PolicyList),
+  },
+  {
+    path: 'politicas/saude',
+    title: 'Saúde das políticas',
+    canActivate: [permissionGuard],
+    data: { permissions: NEGOTIATION_PERMISSIONS.policyHealth },
+    loadComponent: () => import('./policies/policy-health').then((m) => m.PolicyHealth),
   },
   {
     path: 'politicas/:id',

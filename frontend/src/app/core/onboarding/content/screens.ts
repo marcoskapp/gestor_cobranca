@@ -748,7 +748,14 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'legal.rules', version: 1, path: '/juridico/regras' },
   { key: 'legal.firms', version: 1, path: '/juridico/escritorios' },
   { key: 'legal.settings', version: 1, path: '/juridico/parametros' },
-  { key: 'negotiation.policies', version: 1, path: '/negociacao/politicas', tourId: 'negotiation.policies' },
+  {
+    key: 'negotiation.policies',
+    version: 2,
+    path: '/negociacao/politicas',
+    tourId: 'negotiation.policies',
+    changes: [{ version: 2, items: ['"Saúde das políticas" no cabeçalho: resultados da política por carteira e faixa de atraso, com sugestões de revisão.'] }],
+  },
+  { key: 'negotiation.policy-health', version: 1, path: '/negociacao/politicas/saude' },
   {
     key: 'negotiation.policy-detail',
     version: 2,
@@ -803,10 +810,16 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   { key: 'ingestion.layouts', version: 1, path: '/importacao/layouts' },
   { key: 'ingestion.review-start', version: 1, path: '/importacao/nova', tourId: 'ingestion.review-start' },
-  { key: 'ingestion.pdf-start', version: 1, path: '/importacao/pdf/nova', tourId: 'ingestion.pdf-start' },
+  {
+    key: 'ingestion.pdf-start',
+    version: 2,
+    path: '/importacao/pdf/nova',
+    tourId: 'ingestion.pdf-start',
+    changes: [{ version: 2, items: ['Escolha primeiro o credor: a lista de carteiras mostra só as dele.'] }],
+  },
   {
     key: 'ingestion.pdf-import',
-    version: 3,
+    version: 4,
     path: '/importacao/pdf/:id',
     tourId: 'ingestion.pdf-import',
     changes: [
@@ -818,6 +831,7 @@ export const SCREENS: readonly ScreenGuide[] = [
         ],
       },
       { version: 3, items: ['"Descartar importação" foi para o menu "Mais ações" (⋯), separado das demais ações; o motivo continua obrigatório.'] },
+      { version: 4, items: ['Com o mapa salvo do credor em uso, "Salvar mapa" não aparece (não há o que salvar); ajuste o mapa para salvar uma versão nova, que agora substitui a anterior sem erro.'] },
     ],
   },
   {

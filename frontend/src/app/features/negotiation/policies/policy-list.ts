@@ -113,6 +113,12 @@ export class PolicyCreate {
   imports: [FilterBar, Icon, NgbTooltip, ...FORM_FIELD, ReactiveFormsModule, RouterLink, CellDef, DataTable, EntityPicker, PageHeader, StatusChip, AppDatePipe],
   template: `
     <app-page-header title="Políticas de cobrança" subtitle="Encargos, descontos máximos, parcelamento e escada de concessões de cada credor, em versões imutáveis após a publicação.">
+      @if (canSeeHealth()) {
+        <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" routerLink="/negociacao/politicas/saude" [queryParams]="healthParams()">
+          <app-icon name="clipboard-data" />
+          Saúde das políticas
+        </a>
+      }
       @if (canManage()) {
         <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="create()">
           <app-icon name="plus-lg" />
@@ -178,6 +184,12 @@ export class PolicyList {
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly statuses = statusOptions('collectionPolicy');
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.POLICY_MANAGE));
+  /** Saúde das políticas: quem altera a política ou analisa resultados (decisão 1087). */
+  protected readonly canSeeHealth = computed(() => this.auth.hasAnyPermission([Permission.POLICY_MANAGE, Permission.REPORT_VIEW]));
+  protected readonly healthParams = computed(() => {
+    const creditor = this.filter().creditorId;
+    return creditor ? { credor: creditor } : {};
+  });
 
   private readonly fb = inject(FormBuilder).nonNullable;
   /** Filtros na URL (`?credor=&situacao=`), preservados ao voltar. */

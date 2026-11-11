@@ -10,6 +10,9 @@ public interface PdfLayoutTemplateRepository {
 
     PdfLayoutTemplate save(PdfLayoutTemplate template);
 
+    /** Grava já (ex.: desativar a versão anterior antes de inserir a nova: só uma ativa por credor e layout). */
+    PdfLayoutTemplate saveAndFlush(PdfLayoutTemplate template);
+
     Optional<PdfLayoutTemplate> findById(UUID id);
 
     /** Mapas ativos do credor, os usados mais recentemente primeiro. */

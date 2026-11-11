@@ -290,6 +290,15 @@ class PdfImportIT extends IngestionTestSupport {
         assertThat(model.calls.get()).isEqualTo(callsAfterFirst);
         assertThat(count("select count(*) from shared.business_event where tenant_id = ? and event_type = 'pdf_import.map_reused'",
                 tenant)).isEqualTo(1);
+
+        // o mapa que veio do mapa salvo não é salvo de novo (seria uma versão idêntica)
+        assertThatThrownBy(() -> asAna(() -> pdfImports.saveTemplate(second.id(), new SaveTemplateCommand("Histórico", 1))))
+                .hasFieldOrPropertyWithValue("code", "pdf_template.already_in_use");
+        // salvar de novo o mesmo layout: versão nova, a anterior desativada (uma só ativa por credor e layout)
+        var again = asAna(() -> pdfImports.saveTemplate(received.id(), new SaveTemplateCommand("Histórico financeiro", 3)));
+        assertThat(again.version()).isEqualTo(2);
+        assertThat(count("select count(*) from ingestion.pdf_layout_template where tenant_id = ? and active", tenant))
+                .isEqualTo(1);
     }
 
     @Test

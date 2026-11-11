@@ -12,6 +12,12 @@
 
 @if (current(); as p) {
   <app-page-header [title]="'v' + p.version + ' · ' + p.name" [subtitle]="creditors.name(p.creditorId) + ' · esquema v' + p.termsSchemaVersion">
+    @if (canSeeHealth()) {
+      <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" routerLink="/negociacao/politicas/saude" [queryParams]="{ credor: p.creditorId }" ngbTooltip="Resultados desta política por carteira e faixa de atraso, com sugestões de revisão">
+        <app-icon name="clipboard-data" />
+        Saúde da política
+      </a>
+    }
     @if (canManage()) {
       @if (p.status === 'DRAFT') {
         <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="applyTemplate()" ngbTooltip="Substitui os termos pelos parâmetros usuais de mercado">

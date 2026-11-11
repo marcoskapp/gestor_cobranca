@@ -67,7 +67,7 @@ const AXIS_COUNT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
               (blur)="hover.set(null)"
             >
               <rect class="cc__hit" [attr.x]="b.slotX" [attr.y]="pad.top" [attr.width]="b.slotW" [attr.height]="baseline - pad.top" />
-              <path class="cc__bar" [attr.d]="b.path" [style.fill]="'var(' + series().color + ')'" />
+              <path class="cc__bar" [attr.d]="b.path" [style.fill]="'var(' + series().color + ', var(--app-chart-1))'" />
               @if (b.showLabel) {
                 <text class="cc__xlabel" [attr.x]="b.cx" [attr.y]="h - 8" text-anchor="middle">{{ b.row.label }}</text>
               }

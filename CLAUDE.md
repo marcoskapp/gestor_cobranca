@@ -31,6 +31,26 @@ Responda e documente sempre em **português do Brasil**.
   visível e desabilitada com o motivo (`app-disabled-action`, em `shared/components`), sem nenhuma chamada ao servidor.
 - **Campos monetários** sempre com máscara (`appMoney`), sem o usuário digitar separadores.
 
+## Premissas de toda tela e funcionalidade
+
+Valem em toda entrega; a revisão e o `audit.sh` conferem. Detalhes e exemplos em [docs/tecnico/desenho/ux.md](docs/tecnico/desenho/ux.md).
+
+- **Navegabilidade**: registro citado leva ao registro (link para o caso, devedor, conversa, acordo, política) e item
+  configurado em outra tela tem atalho para ela (`app-config-link`, abre em nova aba, só com a permissão de destino);
+  links e filtros guardam o estado na URL e o "voltar" retorna ao mesmo contexto; link aponta para a rota que abre o
+  item (nunca para uma lista vazia).
+- **Usabilidade**: o que o sistema já sabe vem preenchido (devedor, conversa, data, primeiro nome) e a prévia já pronta;
+  campos em grade alinhada, rótulos curtos (detalhe na dica); texto para o usuário sem códigos internos, enums ou jargão;
+  elemento que parece botão funciona (prévia/decoração é marcada como tal); estados de carregando, vazio e erro com
+  próximo passo; acessível por teclado e leitor de tela (WCAG AA).
+- **Segurança**: escopo por credor e permissão no servidor (a tela só esconde); dado sensível ou de autenticação nunca
+  legível em tela, log, evento ou métrica (ex.: código de acesso oculto); respostas públicas sem revelar existência
+  (anti-enumeração); limite de uso em toda entrada pública.
+- **Conformidade**: LGPD (finalidade, minimização, base legal, retenção) e CDC/cobrança (política de contato, horário,
+  vulnerabilidade e superendividamento) desde o desenho; toda decisão automática ou sugestão de sistema é explicável,
+  auditável e passa por revisão humana antes de mudar regra de negócio; o critério de sucesso de negociação é o acordo
+  que o devedor cumpre, não só o fechamento.
+
 ## Fluxo de git
 
 - **Atual**: commits direto na `master`, até o responsável avisar que passa a valer branch + PR.

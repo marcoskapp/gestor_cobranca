@@ -844,3 +844,16 @@ Pontos de entrada: chamada (linha e player da gravação), conversa, histórico 
 negociador (desenho em `remuneracao-variavel.md` §2.4.1). Atendimento que a própria pessoa já avaliou mostra o selo verde
 "Avaliado por você · nota X" no lugar do botão (na lista de chamadas, o ícone preenchido), focável, com a dica da data e de
 que outro avaliador ainda pode avaliar; o player não oferece "Avaliar" (decisão 1078). Teste: `features/incentive/quality/evaluation-dialog.spec.ts`.
+
+## 20. Atalho para a configuração (11/11/2026)
+
+**Problema:** formulários que usam itens configurados em outra tela (o perfil de alçada na política do assistente, os
+canais, as contas Pix) obrigavam a pessoa a sair do formulário, achar a tela no menu e voltar, perdendo o contexto.
+
+| Peça | Contrato |
+| --- | --- |
+| `app-config-link` (`shared/components/config-link`) | Link pequeno ("Gerenciar perfis de alçada ↗") logo abaixo do campo ou no bloco que usa o item; abre a tela de configuração **em nova aba** (`target="_blank"`, `rel="noopener"`), com "(abre em nova aba)" para o leitor de tela; só aparece com as permissões da tela de destino (as mesmas do menu). |
+| Uso atual | Política do assistente: perfil de alçada e perfil exigido na fila (`/negociacao/alcadas`, `AUTHORITY_MANAGE`), canais (`/conversas/canais`, `CHANNEL_MANAGE`) e contas Pix (`/pagamentos/contas-pix`, `INTEGRATION_MANAGE`). O prompt não tem atalho: versões imutáveis, entram com a atualização do sistema (a dica explica). |
+
+Premissas gerais de navegabilidade, usabilidade, segurança e conformidade: `CLAUDE.md` ("Premissas de toda tela e
+funcionalidade").

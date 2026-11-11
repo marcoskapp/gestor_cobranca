@@ -195,6 +195,31 @@ create view analytics.src_commission_statement with (security_invoker = true) as
 select s.tenant_id, s.period_start, s.beneficiary_id, s.status, s.payable_amount
 from incentive.commission_statement s;
 
+-- ------------------------------------------------------ saúde da política (decisão 1087)
+-- Acordos para calibrar a política: uso do desconto máximo e maior atraso. Devedores com marcador de vulnerabilidade
+-- ATIVO ficam fora (atendimento cuidadoso não é base para calibrar desconto) — filtrados aqui, sem expor o marcador.
+create view analytics.src_policy_agreement with (security_invoker = true) as
+select a.tenant_id, a.id as agreement_id, a.envelope_usage, a.max_days_overdue
+from negotiation.agreement a
+where not exists (select 1 from compliance.vulnerability_marker m
+                  where m.debtor_id = a.debtor_id and m.status = 'ACTIVE');
+
+-- Consultas de condições no portal (evento portal.simulated): quantas ofertas couberam na alçada do portal.
+create view analytics.src_portal_simulation with (security_invoker = true) as
+select e.tenant_id, e.occurred_at, e.creditor_id, e.portfolio_id,
+       (e.attributes ->> 'offers')::integer as offers, (e.attributes ->> 'daysOverdue')::integer as days_overdue
+from shared.business_event e
+where e.event_type = 'portal.simulated'
+  and not exists (select 1 from compliance.vulnerability_marker m
+                  where m.debtor_id = e.debtor_id and m.status = 'ACTIVE');
+
+-- Pedidos de atendimento do portal (motivo; CANNOT_AFFORD = "nenhuma condição cabe no meu orçamento").
+create view analytics.src_portal_service_request with (security_invoker = true) as
+select r.tenant_id, r.created_at, r.creditor_id, r.portfolio_id, r.reason
+from portal.service_request r
+where not exists (select 1 from compliance.vulnerability_marker m
+                  where m.debtor_id = r.debtor_id and m.status = 'ACTIVE');
+
 grant select on all tables in schema analytics to app_runtime;
 
 -- =============================================================================

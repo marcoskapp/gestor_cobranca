@@ -257,7 +257,10 @@ const POLL_MS = 3000;
             <div class="alert alert-danger pd-small" role="alert">{{ actionError() }}</div>
           }
           <div class="pd-actions">
-            @if (v.textLayer && v.mapOrigin !== 'VISUAL') {
+            <!-- mapa que já veio do mapa salvo do credor (sem ajuste): não há o que salvar -->
+            @if (v.mapOrigin === 'TEMPLATE') {
+              <span class="app-muted pd-small align-self-center" data-testid="pdf-template-in-use"><app-icon name="bookmark-check" /> Mapa salvo do credor em uso{{ v.templateName ? ': ' + v.templateName : '' }}. Para salvar uma versão nova, use "Editar mapa" e ajuste.</span>
+            } @else if (v.textLayer && v.mapOrigin !== 'VISUAL') {
               <button class="btn btn-outline-primary" type="button" (click)="saveTemplate(v)" [disabled]="busy() || !v.summary?.totalsMatch || v.blockers.length > 0">
                 <app-icon name="bookmark-plus" /> Salvar mapa para este credor
               </button>

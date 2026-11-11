@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "0513874832971bb4",
+ "contentVersion": "6c65892e380e3c6c",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -3531,6 +3531,55 @@
     "kind": "MENU",
     "permissions": [
      "POLICY_AREA_VIEW"
+    ]
+   }
+  },
+  {
+   "id": "negotiation.policy-health",
+   "module": "negociacao",
+   "title": "Saúde das políticas",
+   "objective": "Como a política de cada credor está funcionando, por carteira e faixa de atraso, com sugestões de revisão.",
+   "purpose": [
+    "Escolha o credor e o período: a tabela mostra acordos, quebra nos primeiros 60 dias, pago sobre acordado, uso do desconto máximo e o que acontece no portal.",
+    "As sugestões aparecem só com amostra suficiente e explicam o sinal e o que avaliar; elas não mudam a política: abra a política, crie um rascunho e publique o que decidir. Antes de ampliar desconto, prefira um teste controlado.",
+    "Devedores com marcador de vulnerabilidade ativo ficam fora (vale o estado atual do marcador: registrar ou retirar um muda os números de períodos passados), e a tela mostra só números agregados."
+   ],
+   "profiles": [
+    "GESTOR",
+    "SUPERVISOR",
+    "FINANCEIRO",
+    "AUDITOR",
+    "ESTRATEGIA",
+    "ANALISTA_CARTEIRA",
+    "QUALIDADE",
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Acordos, pagamentos e consultas do portal do período."
+   ],
+   "outputs": [
+    "Sugestões de revisão da política, avaliadas por quem gerencia a política."
+   ],
+   "related": [
+    {
+     "screen": "negotiation.policies",
+     "why": "Abrir a política e criar o rascunho."
+    },
+    {
+     "screen": "negotiation.authority",
+     "why": "Ajustar o teto da alçada do portal."
+    }
+   ],
+   "terms": [
+    "politica-de-cobranca",
+    "escada-de-concessoes"
+   ],
+   "path": "/negociacao/politicas/saude",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "POLICY_MANAGE",
+     "REPORT_VIEW"
     ]
    }
   },
@@ -9183,6 +9232,61 @@
    "use": "Saber a regra ajuda a agir antes: contate o devedor dentro da tolerância e ofereça o Pix da parcela.",
    "screens": [
     "negotiation.agreement-detail"
+   ]
+  },
+  {
+   "id": "negotiation.health.early-break",
+   "module": "negociacao",
+   "title": "Quebra até 60 dias",
+   "what": "Fatia dos acordos que quebraram nos primeiros 60 dias, entre os que já têm 60 dias desde a formalização.",
+   "how": "Acordos do período formalizados há 60 dias ou mais (maduros); destes, os quebrados até 60 dias depois da formalização. Os ainda dentro da janela não entram.",
+   "use": "Quebra alta numa faixa costuma pedir entrada maior ou menos parcelas: acordo que quebra não recupera e desgasta o devedor.",
+   "screens": [
+    "negotiation.policy-health"
+   ]
+  },
+  {
+   "id": "negotiation.health.paid-over-agreed",
+   "module": "negociacao",
+   "title": "Pago sobre acordado",
+   "what": "Quanto dos acordos do período já foi recebido, em relação ao valor acordado.",
+   "how": "Recebido (líquido de estornos) dos acordos formalizados no período ÷ valor total desses acordos. Acordos recentes ainda têm parcelas a vencer.",
+   "use": "É o resultado que importa para o credor: um acordo bom é o que o devedor consegue cumprir.",
+   "screens": [
+    "negotiation.policy-health"
+   ]
+  },
+  {
+   "id": "negotiation.health.envelope-usage",
+   "module": "negociacao",
+   "title": "Uso do desconto máximo",
+   "what": "Quanto do desconto máximo permitido pela política os acordos usaram, em média, e a fatia que usou 90% ou mais.",
+   "how": "Para cada acordo, desconto concedido ÷ desconto máximo da política para a forma de pagamento; média dos acordos do recorte.",
+   "use": "Desconto sempre no limite com boa adimplência sugere que o limite está apertado; desconto quase nunca usado sugere uma escada generosa demais. Atenção: faixa ou forma de pagamento sem desconto previsto na política aparece com 0%.",
+   "screens": [
+    "negotiation.policy-health"
+   ]
+  },
+  {
+   "id": "negotiation.health.portal-without-offer",
+   "module": "negociacao",
+   "title": "Portal sem oferta",
+   "what": "Fatia das consultas de condições no portal do devedor em que nenhuma oferta coube na alçada do portal.",
+   "how": "Consultas de condições do portal no período, por faixa de atraso; sem oferta = nenhuma condição válida dentro do perfil \"Autonegociação (portal)\".",
+   "use": "Muitas consultas sem oferta indicam teto da alçada do portal (valor, parcelas, entrada) ou condições da faixa fora do alcance dos devedores.",
+   "screens": [
+    "negotiation.policy-health"
+   ]
+  },
+  {
+   "id": "negotiation.health.cannot-afford",
+   "module": "negociacao",
+   "title": "Nenhuma condição cabe",
+   "what": "Pedidos de atendimento feitos no portal com o motivo \"nenhuma condição cabe no meu orçamento\".",
+   "how": "Contagem dos pedidos do período com esse motivo, por carteira (o pedido não tem faixa de atraso).",
+   "use": "Volume alto sugere parcela mínima alta ou poucas parcelas para o perfil da carteira.",
+   "screens": [
+    "negotiation.policy-health"
    ]
   },
   {

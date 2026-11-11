@@ -190,3 +190,24 @@ Sem eventos de negócio novos (o módulo só lê). Log técnico: ciclo de atuali
 - Mensagens duplicadas do provedor só existem como métrica técnica.
 - Origens `portal` e `assistant` dependem dos módulos em desenvolvimento paralelo: entram automaticamente pela origem do acordo; se criarem novas origens, o teste de domínios aponta.
 - Reconstrução incremental quando o volume exigir (§4).
+
+## Saúde das políticas (decisão 1087)
+
+`GET /api/v1/analytics/policy-health?creditorId=&from=&to=&valueBand=` (`POLICY_MANAGE` ou `REPORT_VIEW`, credor no
+escopo; `PolicyHealthQueries`, `PolicyHealthService`). Período padrão de 180 dias (máximo 400), sobre a safra
+(`agreement_cohort.formalized_on`).
+
+| Fonte | Uso |
+| --- | --- |
+| `agreement_cohort` ⋈ `src_policy_agreement` | acordos por carteira × `delay_bucket(max_days_overdue)`: maduros (≥ 60 dias em `asOf`), quebrados até 60 dias, acordado, pago líquido, uso do desconto máximo (`envelope_usage`, %) |
+| `src_portal_simulation` | evento `portal.simulated`: consultas e consultas com `offers = 0`, por faixa (`daysOverdue`) |
+| `src_portal_service_request` | pedidos `CANNOT_AFFORD` por carteira (faixa nula: "todas as faixas") |
+
+As três views novas excluem devedor com `compliance.vulnerability_marker` **ativo** dentro da própria view (o marcador
+não é exposto) e não têm dado pessoal. Vale o estado **atual** do marcador (registrar ou retirar muda os números de
+períodos passados). Por diferença com o relatório de conversão daria para inferir a **existência** de um marcador num
+recorte mínimo — sem a categoria —, informação que os perfis com acesso já veem pelo selo na ficha (`DEBTOR_VIEW`/
+`CASE_VIEW`); um perfil personalizado com `REPORT_VIEW` e sem visão de caso ou devedor exigiria mínimo de células. Faixas de valor do acordo: `V0_1K`, `V1K_5K`, `V5K_20K`, `V20K_PLUS` (não se
+aplicam ao portal). Regras de sugestão em `PolicyHealthRules` (domínio, puro; limites na decisão 1087), comparando o
+recorte com o resto do credor; sem amostra madura no resto, vale só o limite absoluto. Testes: `PolicyHealthRulesTest`
+e `PolicyHealthIT`. Tela: `/negociacao/politicas/saude` (`features/negotiation/policies/policy-health.ts`).

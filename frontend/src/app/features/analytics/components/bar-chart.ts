@@ -32,7 +32,7 @@ let nextId = 0;
       @if (series().length > 1) {
         <ul class="bc__legend" aria-label="Legenda">
           @for (s of series(); track s.name) {
-            <li><span class="bc__swatch" [style.background]="'var(' + s.color + ')'"></span>{{ s.name }}</li>
+            <li><span class="bc__swatch" [style.background]="'var(' + s.color + ', var(--app-chart-1))'"></span>{{ s.name }}</li>
           }
         </ul>
       }
@@ -83,7 +83,7 @@ let nextId = 0;
                     (focus)="hover.set({ row: r, index: i })"
                     (blur)="hover.set(null)"
                   >
-                    <span class="bc__bar" [style.--bc-w]="width(v) / 100" [style.background]="'var(' + series()[i].color + ')'"></span>
+                    <span class="bc__bar" [style.--bc-w]="width(v) / 100" [style.background]="'var(' + series()[i].color + ', var(--app-chart-1))'"></span>
                     <span class="bc__value app-numeric">{{ r.display[i] }}</span>
                   </span>
                 }

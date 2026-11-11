@@ -29,7 +29,7 @@ describe('PdfImportStart', () => {
 
   async function render(): Promise<ComponentFixture<PdfImportStart>> {
     const fixture = TestBed.createComponent(PdfImportStart);
-    fixture.componentInstance['form'].patchValue({ portfolio: ['p-1'] });
+    fixture.componentInstance['form'].patchValue({ creditor: ['c-1'], portfolio: ['p-1'] });
     for (let i = 0; i < 3; i++) {
       fixture.detectChanges();
       await tick(350);
@@ -82,5 +82,21 @@ describe('PdfImportStart', () => {
       .expectOne((r) => r.url === '/api/v1/ingestion/pdf-imports')
       .flush({ code: 'pdf_import.duplicate_file', details: { pdfImportId: 'pdf-0', status: 'AWAITING_VALIDATION' } }, { status: 409, statusText: 'Conflict' });
     expect(navigate).toHaveBeenCalledWith(['/importacao/pdf', 'pdf-0']);
+  });
+
+  it('credor primeiro: a carteira só aparece com o credor, e trocar o credor limpa a carteira', async () => {
+    const fixture = TestBed.createComponent(PdfImportStart);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const pickers = () => [...el.querySelectorAll('app-entity-picker')].map((p) => p.getAttribute('label') ?? p.textContent ?? '');
+    expect(pickers().length).toBe(1);
+    const form = fixture.componentInstance['form'];
+    form.controls.creditor.setValue(['c-1']);
+    fixture.detectChanges();
+    expect(el.querySelectorAll('app-entity-picker').length).toBe(2);
+    form.controls.portfolio.setValue(['p-1']);
+    form.controls.creditor.setValue(['c-2']);
+    expect(form.controls.portfolio.value).toEqual([]);
+    http.match(() => true).forEach((r) => r.flush({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }));
   });
 });

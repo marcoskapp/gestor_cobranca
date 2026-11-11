@@ -3,6 +3,17 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 23,
+    date: '2026-11-11',
+    title: 'Saúde das políticas e atalhos para a configuração',
+    items: [
+      { text: 'Saúde das políticas: quebra nos primeiros 60 dias, pago sobre acordado, uso do desconto e portal por carteira e faixa de atraso, com sugestões de revisão que você avalia antes de mudar a política.', route: '/negociacao/politicas/saude' },
+      { text: 'Na política do assistente, atalhos para configurar perfis de alçada, canais e contas Pix (abrem em nova aba).', route: '/assistente/politicas' },
+      { text: 'Importação PDF: escolha o credor antes da carteira; com o mapa salvo do credor em uso, "Salvar mapa" não aparece, e salvar um mapa ajustado substitui a versão anterior sem erro.', route: '/importacao/pdf/nova' },
+      { text: 'Consumo da API: o gráfico "Por token" volta a mostrar as barras.', route: '/integracoes/consumo' },
+    ],
+  },
+  {
     version: 22,
     date: '2026-11-11',
     title: 'Conversa com o primeiro nome preenchido e políticas mais legíveis',

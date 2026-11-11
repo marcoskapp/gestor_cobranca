@@ -167,7 +167,11 @@ pendência de aprovação.
 
 "Salvar mapa para este credor" guarda o mapa (sem bloqueios e com os totais conferindo) com a **impressão digital**:
 SHA-256 dos rótulos do cabeçalho da tabela (por linha, na ordem) e dos rótulos do devedor, normalizados. Salvar de novo
-o mesmo layout cria a versão seguinte e desativa a anterior (um ativo por layout e credor, índice único parcial).
+o mesmo layout cria a versão seguinte e desativa a anterior (um ativo por layout e credor, índice único parcial; a
+desativação é gravada antes da inserção da versão nova, senão o flush do Hibernate insere primeiro e esbarra no
+índice). Com o mapa salvo do credor em uso (origem `TEMPLATE`, sem ajuste), a tela não oferece "Salvar mapa" e mostra
+"Mapa salvo do credor em uso" (decisão 1089), e o servidor recusa salvá-lo de novo (`pdf_template.already_in_use`);
+ajustado o mapa (origem `USER`), o botão volta.
 
 No próximo PDF do credor, o job testa os mapas ativos (os usados mais recentemente primeiro): casa quando alguma linha
 contém todos os rótulos da 1ª linha do cabeçalho em ordem e, com cabeçalho de devedor, o rótulo de abertura e os
