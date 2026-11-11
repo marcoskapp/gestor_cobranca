@@ -21,6 +21,14 @@ interface AccessChallengeJpaRepository extends JpaRepository<AccessChallenge, UU
     Optional<AccessChallenge> findByIdForUpdate(UUID id);
 
     @Override
+    @Query("""
+            select count(c) from AccessChallenge c
+             where c.documentHash = :documentHash and c.method = br.com.gestorcobranca.portal.domain.model.AccessMethod.OTP
+               and c.createdAt >= :since
+            """)
+    long countCodesSince(String documentHash, Instant since);
+
+    @Override
     @Modifying
     @Query(value = """
             delete from portal.access_challenge

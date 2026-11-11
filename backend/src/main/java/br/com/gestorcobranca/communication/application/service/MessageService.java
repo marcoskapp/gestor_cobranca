@@ -91,23 +91,69 @@ class MessageService implements MessageUseCases {
     @Override
     public MessageView send(SendMessageCommand command) {
         Guard.require(command != null, "message.required", "Dados da mensagem obrigatórios");
-        String idempotencyKey = command.idempotencyKey() == null || command.idempotencyKey().isBlank() ? null
-                : command.idempotencyKey().trim();
-        if (idempotencyKey != null) {
-            Optional<Message> existing = messages.findByIdempotencyKey(idempotencyKey);
-            if (existing.isPresent()) {
-                access.visible(existing.get().getConversationId());
-                return CommunicationViews.message(existing.get());
-            }
+        String idempotencyKey = idempotencyKey(command);
+        Optional<MessageView> replayed = replayed(idempotencyKey);
+        if (replayed.isPresent()) {
+            return replayed.get();
         }
         SenderType sender = access.senderOf(command.campaignExecutionId());
         Guard.require(command.campaignExecutionId() == null || sender == SenderType.CAMPAIGN,
                 "message.campaign_requires_system", "Envio de campanha é feito pelo processo da campanha");
-        Conversation conversation = command.conversationId() != null ? access.forCommand(command.conversationId())
-                : openConversation(command, sender);
+        Conversation conversation = conversationFor(command, sender);
         Content content = content(conversation, sender, command.templateCode(), command.variables(), command.text());
         Message message = queue(conversation, sender, content, command.campaignExecutionId(), null, idempotencyKey);
         return CommunicationViews.message(message);
+    }
+
+    @Override
+    public MessageView sendOnDebtorRequest(SendMessageCommand command) {
+        return sendRequested(command, Message.CATEGORY_RESPONSE);
+    }
+
+    @Override
+    public MessageView sendAccessCode(SendMessageCommand command) {
+        return sendRequested(command, Message.CATEGORY_AUTHENTICATION);
+    }
+
+    /** Mensagem do sistema pedida agora pelo devedor, na categoria indicada (RESPONSE ou AUTHENTICATION). */
+    private MessageView sendRequested(SendMessageCommand command, String category) {
+        Guard.require(command != null, "message.required", "Dados da mensagem obrigatórios");
+        Guard.require(command.campaignExecutionId() == null, "message.debtor_request_not_campaign",
+                "Campanha não envia a pedido do devedor");
+        SenderType sender = access.senderOf(null);
+        Guard.requireState(sender == SenderType.SYSTEM, "message.debtor_request_requires_system",
+                "Só o sistema envia a mensagem pedida pelo devedor");
+        Guard.require(command.templateCode() != null && !command.templateCode().isBlank(), "message.template_required",
+                "Mensagem pedida pelo devedor só com template");
+        String idempotencyKey = idempotencyKey(command);
+        Optional<MessageView> replayed = replayed(idempotencyKey);
+        if (replayed.isPresent()) {
+            return replayed.get();
+        }
+        Conversation conversation = conversationFor(command, sender);
+        Content content = content(conversation, sender, command.templateCode(), command.variables(), null);
+        return CommunicationViews.message(queue(conversation, sender, content, null, null, idempotencyKey, category));
+    }
+
+    private static String idempotencyKey(SendMessageCommand command) {
+        return command.idempotencyKey() == null || command.idempotencyKey().isBlank() ? null
+                : command.idempotencyKey().trim();
+    }
+
+    /** Mensagem já enfileirada com a mesma chave (repetição do chamador), conferida a visibilidade da conversa. */
+    private Optional<MessageView> replayed(String idempotencyKey) {
+        if (idempotencyKey == null) {
+            return Optional.empty();
+        }
+        return messages.findByIdempotencyKey(idempotencyKey).map(existing -> {
+            access.visible(existing.getConversationId());
+            return CommunicationViews.message(existing);
+        });
+    }
+
+    private Conversation conversationFor(SendMessageCommand command, SenderType sender) {
+        return command.conversationId() != null ? access.forCommand(command.conversationId())
+                : openConversation(command, sender);
     }
 
     @Override
@@ -154,6 +200,15 @@ class MessageService implements MessageUseCases {
      */
     Message queue(Conversation conversation, SenderType sender, Content content, UUID campaignExecutionId, UUID draftId,
                   String idempotencyKey) {
+        return queue(conversation, sender, content, campaignExecutionId, draftId, idempotencyKey, null);
+    }
+
+    /**
+     * @param requestedCategory mensagem do sistema pedida agora pelo devedor: RESPONSE (confirmação do pedido) ou
+     *                          AUTHENTICATION (código de acesso); nula = envio comum
+     */
+    Message queue(Conversation conversation, SenderType sender, Content content, UUID campaignExecutionId, UUID draftId,
+                  String idempotencyKey, String requestedCategory) {
         Guard.requireState(conversation.isOpen(), "conversation.closed", "Conversa encerrada; inicie uma nova");
         if (conversation.getDebtorId() == null || conversation.getCreditorId() == null) {
             throw new ConflictException("conversation.unidentified",
@@ -184,7 +239,10 @@ class MessageService implements MessageUseCases {
 
         // quem procurou e aguarda retorno recebe a resposta sem os limites de frequência da cobrança (decisão 1081);
         // respondida, as mensagens seguintes voltam a contar como cobrança
-        if ((sender == SenderType.USER || sender == SenderType.ASSISTANT) && c.awaitingReply()) {
+        if (Message.CATEGORY_AUTHENTICATION.equals(requestedCategory)) {
+            message.markAuthentication();
+        } else if (Message.CATEGORY_RESPONSE.equals(requestedCategory)
+                || ((sender == SenderType.USER || sender == SenderType.ASSISTANT) && c.awaitingReply())) {
             message.markResponse();
         }
         // verificação prévia: pedido já negado é registrado como falha, sem enfileirar

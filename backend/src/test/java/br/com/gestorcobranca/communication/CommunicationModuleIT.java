@@ -207,6 +207,17 @@ class CommunicationModuleIT extends CommunicationTestSupport {
     }
 
     @Test
+    void onlyTheSystemSendsOnDebtorRequestAndOnlyWithTemplate() {
+        assertThatThrownBy(() -> asOperator(operatorX, () -> messages.sendOnDebtorRequest(template(null, null))))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "message.debtor_request_requires_system");
+        assertThatThrownBy(() -> asOperator(operatorX, () -> messages.sendAccessCode(template(null, null))))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "message.debtor_request_requires_system");
+        MessageView first = asOperator(operatorX, () -> messages.send(template(null, null)));
+        assertThatThrownBy(() -> system(() -> messages.sendOnDebtorRequest(text(first.conversationId(), "Oi"))))
+                .hasFieldOrPropertyWithValue("code", "message.template_required");
+    }
+
+    @Test
     void debtorRequestFromThePortalAwaitsReply() {
         MessageView first = asOperator(operatorX, () -> messages.send(template(null, null)));
         drainCommunication();

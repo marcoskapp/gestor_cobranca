@@ -66,7 +66,8 @@ public final class ContactRules {
      * @param holidays          feriados cadastrados no horizonte avaliado
      * @param attempts          instantes das tentativas anteriores do devedor no canal (ao menos
      *                          as da semana civil corrente)
-     * @param category          natureza do contato ({@link ContactCategory}; nula = cobrança). Fora da cobrança
+     * @param category          natureza do contato ({@link ContactCategory}; nula = cobrança). A autenticação também
+     *                          dispensa janela e feriados (só restrições e anonimização). Fora da cobrança
      *                          (transacional ou resposta a quem procurou) não há limites de frequência nem intervalo
      *                          mínimo; só a transacional ignora as restrições {@code CREDITOR_REQUEST} (suspensão de
      *                          cobrança pedida pelo credor). As demais restrições, a janela e os feriados valem sempre
@@ -101,8 +102,16 @@ public final class ContactRules {
         /** Sem limites de frequência nem intervalo mínimo: só as categorias que a política isenta (decisões 792 e 1081). */
         public boolean frequencyExempt() {
             return switch (category) {
-                case TRANSACTIONAL, RESPONSE -> true;
+                case TRANSACTIONAL, RESPONSE, AUTHENTICATION -> true;
                 case COLLECTION -> false;
+            };
+        }
+
+        /** Sem janela de horário nem feriados: só a autenticação pedida pelo devedor (decisão 1083). */
+        public boolean scheduleExempt() {
+            return switch (category) {
+                case AUTHENTICATION -> true;
+                case COLLECTION, TRANSACTIONAL, RESPONSE -> false;
             };
         }
     }
@@ -147,6 +156,9 @@ public final class ContactRules {
     private Set<DenialReason> reasonsAt(Situation s, Instant at) {
         Set<DenialReason> reasons = EnumSet.noneOf(DenialReason.class);
         coveringAt(s, at).forEach(r -> reasons.add(r.denialReason()));
+        if (s.scheduleExempt()) {
+            return reasons;
+        }
 
         LocalDateTime local = LocalDateTime.ofInstant(at, zone);
         Optional<LocalDate> openingDay = s.window().openingDate(local);
@@ -207,6 +219,9 @@ public final class ContactRules {
                 return Optional.empty();
             }
             return Optional.of(covering.stream().map(ContactRestriction::getEndsAt).max(Instant::compareTo).orElseThrow());
+        }
+        if (s.scheduleExempt()) {
+            return Optional.of(t);
         }
         LocalDateTime local = LocalDateTime.ofInstant(t, zone);
         LocalDateTime opening = s.window().nextOpening(local);

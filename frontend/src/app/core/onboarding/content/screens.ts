@@ -747,11 +747,19 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'portal.configs', version: 1, path: '/autonegociacao' },
   {
     key: 'portal.requests',
-    version: 2,
+    version: 3,
     path: '/autonegociacao/pedidos',
-    changes: [{ version: 2, items: ['A mensagem escrita pelo devedor não aparece mais na lista: abra em "Ver mensagem do devedor". Cada consulta fica registrada no log de acesso.'] }],
+    changes: [
+      { version: 2, items: ['A mensagem escrita pelo devedor não aparece mais na lista: abra em "Ver mensagem do devedor". Cada consulta fica registrada no log de acesso.'] },
+      { version: 3, items: ['"Abrir conversa" leva direto à conversa do pedido na caixa de entrada, pronta para responder.'] },
+    ],
   },
-  { key: 'portal.config', version: 1, path: '/autonegociacao/:id' },
+  {
+    key: 'portal.config',
+    version: 2,
+    path: '/autonegociacao/:id',
+    changes: [{ version: 2, items: ['A prévia da marca deixa claro que é só a prévia das cores (não clicável); para navegar no portal, use "Abrir portal".'] }],
+  },
   {
     key: 'ingestion.batches',
     version: 3,

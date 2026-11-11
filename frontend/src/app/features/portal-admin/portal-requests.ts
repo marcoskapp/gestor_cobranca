@@ -46,7 +46,7 @@ const REASONS: Record<string, string> = {
       <ng-template appCell="creditor" [appCellOf]="rows()" let-r>{{ creditors.name(r.creditorId) }}</ng-template>
       <ng-template appCell="debtor" [appCellOf]="rows()" let-r><a [routerLink]="['/devedores', r.debtorId]">Ver devedor</a></ng-template>
       <ng-template appCell="status" [appCellOf]="rows()" let-r><app-status-chip domain="portalRequest" [status]="r.status" />
-        @if (r.conversationId) {<div><a routerLink="/conversas" [queryParams]="{ conversa: r.conversationId }">Abrir conversa</a></div>}
+        @if (r.conversationId) {<div><a [routerLink]="['/conversas', r.conversationId]" data-testid="request-conversation">Abrir conversa</a></div>}
         @if (r.failureCode) {<div class="app-muted">{{ r.failureCode }}</div>}</ng-template>
     </app-data-table>
   `,

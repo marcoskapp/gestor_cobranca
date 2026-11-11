@@ -229,7 +229,8 @@ nunca é gravado. Busca por nome ou código do título não vai ao log de acesso
 Log de acesso: `INBOUND_MAIL_REJECTED` (e-mail do credor retido por autenticação SPF/DKIM/DMARC, vírus ou remetente fora do cadastro: e-mail, pedido, motivo, domínio do remetente e veredictos, sem conteúdo nem endereço completo), `FILE_DOWNLOADED` do original (`resource=dispute_mail_reply`, SHA-256), `MALWARE_DETECTED` (documento externo infectado: recurso, credor, SHA-256 e assinatura, sem o conteúdo), `RATE_LIMITED` com `scope=document_upload`, `FILE_DOWNLOADED` da evidência da correção de valor (`resource=title_amount_adjustment`).
 
 O porteiro de contato (compliance) passa a registrar `category` (`COLLECTION`, `TRANSACTIONAL` e, desde a decisão 1081,
-`RESPONSE` — resposta a quem procurou e aguarda retorno) em `contact.denied` e na
+`RESPONSE` — resposta a quem procurou e aguarda retorno — e, desde a decisão 1083, `AUTHENTICATION` — código de acesso
+ao portal) em `contact.denied` e na
 métrica `compliance.contact_gate.decisions{operation,outcome,category}`.
 
 ### 3.4 Atributos dos eventos de comunicação
@@ -777,7 +778,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `telephony.webhook.instructions{provider,kind,instruction}` | respostas TwiML/Plivo XML: `kind` = `DIAL_DEBTOR`, `CALL_ANSWERED`, `CONNECT_OPERATOR`, `ANNOUNCE`, `ABANDON`, `END`; `instruction` = `DialDebtor`, `Hold`, `ConnectAgent`, `Announce`, `Hangup` |
 | `telephony.softphone.tokens{provider,outcome}` | tokens do softphone de navegador (`issued`, `failed`); log técnico com ids, nunca o token |
 | `portal.funnel{step}` | funil do portal por sessão: `ACCESS`, `SIMULATION`, `ACCEPTANCE`, `PIX_ISSUED`, `PAYMENT_CONFIRMED` (conversão = etapa ÷ anterior) |
-| `portal.access.code_requests{channel,outcome}`, `portal.access.logins{method,outcome}` | pedidos de código (`SENT`, `DECOY` = documento sem cadastro, `NOT_DELIVERED`) e verificações (`SUCCESS`, `INVALID`, `KNOWLEDGE_REQUIRED`); alta de `INVALID`/`DECOY` = varredura |
+| `portal.access.code_requests{channel,outcome}`, `portal.access.logins{method,outcome}` | pedidos de código (`SENT`, `DECOY` = documento sem cadastro, `NOT_DELIVERED`, `DAILY_CAP` = teto diário de códigos do documento atingido, decisão 1083) e verificações (`SUCCESS`, `INVALID`, `KNOWLEDGE_REQUIRED`); alta de `INVALID`/`DECOY` = varredura |
 | `portal.access.locks{key,event}`, `portal.access.rate_limited` | bloqueios progressivos aplicados/recusados por documento ou IP e limite por IP (alarme sugerido: > 50 em 15 min) |
 | `portal.access.links{channel,outcome}`, `portal.sessions{event}` | links emitidos e ciclo das sessões (`OPENED`, `REFRESHED`, `LOGOUT`, `REVOKED`, `EXPIRED`) |
 | `portal.offers.refused{reason}`, `portal.agreements.formalized{plan}`, `portal.pix{outcome}` | condições recusadas no servidor (`not_offered`, `guard_*`), acordos (`CASH`/`INSTALLMENTS`) e Pix (`ISSUED`, `REUSED`, `FAILED`) |

@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 21,
+    date: '2026-11-11',
+    title: 'Portal do devedor: acesso a qualquer hora e resposta sem bloqueio',
+    items: [
+      { text: 'O código de acesso ao portal chega a qualquer hora, inclusive à noite, aos domingos e feriados, e pode ser pedido de novo logo em seguida; descadastro e restrições do devedor continuam valendo.', route: '/autonegociacao' },
+      { text: 'Quem pediu atendimento pelo portal ou escreveu pelo WhatsApp recebe a resposta do operador sem esbarrar no intervalo mínimo da cobrança, e a caixa de entrada mostra há quanto tempo ele aguarda.', route: '/conversas' },
+      { text: 'Em Pedidos do portal, "Abrir conversa" abre direto a conversa do pedido.', route: '/autonegociacao/pedidos' },
+    ],
+  },
+  {
     version: 20,
     date: '2026-11-11',
     title: 'Monitoria: cada avaliador avalia um atendimento uma vez',

@@ -73,6 +73,35 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    /**
+     * O envio a pedido do devedor fica fora dos limites de frequência da cobrança (decisões 1082 e 1083): só o portal,
+     * que atende ao pedido feito naquele instante (código de acesso, confirmação do pedido de atendimento), chama.
+     */
+    @Test
+    void onlyThePortalSendsOnDebtorRequest() {
+        String port = ROOT + ".communication.application.port.in.MessageUseCases";
+        String command = port + "$SendMessageCommand";
+        noClasses().that().resideOutsideOfPackages(ROOT + ".portal..", ROOT + ".communication..")
+                .should().callMethod(port, "sendOnDebtorRequest", command)
+                .orShould().callMethod(port, "sendAccessCode", command)
+                .because("mensagem a pedido do devedor não pode virar cobrança sem limites (decisões 1082 e 1083)")
+                .check(classes);
+    }
+
+    /**
+     * Só o communication (mensagem com a categoria gravada) e o próprio compliance escolhem a categoria do contato: os
+     * demais módulos usam o construtor sem categoria (cobrança). Decisões 792, 1081 e 1083.
+     */
+    @Test
+    void onlyCommunicationChoosesTheContactCategory() {
+        noClasses().that().resideOutsideOfPackages(ROOT + ".communication..", ROOT + ".compliance..")
+                .should().callConstructor(ROOT + ".compliance.application.port.in.ContactGate$ContactRequest",
+                        "java.util.UUID", "java.util.UUID", "java.lang.String", "java.lang.String", "java.time.Instant",
+                        "java.lang.String", "java.lang.String", "java.util.UUID", "java.lang.String")
+                .because("categoria fora da cobrança dispensa limites ou horário (decisões 792, 1081 e 1083)")
+                .check(classes);
+    }
+
     @Test
     void springDataRepositoriesLiveInPersistence() {
         classes().that().areAssignableTo(org.springframework.data.repository.Repository.class)

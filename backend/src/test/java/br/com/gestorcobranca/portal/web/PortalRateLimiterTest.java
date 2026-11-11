@@ -14,7 +14,7 @@ class PortalRateLimiterTest {
     @Test
     void limitsEachIpPerMinute() {
         PortalProperties properties = new PortalProperties(null, null, new PortalProperties.Access(null, null, null, 3,
-                null, null, null, null, null, null, null, null), null, null);
+                null, null, null, null, null, null, null, null, null), null, null);
         PortalRateLimiter limiter = new PortalRateLimiter(properties,
                 Clock.fixed(Instant.parse("2026-10-23T12:00:10Z"), ZoneOffset.UTC));
         assertThat(limiter.tryAcquire("10.0.0.1")).isTrue();

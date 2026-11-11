@@ -53,10 +53,22 @@
         <input appInput formControlName="supportText" maxlength="300" />
       </app-field>
     </div>
-    <div class="brand-preview" [style.--preview-primary]="form.controls.primaryColor.value" [style.--preview-accent]="form.controls.accentColor.value" aria-label="Prévia da marca">
-      <span class="brand-preview__bar">{{ form.controls.displayName.value || 'Nome do credor' }}</span>
-      <span class="brand-preview__button">Ver condições para pagar</span>
-    </div>
+    <!-- só a prévia das cores: nada aqui é clicável; o portal de verdade abre em "Abrir portal" -->
+    <figure class="brand-preview" [style.--preview-primary]="form.controls.primaryColor.value" [style.--preview-accent]="form.controls.accentColor.value" data-testid="brand-preview">
+      <div class="brand-preview__sample" aria-hidden="true">
+        <span class="brand-preview__bar">{{ form.controls.displayName.value || 'Nome do credor' }}</span>
+        <span class="brand-preview__button">Ver condições para pagar</span>
+      </div>
+      <figcaption class="brand-preview__caption">
+        <app-icon name="eye" />
+        <span>
+          Prévia das cores no portal (não clicável).
+          @if (current(); as c) {
+            Para navegar no portal, use <a [href]="'/portal/' + c.slug" target="_blank" rel="noopener">Abrir portal<span class="visually-hidden"> (abre em nova aba)</span></a>.
+          }
+        </span>
+      </figcaption>
+    </figure>
     @if (current(); as c) {
       <div class="logo-row">
         @if (logoPreview()) {

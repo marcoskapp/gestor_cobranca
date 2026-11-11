@@ -21,7 +21,7 @@ public record PortalProperties(String publicBaseUrl, Session session, Access acc
     public PortalProperties {
         publicBaseUrl = publicBaseUrl == null ? "https://localhost:8443" : stripSlash(publicBaseUrl);
         session = session == null ? new Session(null, null, null, null) : session;
-        access = access == null ? new Access(null, null, null, null, null, null, null, null, null, null, null, null) : access;
+        access = access == null ? new Access(null, null, null, null, null, null, null, null, null, null, null, null, null) : access;
         templates = templates == null ? new Templates(null, null, null) : templates;
         retention = retention == null ? new Retention(null, null, null) : retention;
     }
@@ -60,12 +60,20 @@ public record PortalProperties(String publicBaseUrl, Session session, Access acc
      * @param maxLock               bloqueio máximo
      * @param minResponseTime       tempo mínimo de resposta do pedido de código (equaliza documento existente e
      *                              inexistente, que não envia mensagem)
+     * @param documentMaxCodesPerDay teto de códigos enviados por documento no dia (fuso de operação), na assessoria
+     *                               (somando os portais), além do limite por janela: o código está fora da política de
+     *                               contato (decisão 1083) e este teto contém o envio repetido a quem não pediu
      */
     public record Access(Duration codeTtl, Integer codeMaxAttempts, Duration knowledgeTtl, Integer requestsPerMinutePerIp,
                          Duration window, Integer documentMaxFailures, Integer documentMaxRequests, Integer ipMaxFailures,
-                         Integer ipMaxRequests, Duration baseLock, Duration maxLock, Duration minResponseTime) {
+                         Integer ipMaxRequests, Duration baseLock, Duration maxLock, Duration minResponseTime,
+                         Integer documentMaxCodesPerDay) {
 
         public Access {
+            documentMaxCodesPerDay = documentMaxCodesPerDay == null ? 15 : documentMaxCodesPerDay;
+            if (documentMaxCodesPerDay < 1) {
+                throw new IllegalArgumentException("app.portal.access.document-max-codes-per-day deve ser ao menos 1");
+            }
             codeTtl = codeTtl == null ? Duration.ofMinutes(10) : codeTtl;
             codeMaxAttempts = codeMaxAttempts == null ? 5 : codeMaxAttempts;
             knowledgeTtl = knowledgeTtl == null ? Duration.ofMinutes(10) : knowledgeTtl;

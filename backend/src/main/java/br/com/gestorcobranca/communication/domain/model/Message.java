@@ -31,6 +31,7 @@ public class Message extends TenantScopedEntity {
     public static final String CATEGORY_COLLECTION = "COLLECTION";
     public static final String CATEGORY_TRANSACTIONAL = "TRANSACTIONAL";
     public static final String CATEGORY_RESPONSE = "RESPONSE";
+    public static final String CATEGORY_AUTHENTICATION = "AUTHENTICATION";
 
     @Column(name = "conversation_id", nullable = false, updatable = false)
     private UUID conversationId;
@@ -103,8 +104,8 @@ public class Message extends TenantScopedEntity {
     private String idempotencyKey;
 
     /**
-     * COLLECTION (cobrança), TRANSACTIONAL (resposta devida ao devedor) ou RESPONSE (resposta a quem procurou e aguarda
-     * retorno), repassada ao porteiro de contato.
+     * COLLECTION (cobrança), TRANSACTIONAL (resposta devida ao devedor), RESPONSE (resposta a quem procurou e aguarda
+     * retorno) ou AUTHENTICATION (código de acesso pedido pelo devedor), repassada ao porteiro de contato.
      */
     @Column(name = "contact_category", nullable = false, length = 20, updatable = false)
     private String contactCategory = CATEGORY_COLLECTION;
@@ -388,6 +389,13 @@ public class Message extends TenantScopedEntity {
         if (CATEGORY_COLLECTION.equals(contactCategory)) {
             this.contactCategory = CATEGORY_RESPONSE;
         }
+    }
+
+    /** Marca a mensagem nova como código de acesso pedido pelo devedor (autenticação). Antes de gravar. */
+    public void markAuthentication() {
+        Guard.requireState(CATEGORY_COLLECTION.equals(contactCategory), "message.category_already_set",
+                "Categoria da mensagem já definida");
+        this.contactCategory = CATEGORY_AUTHENTICATION;
     }
 
     public String getContactCategory() {

@@ -41,7 +41,8 @@ public interface ContactGate {
      *                      continuam valendo; a tentativa não conta para os limites de cobrança. RESPONSE —
      *                      resposta a contato iniciado pelo devedor que aguarda retorno: sem limites de frequência
      *                      nem intervalo mínimo, mas com todas as restrições (inclusive as do credor), janela,
-     *                      feriados e anonimização; não conta para os limites
+     *                      feriados e anonimização; não conta para os limites. AUTHENTICATION — código de acesso
+     *                      pedido pelo devedor: só restrições e anonimização (sem janela, feriados nem limites)
      */
     record ContactRequest(UUID debtorId, UUID creditorId, String channel, String contactValue, Instant at,
                           String origin, String referenceType, UUID referenceId, String category) {

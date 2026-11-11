@@ -280,6 +280,9 @@ class PortalNegotiationIT extends PortalTestSupport {
         // pedido do devedor: a conversa aguarda resposta (tempo de espera na caixa; resposta sem limites de frequência)
         assertThat(count("select count(*) from communication.conversation where id = ? and awaiting_since is not null",
                 conversation)).isEqualTo(1);
+        // a confirmação automática saiu a pedido do devedor (decisão 1082) e não encerrou a espera
+        assertThat(count("select count(*) from communication.message where conversation_id = ? and sender_type = 'SYSTEM' "
+                + "and contact_category = 'RESPONSE'", conversation)).isEqualTo(1);
         // lista interna dos pedidos (INBOX_VIEW): sem a mensagem do devedor, só se ela existe; sem log de acesso
         var listed = asOperator(() -> portalOperations.serviceRequests(creditorA, null, PageQuery.of(0, 10)));
         assertThat(listed.content()).singleElement().satisfies(r -> {

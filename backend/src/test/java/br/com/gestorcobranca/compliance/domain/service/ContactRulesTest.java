@@ -294,4 +294,42 @@ class ContactRulesTest {
                 List.of(), strict, BUSINESS, Set.of(), earlier, ContactCategory.RESPONSE);
         assertThat(RULES.evaluate(night).reasons()).containsExactly(DenialReason.OUTSIDE_WINDOW);
     }
+
+    /** Código de acesso pedido pelo devedor: sem janela, feriados nem limites; restrições e anonimização valem. */
+    @Test
+    void authenticationCodeIgnoresScheduleAndLimitsButKeepsRestrictions() {
+        ChannelRule strict = limits(1, 1, 600, true);
+        Instant night = local(WEDNESDAY, 23, 30);
+        List<Instant> earlier = List.of(local(WEDNESDAY, 23, 20));
+        Situation code = new Situation(DEBTOR, CREDITOR, ContactChannel.EMAIL, null, night, false, List.of(), strict,
+                BUSINESS, Set.of(WEDNESDAY), earlier, ContactCategory.AUTHENTICATION);
+        assertThat(RULES.evaluate(code).allowed()).isTrue();
+
+        ContactRestriction creditorSuspension = new ContactRestriction(DEBTOR, CREDITOR, null,
+                RestrictionType.CREDITOR_REQUEST, null, "credor pediu suspensão", RestrictionSource.CREDITOR,
+                night.minusSeconds(3600), null, null);
+        Situation suspended = new Situation(DEBTOR, CREDITOR, ContactChannel.EMAIL, null, night, false,
+                List.of(creditorSuspension), strict, BUSINESS, Set.of(), List.of(), ContactCategory.AUTHENTICATION);
+        assertThat(RULES.evaluate(suspended).reasons()).containsExactly(DenialReason.RESTRICTED_DEBTOR);
+        Situation optedOut = new Situation(DEBTOR, CREDITOR, ContactChannel.EMAIL, null, night, false,
+                List.of(restriction(null, ContactChannel.EMAIL, night.minusSeconds(60), null)), strict, BUSINESS,
+                Set.of(), List.of(), ContactCategory.AUTHENTICATION);
+        assertThat(RULES.evaluate(optedOut).reasons()).containsExactly(DenialReason.RESTRICTED_CHANNEL);
+        Situation anonymized = new Situation(DEBTOR, CREDITOR, ContactChannel.EMAIL, null, night, true, List.of(), strict,
+                BUSINESS, Set.of(), List.of(), ContactCategory.AUTHENTICATION);
+        assertThat(RULES.evaluate(anonymized).reasons()).containsExactly(DenialReason.DEBTOR_ANONYMIZED);
+    }
+
+    /** Autenticação bloqueada por restrição temporária: próximo instante é o fim da restrição, não a abertura da janela. */
+    @Test
+    void authenticationNextAllowedIsTheEndOfTheTemporaryRestriction() {
+        Instant night = local(WEDNESDAY, 23, 0);
+        Instant ends = local(WEDNESDAY, 23, 40);
+        ContactRestriction temporary = restriction(null, ContactChannel.EMAIL, night.minusSeconds(600), ends);
+        Situation code = new Situation(DEBTOR, CREDITOR, ContactChannel.EMAIL, null, night, false, List.of(temporary),
+                limits(1, 1, 600, true), BUSINESS, Set.of(WEDNESDAY), List.of(), ContactCategory.AUTHENTICATION);
+        Decision d = RULES.evaluate(code);
+        assertThat(d.allowed()).isFalse();
+        assertThat(d.nextAllowedAt()).isEqualTo(ends);
+    }
 }

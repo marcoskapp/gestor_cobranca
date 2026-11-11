@@ -153,6 +153,11 @@ semanal nem intervalo mínimo e não conta a tentativa nesses limites; todas as 
 credor), a janela de horário, os feriados e a anonimização valem. Respondida a espera (`registerOutbound`), as mensagens
 seguintes voltam a ser `COLLECTION`. A regra é a mesma na verificação prévia e no envio (a categoria fica na mensagem).
 
+**Mensagem pedida pelo devedor (decisões 1082 e 1083)** — só o sistema (não campanha nem usuário), só com template e só
+chamada pelo portal (regra de arquitetura): `sendOnDebtorRequest` (confirmação do pedido de atendimento,
+`contact_category = RESPONSE`) e `sendAccessCode` (código de acesso, `AUTHENTICATION`: só restrições e anonimização, sem
+janela, feriados nem limites; `V1007`, compliance `V0505`), pelo mesmo `queue` do envio comum.
+
 **Job `communication.send`** (`JobQueue`, retentativas com backoff, DEAD): mensagem não `QUEUED` → nada; conta
 inativa/sem adaptador → `FAILED/ACCOUNT_UNAVAILABLE`; janela fechada para texto → `FAILED/WHATSAPP_WINDOW_CLOSED`;
 **`ContactGate#authorizeAndRecord` imediatamente antes do envio** (negado → `FAILED/CONTACT_DENIED`); provedor:

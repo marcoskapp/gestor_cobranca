@@ -16,6 +16,9 @@ public interface AccessChallengeRepository {
 
     List<AccessChallenge> findByDebtorId(UUID debtorId);
 
+    /** Códigos (OTP) pedidos para o documento ({@code documentHash}) desde o instante — teto diário (decisão 1083). */
+    long countCodesSince(String documentHash, Instant since);
+
     /**
      * Retenção (LGPD): apaga até {@code limit} desafios vencidos antes do corte, inclusive os fictícios (documento
      * de quem não é devedor).

@@ -423,6 +423,8 @@ app:
       document-max-requests: 3
       ip-max-failures: 20
       ip-max-requests: 15
+      # teto diário de códigos por documento (o código está fora da política de contato, decisão 1083)
+      document-max-codes-per-day: 15
       base-lock: PT15M
       max-lock: PT24H
       # equaliza o tempo de resposta do pedido de código (documento existente × inexistente)

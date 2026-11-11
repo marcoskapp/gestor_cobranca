@@ -92,7 +92,8 @@ class ServiceRequestDispatchJob implements JobHandler<ServiceRequestDispatchJob.
         Sent sent;
         try {
             sent = tenantExecution.callInTenant(context.tenantId(), TYPE + ".send", () -> {
-                MessageView m = messages.send(new SendMessageCommand(null, request.getDebtorId(), request.getCreditorId(),
+                // confirmação do pedido que o devedor acabou de fazer: não é contato de cobrança (decisão 1082)
+                MessageView m = messages.sendOnDebtorRequest(new SendMessageCommand(null, request.getDebtorId(), request.getCreditorId(),
                         null, request.getPreferredChannel().name(), null,
                         PortalAccessService.template(properties.templates().serviceRequest(), request.getPreferredChannel()),
                         Map.of("protocolo", request.getProtocol()), null, null, "portal-request:" + request.getId()));

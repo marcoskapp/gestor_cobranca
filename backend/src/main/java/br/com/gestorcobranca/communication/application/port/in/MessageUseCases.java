@@ -23,6 +23,21 @@ public interface MessageUseCases {
 
     MessageView send(SendMessageCommand command);
 
+    /**
+     * Mensagem do sistema que atende, na hora, a um pedido do próprio devedor (código de acesso ao portal, confirmação
+     * do pedido de atendimento): o porteiro de contato avalia na categoria {@code RESPONSE} — sem limites de frequência
+     * nem intervalo mínimo e fora da contagem da cobrança; restrições, janela, feriados e anonimização valem (decisão
+     * 1082). Só o sistema envia por aqui (não campanha nem usuário).
+     */
+    MessageView sendOnDebtorRequest(SendMessageCommand command);
+
+    /**
+     * Código de acesso pedido pelo devedor para entrar no portal (autenticação, não cobrança): como
+     * {@link #sendOnDebtorRequest}, mas o porteiro avalia na categoria {@code AUTHENTICATION} — valem só as restrições e
+     * a anonimização, sem janela de horário, feriados nem limites (decisão 1083). Só o sistema, só template.
+     */
+    MessageView sendAccessCode(SendMessageCommand command);
+
     MessageView get(UUID messageId);
 
     /** Mensagens da conversa, das mais recentes para as mais antigas. */

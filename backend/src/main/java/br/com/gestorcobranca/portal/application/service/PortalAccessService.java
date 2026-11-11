@@ -19,6 +19,7 @@ import br.com.gestorcobranca.portal.domain.service.AccessSecrets;
 import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy;
 import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.KeyType;
 import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.State;
+import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.crypto.BlindIndex;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.DomainException;
@@ -39,6 +40,7 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -140,7 +142,7 @@ class PortalAccessService implements PortalAccessUseCases {
     // ------------------------------------------------------------------ código (OTP)
 
     private record Pending(ChallengeView view, UUID challengeId, UUID debtorId, UUID creditorId, PortalChannel channel,
-                           String code, Instant lockedUntil) {
+                           String code, Instant lockedUntil, boolean dailyCap) {
     }
 
     @Override
@@ -177,9 +179,18 @@ class PortalAccessService implements PortalAccessUseCases {
                 }
             }
             if (locked != null) {
-                return new Pending(null, null, null, null, channel, null, locked);
+                return new Pending(null, null, null, null, channel, null, locked, false);
             }
-            UUID debtorId = debts.eligibleDebtor(config, document).orElse(null);
+            UUID matched = debts.eligibleDebtor(config, document).orElse(null);
+            // teto diário por documento (decisão 1083): além dele, a resposta é a mesma, mas nenhum código é enviado
+            boolean dailyCapReached = challenges.countCodesSince(docKey, startOfBusinessDay(now))
+                    >= properties.access().documentMaxCodesPerDay();
+            UUID debtorId = dailyCapReached ? null : matched;
+            if (dailyCapReached && matched != null) {
+                LOG.atWarn().addKeyValue("tenantId", site.tenantId()).addKeyValue("portal", site.slug())
+                        .addKeyValue("channel", channel.name())
+                        .log("Teto diário de códigos do portal atingido para o documento: código não enviado");
+            }
             String code = AccessSecrets.newCode();
             Instant expiresAt = now.plus(properties.access().codeTtl());
             AccessChallenge challenge = challenges.save(AccessChallenge.otp(config.getId(), debtorId, channel, docKey,
@@ -187,16 +198,20 @@ class PortalAccessService implements PortalAccessUseCases {
                     expiresAt));
             accessLogger.log(AccessEvent.anonymous(AccessEventType.PORTAL_CODE_REQUESTED, site.tenantId(),
                     document.masked(), Map.of("portal", site.slug(), "channel", channel.name(),
-                            "challengeId", challenge.getId().toString(), "match", String.valueOf(debtorId != null))));
+                            "challengeId", challenge.getId().toString(), "match", String.valueOf(matched != null),
+                            "dailyCap", String.valueOf(dailyCapReached))));
             ChallengeView view = new ChallengeView(challenge.getId(), expiresAt, channel.name(),
                     config.getKnowledgeChallenge().name(), true, AccessSecrets.CODE_LENGTH);
-            return new Pending(view, challenge.getId(), debtorId, config.getCreditorId(), channel, code, null);
+            return new Pending(view, challenge.getId(), debtorId, config.getCreditorId(), channel, code, null,
+                    dailyCapReached && matched != null);
         });
         if (pending.lockedUntil() != null) {
             metrics.locked("ANY", "REFUSED");
             throw new AccessLockedException(pending.lockedUntil());
         }
-        if (pending.debtorId() == null) {
+        if (pending.dailyCap()) {
+            metrics.codeRequested(channel.name(), "DAILY_CAP");
+        } else if (pending.debtorId() == null) {
             metrics.codeRequested(channel.name(), "DECOY");
         } else {
             // envio fora da requisição: mesmo trabalho e tempo de resposta para documento existente ou não
@@ -222,7 +237,8 @@ class PortalAccessService implements PortalAccessUseCases {
         try {
             String status = tenantExecution.callInTenant(site.tenantId(), "portal.access_code_send", () -> {
                 String templateCode = template(properties.templates().accessCode(), p.channel());
-                MessageView message = messages.send(new SendMessageCommand(null, p.debtorId(), p.creditorId(), null,
+                // o devedor acabou de pedir o código para entrar: autenticação, não cobrança (decisões 1082 e 1083)
+                MessageView message = messages.sendAccessCode(new SendMessageCommand(null, p.debtorId(), p.creditorId(), null,
                         p.channel().name(), null, templateCode,
                         codeMessage.variables(p.creditorId(), templateCode, p.code(), minutes), null, null,
                         "portal-code:" + p.challengeId()));
@@ -418,6 +434,11 @@ class PortalAccessService implements PortalAccessUseCases {
     private ThrottlePolicy.Limits ipLimits() {
         PortalProperties.Access a = properties.access();
         return new ThrottlePolicy.Limits(a.ipMaxFailures(), a.ipMaxRequests(), a.window(), a.baseLock(), a.maxLock());
+    }
+
+    /** Início do dia de hoje no fuso de operação (teto diário de códigos). */
+    private static Instant startOfBusinessDay(Instant now) {
+        return LocalDate.ofInstant(now, TimeConfig.BUSINESS_ZONE).atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
     }
 
     private ThrottlePolicy.Limits documentLimits() {

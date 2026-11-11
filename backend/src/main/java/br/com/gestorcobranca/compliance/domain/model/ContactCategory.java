@@ -14,10 +14,15 @@ package br.com.gestorcobranca.compliance.domain.model;
  *       atendimento pelo portal): não se aplicam os limites de frequência nem o intervalo mínimo — quem procurou espera
  *       ser respondido —, mas valem todas as restrições (inclusive a suspensão pedida pelo credor), a janela, os
  *       feriados e a anonimização. Registrada com a categoria, não conta para os limites de cobrança.</li>
+ *   <li>{@link #AUTHENTICATION}: código de acesso pedido pelo próprio devedor para entrar no portal (autenticação, não
+ *       contato de cobrança): valem as restrições (descadastro, pedidos do devedor e do credor, bloqueios legais) e a
+ *       anonimização; não se aplicam a janela de horário, os feriados, os limites de frequência nem o intervalo
+ *       mínimo. Registrada com a categoria, não conta para os limites de cobrança.</li>
  * </ul>
  */
 public enum ContactCategory {
     COLLECTION,
     TRANSACTIONAL,
-    RESPONSE
+    RESPONSE,
+    AUTHENTICATION
 }

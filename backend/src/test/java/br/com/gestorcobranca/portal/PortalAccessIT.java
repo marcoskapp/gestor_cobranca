@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.portal;
 
+import br.com.gestorcobranca.compliance.application.port.in.ContactPolicyUseCases.ChannelRuleInput;
+import br.com.gestorcobranca.compliance.application.port.in.ContactPolicyUseCases.PublishPolicyCommand;
 import br.com.gestorcobranca.portal.application.port.in.PortalOperationsUseCases.AccessLinkView;
 import br.com.gestorcobranca.shared.security.JwtProperties;
 import br.com.gestorcobranca.shared.security.TokenClaims;
@@ -14,6 +16,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 
 import java.net.http.HttpRequest;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -69,6 +72,61 @@ class PortalAccessIT extends PortalTestSupport {
                 maria)).isEqualTo(1);
         assertThat(count("select count(*) from shared.business_event where event_type = 'portal.accessed' and debtor_id = ?",
                 maria)).isEqualTo(1);
+    }
+
+    @Test
+    void codeRequestedAgainRightAwayStillArrivesDespiteTheContactPolicyLimits() {
+        // política do credor: 1 WhatsApp por dia e 2 h entre contatos — vale para cobrança, não para o código pedido
+        // (autenticação: também fora da janela de horário e dos feriados, decisão 1083)
+        system(() -> contactPolicies.publish(new PublishPolicyCommand(creditorA, null, "limites", List.of(
+                new ChannelRuleInput("WHATSAPP", LocalTime.MIDNIGHT, LocalTime.MIDNIGHT, ALL_DAYS, 1, null, 120, false)))));
+        UUID first = requestCode(CPF_MARIA);
+        assertThat(verify(first, sentCode(first), null).status()).isEqualTo(200);
+        // saiu do portal e pediu outro código logo em seguida: o código chega e entra
+        UUID second = requestCode(CPF_MARIA);
+        assertThat(verify(second, sentCode(second), null).status()).isEqualTo(200);
+        drainJobs("communication.");
+        assertThat(count("select count(*) from compliance.contact_attempt where debtor_id = ? and category = 'AUTHENTICATION'",
+                maria)).isEqualTo(2);
+        assertThat(count("select count(*) from compliance.contact_attempt where debtor_id = ? and category = 'COLLECTION'",
+                maria)).isZero();
+    }
+
+    @Test
+    void dailyCodeCapPerDocumentSendsNothingMoreButAnswersTheSame() {
+        UUID first = requestCode(CPF_MARIA);
+        sentCode(first);
+        // mais 13 códigos do mesmo documento hoje (14 no total): o 15º ainda sai
+        copyChallenge(first, 13);
+        UUID fifteenth = requestCode(CPF_MARIA);
+        assertThat(count("select count(*) from portal.access_challenge where id = ? and debtor_id is not null",
+                fifteenth)).isEqualTo(1);
+        // com 15 no dia, chega ao teto (decisão 1083)
+        Response capped = post("/api/portal/v1/sites/" + slug + "/access/code",
+                Map.of("document", CPF_MARIA, "channel", "WHATSAPP"), null);
+        assertThat(capped.status()).isEqualTo(202);
+        assertThat(capped.json().get("codeRequired").asBoolean()).isTrue();
+        UUID challenge = UUID.fromString(capped.json().get("challengeId").asString());
+        // nenhum código enviado: o desafio não tem devedor nem mensagem
+        assertThat(count("select count(*) from portal.access_challenge where id = ? and debtor_id is null and message_id is null",
+                challenge)).isEqualTo(1);
+        assertThat(count("select count(*) from shared.access_log where event_type = 'PORTAL_CODE_REQUESTED' "
+                + "and details ->> 'challengeId' = ? and details ->> 'dailyCap' = 'true' and details ->> 'match' = 'true'",
+                challenge.toString())).isEqualTo(1);
+    }
+
+    /** Cópias do desafio (mesmo documento, mesmo dia), para chegar ao teto diário sem esbarrar no limite por janela. */
+    private void copyChallenge(UUID challenge, int copies) {
+        system(() -> jdbcTemplate.update("""
+                insert into portal.access_challenge (id, tenant_id, version, created_at, created_by, updated_at, updated_by,
+                       configuration_id, debtor_id, method, channel, document_hash, code_hash, link_id, message_id,
+                       knowledge_challenge, attempts, max_attempts, status, expires_at, completed_at)
+                select gen_random_uuid(), tenant_id, version, created_at, created_by, updated_at, updated_by,
+                       configuration_id, debtor_id, method, channel, document_hash, code_hash, link_id, null,
+                       knowledge_challenge, attempts, max_attempts, status, expires_at, completed_at
+                  from portal.access_challenge, generate_series(1, ?)
+                 where id = ?
+                """, copies, challenge));
     }
 
     @Test
