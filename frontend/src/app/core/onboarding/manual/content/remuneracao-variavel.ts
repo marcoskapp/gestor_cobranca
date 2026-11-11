@@ -183,7 +183,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Avaliações de atendimento de 0 a 10; a nota média do período pode suspender o variável.',
       purpose: [
         'Avalie a partir do atendimento: "Avaliar" em Chamadas e gravações, na conversa e no histórico do caso abre o formulário com o negociador, a referência e a data preenchidos, sem digitar identificador.',
-        'Cada critério tem uma escala de 0 a 10 de um clique, e a nota ponderada fica no rodapé. Nota 0 em critério crítico zera a avaliação: descreva o ocorrido no comentário. Cada avaliação tem o link "Ver" de volta para o atendimento; ninguém avalia o próprio, e o negociador vê as suas.',
+        'Cada critério tem uma escala de 0 a 10 de um clique, e a nota ponderada fica no rodapé. Nota 0 em critério crítico zera a avaliação: descreva o ocorrido no comentário. Cada avaliação tem o link "Ver" de volta para o atendimento; ninguém avalia o próprio, e o negociador vê as suas. Cada avaliador avalia um atendimento uma vez: o que você já avaliou mostra "Avaliado por você" com a nota.',
         '"Registrar monitoria" nesta tela, sem atendimento de origem, faz uma avaliação geral. Para monitorar uma pessoa, use o Desempenho por negociador ("Avaliar chamadas") ou o filtro por operador em Chamadas e gravações.',
       ],
       profiles: ['QUALIDADE', 'SUPERVISOR', 'OPERADOR'],

@@ -9,6 +9,7 @@ import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.FormC
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.FormView;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.OccurrenceCommand;
 import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.OccurrenceView;
+import br.com.gestorcobranca.incentive.application.port.in.QualityUseCases.OwnEvaluation;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.web.ApiPaths;
@@ -89,6 +90,15 @@ class QualityController {
         return quality.evaluableUsers();
     }
 
+    /** Avaliações do próprio ator para estes atendimentos: a tela mostra "Avaliado por você" em vez de "Avaliar". */
+    @GetMapping("/evaluations/mine")
+    @PreAuthorize("hasAuthority('QUALITY_EVALUATE')")
+    List<OwnEvaluation> ownEvaluations(@RequestParam
+                                       @Pattern(regexp = "CALL|CONVERSATION|CASE|AGREEMENT|INTERACTION") String referenceType,
+                                       @RequestParam @Size(max = 200) List<UUID> referenceIds) {
+        return quality.ownEvaluations(referenceType, referenceIds);
+    }
+
     @GetMapping("/evaluations")
     @PreAuthorize(VIEW)
     PageResponse<EvaluationView> evaluations(@RequestParam(required = false) UUID userId,
@@ -134,7 +144,7 @@ class QualityController {
     }
 
     record EvaluationRequest(@NotNull UUID formId, @NotNull UUID userId,
-                             @NotBlank @Pattern(regexp = "CALL|CONVERSATION|CASE|AGREEMENT|OTHER") String referenceType,
+                             @NotBlank @Pattern(regexp = "CALL|CONVERSATION|CASE|AGREEMENT|INTERACTION|OTHER") String referenceType,
                              UUID referenceId, @NotNull LocalDate evaluatedOn,
                              @NotEmpty Map<@NotBlank String, @NotNull @DecimalMin("0") @DecimalMax("10") BigDecimal> scores,
                              @Size(max = 4000) String comments) {
@@ -144,7 +154,7 @@ class QualityController {
                              @NotBlank @Pattern(regexp = "SEVERE_COMPLIANCE_VIOLATION|COMPLIANCE_VIOLATION|COMPLAINT|UPHELD_DISPUTE")
                              String type,
                              @NotNull LocalDate occurredOn, @NotBlank @Size(min = 10, max = 2000) String description,
-                             @Pattern(regexp = "CALL|CONVERSATION|CASE|AGREEMENT|OTHER") String referenceType,
+                             @Pattern(regexp = "CALL|CONVERSATION|CASE|AGREEMENT|INTERACTION|OTHER") String referenceType,
                              UUID referenceId) {
     }
 

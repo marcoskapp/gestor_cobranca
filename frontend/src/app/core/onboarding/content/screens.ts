@@ -262,11 +262,12 @@ export const SCREENS: readonly ScreenGuide[] = [
         items: ['Cada caso tem um endereço só: ao abrir um caso na estação, o endereço passa a ser o do caso, que você pode copiar e compartilhar; o menu continua marcando a estação.'],
       },
       { version: 11, items: ['Selo de vulnerabilidade no cabeçalho quando o devedor tem marcador ativo (a categoria só aparece para quem pode vê-la).'] },
+      { version: 12, items: ['Histórico: a interação que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar" (cada avaliador avalia um atendimento uma vez).'] },
     ],
   },
   {
     key: 'collection.case',
-    version: 11,
+    version: 12,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -605,7 +606,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'incentive.exports', version: 1, path: '/remuneracao/exportacao' },
   {
     key: 'incentive.evaluations',
-    version: 3,
+    version: 4,
     path: '/remuneracao/qualidade/avaliacoes',
     changes: [
       { version: 2, items: ['Avalie a partir do atendimento: "Avaliar" em Chamadas e gravações, na conversa e no histórico do caso abre o formulário com o negociador, a referência e a data preenchidos.', 'Cada avaliação tem o link "Ver" de volta para o caso, a conversa, o acordo ou a chamada avaliada.'] },
@@ -616,6 +617,7 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Sem atendimento de origem, a monitoria é uma avaliação geral (sem identificador para digitar), com o caminho para avaliar no próprio atendimento.',
         ],
       },
+      { version: 4, items: ['Cada avaliador avalia um atendimento uma vez: o que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar"; outro avaliador ainda pode avaliá-lo.', 'A avaliação feita no histórico do caso aponta para a interação avaliada, e "Ver interação" volta ao histórico do caso.'] },
     ],
   },
   { key: 'incentive.occurrences', version: 1, path: '/remuneracao/qualidade/ocorrencias' },
@@ -631,12 +633,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'telephony.calls',
-    version: 3,
+    version: 4,
     path: '/telefonia/chamadas',
     tourId: 'telephony.calls',
     changes: [
       { version: 2, items: ['"Avaliar este atendimento" na linha da chamada encerrada (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
       { version: 3, items: ['Ouça e avalie no mesmo passo: "Avaliar este atendimento" também fica no player da gravação, e a monitoria abre por cima com o áudio tocando.', 'Filtro por operador, para monitorar o atendimento de uma pessoa.'] },
+      { version: 4, items: ['Chamada que você já avaliou mostra o ícone de monitoria preenchido, com a nota na dica, no lugar de "Avaliar"; outro avaliador ainda pode avaliá-la.'] },
     ],
   },
   {
@@ -677,7 +680,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'communication.inbox',
-    version: 3,
+    version: 4,
     path: '/conversas',
     tourId: 'communication.inbox',
     changes: [
@@ -686,16 +689,20 @@ export const SCREENS: readonly ScreenGuide[] = [
         items: ['Sem conversas suas aguardando, a caixa abre na Fila; a aba escolhida fica no endereço (voltar do caso reabre a mesma aba) e "Minhas" vazia aponta para a Fila.'],
       },
       { version: 3, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
+      { version: 4, items: ['Conversa que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar atendimento".'] },
     ],
   },
   { key: 'communication.templates', version: 1, path: '/conversas/templates', tourId: 'communication.templates' },
   { key: 'communication.channels', version: 1, path: '/conversas/canais' },
   {
     key: 'communication.conversation',
-    version: 2,
+    version: 3,
     path: '/conversas/:id',
     tourId: 'communication.inbox',
-    changes: [{ version: 2, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] }],
+    changes: [
+      { version: 2, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
+      { version: 3, items: ['Conversa que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar atendimento".'] },
+    ],
   },
   { key: 'campaign.list', version: 1, path: '/campanhas', tourId: 'campaign.list' },
   { key: 'campaign.segments', version: 1, path: '/campanhas/segmentos' },

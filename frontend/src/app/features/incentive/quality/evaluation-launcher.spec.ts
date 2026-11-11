@@ -90,6 +90,46 @@ describe('EvaluationLauncher ("Avaliar este atendimento")', () => {
     const options = open.mock.calls[0][1];
     expect(options.data.prefill).toEqual(target);
     expect(options.data.forms.map((f: { id: string }) => f.id)).toEqual(['f-2']);
+    // fechou sem registrar: confere de novo se já foi avaliado (talvez em outra aba)
+    http.expectOne((r) => r.url === MINE).flush([]);
+  });
+
+  const MINE = '/api/v1/incentive/quality/evaluations/mine';
+  const own = { evaluationId: 'e-1', referenceType: 'CALL' as const, referenceId: target.referenceId, score: 8.5, criticalFailure: false, createdAt: '2026-11-10T15:00:00Z' };
+
+  it('o que a própria pessoa já avaliou vira o selo "Avaliado por você", consultado uma vez por atendimento', async () => {
+    const launcher = await launcherWith({ all: true, userIds: [] });
+    launcher.trackOwn('CALL', [target.referenceId, 'c-2', target.referenceId]);
+    const req = http.expectOne((r) => r.url === MINE);
+    expect(req.request.params.get('referenceType')).toBe('CALL');
+    expect(req.request.params.get('referenceIds')).toBe(`${target.referenceId},c-2`);
+    req.flush([own]);
+    expect(launcher.ownEvaluation('CALL', target.referenceId)).toEqual(own);
+    expect(launcher.ownEvaluation('CALL', 'c-2')).toBeNull();
+    // mesmo id em outro tipo de atendimento é outro atendimento
+    expect(launcher.ownEvaluation('CONVERSATION', target.referenceId)).toBeNull();
+    // já consultados: nenhuma nova chamada
+    launcher.trackOwn('CALL', [target.referenceId, 'c-2']);
+    http.expectNone((r) => r.url === MINE);
+    // já avaliado: o diálogo não abre
+    launcher.open(target).subscribe();
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('registrou: o selo aparece na hora, sem nova consulta', async () => {
+    const launcher = await launcherWith({ all: true, userIds: [] });
+    open.mockReturnValue({ afterClosed: () => of({ id: 'e-9', referenceType: 'CALL', referenceId: target.referenceId, score: 7, criticalFailure: false, createdAt: '2026-11-11T12:00:00Z' }) });
+    const done = new Promise<void>((resolve) => launcher.open(target).subscribe({ complete: () => resolve() }));
+    http.expectOne('/api/v1/incentive/quality/forms').flush([{ id: 'f-2', name: 'Padrão', description: null, active: true, criteria: [] }]);
+    await done;
+    expect(launcher.ownEvaluation('CALL', target.referenceId)?.evaluationId).toBe('e-9');
+    http.expectNone((r) => r.url === MINE);
+  });
+
+  it('sem permissão de avaliar, não consulta', async () => {
+    permissions = [];
+    TestBed.inject(EvaluationLauncher).trackOwn('CALL', ['c-1']);
+    http.expectNone((r) => r.url === MINE);
   });
 
   it('data do atendimento no fuso de operação', () => {

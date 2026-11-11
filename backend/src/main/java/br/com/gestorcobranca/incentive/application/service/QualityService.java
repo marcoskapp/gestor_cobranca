@@ -26,6 +26,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -35,6 +36,7 @@ import java.util.UUID;
 class QualityService implements QualityUseCases {
 
     private static final long MAX_RANGE_DAYS = 400;
+    private static final int MAX_OWN_LOOKUP = 200;
 
     private final QualityRepository quality;
     private final Workforce workforce;
@@ -105,8 +107,13 @@ class QualityService implements QualityUseCases {
                 .orElseThrow(() -> ResourceNotFoundException.of("quality_form", command.formId()));
         EvaluationReferenceType referenceType = StatementService.enumOf(EvaluationReferenceType.class,
                 command.referenceType() == null ? "" : command.referenceType(), "quality_evaluation.reference_invalid");
+        UUID evaluator = access.actor().id();
+        // um avaliador, uma avaliação por atendimento (o índice único cobre a corrida entre dois envios)
+        Guard.requireState(command.referenceId() == null
+                        || !quality.existsEvaluation(evaluator, referenceType, command.referenceId()),
+                "quality_evaluation.already_evaluated", "Você já avaliou este atendimento");
         QualityEvaluation evaluation = quality.saveEvaluation(new QualityEvaluation(form, command.userId(),
-                access.actor().id(), referenceType, command.referenceId(), command.evaluatedOn(), command.scores(),
+                evaluator, referenceType, command.referenceId(), command.evaluatedOn(), command.scores(),
                 command.comments(), today()));
         auditTrail.record(AuditEntry.of("quality_evaluation.registered", "quality_evaluation", evaluation.getId())
                 .created("userId", evaluation.getEvaluatedUserId()).created("formId", form.getId())
@@ -117,6 +124,21 @@ class QualityService implements QualityUseCases {
                 .attr("score", evaluation.getScore()).attr("criticalFailure", evaluation.isCriticalFailure())
                 .attr("referenceType", referenceType));
         return evaluationView(evaluation);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OwnEvaluation> ownEvaluations(String referenceType, Collection<UUID> referenceIds) {
+        access.requirePermission(Permission.QUALITY_EVALUATE);
+        EvaluationReferenceType type = StatementService.enumOf(EvaluationReferenceType.class,
+                referenceType == null ? "" : referenceType, "quality_evaluation.reference_invalid");
+        Set<UUID> ids = referenceIds == null ? Set.of() : Set.copyOf(referenceIds);
+        Guard.require(ids.size() <= MAX_OWN_LOOKUP, "quality_evaluation.too_many_references",
+                "Consulte até " + MAX_OWN_LOOKUP + " atendimentos por vez");
+        return quality.findEvaluationsBy(access.actor().id(), type, ids).stream()
+                .map(e -> new OwnEvaluation(e.getId(), e.getReferenceType().name(), e.getReferenceId(), e.getScore(),
+                        e.isCriticalFailure(), e.getCreatedAt()))
+                .toList();
     }
 
     @Override

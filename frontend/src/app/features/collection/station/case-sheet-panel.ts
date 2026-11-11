@@ -34,7 +34,8 @@ import { CHANNEL_ICONS, CHANNEL_LABELS, DISPUTE_TYPE_LABELS, TASK_TYPE_LABELS, e
 import { CaseSheet, InteractionView, PromiseView, SheetContact, SheetTitle, TabulationView, TaskView } from '../data/collection.models';
 import { formatLocalDateTime, taskLate, zonedNow } from '../data/collection.rules';
 import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
-import { EvaluationLauncher, attendanceDate } from '../../incentive/quality/evaluation-launcher';
+import type { OwnEvaluation } from '../../incentive/data/incentive.models';
+import { EvaluationLauncher, attendanceDate, ownEvaluationHint, ownEvaluationText } from '../../incentive/quality/evaluation-launcher';
 import { VulnerabilityBadge } from '../../compliance/vulnerability/vulnerability-badge';
 
 /** Abas da ficha na ordem dos atalhos `Alt + 1…7`. */
@@ -225,6 +226,8 @@ export class CaseSheetPanel {
       this.showAllHistory.set(false);
       this.showPromises.set(false);
     });
+    // monitoria: quais interações a própria pessoa já avaliou (o "Avaliar" vira "Avaliado por você")
+    effect(() => this.evaluations.trackOwn('INTERACTION', this.interactions().filter((i) => this.evaluable(i)).map((i) => i.id)));
     inject(DestroyRef).onDestroy(() => {
       this.revealedDocument.set(null);
       this.revealedContacts.set(new Map());
@@ -268,15 +271,23 @@ export class CaseSheetPanel {
     return i.actorType === 'USER' && this.evaluations.canEvaluate(i.operatorId);
   }
 
-  /** Monitoria do atendimento do caso, com o negociador, o caso e a data da interação preenchidos. */
+  /** Avaliação que a própria pessoa já registrou para esta interação (mostra o selo no lugar do botão). */
+  protected ownEvaluation(i: InteractionView): OwnEvaluation | null {
+    return this.evaluations.ownEvaluation('INTERACTION', i.id);
+  }
+
+  protected readonly ownText = ownEvaluationText;
+  protected readonly ownHint = ownEvaluationHint;
+
+  /** Monitoria da interação do histórico, com o negociador, a interação e a data preenchidos. */
   protected evaluate(i: InteractionView): void {
     const outcome = this.tabulationNames().get(i.outcomeCode ?? '') ?? i.outcomeCode ?? 'sem tabulação';
     this.evaluations
       .open({
         userId: i.operatorId!,
         userName: this.authors.name(i.operatorId!),
-        referenceType: 'CASE',
-        referenceId: this.c().id,
+        referenceType: 'INTERACTION',
+        referenceId: i.id,
         evaluatedOn: attendanceDate(i.startedAt),
         label: `${CHANNEL_LABELS[i.channel] ?? i.channel} · ${outcome} · ${this.debtor().name}`,
       })

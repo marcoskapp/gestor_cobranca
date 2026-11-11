@@ -6,6 +6,7 @@ import br.com.gestorcobranca.shared.paging.PageResponse;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -30,6 +31,15 @@ public interface QualityUseCases {
      */
     EvaluableUsers evaluableUsers();
 
+    /**
+     * Avaliações que o próprio ator já registrou para estes atendimentos (até {@code 200} ids do mesmo tipo): a tela
+     * troca "Avaliar" por "Avaliado por você". Cada avaliador avalia um atendimento uma vez ({@link #evaluate} recusa a
+     * segunda); outro avaliador ainda pode avaliá-lo. Exige {@code QUALITY_EVALUATE}.
+     *
+     * @param referenceType CALL, CONVERSATION, CASE, AGREEMENT ou INTERACTION
+     */
+    List<OwnEvaluation> ownEvaluations(String referenceType, Collection<UUID> referenceIds);
+
     /** @param userId null = todos os visíveis */
     PageResponse<EvaluationView> evaluations(UUID userId, LocalDate from, LocalDate to, PageQuery page);
 
@@ -49,13 +59,18 @@ public interface QualityUseCases {
     record FormView(UUID id, String name, String description, boolean active, List<CriterionInput> criteria) {
     }
 
-    /** @param referenceType CALL, CONVERSATION, CASE, AGREEMENT ou OTHER */
+    /** @param referenceType CALL, CONVERSATION, CASE, AGREEMENT, INTERACTION ou OTHER */
     record EvaluationCommand(UUID formId, UUID userId, String referenceType, UUID referenceId, LocalDate evaluatedOn,
                              Map<String, BigDecimal> scores, String comments) {
     }
 
     /** @param all todos os usuários da assessoria (exceto o ator); senão, só {@code userIds} */
     record EvaluableUsers(boolean all, List<UUID> userIds) {
+    }
+
+    /** Avaliação do ator para um atendimento (o necessário para o selo "Avaliado por você"). */
+    record OwnEvaluation(UUID evaluationId, String referenceType, UUID referenceId, BigDecimal score,
+                         boolean criticalFailure, Instant createdAt) {
     }
 
     record EvaluationView(UUID id, UUID formId, UUID userId, UUID evaluatorId, String referenceType, UUID referenceId,

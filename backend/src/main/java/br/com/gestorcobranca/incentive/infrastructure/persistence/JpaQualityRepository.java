@@ -1,9 +1,12 @@
 package br.com.gestorcobranca.incentive.infrastructure.persistence;
 
 import br.com.gestorcobranca.incentive.domain.model.quality.ConductOccurrence;
+import br.com.gestorcobranca.incentive.domain.model.quality.EvaluationReferenceType;
 import br.com.gestorcobranca.incentive.domain.model.quality.QualityEvaluation;
 import br.com.gestorcobranca.incentive.domain.model.quality.QualityForm;
 import br.com.gestorcobranca.incentive.domain.repository.QualityRepository;
+import br.com.gestorcobranca.shared.domain.ConflictException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
@@ -19,6 +22,7 @@ import java.util.UUID;
 class JpaQualityRepository implements QualityRepository {
 
     private static final Set<UUID> NO_FILTER = Set.of(new UUID(0, 0));
+    private static final String ONE_PER_EVALUATOR = "ux_quality_evaluation_evaluator_reference";
 
     private final QualityFormJpa forms;
     private final QualityEvaluationJpa evaluations;
@@ -47,12 +51,33 @@ class JpaQualityRepository implements QualityRepository {
 
     @Override
     public QualityEvaluation saveEvaluation(QualityEvaluation evaluation) {
-        return evaluations.save(evaluation);
+        try {
+            // flush aqui: a corrida entre dois envios cai no índice único e vira a mesma recusa da regra (decisão 1076)
+            return evaluations.saveAndFlush(evaluation);
+        } catch (DataIntegrityViolationException e) {
+            String detail = e.getMostSpecificCause().getMessage();
+            if (detail != null && detail.contains(ONE_PER_EVALUATOR)) {
+                throw new ConflictException("quality_evaluation.already_evaluated", "Você já avaliou este atendimento");
+            }
+            throw e;
+        }
     }
 
     @Override
     public List<QualityEvaluation> findEvaluations(UUID userId, LocalDate from, LocalDate to) {
         return evaluations.findByEvaluatedUserIdAndEvaluatedOnBetweenOrderByEvaluatedOnAsc(userId, from, to);
+    }
+
+    @Override
+    public boolean existsEvaluation(UUID evaluatorId, EvaluationReferenceType referenceType, UUID referenceId) {
+        return evaluations.existsByEvaluatorIdAndReferenceTypeAndReferenceId(evaluatorId, referenceType, referenceId);
+    }
+
+    @Override
+    public List<QualityEvaluation> findEvaluationsBy(UUID evaluatorId, EvaluationReferenceType referenceType,
+                                                     Collection<UUID> referenceIds) {
+        return referenceIds.isEmpty() ? List.of()
+                : evaluations.findByEvaluatorIdAndReferenceTypeAndReferenceIdIn(evaluatorId, referenceType, referenceIds);
     }
 
     @Override

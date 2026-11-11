@@ -34,12 +34,19 @@
       </div>
     </div>
     <div class="cv-head__actions" data-tour="conversation-actions">
-      <!-- monitoria de qualidade: só com QUALITY_EVALUATE, conversa atendida por outra pessoa -->
+      <!-- monitoria de qualidade: só com QUALITY_EVALUATE, conversa atendida por outra pessoa; uma vez por avaliador -->
       @if (evaluable(c)) {
-        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="evaluate(c)" data-tour="conversation-evaluate">
-          <app-icon name="clipboard-check" />
-          Avaliar atendimento
-        </button>
+        @if (ownEvaluation(c); as own) {
+          <span class="app-status app-status--success d-inline-flex align-items-center gap-1" tabindex="0" [ngbTooltip]="ownHint(own)" data-testid="conversation-evaluated" data-tour="conversation-evaluate">
+            <app-icon name="clipboard-check" />
+            {{ ownText(own) }}
+          </span>
+        } @else {
+          <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" type="button" (click)="evaluate(c)" data-tour="conversation-evaluate">
+            <app-icon name="clipboard-check" />
+            Avaliar atendimento
+          </button>
+        }
       }
       @if (act.identify) {
         <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="identify()" [disabled]="busy()">

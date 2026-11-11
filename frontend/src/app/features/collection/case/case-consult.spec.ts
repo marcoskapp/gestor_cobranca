@@ -47,6 +47,8 @@ describe('CaseConsult (ficha do caso para quem não opera)', () => {
   beforeEach(() => {
     permissions = ['CASE_VIEW', 'DEBTOR_VIEW'];
     evaluable = ['u-2'];
+    evaluatedByMe = [];
+    mineRequests = [];
     dialog.open.mockReset().mockReturnValue({ afterClosed: () => of(undefined) });
     TestBed.configureTestingModule({
       imports: [CaseConsult],
@@ -72,6 +74,9 @@ describe('CaseConsult (ficha do caso para quem não opera)', () => {
   });
 
   let evaluable: string[];
+  /** Interações que a própria pessoa já avaliou (consulta `evaluations/mine`). */
+  let evaluatedByMe: string[];
+  let mineRequests: string[];
 
   function reply(req: TestRequest): void {
     const url = req.request.url;
@@ -82,6 +87,10 @@ describe('CaseConsult (ficha do caso para quem não opera)', () => {
     if (url === '/api/v1/users/display-names') return req.flush([{ id: 'u-2', name: 'Carla Operadora' }]);
     // escopo de quem avalia: a operadora u-2 é da equipe; "Avaliar" só aparece para quem está nele
     if (url === '/api/v1/incentive/quality/evaluable-users') return req.flush({ all: false, userIds: evaluable });
+    if (url === '/api/v1/incentive/quality/evaluations/mine') {
+      mineRequests.push(`${req.request.params.get('referenceType')}:${req.request.params.get('referenceIds')}`);
+      return req.flush(evaluatedByMe.map((id) => ({ evaluationId: 'e-' + id, referenceType: 'INTERACTION', referenceId: id, score: 8.5, criticalFailure: false, createdAt: '2026-11-10T15:00:00Z' })));
+    }
     return req.flush(url.includes('/negotiation/') || url.includes('/communication/') ? { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 } : {});
   }
 
@@ -124,8 +133,21 @@ describe('CaseConsult (ficha do caso para quem não opera)', () => {
     historyTab.click();
     fixture.detectChanges();
     expect(el.querySelector('[data-testid="interaction-evaluate"]')).not.toBeNull();
+    // a avaliação aponta para a interação (não para o caso): consulta se a própria pessoa já a avaliou
+    expect(mineRequests).toEqual(['INTERACTION:i-1']);
     // CASE_MANAGE: ações de situação no "Mais ações"
     expect(el.querySelector('app-more-actions button')).not.toBeNull();
+  });
+
+  it('interação que a própria pessoa já avaliou mostra "Avaliado por você" no lugar de "Avaliar"', async () => {
+    permissions = [...permissions, 'QUALITY_EVALUATE'];
+    evaluatedByMe = ['i-1'];
+    const fixture = await render();
+    const el = fixture.nativeElement as HTMLElement;
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Histórico'))!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="interaction-evaluate"]')).toBeNull();
+    expect(el.querySelector('[data-testid="interaction-evaluated"]')!.textContent).toContain('Avaliado por você · nota 8,5');
   });
 
   it('atendimento de quem está fora do escopo de quem avalia (ex.: o gestor, para o supervisor) fica sem "Avaliar"', async () => {

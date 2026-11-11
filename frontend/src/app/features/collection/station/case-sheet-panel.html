@@ -198,12 +198,19 @@
                   @if (i.durationSeconds) {
                     · {{ i.durationSeconds }} s
                   }
-                  <!-- monitoria de qualidade: só com QUALITY_EVALUATE, atendimento de outra pessoa -->
+                  <!-- monitoria de qualidade: só com QUALITY_EVALUATE, atendimento de outra pessoa; uma vez por avaliador -->
                   @if (evaluable(i)) {
-                    <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" (click)="evaluate(i)" data-testid="interaction-evaluate">
-                      <app-icon name="clipboard-check" />
-                      Avaliar
-                    </button>
+                    @if (ownEvaluation(i); as own) {
+                      <span class="app-status app-status--success ms-2" tabindex="0" [ngbTooltip]="ownHint(own)" data-testid="interaction-evaluated">
+                        <app-icon name="clipboard-check" />
+                        {{ ownText(own) }}
+                      </span>
+                    } @else {
+                      <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" (click)="evaluate(i)" data-testid="interaction-evaluate">
+                        <app-icon name="clipboard-check" />
+                        Avaliar
+                      </button>
+                    }
                   }
                 </div>
                 @if (i.note) {

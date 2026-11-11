@@ -1,13 +1,13 @@
-import { Injectable, computed, inject } from '@angular/core';
+import { Injectable, computed, inject, signal, untracked } from '@angular/core';
 import { rxResource, toObservable } from '@angular/core/rxjs-interop';
 import { Observable, catchError, from, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { DialogService } from '../../../shared/dialog/dialog.service';
-import { zonedNow } from '../../collection/data/collection.rules';
+import { BUSINESS_ZONE, zonedNow } from '../../collection/data/collection.rules';
 import { QualityApi } from '../data/incentive.api';
-import { EvaluationView, QualityForm, ReferenceType } from '../data/incentive.models';
+import { EvaluationView, OwnEvaluation, QualityForm, ReferenceType } from '../data/incentive.models';
 import { score } from '../data/incentive.rules';
 
 /**
@@ -38,12 +38,31 @@ export function attendanceDate(instant: string): string {
   return zonedNow(new Date(instant)).date;
 }
 
+/** Atendimentos por consulta das próprias avaliações (o servidor aceita até 200). */
+const OWN_BATCH = 200;
+
+const ownKey = (type: ReferenceType, id: string): string => `${type}:${id}`;
+
+const DAY = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: BUSINESS_ZONE });
+
+/** Selo que substitui "Avaliar" quando a própria pessoa já avaliou o atendimento. */
+export function ownEvaluationText(e: OwnEvaluation): string {
+  return `Avaliado por você · nota ${score(e.score)}`;
+}
+
+/** Dica do selo: quando foi a avaliação e que outro avaliador ainda pode avaliar o atendimento. */
+export function ownEvaluationHint(e: OwnEvaluation): string {
+  return `Você registrou a monitoria deste atendimento em ${DAY.format(new Date(e.createdAt))}${e.criticalFailure ? ' (falha em critério crítico)' : ''}. Cada avaliador avalia um atendimento uma vez; outro avaliador ainda pode avaliá-lo.`;
+}
+
 /**
  * "Avaliar este atendimento": regra de exibição e abertura do diálogo de monitoria já preenchido. Exige
  * `QUALITY_EVALUATE` e que quem atendeu esteja no escopo de quem avalia — todos, com visão total, ou os membros das
  * equipes que supervisiona —, informado pelo servidor (`GET /quality/evaluable-users`, a mesma regra que ele aplica ao
  * registrar); até a resposta chegar, o botão não aparece. Ninguém avalia o próprio atendimento. Atendimento sem pessoa
- * (assistente, sistema) não é avaliado aqui. O diálogo é carregado sob demanda (fica no pacote da monitoria).
+ * (assistente, sistema) não é avaliado aqui. Cada avaliador avalia um atendimento uma vez: o que a pessoa já avaliou
+ * mostra "Avaliado por você" no lugar do botão (`trackOwn`/`ownEvaluation`; o servidor recusa a segunda avaliação).
+ * O diálogo é carregado sob demanda (fica no pacote da monitoria).
  */
 @Injectable({ providedIn: 'root' })
 export class EvaluationLauncher {
@@ -79,9 +98,58 @@ export class EvaluationLauncher {
     return !!e && (e.all || e.ids.has(attendantId));
   }
 
+  /** Avaliações da própria pessoa por atendimento: consultadas sob demanda pelas telas e somadas ao registrar. */
+  private readonly own = signal<ReadonlyMap<string, OwnEvaluation>>(new Map());
+  /** Atendimentos já consultados (ou em consulta) para a pessoa `ownOf`. */
+  private readonly asked = new Set<string>();
+  private ownOf: string | null = null;
+
+  /**
+   * Consulta, para os atendimentos da tela, quais a própria pessoa já avaliou (só os ainda não consultados, em lotes).
+   * Chamada pelas telas em `effect` com os atendimentos que mostram "Avaliar"; não cria dependência de sinal.
+   */
+  trackOwn(type: ReferenceType, ids: readonly string[]): void {
+    untracked(() => {
+      const userId = this.auth.user()?.id ?? null;
+      if (!userId || !this.auth.hasPermission(Permission.QUALITY_EVALUATE)) {
+        return;
+      }
+      if (userId !== this.ownOf) {
+        this.ownOf = userId;
+        this.asked.clear();
+        this.own.set(new Map());
+      }
+      const pending = [...new Set(ids)].filter((id) => !this.asked.has(ownKey(type, id)));
+      for (let i = 0; i < pending.length; i += OWN_BATCH) {
+        const batch = pending.slice(i, i + OWN_BATCH);
+        batch.forEach((id) => this.asked.add(ownKey(type, id)));
+        this.api.ownEvaluations(type, batch).subscribe({
+          next: (list) => userId === this.ownOf && this.remember(list),
+          // falha: o botão continua (o servidor recusa a duplicata) e a próxima exibição consulta de novo
+          error: () => batch.forEach((id) => this.asked.delete(ownKey(type, id))),
+        });
+      }
+    });
+  }
+
+  /** A avaliação que a própria pessoa já registrou para este atendimento (`null` se não avaliou ou ainda não se sabe). */
+  ownEvaluation(type: ReferenceType, id: string | null | undefined): OwnEvaluation | null {
+    return id ? (this.own().get(ownKey(type, id)) ?? null) : null;
+  }
+
+  private remember(list: OwnEvaluation[]): void {
+    if (list.length) {
+      this.own.update((m) => {
+        const next = new Map(m);
+        list.forEach((e) => next.set(ownKey(e.referenceType, e.referenceId), e));
+        return next;
+      });
+    }
+  }
+
   /** Abre a monitoria preenchida; sem formulário ativo, avisa onde criar. Emite a avaliação registrada (ou nada). */
   open(target: EvaluationTarget): Observable<EvaluationView | undefined> {
-    if (!this.canEvaluate(target.userId)) {
+    if (!this.canEvaluate(target.userId) || this.ownEvaluation(target.referenceType, target.referenceId)) {
       return of(undefined);
     }
     return this.api.forms().pipe(
@@ -96,6 +164,13 @@ export class EvaluationLauncher {
             this.dialog.open<InstanceType<typeof EvaluationDialog>, EvaluationDialogData, EvaluationView>(EvaluationDialog, { data: { forms, prefill: target }, size: 'lg' }).afterClosed(),
           ),
           map((saved) => {
+            if (saved?.referenceId) {
+              this.remember([{ evaluationId: saved.id, referenceType: saved.referenceType, referenceId: saved.referenceId, score: saved.score, criticalFailure: saved.criticalFailure, createdAt: saved.createdAt }]);
+            } else if (!saved) {
+              // fechou sem registrar (talvez recusado por já ter sido avaliado em outra aba): confere de novo
+              this.asked.delete(ownKey(target.referenceType, target.referenceId));
+              this.trackOwn(target.referenceType, [target.referenceId]);
+            }
             if (saved) {
               this.notifications.success(`Monitoria registrada: nota ${score(saved.score)}. Ela aparece em Monitoria de qualidade, com o link para este atendimento.`);
             }

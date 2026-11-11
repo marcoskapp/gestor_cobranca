@@ -841,4 +841,6 @@ saía no tamanho de título de página; a nota ponderada ficava perdida entre os
 | Comentário | Opcional; com falha crítica, o rótulo perde o "(opcional)" e a dica pede a descrição do ocorrido (decisão 1074). |
 
 Pontos de entrada: chamada (linha e player da gravação), conversa, histórico do caso e o painel de desempenho por
-negociador (desenho em `remuneracao-variavel.md` §2.4.1). Teste: `features/incentive/quality/evaluation-dialog.spec.ts`.
+negociador (desenho em `remuneracao-variavel.md` §2.4.1). Atendimento que a própria pessoa já avaliou mostra o selo verde
+"Avaliado por você · nota X" no lugar do botão (na lista de chamadas, o ícone preenchido), focável, com a dica da data e de
+que outro avaliador ainda pode avaliar; o player não oferece "Avaliar" (decisão 1078). Teste: `features/incentive/quality/evaluation-dialog.spec.ts`.

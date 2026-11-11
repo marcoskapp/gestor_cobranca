@@ -2,7 +2,7 @@ import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { DOCUMENT, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDropdownModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, debounceTime, filter, finalize, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -29,7 +29,8 @@ import { InboxStream } from '../data/inbox-stream';
 import { AssignConversationDialog, ConversationDialogData, IdentifyDialog } from './conversation-dialogs';
 import { Composer } from './composer';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
-import { EvaluationLauncher, attendanceDate } from '../../incentive/quality/evaluation-launcher';
+import type { OwnEvaluation } from '../../incentive/data/incentive.models';
+import { EvaluationLauncher, attendanceDate, ownEvaluationHint, ownEvaluationText } from '../../incentive/quality/evaluation-launcher';
 
 /** Intervalo de atualização da conversa aberta sem tempo real (sem som; anúncio discreto para leitores de tela). */
 export const CONVERSATION_REFRESH_MS = 15_000;
@@ -59,6 +60,7 @@ export function answeredByCurrentOwner(c: Pick<ConversationView, 'ownerType' | '
     FormsModule,
     RouterLink,
     NgbDropdownModule,
+    NgbTooltip,
     ...FORM_FIELD,
     Icon,
     EmptyState,
@@ -77,6 +79,14 @@ export class ConversationPanel {
   /** "Avaliar atendimento": a última resposta é do dono atual (pessoa, não o assistente), que não é quem avalia. */
   protected evaluable(c: ConversationView): boolean {
     return answeredByCurrentOwner(c) && this.evaluations.canEvaluate(c.ownerUserId);
+  }
+
+  protected readonly ownText = ownEvaluationText;
+  protected readonly ownHint = ownEvaluationHint;
+
+  /** Avaliação que a própria pessoa já registrou para esta conversa (o selo substitui o botão). */
+  protected ownEvaluation(c: ConversationView): OwnEvaluation | null {
+    return this.evaluations.ownEvaluation('CONVERSATION', c.id);
   }
 
   protected evaluate(c: ConversationView): void {
@@ -228,6 +238,13 @@ export class ConversationPanel {
   private previous: { conversationId: string; list: MessageView[] } | null = null;
 
   constructor() {
+    // monitoria: a própria pessoa já avaliou esta conversa?
+    effect(() => {
+      const c = this.conversation();
+      if (c && this.evaluable(c)) {
+        this.evaluations.trackOwn('CONVERSATION', [c.id]);
+      }
+    });
     // conversa trocada: limpa estado local
     effect(() => {
       this.conversationId();

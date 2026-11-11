@@ -2,6 +2,7 @@ package br.com.gestorcobranca.collection.application.service;
 
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.FollowUpResult;
+import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.InteractionLocation;
 import br.com.gestorcobranca.collection.application.port.in.PromiseUseCases.PromiseView;
 import br.com.gestorcobranca.collection.application.port.in.TaskUseCases.TaskView;
 import br.com.gestorcobranca.collection.domain.model.AssignmentMode;
@@ -192,6 +193,15 @@ class InteractionService implements InteractionUseCases {
         CollectionCase c = access.visible(caseId);
         return PageResponse.of(interactions.findByCaseIdOrderByStartedAtDesc(c.getId(), page.toPageable()),
                 CollectionViews::interaction);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InteractionLocation locate(UUID interactionId) {
+        Interaction interaction = interactions.findById(interactionId)
+                .orElseThrow(() -> ResourceNotFoundException.of("interaction", interactionId));
+        CollectionCase c = access.visible(interaction.getCaseId());
+        return new InteractionLocation(interaction.getId(), c.getId());
     }
 
     @Override

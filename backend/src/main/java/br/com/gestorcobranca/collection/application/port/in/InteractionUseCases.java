@@ -34,6 +34,15 @@ public interface InteractionUseCases {
     PageResponse<InteractionView> list(UUID caseId, PageQuery page);
 
     /**
+     * Onde a interação aconteceu, no escopo do caso dela (fora dele, 404): a monitoria de qualidade guarda só o id da
+     * interação e volta ao histórico do caso. Devolve só os ids (minimização: sem nota nem contato).
+     */
+    InteractionLocation locate(UUID interactionId);
+
+    record InteractionLocation(UUID interactionId, UUID caseId) {
+    }
+
+    /**
      * Interações do devedor em todos os casos dos credores do escopo do ator, da mais recente à mais antiga (histórico
      * da ficha do devedor). Credor fora do escopo não aparece; sem nenhum credor no escopo, página vazia.
      */

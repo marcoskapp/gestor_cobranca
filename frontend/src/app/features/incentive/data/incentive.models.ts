@@ -405,7 +405,18 @@ export interface QualityFormRequest {
   criteria: Criterion[];
 }
 
-export type ReferenceType = 'CALL' | 'CONVERSATION' | 'CASE' | 'AGREEMENT' | 'OTHER';
+/** `INTERACTION`: interação do histórico do caso (a avaliação feita ali aponta para ela). */
+export type ReferenceType = 'CALL' | 'CONVERSATION' | 'CASE' | 'AGREEMENT' | 'INTERACTION' | 'OTHER';
+
+/** Avaliação que a própria pessoa já registrou para um atendimento (`QualityUseCases.OwnEvaluation`). */
+export interface OwnEvaluation {
+  evaluationId: string;
+  referenceType: ReferenceType;
+  referenceId: string;
+  score: number;
+  criticalFailure: boolean;
+  createdAt: string;
+}
 
 export interface EvaluationView {
   id: string;

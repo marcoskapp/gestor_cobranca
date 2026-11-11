@@ -32,12 +32,14 @@ import { personRangeFilter } from './person-range-filter';
 import { EvaluableUserSource } from './evaluable-user-source';
 import type { EvaluationDialogData } from './evaluation-launcher';
 import { Router, RouterLink } from '@angular/router';
+import { InteractionsApi } from '../../collection/data/collection.api';
 import { CallsApi } from '../../telephony/data/telephony.api';
 
 /** Tipo do atendimento sem vínculo: a avaliação geral vem primeiro (sem link de volta, o tipo só classifica). */
 const referenceTypes: [ReferenceType, string][] = [
   ['OTHER', 'Geral (sem atendimento específico)'],
-  ...(Object.entries(REFERENCE_TYPE_LABELS) as [ReferenceType, string][]).filter(([t]) => t !== 'OTHER'),
+  // a interação só existe ligada ao histórico do caso (vem preenchida de lá), não como tipo de avaliação geral
+  ...(Object.entries(REFERENCE_TYPE_LABELS) as [ReferenceType, string][]).filter(([t]) => t !== 'OTHER' && t !== 'INTERACTION'),
 ];
 
 /** Nota ponderada (0–10) e falha crítica, como `QualityForm.score`: nota 0 em critério crítico zera a avaliação. */
@@ -68,6 +70,7 @@ const REFERENCE_ICONS: Record<ReferenceType, string> = {
   CONVERSATION: 'chat-left-text',
   CASE: 'folder2-open',
   AGREEMENT: 'file-earmark-check',
+  INTERACTION: 'chat-left-dots',
   OTHER: 'clipboard-check',
 };
 
@@ -499,8 +502,8 @@ export class EvaluationDialog {
         <div class="in-small">
           @if (referenceLink(e); as link) {
             <a [routerLink]="link.route" [queryParams]="link.query ?? null" data-testid="evaluation-reference">Ver {{ refs[e.referenceType].toLowerCase() }}</a>
-          } @else if (canOpenCall(e)) {
-            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="openCall(e)" data-testid="evaluation-reference">Ver chamada</button>
+          } @else if (canOpenAttendance(e)) {
+            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="openAttendance(e)" data-testid="evaluation-reference">Ver {{ refs[e.referenceType].toLowerCase() }}</button>
           } @else {
             <span class="app-muted">{{ refs[e.referenceType] }}</span>
           }
@@ -525,6 +528,7 @@ export class EvaluationDialog {
 export class EvaluationList {
   private readonly api = inject(QualityApi);
   private readonly calls = inject(CallsApi);
+  private readonly interactions = inject(InteractionsApi);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly dialog = inject(DialogService);
@@ -557,8 +561,8 @@ export class EvaluationList {
   }
 
   /**
-   * Link de volta para o atendimento avaliado (só o que o perfil abre): caso, conversa ou acordo. A chamada não tem
-   * ficha própria: abre o histórico do caso dela (`openCall`).
+   * Link de volta para o atendimento avaliado (só o que o perfil abre): caso, conversa ou acordo. A chamada e a
+   * interação não têm ficha própria: abrem o histórico do caso delas (`openAttendance`).
    */
   protected referenceLink(e: EvaluationView): { route: string[]; query?: Record<string, string> } | null {
     if (!e.referenceId) {
@@ -576,12 +580,22 @@ export class EvaluationList {
     }
   }
 
-  protected canOpenCall(e: EvaluationView): boolean {
-    return e.referenceType === 'CALL' && !!e.referenceId && this.auth.hasAnyPermission([Permission.TELEPHONY_USE, Permission.TELEPHONY_SUPERVISE]) && this.auth.hasPermission(Permission.CASE_VIEW);
+  protected canOpenAttendance(e: EvaluationView): boolean {
+    if (!e.referenceId || !this.auth.hasPermission(Permission.CASE_VIEW)) {
+      return false;
+    }
+    return e.referenceType === 'INTERACTION' || (e.referenceType === 'CALL' && this.auth.hasAnyPermission([Permission.TELEPHONY_USE, Permission.TELEPHONY_SUPERVISE]));
   }
 
-  /** Chamada avaliada: abre o histórico do caso em que ela aconteceu (sem caso identificado, avisa). */
-  protected openCall(e: EvaluationView): void {
+  /** Chamada ou interação avaliada: abre o histórico do caso em que ela aconteceu. */
+  protected openAttendance(e: EvaluationView): void {
+    if (e.referenceType === 'INTERACTION') {
+      this.interactions.locate(e.referenceId!).subscribe({
+        next: (i) => void this.router.navigate(['/cobranca/casos', i.caseId], { queryParams: { aba: 'historico' } }),
+        error: () => this.notifications.error('Não foi possível abrir a interação: ela pode estar fora do seu escopo.'),
+      });
+      return;
+    }
     this.calls.get(e.referenceId!).subscribe({
       next: (call) => {
         if (call.caseId) {

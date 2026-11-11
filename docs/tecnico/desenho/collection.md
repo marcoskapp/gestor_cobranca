@@ -575,6 +575,7 @@ descrições só no banco, criptografadas).
 | `/redistributions` | `POST` |
 | `/tabulations` · `/tabulations/{id}` · `/activate|deactivate` | CRUD + ações (com `followUp` e `disputeType`, §4.1) |
 | `/cases/{id}/interactions` | `GET`, `POST` (201; 200 se reenvio de integração) |
+| `/interactions/{id}` | `GET` (`CASE_VIEW`; só `{interactionId, caseId}`, no escopo do caso da interação, fora dele 404; volta da monitoria ao histórico, decisão 1077) |
 | `/cases/{id}/tasks` · `/agenda` · `/tasks/{id}/complete|cancel|reschedule|reassign` | `GET`, `POST` |
 | `/cases/{id}/promises` · `/promises/{id}` · `/promises/{id}/cancel` | `GET`, `POST` |
 | `/cases/{id}/disputes` · `/disputes` (filtro `debtorId`, §8.5) · `/disputes/{id}` · `/review|resolve|withdraw` · `/evidences` · `/evidences/{eid}` | `GET`, `POST` (multipart) |

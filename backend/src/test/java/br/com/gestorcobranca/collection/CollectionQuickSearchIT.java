@@ -12,6 +12,7 @@ import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.ActorAuthentication;
 import br.com.gestorcobranca.shared.security.CreditorScope;
 import br.com.gestorcobranca.shared.security.Permission;
+import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -204,6 +205,11 @@ class CollectionQuickSearchIT extends CollectionTestSupport {
         var onlyB = asOperator(operatorZ, () -> interactions.listByDebtor(debtorA, new PageQuery(0, 50)));
         assertThat(onlyB.content()).extracting(i -> i.creditorId()).containsOnly(creditorB);
         assertThat(onlyB.totalElements()).isEqualTo(1);
+        // a interação pelo id (link da monitoria) segue o escopo do caso dela: fora dele, nem a existência aparece
+        UUID inA = all.content().get(1).id();
+        assertThat(asOperator(operatorX, () -> interactions.locate(inA)).caseId()).isEqualTo(caseA.id());
+        assertThatThrownBy(() -> asOperator(operatorZ, () -> interactions.locate(inA)))
+                .isInstanceOf(ResourceNotFoundException.class);
 
         var disputesB = asOperator(operatorZ, () -> disputes.search(new DisputeQuery(null, null, null, null, null, false,
                 false, null, null, null, false, false, false, false, debtorA), new PageQuery(0, 20)));

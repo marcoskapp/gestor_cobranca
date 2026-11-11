@@ -15,6 +15,8 @@ import {
   EvaluationRequest,
   EvaluableUsers,
   EvaluationView,
+  OwnEvaluation,
+  ReferenceType,
   ExportFormat,
   ExportView,
   GoalRequest,
@@ -245,6 +247,14 @@ export class QualityApi {
 
   evaluations(filter: PersonRangeFilter, page: PageRequest): Observable<PageResponse<EvaluationView>> {
     return this.http.get<PageResponse<EvaluationView>>(`${this.base}/evaluations`, { params: toHttpParams({ ...filter, page: page.page, size: page.size }) });
+  }
+
+  /** Avaliações da própria pessoa para estes atendimentos (até 200 ids do mesmo tipo). */
+  ownEvaluations(referenceType: ReferenceType, referenceIds: readonly string[]): Observable<OwnEvaluation[]> {
+    return this.http.get<OwnEvaluation[]>(`${this.base}/evaluations/mine`, {
+      params: { referenceType, referenceIds: referenceIds.join(',') },
+      context: silentErrorContext(),
+    });
   }
 
   /** Escopo de quem avalia: a tela só oferece "Avaliar" para atendimentos dessas pessoas. */

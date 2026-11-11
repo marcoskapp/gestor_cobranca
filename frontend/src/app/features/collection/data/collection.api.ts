@@ -2,6 +2,7 @@ import { HttpClient, HttpContext, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { API_V1 } from '../../../core/config/api';
+import { silentErrorContext } from '../../../core/http/http-context';
 import { toHttpParams } from '../../../core/http/http-params';
 import { FileDownloadService } from '../../../shared/data/file-download';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
@@ -223,6 +224,11 @@ export class InteractionsApi {
     return this.http.get<PageResponse<InteractionView>>(`${BASE}/cases/${caseId}/interactions`, {
       params: toHttpParams({ page: page.page, size: page.size }),
     });
+  }
+
+  /** Onde a interação aconteceu (só os ids), no escopo do caso dela: o link da monitoria volta ao caso. */
+  locate(id: string): Observable<{ interactionId: string; caseId: string }> {
+    return this.http.get<{ interactionId: string; caseId: string }>(`${BASE}/interactions/${id}`, { context: silentErrorContext() });
   }
 
   /** Interações do devedor em todos os casos dos credores do escopo, da mais recente à mais antiga. */

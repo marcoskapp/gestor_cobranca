@@ -22,6 +22,7 @@ import br.com.gestorcobranca.incentive.domain.model.plan.PlanRules.RecoveryRateC
 import br.com.gestorcobranca.incentive.domain.model.plan.TierMode;
 import br.com.gestorcobranca.incentive.application.port.in.StatementUseCases.StatementSummary;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
+import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.events.collection.InteractionRecorded;
@@ -181,6 +182,42 @@ class IsolationAndScopeIT extends IncentiveTestSupport {
                 .isInstanceOf(ScopeAccessDeniedException.class);
         // gestor: visão total
         assertThat(as(manager, DefaultRoles.GESTOR, () -> quality.evaluableUsers()).all()).isTrue();
+    }
+
+    @Test
+    void eachEvaluatorEvaluatesAnAttendanceOnce() {
+        provisionTenant("once");
+        UUID form = as(supervisor, DefaultRoles.SUPERVISOR, () -> quality.createForm(new FormCommand("Monitoria",
+                null, List.of(new CriterionInput("ABORDAGEM", "Abordagem respeitosa", BigDecimal.ONE, false))))).id();
+        UUID interaction = Ids.newId();
+        UUID other = Ids.newId();
+        Map<String, BigDecimal> ten = Map.of("ABORDAGEM", BigDecimal.TEN);
+        as(supervisor, DefaultRoles.SUPERVISOR, () -> quality.evaluate(new EvaluationCommand(form, operatorX,
+                "INTERACTION", interaction, LocalDate.of(2026, 9, 10), ten, null)));
+        // o mesmo avaliador não avalia de novo o mesmo atendimento
+        assertThatThrownBy(() -> as(supervisor, DefaultRoles.SUPERVISOR, () -> quality.evaluate(new EvaluationCommand(
+                form, operatorX, "INTERACTION", interaction, LocalDate.of(2026, 9, 10), ten, null))))
+                .isInstanceOf(ConflictException.class).hasMessageContaining("Você já avaliou este atendimento");
+        // outro avaliador avalia o mesmo atendimento; avaliação geral (sem referência) não entra na regra
+        as(manager, DefaultRoles.GESTOR, () -> quality.evaluate(new EvaluationCommand(form, operatorX, "INTERACTION",
+                interaction, LocalDate.of(2026, 9, 10), ten, null)));
+        as(supervisor, DefaultRoles.SUPERVISOR, () -> quality.evaluate(new EvaluationCommand(form, operatorX, "OTHER",
+                null, LocalDate.of(2026, 9, 10), ten, null)));
+        as(supervisor, DefaultRoles.SUPERVISOR, () -> quality.evaluate(new EvaluationCommand(form, operatorX, "OTHER",
+                null, LocalDate.of(2026, 9, 11), ten, null)));
+
+        // cada um vê só a própria avaliação, só do tipo pedido
+        List<QualityUseCases.OwnEvaluation> mine = as(supervisor, DefaultRoles.SUPERVISOR,
+                () -> quality.ownEvaluations("INTERACTION", List.of(interaction, other)));
+        assertThat(mine).singleElement().satisfies(e -> {
+            assertThat(e.referenceId()).isEqualTo(interaction);
+            assertThat(e.score()).isEqualByComparingTo("10.00");
+        });
+        assertThat(as(supervisor, DefaultRoles.SUPERVISOR, () -> quality.ownEvaluations("CALL", List.of(interaction))))
+                .isEmpty();
+        assertThat(as(manager, DefaultRoles.GESTOR, () -> quality.ownEvaluations("INTERACTION", List.of(interaction))))
+                .singleElement().extracting(QualityUseCases.OwnEvaluation::evaluationId)
+                .isNotEqualTo(mine.getFirst().evaluationId());
     }
 
     @Test

@@ -1,6 +1,6 @@
 import { FilterBar } from '../../../shared/components/filter-bar/filter-bar';
 import { activeFilterCount } from '../../../shared/data/filter-count';
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NgbInputDatepicker, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -33,7 +33,8 @@ import { CallFilter, CallResult, CallView } from '../data/telephony.models';
 import { durationText, isCallActive } from '../data/telephony.rules';
 import { RecordingDialog, RecordingDialogData } from './recording-dialog';
 import { UserLookup } from '../../admin/data/user.lookup';
-import { EvaluationLauncher, attendanceDate } from '../../incentive/quality/evaluation-launcher';
+import type { OwnEvaluation } from '../../incentive/data/incentive.models';
+import { EvaluationLauncher, attendanceDate, ownEvaluationHint, ownEvaluationText } from '../../incentive/quality/evaluation-launcher';
 import { BUSINESS_ZONE } from '../../collection/data/collection.rules';
 
 /**
@@ -134,11 +135,17 @@ import { BUSINESS_ZONE } from '../../collection/data/collection.rules';
             <app-status-chip domain="recording" [status]="r.status" />
           }
         }
-        <!-- monitoria de qualidade: só com QUALITY_EVALUATE, chamada encerrada e de outra pessoa -->
+        <!-- monitoria de qualidade: só com QUALITY_EVALUATE, chamada encerrada e de outra pessoa; uma vez por avaliador -->
         @if (evaluable(c)) {
-          <button class="btn btn-link" type="button" (click)="evaluate(c)" aria-label="Avaliar este atendimento" ngbTooltip="Avaliar este atendimento (monitoria)" data-tour="call-evaluate">
-            <app-icon name="clipboard-check" />
-          </button>
+          @if (ownEvaluation(c); as own) {
+            <span class="d-inline-flex align-items-center px-2 text-success" tabindex="0" role="img" [attr.aria-label]="ownText(own)" [ngbTooltip]="ownText(own) + '. ' + ownHint(own)" data-testid="call-evaluated">
+              <app-icon name="clipboard-check-fill" />
+            </span>
+          } @else {
+            <button class="btn btn-link" type="button" (click)="evaluate(c)" aria-label="Avaliar este atendimento" ngbTooltip="Avaliar este atendimento (monitoria)" data-tour="call-evaluate">
+              <app-icon name="clipboard-check" />
+            </button>
+          }
         }
         @if (active(c)) {
           <button class="btn btn-link" type="button" (click)="hangup(c)" aria-label="Encerrar chamada" ngbTooltip="Encerrar chamada (auditado)">
@@ -208,6 +215,17 @@ export class CallList {
   ];
 
   private readonly evaluations = inject(EvaluationLauncher);
+  protected readonly ownText = ownEvaluationText;
+  protected readonly ownHint = ownEvaluationHint;
+
+  protected ownEvaluation(c: CallView): OwnEvaluation | null {
+    return this.evaluations.ownEvaluation('CALL', c.id);
+  }
+
+  constructor() {
+    // monitoria: quais chamadas da página a própria pessoa já avaliou (o "Avaliar" vira o selo de avaliada)
+    effect(() => this.evaluations.trackOwn('CALL', this.query.rows().filter((c) => this.evaluable(c)).map((c) => c.id)));
+  }
 
   /** "Avaliar este atendimento": chamada atendida e encerrada, de outro operador, para quem avalia. */
   protected evaluable(c: CallView): boolean {
@@ -238,7 +256,7 @@ export class CallList {
         call: c,
         debtorName: c.debtorId ? this.debtors.name(c.debtorId) : 'Não identificado',
         // ouvir e avaliar no mesmo passo: a monitoria abre por cima do player
-        evaluate: this.evaluable(c) ? () => this.evaluate(c) : undefined,
+        evaluate: this.evaluable(c) && !this.ownEvaluation(c) ? () => this.evaluate(c) : undefined,
       },
     });
   }

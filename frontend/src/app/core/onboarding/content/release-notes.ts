@@ -3,6 +3,14 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 20,
+    date: '2026-11-11',
+    title: 'Monitoria: cada avaliador avalia um atendimento uma vez',
+    items: [
+      { text: 'O atendimento que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar", no histórico do caso, na conversa e em Chamadas e gravações; outro avaliador ainda pode avaliá-lo.', route: '/remuneracao/qualidade/avaliacoes' },
+    ],
+  },
+  {
     version: 19,
     date: '2026-11-10',
     title: 'Monitoria de qualidade mais rápida e perto do atendimento',

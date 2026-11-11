@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.incentive.domain.repository;
 
 import br.com.gestorcobranca.incentive.domain.model.quality.ConductOccurrence;
+import br.com.gestorcobranca.incentive.domain.model.quality.EvaluationReferenceType;
 import br.com.gestorcobranca.incentive.domain.model.quality.QualityEvaluation;
 import br.com.gestorcobranca.incentive.domain.model.quality.QualityForm;
 import org.springframework.data.domain.Page;
@@ -24,6 +25,13 @@ public interface QualityRepository {
     QualityEvaluation saveEvaluation(QualityEvaluation evaluation);
 
     List<QualityEvaluation> findEvaluations(UUID userId, LocalDate from, LocalDate to);
+
+    /** O avaliador já avaliou este atendimento (uma avaliação por avaliador e atendimento). */
+    boolean existsEvaluation(UUID evaluatorId, EvaluationReferenceType referenceType, UUID referenceId);
+
+    /** Avaliações do avaliador para estes atendimentos (do mesmo tipo). */
+    List<QualityEvaluation> findEvaluationsBy(UUID evaluatorId, EvaluationReferenceType referenceType,
+                                              Collection<UUID> referenceIds);
 
     /** @param userIds null = todos */
     Page<QualityEvaluation> searchEvaluations(Collection<UUID> userIds, LocalDate from, LocalDate to, Pageable pageable);

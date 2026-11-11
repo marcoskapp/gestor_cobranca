@@ -144,6 +144,7 @@ export const REFERENCE_TYPE_LABELS: Record<ReferenceType, string> = {
   CONVERSATION: 'Conversa',
   CASE: 'Caso',
   AGREEMENT: 'Acordo',
+  INTERACTION: 'Interação',
   OTHER: 'Outro',
 };
 
