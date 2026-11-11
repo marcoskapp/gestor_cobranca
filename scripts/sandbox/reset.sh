@@ -28,4 +28,5 @@ if [[ "${CONFIRMED}" != true ]]; then
 fi
 log INFO "removendo contêineres e volumes do sandbox"
 compose --profile tunnel down --volumes --remove-orphans
+forget_public_url
 exec "$(dirname "${BASH_SOURCE[0]}")/up.sh" ${UP_ARGS[@]+"${UP_ARGS[@]}"}

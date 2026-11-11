@@ -335,6 +335,27 @@ for person in "${PEOPLE[@]}"; do
 done
 ok "menu x API: ${menu_checked} combinações perfil x página do menu sem 403 no carregamento"
 
+# Túnel registrado: precisa estar no ar, com o endereço que publicou por último, e a aplicação montando os links dos
+# e-mails com ele (o envio de link exige https). Sem registro, a aplicação não pode ter ficado com um endereço antigo.
+registered="$(public_url)"
+base="$(compose exec -T app printenv APP_BASE_URL 2>/dev/null || true)"
+if [[ -n "${registered}" ]]; then
+  current="$(tunnel_logged_url)"
+  if ! tunnel_running; then
+    fail "túnel registrado em ${registered}, mas o contêiner do túnel não está rodando (./scripts/sandbox/tunnel.sh)"
+  elif [[ "${current}" != "${registered}" ]]; then
+    fail "túnel publicou ${current:-nenhum endereço}, mas o registro diz ${registered} (./scripts/sandbox/tunnel.sh)"
+  elif [[ "${base}" != "${registered}" ]]; then
+    fail "túnel em ${registered}, mas a aplicação monta os links com '${base}' (./scripts/sandbox/tunnel.sh)"
+  else
+    ok "túnel: links dos e-mails em ${base}"
+  fi
+elif [[ -n "${base}" && "${base}" != "${APP_URL}" ]]; then
+  fail "sem túnel registrado, mas a aplicação monta os links com '${base}' (./scripts/sandbox/up.sh --no-build)"
+else
+  ok "sem túnel: links dos e-mails em ${APP_URL}"
+fi
+
 if (( FAILURES > 0 )); then
   die "${FAILURES} verificação(ões) falharam"
 fi

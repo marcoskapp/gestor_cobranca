@@ -35,8 +35,59 @@ require_docker() {
 
 readonly APP_IMAGE=gestor-cobranca-sandbox/app:local
 
+# Endereço público https do túnel em uso (gravado por tunnel.sh, apagado por tunnel.sh --stop, down.sh e reset.sh).
+# Enquanto existe, a aplicação sobe com ele em APP_BASE_URL: os links enviados por e-mail (portal do devedor, canal com o
+# credor, ativação) saem em https e abrem de qualquer aparelho. Fica fora do git (.gitignore).
+readonly PUBLIC_URL_FILE="${REPO_ROOT}/.sandbox-public-url"
+
+# Só aceita o formato que o tunnel.sh grava; qualquer outro conteúdo é tratado como "sem túnel".
+public_url() {
+  local url
+  url="$(head -n 1 "${PUBLIC_URL_FILE}" 2>/dev/null || true)"
+  if [[ "${url}" =~ ^https://[a-z0-9-]+\.trycloudflare\.com$ ]]; then
+    printf '%s' "${url}"
+  fi
+}
+
 compose() {
-  docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" "$@"
+  SANDBOX_PUBLIC_URL="$(public_url)" docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" "$@"
+}
+
+forget_public_url() { rm -f "${PUBLIC_URL_FILE}"; }
+
+# Contêiner do túnel em execução.
+tunnel_running() { [[ -n "$(compose --profile tunnel ps -q --status running tunnel 2>/dev/null)" ]]; }
+
+# Último endereço publicado pelo túnel (logs do contêiner atual).
+tunnel_logged_url() {
+  compose --profile tunnel logs tunnel 2>/dev/null | grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' \
+    | grep -v '^https://api\.' | tail -1 || true
+}
+
+# Espera a aplicação ficar pronta (aplicação no ar e carga de dados fictícios concluída): wait_ready <segundos>.
+wait_ready() {
+  local deadline=$(( $(date +%s) + $1 )) last_phase="" body phase
+  while true; do
+    body="$(readiness_json)"
+    if [[ "${body}" == *'"status":"UP"}' ]]; then   # situação geral (fim do JSON), não a de um componente
+      return 0
+    fi
+    phase="$(sed -n 's/.*"phase":"\([^"]*\)".*/\1/p' <<<"${body}")"
+    if [[ -n "${phase}" && "${phase}" != "${last_phase}" ]]; then
+      log INFO "carga do sandbox: ${phase}"
+      last_phase="${phase}"
+    fi
+    if [[ "${body}" == *'"state":"FAILED"'* ]]; then
+      compose logs --tail 80 app >&2 || true
+      die "a carga de dados do sandbox falhou (detalhes acima; logs completos: docker compose -p ${COMPOSE_PROJECT} logs app)"
+    fi
+    if [[ "$(compose ps --status exited --services 2>/dev/null)" == *app* ]]; then
+      compose logs --tail 80 app >&2 || true
+      die "o contêiner da aplicação parou (logs acima)"
+    fi
+    (( $(date +%s) < deadline )) || die "tempo esgotado aguardando a prontidão; acompanhe com: docker compose -p ${COMPOSE_PROJECT} logs -f app"
+    sleep 5
+  done
 }
 
 # Imagem da aplicação (infra/docker/app/Dockerfile). Construída com `docker build` (e não `compose build`) para
@@ -78,11 +129,16 @@ readiness_json() {
 }
 
 print_summary() {
+  local tunnel_line="" url
+  url="$(public_url)"
+  if [[ -n "${url}" ]]; then
+    tunnel_line=$'\n'"  Túnel (https) .... ${url}  (links dos e-mails saem com este endereço)"
+  fi
   cat >&2 <<EOF
 
   Sandbox do Gestor de Cobrança no ar (dados FICTÍCIOS)
 
-  Aplicação ........ ${APP_URL}
+  Aplicação ........ ${APP_URL}${tunnel_line}
   Swagger (API) .... ${APP_URL}/swagger-ui/index.html  (aberto sem login no sandbox; chamadas pedem token)
   Mailpit (e-mails)  http://localhost:${MAIL_PORT}
   PostgreSQL ....... localhost:${DB_PORT} (banco cobranca; somente para inspeção)

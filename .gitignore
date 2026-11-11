@@ -35,6 +35,8 @@ infra/terraform/**/.terraform.lock.hcl.bak
 .DS_Store
 
 # Execução local
+# Endereço do túnel público do sandbox em uso (scripts/sandbox/tunnel.sh)
+.sandbox-public-url
 # PDFs fictícios de demonstração copiados do sandbox (scripts/sandbox/pdfs.sh); gerados a cada reset
 sandbox-pdfs/
 # Relatórios da auditoria da interface (scripts/sandbox/audit.sh) e dependências do script
