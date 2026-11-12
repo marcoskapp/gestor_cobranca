@@ -6,6 +6,7 @@ import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.Agreement;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementPayment;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementStatus;
+import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementSummary;
 import br.com.gestorcobranca.negotiation.domain.repository.AgreementRepository;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -77,10 +80,12 @@ class JpaAgreementRepository implements AgreementRepository {
 
     private final AgreementJpa agreements;
     private final AgreementPaymentJpa payments;
+    private final NamedParameterJdbcTemplate jdbc;
 
-    JpaAgreementRepository(AgreementJpa agreements, AgreementPaymentJpa payments) {
+    JpaAgreementRepository(AgreementJpa agreements, AgreementPaymentJpa payments, NamedParameterJdbcTemplate jdbc) {
         this.agreements = agreements;
         this.payments = payments;
+        this.jdbc = jdbc;
     }
 
     @Override
@@ -128,6 +133,30 @@ class JpaAgreementRepository implements AgreementRepository {
             spec = spec.and((root, q, cb) -> cb.equal(root.get("status"), status));
         }
         return agreements.findAll(spec, page);
+    }
+
+    /** Agregado sob RLS (assessoria da sessão); índices de devedor e de caso de {@code negotiation.agreement}. */
+    @Override
+    public List<AgreementSummary.StatusTotals> totalsByStatus(Collection<UUID> creditorIds, UUID creditorId,
+                                                              UUID debtorId, UUID caseId) {
+        if (creditorIds != null && creditorIds.isEmpty()) {
+            return List.of();
+        }
+        MapSqlParameterSource p = new MapSqlParameterSource()
+                .addValue("restricted", creditorIds != null)
+                .addValue("creditors", creditorIds == null ? List.of(new UUID(0, 0)) : creditorIds)
+                .addValue("creditor", creditorId).addValue("debtor", debtorId).addValue("caseId", caseId);
+        return jdbc.query("""
+                select status, count(*) as n, coalesce(sum(total_amount), 0) as total,
+                       coalesce(sum(paid_amount), 0) as paid
+                  from negotiation.agreement
+                 where (not :restricted or creditor_id in (:creditors))
+                   and (cast(:creditor as uuid) is null or creditor_id = :creditor)
+                   and (cast(:debtor as uuid) is null or debtor_id = :debtor)
+                   and (cast(:caseId as uuid) is null or case_id = :caseId)
+                 group by status
+                """, p, (rs, i) -> new AgreementSummary.StatusTotals(AgreementStatus.valueOf(rs.getString("status")),
+                rs.getLong("n"), rs.getBigDecimal("total"), rs.getBigDecimal("paid")));
     }
 
     @Override

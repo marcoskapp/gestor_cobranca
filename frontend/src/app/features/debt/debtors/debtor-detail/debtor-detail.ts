@@ -63,6 +63,7 @@ import { DebtorInteractions } from '../debtor-interactions/debtor-interactions';
 import { CompanyRepresentatives } from '../representatives/company-representatives';
 import { VulnerabilityBadge } from '../../../compliance/vulnerability/vulnerability-badge';
 import { InsolvencyNotice } from '../../components/insolvency-notice';
+import { AgreementHistory } from '../../../negotiation/agreements/agreement-history';
 import { ContactProfileCard } from '../../../scoring/contact/contact-profile-card';
 
 /**
@@ -78,7 +79,7 @@ import { ContactProfileCard } from '../../../scoring/contact/contact-profile-car
  */
 @Component({
   selector: 'app-debtor-detail',
-  imports: [TabsMore, VulnerabilityBadge, ContactNoveltyBadge, InsolvencyNotice, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions, RelatedRecords, DebtorInteractions, ContactProfileCard, CompanyRepresentatives],
+  imports: [TabsMore, VulnerabilityBadge, ContactNoveltyBadge, InsolvencyNotice, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions, RelatedRecords, DebtorInteractions, ContactProfileCard, CompanyRepresentatives, AgreementHistory],
   templateUrl: './debtor-detail.html',
   styleUrl: '../../debt.scss',
 })
@@ -98,7 +99,7 @@ export class DebtorDetail {
   private readonly breadcrumbs = inject(BreadcrumbService);
   /** Aba ativa na URL (`?aba=`): voltar para a ficha reabre a mesma aba. */
   protected readonly tab = urlTab(
-    ['titulos', 'contatos', 'representantes', 'interacoes', 'contratos', 'garantias', 'razao', 'titularidade', 'restricoes'],
+    ['titulos', 'contatos', 'representantes', 'interacoes', 'acordos', 'contratos', 'garantias', 'razao', 'titularidade', 'restricoes'],
     'titulos',
   );
   /** Dentro do painel da estação: sem ações que tirem o operador do caso atual. */
@@ -117,6 +118,8 @@ export class DebtorDetail {
   protected readonly canExportEvidence = computed(() => this.auth.hasPermission(Permission.CONTACT_RESTRICTION_MANAGE));
   protected readonly canSendPortalLink = computed(() => this.auth.hasPermission(Permission.MESSAGE_SEND));
   protected readonly canSeeCases = computed(() => this.auth.hasPermission(Permission.CASE_VIEW));
+  /** Aba "Acordos" (histórico de acordos do devedor): só para quem consulta acordos. */
+  protected readonly canSeeAgreements = computed(() => this.auth.hasPermission(Permission.AGREEMENT_VIEW));
   protected readonly canSimulate = computed(() => this.auth.hasPermission(Permission.NEGOTIATION_SIMULATE));
   private readonly portalApi = inject(PortalAdminApi);
   /** Credores em que o devedor tem títulos em cobrança (o servidor confere se o portal está habilitado). */
@@ -319,9 +322,11 @@ export class DebtorDetail {
 
   constructor() {
     effect(() => this.breadcrumbs.setCurrentLabel(this.current()?.name ?? null));
-    // `?aba=interacoes` sem CASE_VIEW (link compartilhado, perfil trocado): a aba não existe, volta para Títulos
+    // `?aba=interacoes` sem CASE_VIEW ou `?aba=acordos` sem AGREEMENT_VIEW (link compartilhado, perfil trocado): a aba
+    // não existe, volta para Títulos
     effect(() => {
-      if (this.tab.value() === 'interacoes' && !this.canSeeCases()) {
+      const tab = this.tab.value();
+      if ((tab === 'interacoes' && !this.canSeeCases()) || (tab === 'acordos' && !this.canSeeAgreements())) {
         untracked(() => this.tab.set('titulos'));
       }
     });

@@ -166,6 +166,9 @@ manuais (`DEBTOR_MANAGE`) com motivo.
 * `DEBTOR_INSOLVENCY` não precisou de migration no collection (`eligibility_reasons` é texto sem `check`;
   `V0611` não foi usada). Na régua, o caso inelegível sai do segmento ou tem a etapa pulada; não há pausa própria
   ([campanhas.md](campanhas.md) §3.4).
+* Selo e diálogo de atenção especial (`app-vulnerability-badge`) mostram a situação jurídica e oferecem o registro do
+  processo para empresa (12/11/2026, [acordos-ficha-lateral-e-atencao-especial.md](acordos-ficha-lateral-e-atencao-especial.md)
+  §A3); formulários em `InsolvencyActions`, compartilhados com o aviso.
 * Aviso `app-insolvency-notice` na ficha do devedor (com as ações) e na ficha do caso; o atalho abre o caso jurídico
   aberto da empresa (um → o caso; vários → menu; nenhum → orientação de habilitar o crédito).
 * A anonimização do devedor neutraliza a nota e o motivo (texto livre); o processo, dado público, permanece.

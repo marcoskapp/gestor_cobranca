@@ -442,6 +442,10 @@ communication (`GET /communication/conversations?caseId=&status=ALL`), e o botã
 recebidas já entram no histórico como interações `MESSAGE_SENT`/`MESSAGE_RECEIVED` (`comunicacao.md` §8, decisões 8 e 9);
 a estação não cria interação própria para o envio.
 
+A aba **Acordos** (`Alt + 8`, no menu "Mais", só com `AGREEMENT_VIEW`) é o histórico de acordos do caso, com resumo
+e link para cada acordo numa aba nova; a aba Negociação mostra só os acordos em vigor (12/11/2026,
+[acordos-ficha-lateral-e-atencao-especial.md](acordos-ficha-lateral-e-atencao-especial.md) §A1).
+
 ### 8.1 "Posso contatar agora?" (operador)
 
 `GET /cases/{id}/contact-availability[?channel=&contactId=]` (`CASE_WORK`), `ContactAvailabilityQueries`. Fica no

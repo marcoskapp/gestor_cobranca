@@ -40,19 +40,30 @@ import type { OwnEvaluation } from '../../incentive/data/incentive.models';
 import { EvaluationLauncher, attendanceDate, ownEvaluationHint, ownEvaluationText } from '../../incentive/quality/evaluation-launcher';
 import { VulnerabilityBadge } from '../../compliance/vulnerability/vulnerability-badge';
 import { InsolvencyNotice } from '../../debt/components/insolvency-notice';
+import { AgreementHistory } from '../../negotiation/agreements/agreement-history';
 
-/** Abas da ficha na ordem dos atalhos `Alt + 1…7`. */
-export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação', 'Conversas'] as const;
+/** Abas da ficha na ordem dos atalhos `Alt + 1…8`. */
+export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação', 'Conversas', 'Acordos'] as const;
 /** Valor de cada aba no parâmetro `?aba=` da URL (mesma ordem de `SHEET_TABS`). */
-export const SHEET_TAB_SLUGS = ['titulos', 'contatos', 'historico', 'agenda', 'contestacoes', 'negociacao', 'conversas'] as const;
+export const SHEET_TAB_SLUGS = ['titulos', 'contatos', 'historico', 'agenda', 'contestacoes', 'negociacao', 'conversas', 'acordos'] as const;
 /** Índice da aba "Conversas" (oculta sem `INBOX_VIEW`). */
 export const CONVERSATIONS_TAB = 6;
+/** Índice da aba "Acordos" (histórico de acordos do caso; oculta sem `AGREEMENT_VIEW`). */
+export const AGREEMENTS_TAB = 7;
+
+/** Aba que a pessoa pode abrir: as ocultas pelo perfil (Conversas, Acordos) voltam para a primeira. */
+export function allowedSheetTab(i: number, can: { conversations: boolean; agreements: boolean }): number {
+  if ((i === CONVERSATIONS_TAB && !can.conversations) || (i === AGREEMENTS_TAB && !can.agreements)) {
+    return 0;
+  }
+  return i;
+}
 /** Índice da aba "Negociação" (acordo formalizado e propostas do caso). */
 export const NEGOTIATION_TAB = 5;
 /** Nome curto da aba no botão "Mais" quando ela está aberta (mesma ordem e tamanho de `SHEET_TABS`; o completo fica no menu, na dica e no rótulo acessível). */
 /** Tupla de textos com o mesmo tamanho de `T` (mapeado homomórfico: o compilador recusa nome curto faltando). */
 type TabTexts<T extends readonly unknown[]> = { readonly [K in keyof T]: string };
-export const SHEET_TAB_SHORT: TabTexts<typeof SHEET_TABS> = ['Títulos', 'Contatos', 'Histórico', 'Agenda', 'Contestações', 'Negociação', 'Conversas'];
+export const SHEET_TAB_SHORT: TabTexts<typeof SHEET_TABS> = ['Títulos', 'Contatos', 'Histórico', 'Agenda', 'Contestações', 'Negociação', 'Conversas', 'Acordos'];
 /**
  * Abas sempre à vista (as mais usadas no atendimento); as demais ficam em "Mais N ▾", que mostra o
  * nome curto da aba quando ela está ativa ("Agenda +2 ▾"). Cabe na coluna central a 1366 px sem rolagem lateral.
@@ -94,6 +105,7 @@ export function tabFromSlug(slug: string | null | undefined): number | null {
     PaymentReviewAlert,
     VulnerabilityBadge,
     InsolvencyNotice,
+    AgreementHistory,
   ],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',
@@ -134,9 +146,13 @@ export class CaseSheetPanel {
   protected readonly tabs = SHEET_TABS;
   protected readonly shortTabs = SHEET_TAB_SHORT;
   protected readonly primaryTabs = PRIMARY_TABS;
-  /** Abas recolhidas em "Mais ▾" (Conversas só com `INBOX_VIEW`). */
+  /** Abas recolhidas em "Mais ▾" (Conversas só com `INBOX_VIEW`; Acordos só com `AGREEMENT_VIEW`). */
   protected readonly moreTabs = computed(() =>
-    SHEET_TABS.map((_, i) => i).filter((i) => !PRIMARY_TABS.includes(i) && (i !== CONVERSATIONS_TAB || this.canSeeConversations())),
+    SHEET_TABS.map((_, i) => i).filter(
+      (i) =>
+        !PRIMARY_TABS.includes(i) &&
+        allowedSheetTab(i, { conversations: this.canSeeConversations(), agreements: this.canSeeAgreements() }) === i,
+    ),
   );
   protected readonly activeInMore = computed(() => this.moreTabs().includes(this.tab()));
   /** Teclas do menu "Mais" que o `ngbNav` da faixa também escuta: não sobem (o foco iria para a primeira aba). */
@@ -172,6 +188,9 @@ export class CaseSheetPanel {
   protected readonly canCancelPromise = computed(() => this.auth.hasPermission(Permission.INTERACTION_REGISTER));
   /** Aba "Conversas": só para quem vê a caixa de entrada. */
   protected readonly canSeeConversations = computed(() => this.auth.hasPermission(Permission.INBOX_VIEW));
+  /** Aba "Acordos" (histórico de acordos do caso): só para quem consulta acordos. */
+  protected readonly canSeeAgreements = computed(() => this.auth.hasPermission(Permission.AGREEMENT_VIEW));
+  protected readonly agreementsTab = AGREEMENTS_TAB;
   /** Pix de título avulso; com acordo em vigor, o Pix é da parcela (aba Negociação). */
   protected readonly canPix = computed(() => this.auth.hasPermission(Permission.PAYMENT_INSTRUCTION_CREATE) && this.sheet().collectionCase.status !== 'AGREEMENT');
   protected readonly userId = computed(() => this.auth.user()?.id ?? null);

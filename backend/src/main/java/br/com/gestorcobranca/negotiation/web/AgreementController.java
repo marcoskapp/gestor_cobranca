@@ -2,6 +2,7 @@ package br.com.gestorcobranca.negotiation.web;
 
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementFilter;
+import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementSummaryView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.PaymentView;
 import br.com.gestorcobranca.shared.paging.PageQuery;
@@ -48,6 +49,15 @@ class AgreementController {
                                        @RequestParam(required = false) String sort) {
         return agreements.search(new AgreementFilter(creditorId, debtorId, caseId, status),
                 PageQuery.of(page, size, sort));
+    }
+
+    /** Resumo do histórico de acordos (ficha do caso e do devedor); mesmo escopo da busca. */
+    @GetMapping("/summary")
+    @PreAuthorize("hasAuthority('AGREEMENT_VIEW')")
+    AgreementSummaryView summary(@RequestParam(required = false) UUID creditorId,
+                                 @RequestParam(required = false) UUID debtorId,
+                                 @RequestParam(required = false) UUID caseId) {
+        return agreements.summary(new AgreementFilter(creditorId, debtorId, caseId, null));
     }
 
     @GetMapping("/{id}")

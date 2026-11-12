@@ -5,10 +5,11 @@
     </div>
   }
   @if (stacked()) {
-    <!-- celular: lista empilhada (título, metadados com rótulo, selo à direita, linha clicável) -->
+    <!-- celular ou área estreita: lista empilhada (título, metadados com rótulo, selo à direita, linha clicável) e as
+         demais colunas ao expandir ("Mais detalhes") -->
     @let s = stack();
     <ul class="app-table__stack" [attr.aria-label]="caption()">
-      @for (row of rows(); track trackRow(row)) {
+      @for (row of rows(); track trackRow(row); let i = $index) {
         <li class="app-table__item" [class.app-table__item--link]="s.title?.mobile === 'title'">
           <div class="app-table__item-head">
             @if (s.title; as c) {
@@ -29,6 +30,29 @@
                   <dt>{{ c.header }}</dt>
                   <dd><ng-container *ngTemplateOutlet="cell; context: { $implicit: row, column: c }" /></dd>
                 </div>
+              }
+            </dl>
+          }
+          @if (s.details.length) {
+            @let open = isExpanded(row);
+            <button
+              type="button"
+              class="btn btn-link btn-sm app-table__item-toggle"
+              [attr.aria-expanded]="open"
+              [attr.aria-controls]="detailsPrefix + '-' + i"
+              (click)="toggleDetails(row)"
+            >
+              <app-icon [name]="open ? 'chevron-up' : 'chevron-down'" />
+              {{ open ? 'Menos detalhes' : 'Mais detalhes' }}
+            </button>
+            <dl class="app-table__item-details" [id]="detailsPrefix + '-' + i" [hidden]="!open">
+              @if (open) {
+                @for (c of s.details; track c.key) {
+                  <div>
+                    <dt>{{ c.header }}</dt>
+                    <dd><ng-container *ngTemplateOutlet="cell; context: { $implicit: row, column: c }" /></dd>
+                  </div>
+                }
               }
             </dl>
           }

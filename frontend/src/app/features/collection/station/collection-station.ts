@@ -1,5 +1,6 @@
 import { Component, DestroyRef, TemplateRef, computed, effect, inject, input, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { UrlStateEmbedded, injectUrlStateWriter } from '../../../shared/data/url-state';
+import { CompactTables } from '../../../shared/components/data-table/compact-tables';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbOffcanvas, NgbOffcanvasRef, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -31,7 +32,7 @@ import { CASE_ACTIONS, CaseAction, caseActions } from '../data/collection.labels
 import { QueueNames } from '../data/collection.lookups';
 import { CaseView, DisputeView, RecordResult, TaskView } from '../data/collection.models';
 import { canWorkCase, formatDuration, isWorkable, nextActionText } from '../data/collection.rules';
-import { CONVERSATIONS_TAB, CaseSheetPanel, NEGOTIATION_TAB, SHEET_TABS, SHEET_TAB_SLUGS, tabFromSlug } from './case-sheet-panel';
+import { CaseSheetPanel, NEGOTIATION_TAB, SHEET_TABS, SHEET_TAB_SLUGS, allowedSheetTab, tabFromSlug } from './case-sheet-panel';
 import { AttendanceService } from './attendance.service';
 import { ContactWindowPanel } from './contact-window';
 import { DensityInvite } from './density-invite';
@@ -61,7 +62,7 @@ const GROUP = 'Estação de cobrança';
  * Estação de cobrança em três zonas com rolagem própria: fila e "próximo caso" (esquerda,
  * recolhível), ficha do caso (centro) e painel de ação (direita): barra de ações, "posso contatar
  * agora?" em chips e o registro de interação no topo, com o botão fixo no rodapé. Atalhos do grupo
- * "Estação de cobrança" (`Alt + N`, `Alt + R`, `Alt + A`, `Alt + S`, `Alt + W`, `Alt + 1…7`) ficam
+ * "Estação de cobrança" (`Alt + N`, `Alt + R`, `Alt + A`, `Alt + S`, `Alt + W`, `Alt + 1…8`) ficam
  * ativos só nesta tela.
  *
  * O atendimento (início, rascunho do registro e aba) vive no `AttendanceService` por caso: abrir a
@@ -77,6 +78,7 @@ const GROUP = 'Estação de cobrança';
   selector: 'app-collection-station',
   imports: [
     UrlStateEmbedded,
+    CompactTables,
     FormsModule,
     RouterLink,
     NgbDropdownModule,
@@ -315,7 +317,7 @@ export class CollectionStation {
 
   /** Aba oculta sem permissão (Conversas) volta para a primeira. */
   private allowedTab(i: number): number {
-    return i === CONVERSATIONS_TAB && !this.canSeeConversations() ? 0 : i;
+    return allowedSheetTab(i, { conversations: this.canSeeConversations(), agreements: this.auth.hasPermission(Permission.AGREEMENT_VIEW) });
   }
 
   // ------------------------------------------------------------------ ações

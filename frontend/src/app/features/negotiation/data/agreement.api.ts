@@ -13,6 +13,7 @@ import {
   AgreementFilter,
   ApprovalAssessmentView,
   AgreementPaymentView,
+  AgreementSummary,
   AgreementView,
   CreateProposalRequest,
   ProposalFilter,
@@ -105,6 +106,11 @@ export class AgreementsApi {
 
   search(filter: AgreementFilter, page: PageRequest): Observable<PageResponse<AgreementView>> {
     return this.http.get<PageResponse<AgreementView>>(this.base, { params: toHttpParams({ ...filter, page: page.page, size: page.size, sort: page.sort }) });
+  }
+
+  /** Resumo do histórico (quantidade por situação, total negociado e pago, cumprimento) com os filtros da busca. */
+  summary(filter: Pick<AgreementFilter, 'creditorId' | 'debtorId' | 'caseId'>): Observable<AgreementSummary> {
+    return this.http.get<AgreementSummary>(`${this.base}/summary`, { params: toHttpParams({ ...filter }) });
   }
 
   get(id: string): Observable<AgreementView> {

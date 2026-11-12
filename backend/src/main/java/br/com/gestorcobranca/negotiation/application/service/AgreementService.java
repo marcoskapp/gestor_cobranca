@@ -12,6 +12,7 @@ import br.com.gestorcobranca.negotiation.domain.model.agreement.Agreement;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementInstallment;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementPayment;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementStatus;
+import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementSummary;
 import br.com.gestorcobranca.negotiation.domain.repository.AgreementRepository;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.Money;
@@ -115,6 +116,21 @@ class AgreementService implements AgreementUseCases {
         return PageResponse.of(agreements.search(allowed, filter.creditorId(), debtorId, filter.caseId(), status,
                 page.toPageable(SEARCH_SORT, Sort.by(Sort.Direction.DESC, "formalizedAt").and(Sort.by("id")))),
                 views::agreement);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AgreementSummaryView summary(AgreementFilter filter) {
+        accessScope.requirePermission(Permission.AGREEMENT_VIEW);
+        if (filter.creditorId() != null) {
+            accessScope.requireCreditor(filter.creditorId());
+        }
+        Set<UUID> allowed = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());
+        UUID debtorId = DebtorSelfScope.debtorFilter(currentActor.get(), filter.debtorId());
+        AgreementSummary s = AgreementSummary.of(agreements.totalsByStatus(allowed, filter.creditorId(), debtorId,
+                filter.caseId()));
+        return new AgreementSummaryView(s.total(), s.active(), s.settled(), s.broken(), s.cancelled(), s.renegotiated(),
+                s.totalAmount(), s.paidAmount(), s.fulfillmentRate());
     }
 
     @Override

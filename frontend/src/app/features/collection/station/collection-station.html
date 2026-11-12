@@ -291,8 +291,8 @@
   </div>
   <div class="offcanvas-body">
     @if (current(); as s) {
-      <!-- ficha embutida: as abas dela não mexem no ?aba= da estação -->
-      <app-debtor-detail appUrlStateEmbedded [id]="s.debtor.id" />
+      <!-- ficha embutida: as abas dela não mexem no ?aba= da estação; tabelas que não cabem no painel viram lista -->
+      <app-debtor-detail appUrlStateEmbedded appCompactTables [id]="s.debtor.id" />
     }
   </div>
 </ng-template>

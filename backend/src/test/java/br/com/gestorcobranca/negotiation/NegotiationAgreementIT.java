@@ -3,6 +3,8 @@ package br.com.gestorcobranca.negotiation;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.identity.domain.model.DefaultRoles;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
+import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementFilter;
+import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementSummaryView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.InstallmentView;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases;
@@ -333,6 +335,23 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
                 .isEqualTo(1);
         // um título nunca em dois acordos em vigor
         assertThat(count("select count(*) from negotiation.agreement_title where active")).isEqualTo(2);
+
+        // histórico de acordos: resumo por devedor e por caso, no escopo de credores de quem consulta
+        AgreementSummaryView byDebtor = asManager(() -> agreements.summary(new AgreementFilter(null, debtor, null, null)));
+        assertThat(byDebtor.total()).isEqualTo(2);
+        assertThat(byDebtor.active()).isEqualTo(1);
+        assertThat(byDebtor.renegotiated()).isEqualTo(1);
+        assertThat(byDebtor.settled() + byDebtor.broken()).isZero();
+        assertThat(byDebtor.fulfillmentRate()).isNull();
+        assertThat(byDebtor.totalAmount()).isEqualByComparingTo(old.totalAmount().add(renegotiated.totalAmount()));
+        assertThat(byDebtor.paidAmount()).isEqualByComparingTo(old.paidAmount().add(renegotiated.paidAmount()));
+        assertThat(asManager(() -> agreements.summary(new AgreementFilter(null, null, renegotiated.caseId(), null))).total())
+                .isEqualTo(2);
+        assertThat(as(operator, DefaultRoles.OPERADOR, CreditorScope.of(Set.of(creditorB)),
+                () -> agreements.summary(new AgreementFilter(null, debtor, null, null))).total()).isZero();
+        assertThatThrownBy(() -> as(operator, DefaultRoles.OPERADOR, CreditorScope.of(Set.of(creditorB)),
+                () -> agreements.summary(new AgreementFilter(creditorA, debtor, null, null))))
+                .isInstanceOf(ScopeAccessDeniedException.class);
     }
 
     @Test

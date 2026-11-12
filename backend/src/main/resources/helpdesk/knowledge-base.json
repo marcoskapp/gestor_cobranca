@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "b1db3547c7e1fa51",
+ "contentVersion": "9c9e4357c5e978e3",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -785,6 +785,7 @@
     "Eliminação de dados pede confirmação reforçada e não pode ser desfeita.",
     "As políticas de devedores, arquivos, mensagens e gravações nascem desabilitadas (simule antes de executar); as do portal e do score já descartam pelo padrão do sistema, e a assessoria pode ajustar o prazo.",
     "Atenção especial guarda só a categoria, a base legal e quem registrou: nunca escreva diagnóstico ou relato. A categoria só aparece para compliance e gestão; os demais veem \"atenção especial\".",
+    "Para empresa, a atenção especial inclui a situação jurídica: recuperação judicial, extrajudicial ou falência. Ela é o processo da empresa (número CNJ, vara, data do pedido), não um dado pessoal: aparece para todos que veem a ficha e suspende a cobrança em todos os credores enquanto estiver em curso.",
     "O assistente de IA só sugere o marcador; uma pessoa confirma a categoria ou dispensa.",
     "Reclamação: o prazo informado pelo canal prevalece; sem ele, vale o prazo do canal configurado pela assessoria."
    ],
@@ -1571,7 +1572,7 @@
    "purpose": [
     "Abre um caso escolhido em listas, agenda, propostas, conversas ou ficha do devedor. Quem opera a cobrança trabalha o caso dentro da estação (fila, cronômetro e registro da interação), com o menu marcando a estação; o endereço antigo da estação com o caso continua funcionando.",
     "Quem só consulta (jurídico, gestor, auditoria) vê os mesmos dados e abas sem fila, cronômetro, janela de contato nem registro de interação; as ações do seu perfil (atribuir, mudar a situação, atualizar a posição, simular) ficam em \"Mais ações\".",
-    "No histórico, quem avalia a qualidade tem \"Avaliar\" em cada atendimento de outra pessoa: a monitoria abre com o negociador, o caso e a data preenchidos. Empresa em recuperação judicial ou falência: o aviso mostra desde quando, o processo e o atalho para o caso jurídico; o caso fica inelegível."
+    "No histórico, quem avalia a qualidade tem \"Avaliar\" em cada atendimento de outra pessoa: a monitoria abre com o negociador, o caso e a data preenchidos. Empresa em recuperação judicial ou falência: o aviso mostra desde quando, o processo e o atalho para o caso jurídico; o caso fica inelegível, e o selo de atenção especial do cabeçalho mostra a situação jurídica (\"Marcar atenção especial\" oferece recuperação judicial, extrajudicial ou falência a quem pode registrar o processo). A aba \"Acordos\" (Alt + 8, em \"Mais\") é o histórico de acordos do caso, com resumo, situação e parcelas; cada acordo abre numa aba nova, sem interromper o atendimento. A aba Negociação mostra só os acordos em vigor."
    ],
    "profiles": [
     "OPERADOR",
@@ -2076,7 +2077,7 @@
    "objective": "Tudo sobre o devedor: posição da dívida, dados, títulos, contatos, interações, razão, titularidade e restrições.",
    "purpose": [
     "Contatos podem ser confirmados ou marcados como inválidos (o recebido numa nova carga mostra o selo \"Novo\" até a primeira tentativa, e a dica diz quando o credor o confirmou) e trazer a pessoa com quem se fala, o papel dela (financeiro, contas a pagar, sócio, jurídico ou outro) e se ela decide pelo devedor — também para pessoa física, como um recado com um parente. O nome aparece mascarado, como o número, e completo ao exibir o contato; ver o documento ou o contato completo exige permissão e fica registrado. Em \"Mais ações\" você envia o link do portal de autonegociação e baixa o dossiê de contato.",
-    "\"Abrir caso\" leva ao caso em cobrança (com mais de um, você escolhe o credor e a carteira) e \"Simular\" abre o simulador já com o credor, o devedor e o caso; aberta pela estação (painel lateral), a ficha não mostra os dois. A aba Interações reúne os 50 contatos mais recentes de todos os casos e o cartão \"Relacionados\" lista casos, acordos, pagamentos, contestações, casos jurídicos e conversas — só o que o seu perfil pode abrir.",
+    "\"Abrir caso\" leva ao caso em cobrança (com mais de um, você escolhe o credor e a carteira) e \"Simular\" abre o simulador já com o credor, o devedor e o caso; aberta pela estação (painel lateral), a ficha não mostra os dois. A aba Interações reúne os 50 contatos mais recentes de todos os casos e o cartão \"Relacionados\" lista casos, acordos, pagamentos, contestações, casos jurídicos e conversas — só o que o seu perfil pode abrir. A aba \"Acordos\" resume todos os acordos do devedor nos credores do seu escopo (acordos, em vigor, cumprimento e total pago) e lista cada um com o credor, a situação e as parcelas; o link abre o acordo numa aba nova. Aberta pela estação, as listas que não cabem no painel viram linhas com o resumo e \"Mais detalhes\", sem rolagem lateral.",
     "Empresas mostram o nome fantasia (usado nas mensagens com a variável nome_fantasia), se é a matriz ou uma filial, o atalho \"Outras unidades da empresa\" e a aba \"Representantes\": quem pode negociar pela empresa (sócio administrador, procurador ou outro), com validade e evidência. O representante não é devedor (não entra em listas, filas, campanhas nem no score); no portal, o acordo da empresa só fecha sozinho com um representante com poder e dentro da validade — sem ele, um atendente conclui. O CPF aparece mascarado; incluir, editar e encerrar exigem permissão de cadastro. Empresa em recuperação judicial ou falência: quem edita devedores registra o processo (número no padrão do CNJ e a origem da informação), convola em falência e encerra; enquanto ele estiver em curso, a cobrança da empresa fica suspensa em todos os credores."
    ],
    "profiles": [
@@ -9583,6 +9584,54 @@
    "use": "Volume alto sugere parcela mínima alta ou poucas parcelas para o perfil da carteira.",
    "screens": [
     "negotiation.policy-health"
+   ]
+  },
+  {
+   "id": "negotiation.history.count",
+   "module": "negociacao",
+   "title": "Acordos",
+   "what": "Quantos acordos o caso (ou o devedor, em todos os credores do seu escopo) já teve, em qualquer situação.",
+   "how": "Contagem de todos os acordos formalizados: em vigor, quitados, quebrados, cancelados e renegociados. Cada renegociação conta como um acordo novo; o detalhe mostra quantos foram substituídos por renegociação.",
+   "use": "Muitos acordos para a mesma dívida indicam promessas que não se sustentam: antes de propor outro, confira por que os anteriores terminaram.",
+   "screens": [
+    "collection.case",
+    "debt.debtor-detail"
+   ]
+  },
+  {
+   "id": "negotiation.history.active",
+   "module": "negociacao",
+   "title": "Acordos em vigor",
+   "what": "Acordos formalizados ou em pagamento, com parcelas a pagar.",
+   "how": "Contagem dos acordos nas situações \"Formalizado\" e \"Em pagamento\".",
+   "use": "Com acordo em vigor, a negociação nova costuma ser renegociação; acompanhe as parcelas na aba Negociação ou no próprio acordo.",
+   "screens": [
+    "collection.case",
+    "debt.debtor-detail"
+   ]
+  },
+  {
+   "id": "negotiation.history.fulfillment",
+   "module": "negociacao",
+   "title": "Cumprimento dos acordos",
+   "what": "Quanto dos acordos já encerrados o devedor cumpriu até o fim.",
+   "how": "Acordos quitados ÷ (quitados + quebrados). Renegociados e cancelados não entram: o desfecho do renegociado está no acordo seguinte e o cancelamento não depende do devedor. Sem acordo quitado nem quebrado, aparece \"—\".",
+   "use": "O sucesso da negociação é o acordo que o devedor cumpre. Cumprimento baixo pede parcela menor ou entrada mais leve, mesmo que o acordo feche mais devagar.",
+   "screens": [
+    "collection.case",
+    "debt.debtor-detail"
+   ]
+  },
+  {
+   "id": "negotiation.history.paid",
+   "module": "negociacao",
+   "title": "Total pago nos acordos",
+   "what": "Quanto o devedor já pagou nos acordos, comparado ao total acordado.",
+   "how": "Soma do valor pago (líquido de estornos) de todos os acordos, inclusive os renegociados e quebrados; o detalhe soma o total de todos os acordos.",
+   "use": "Mostra o que de fato entrou. Total acordado muito maior que o pago, com vários acordos, indica renegociações em sequência.",
+   "screens": [
+    "collection.case",
+    "debt.debtor-detail"
    ]
   },
   {

@@ -1,6 +1,6 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, contentChildren, inject, input, output } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, afterRenderEffect, computed, contentChildren, inject, input, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NgbPagination } from '@ng-bootstrap/ng-bootstrap';
 import { map } from 'rxjs';
@@ -12,6 +12,7 @@ import { InfoHint } from '../info-hint/info-hint';
 import { IconName } from '../icon/icon-names';
 import { Skeleton } from '../skeleton/skeleton';
 import { CellDef } from './cell-def';
+import { DATA_TABLE_STACK } from './compact-tables';
 
 export interface TableColumn {
   key: string;
@@ -37,6 +38,8 @@ export interface StackLayout {
   badge: TableColumn | undefined;
   meta: TableColumn[];
   actions: TableColumn | undefined;
+  /** Demais colunas (inclusive as `hidden` do resumo): aparecem ao expandir a linha ("Mais detalhes"). */
+  details: TableColumn[];
 }
 
 const STACK_META = 3;
@@ -48,7 +51,8 @@ export function stackLayout(columns: readonly TableColumn[]): StackLayout {
   const badge = content.find((c) => c.mobile === 'badge') ?? content.find((c) => c !== title && c.mobile === undefined && c.key === 'status');
   const explicit = content.filter((c) => c.mobile === 'meta');
   const meta = explicit.length ? explicit : content.filter((c) => c !== title && c !== badge && c.mobile === undefined).slice(0, STACK_META);
-  return { title, badge, meta, actions: columns.find((c) => c.actions) };
+  const details = columns.filter((c) => !c.actions && c !== title && c !== badge && !meta.includes(c));
+  return { title, badge, meta, actions: columns.find((c) => c.actions), details };
 }
 
 export interface TablePage {
@@ -84,7 +88,9 @@ let nextId = 0;
  *
  * Celular (< 576 px): lista empilhada em vez da tabela — coluna principal como título, até três
  * metadados com rótulo, selo à direita e a linha inteira clicável quando o título tem um link
- * (ver `TableColumn.mobile`). A paginação some quando tudo cabe numa página.
+ * (ver `TableColumn.mobile`); as demais colunas aparecem ao expandir a linha ("Mais detalhes"). A
+ * paginação some quando tudo cabe numa página. Dentro de `appCompactTables` (painel lateral), a
+ * lista empilhada vale também quando a tabela não cabe na largura da área, sem rolagem lateral.
  */
 @Component({
   selector: 'app-data-table',
@@ -119,14 +125,77 @@ export class DataTable<T> {
   protected readonly templates = computed(() => new Map(this.cells().map((c) => [c.appCell(), c.template])));
   protected readonly trackRow = (row: T): unknown => this.rowKey()(row);
 
-  /** Lista empilhada abaixo de 576 px (ponto `sm` do Bootstrap). */
-  protected readonly stacked = toSignal(
+  /** Tela abaixo de 576 px (ponto `sm` do Bootstrap). */
+  private readonly narrowScreen = toSignal(
     inject(BreakpointObserver)
       .observe('(max-width: 575.98px)')
       .pipe(map((state) => state.matches)),
     { initialValue: false },
   );
+  /** `appCompactTables`: a tabela não coube na largura da própria área (`fit`). */
+  private readonly overflowing = signal(false);
+  /** Largura de que a tabela precisou quando transbordou: volta a ser tabela quando a área chega a ela. */
+  private neededWidth = 0;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  /** Lista empilhada: tela estreita ou, com `appCompactTables`, tabela que não cabe na área. */
+  protected readonly stacked = computed(() => this.narrowScreen() || this.overflowing());
   protected readonly stack = computed(() => stackLayout(this.columns()));
+  /** Linhas expandidas na lista empilhada (pela chave da linha). */
+  private readonly expanded = signal<ReadonlySet<unknown>>(new Set());
+  protected readonly detailsPrefix = `app-table-details-${nextId}`;
+
+  constructor() {
+    if (inject(DATA_TABLE_STACK, { optional: true }) !== 'fit') {
+      return;
+    }
+    // mede depois de cada renderização que muda linhas, colunas ou o modo, e quando a área muda de largura
+    afterRenderEffect(() => {
+      this.rows();
+      this.columns();
+      this.stacked();
+      this.fit();
+    });
+    if (typeof ResizeObserver !== 'undefined') {
+      const resize = new ResizeObserver(() => this.fit());
+      afterNextRender(() => resize.observe(this.host.nativeElement));
+      inject(DestroyRef).onDestroy(() => resize.disconnect());
+    }
+  }
+
+  /**
+   * Tabela mais larga que a área → lista; lista numa área que já comporta a tabela medida → tabela de novo. A largura
+   * guardada é a que o host precisa ter (tabela + borda do cartão), a mesma caixa comparada na volta: sem isso, na
+   * largura exata as duas condições valem e a tela alterna sem parar.
+   */
+  private fit(): void {
+    const host = this.host.nativeElement;
+    if (this.overflowing()) {
+      if (host.clientWidth > 0 && host.clientWidth >= this.neededWidth) {
+        this.overflowing.set(false);
+      }
+      return;
+    }
+    const wrap = host.querySelector<HTMLElement>('.table-responsive');
+    if (wrap && wrap.clientWidth > 0 && wrap.scrollWidth > wrap.clientWidth + 1) {
+      this.neededWidth = wrap.scrollWidth + (host.clientWidth - wrap.clientWidth);
+      this.overflowing.set(true);
+    }
+  }
+
+  protected isExpanded(row: T): boolean {
+    return this.expanded().has(this.trackRow(row));
+  }
+
+  protected toggleDetails(row: T): void {
+    const key = this.trackRow(row);
+    this.expanded.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(key)) {
+        next.add(key);
+      }
+      return next;
+    });
+  }
 
   /** Paginador só quando há mais de uma página (ou fora da primeira). */
   protected showPager(p: TablePage): boolean {

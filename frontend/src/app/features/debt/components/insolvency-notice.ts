@@ -5,15 +5,12 @@ import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { catchError, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
-import { NotificationService } from '../../../core/notification/notification.service';
 import { Icon } from '../../../shared/components/icon/icon';
-import { toLocalDate } from '../../../shared/models/dates';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
-import { FormDialogService, options } from '../../legal/components/form-dialog';
 import { LegalMattersApi } from '../../legal/data/legal.api';
 import { MatterView } from '../../legal/data/legal.models';
-import { cnjValid } from '../../legal/data/legal.rules';
 import { INSOLVENCY_KIND_LABELS, INSOLVENCY_KIND_PHRASES, InsolvencyApi, InsolvencyKind, ProceedingView } from '../data/insolvency';
+import { InsolvencyActions } from '../data/insolvency-actions';
 
 /**
  * Recuperação judicial, extrajudicial ou falência da empresa devedora (cobrança B2B §7) na ficha do devedor e na ficha
@@ -103,8 +100,7 @@ export class InsolvencyNotice {
   private readonly api = inject(InsolvencyApi);
   private readonly mattersApi = inject(LegalMattersApi);
   private readonly auth = inject(AuthService);
-  private readonly forms = inject(FormDialogService);
-  private readonly notifications = inject(NotificationService);
+  private readonly actions = inject(InsolvencyActions);
 
   protected readonly kindLabels = INSOLVENCY_KIND_LABELS;
   protected readonly busy = signal(false);
@@ -119,7 +115,8 @@ export class InsolvencyNotice {
   protected readonly canSeeLegal = computed(() => this.auth.hasPermission(Permission.LEGAL_VIEW));
 
   private readonly resource = rxResource({
-    params: () => (this.allowed() ? { id: this.debtorId(), n: this.reload() } : undefined),
+    // recarrega também quando o processo muda pelo selo de atenção especial (`InsolvencyActions.revision`)
+    params: () => (this.allowed() ? { id: this.debtorId(), n: this.reload(), r: this.actions.revision() } : undefined),
     stream: ({ params }) => this.api.ofDebtor(params.id),
   });
   protected readonly state = computed(() => (this.resource.hasValue() ? this.resource.value() : null));
@@ -147,96 +144,14 @@ export class InsolvencyNotice {
   }
 
   protected register(): void {
-    this.forms
-      .open(
-        {
-          title: 'Registrar recuperação judicial ou falência',
-          message:
-            'A cobrança da empresa fica suspensa em todos os credores (sem contato nem régua) enquanto o processo estiver em curso. ' +
-            'Interações registradas e acordos em vigor não são alterados.',
-          submitLabel: 'Registrar',
-          fields: [
-            { key: 'kind', label: 'Tipo', type: 'select', required: true, options: options(INSOLVENCY_KIND_LABELS), value: 'JUDICIAL_RECOVERY' },
-            {
-              key: 'caseNumber',
-              label: 'Número do processo',
-              type: 'text',
-              required: true,
-              maxLength: 30,
-              hint: 'Padrão CNJ: NNNNNNN-DD.AAAA.J.TR.OOOO',
-              validate: (v) => (cnjValid(String(v)) ? null : 'Número CNJ inválido (confira os dígitos verificadores).'),
-            },
-            { key: 'filedOn', label: 'Data do pedido', type: 'date', required: true, hint: 'Distribuição; o ano é o do número do processo.' },
-            { key: 'court', label: 'Vara ou juízo (opcional)', type: 'text', maxLength: 150 },
-            {
-              key: 'note',
-              label: 'Origem da informação',
-              type: 'textarea',
-              required: true,
-              maxLength: 500,
-              wide: true,
-              hint: 'Ex.: edital no diário oficial, comunicado do administrador judicial. Não registre dados pessoais.',
-            },
-          ],
-          submit: (v) =>
-            this.api.register(this.debtorId(), {
-              kind: v['kind'] as InsolvencyKind,
-              caseNumber: String(v['caseNumber']),
-              court: (v['court'] as string | null) || null,
-              filedOn: String(v['filedOn']),
-              note: String(v['note']),
-            }),
-        },
-        'lg',
-      )
-      .subscribe(() => this.changed('Processo registrado. Os casos da empresa ficam suspensos em instantes.'));
+    this.actions.register(this.debtorId()).subscribe();
   }
 
   protected convert(p: ProceedingView): void {
-    this.forms
-      .open({
-        title: 'Convolar recuperação judicial em falência',
-        message: 'O mesmo processo passa a ser de falência (Lei 11.101/2005, art. 73). A cobrança continua suspensa.',
-        submitLabel: 'Convolar',
-        details: [{ label: 'Processo', value: p.caseNumber }],
-        fields: [
-          { key: 'convertedOn', label: 'Decretação da falência', type: 'date', required: true, value: toLocalDate(new Date()) },
-          { key: 'reason', label: 'Motivo', type: 'textarea', required: true, maxLength: 500, wide: true, hint: 'Ex.: plano rejeitado em assembleia.' },
-        ],
-        submit: (v) => this.api.convertToBankruptcy(p.id, String(v['convertedOn']), String(v['reason'])),
-      })
-      .subscribe(() => this.changed('Recuperação judicial convolada em falência.'));
+    this.actions.convert(p).subscribe();
   }
 
   protected end(p: ProceedingView): void {
-    this.forms
-      .open({
-        title: 'Encerrar processo',
-        message: 'Com o processo encerrado, os casos da empresa voltam a ser avaliados para contato e régua.',
-        submitLabel: 'Encerrar',
-        details: [
-          { label: 'Tipo', value: INSOLVENCY_KIND_LABELS[p.kind] },
-          { label: 'Processo', value: p.caseNumber },
-        ],
-        fields: [
-          { key: 'endedOn', label: 'Encerrado em', type: 'date', required: true, value: toLocalDate(new Date()) },
-          {
-            key: 'reason',
-            label: 'Motivo',
-            type: 'textarea',
-            required: true,
-            maxLength: 500,
-            wide: true,
-            hint: 'Ex.: plano cumprido, processo extinto, registro por engano.',
-          },
-        ],
-        submit: (v) => this.api.end(p.id, String(v['endedOn']), String(v['reason'])),
-      })
-      .subscribe(() => this.changed('Processo encerrado. A cobrança da empresa volta a ser avaliada.'));
-  }
-
-  private changed(message: string): void {
-    this.notifications.success(message);
-    this.reload.update((n) => n + 1);
+    this.actions.end(p).subscribe();
   }
 }

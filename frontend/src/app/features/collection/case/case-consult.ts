@@ -20,7 +20,7 @@ import { AssignDialog, AssignDialogData } from '../cases/assign-dialog';
 import { CasesApi, TabulationsApi } from '../data/collection.api';
 import { CASE_ACTIONS, CaseAction, caseActions } from '../data/collection.labels';
 import { CaseView } from '../data/collection.models';
-import { CONVERSATIONS_TAB, CaseSheetPanel, SHEET_TAB_SLUGS, tabFromSlug } from '../station/case-sheet-panel';
+import { CaseSheetPanel, SHEET_TAB_SLUGS, allowedSheetTab, tabFromSlug } from '../station/case-sheet-panel';
 
 /**
  * Ficha do caso em modo consulta (J9, `/cobranca/casos/:id` para quem não tem `CASE_WORK`: jurídico, gestor,
@@ -103,7 +103,7 @@ export class CaseConsult {
   ]);
   protected readonly crumb = recordLabel(() => this.current()?.debtor.name);
 
-  /** Aba da ficha (`?aba=`); a de Conversas só com `INBOX_VIEW`. */
+  /** Aba da ficha (`?aba=`); a de Conversas só com `INBOX_VIEW` e a de Acordos só com `AGREEMENT_VIEW`. */
   protected readonly tab = signal(0);
 
   /** Ações do perfil, todas no "Mais ações" (consulta: nenhuma primária concorre com a leitura). */
@@ -132,7 +132,11 @@ export class CaseConsult {
     // aba da URL ao abrir; trocada, grava em `?aba=` (estado de tela, sem nova entrada no histórico)
     effect(() => {
       const fromUrl = tabFromSlug(this.aba());
-      untracked(() => this.tab.set(fromUrl === CONVERSATIONS_TAB && !this.canSeeConversations() ? 0 : (fromUrl ?? 0)));
+      untracked(() =>
+        this.tab.set(
+          allowedSheetTab(fromUrl ?? 0, { conversations: this.canSeeConversations(), agreements: this.auth.hasPermission(Permission.AGREEMENT_VIEW) }),
+        ),
+      );
     });
     effect(() => {
       const tab = this.tab();

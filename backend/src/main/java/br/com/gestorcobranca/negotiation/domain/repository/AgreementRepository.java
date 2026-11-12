@@ -5,6 +5,7 @@ import br.com.gestorcobranca.shared.paging.ChangeQuery;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.Agreement;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementPayment;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementStatus;
+import br.com.gestorcobranca.negotiation.domain.model.agreement.AgreementSummary;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -31,6 +32,13 @@ public interface AgreementRepository {
 
     Page<Agreement> search(Collection<UUID> creditorIds, UUID creditorId, UUID debtorId, UUID caseId,
                            AgreementStatus status, Pageable page);
+
+    /**
+     * Quantidade, total negociado e total pago por situação, com os mesmos filtros da busca ({@code creditorIds}
+     * nulo = sem restrição de escopo; vazio = nenhum acordo).
+     */
+    List<AgreementSummary.StatusTotals> totalsByStatus(Collection<UUID> creditorIds, UUID creditorId, UUID debtorId,
+                                                       UUID caseId);
 
     /** Ids dos acordos em vigor com parcela não paga vencida antes de {@code date}, em ordem de id. */
     List<UUID> findActiveIdsWithInstallmentDueBefore(LocalDate date, UUID afterId, int limit);

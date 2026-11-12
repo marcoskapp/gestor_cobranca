@@ -772,7 +772,7 @@ export const TOURS: readonly TourDefinition[] = [
       {
         anchor: 'case-tabs',
         title: 'Ficha do caso',
-        body: 'Títulos, contatos, histórico e negociação à vista; agenda, contestações e conversas em "Mais". Alt + 1 a Alt + 7 alternam as abas.',
+        body: 'Títulos, contatos, histórico e negociação à vista; agenda, contestações, conversas e acordos em "Mais". Alt + 1 a Alt + 8 trocam de aba.',
       },
       {
         anchor: 'case-actions',

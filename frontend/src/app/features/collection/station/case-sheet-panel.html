@@ -17,7 +17,7 @@
   <!-- selos do caso (situação, elegibilidade e marcadores como o de vulnerabilidade): mesma área na estação e na consulta -->
   <div class="sp-head__chips" data-tour="case-badges">
     <app-status-chip domain="case" [status]="cs.status" />
-    <app-vulnerability-badge [debtorId]="cs.debtorId" />
+    <app-vulnerability-badge [debtorId]="cs.debtorId" [personType]="d.personType" />
     @if (cs.eligible) {
       <span class="app-status app-status--success"><app-icon class="app-status__icon" name="check-circle" />Elegível</span>
     } @else {
@@ -96,7 +96,7 @@
   <app-payment-review-alert class="sp-alert" [pending]="r.pending" [rejected]="r.rejected" [compact]="true" [breakSuspension]="r.breakSuspension" />
 }
 
-<!-- abas mais usadas à vista; as demais em "Mais N ▾" (com a aba recolhida ativa: "<aba> +N ▾"; atalhos Alt + 1…7 no tooltip) -->
+<!-- abas mais usadas à vista; as demais em "Mais N ▾" (com a aba recolhida ativa: "<aba> +N ▾"; atalhos Alt + 1…8 no tooltip) -->
 <ul ngbNav #nav="ngbNav" class="nav-underline app-tabs sp-tabs" [activeId]="tab()" (activeIdChange)="tab.set($event)" data-tour="case-tabs">
   <li [ngbNavItem]="0" [class.d-none]="!primaryTabs.includes(0)">
     <button ngbNavLink type="button" ngbTooltip="Alt + 1">Títulos ({{ sheet().titles.length }})</button>
@@ -364,6 +364,7 @@
           [inStation]="true"
           [revision]="dealRevision()"
           (simulateRequested)="simulateRequested.emit()"
+          (historyRequested)="tab.set(agreementsTab)"
         />
       </div>
     </ng-template>
@@ -376,6 +377,14 @@
         <div data-tour="case-conversations">
           <app-case-conversations [caseId]="cs.id" [revision]="conversationsRevision()" />
         </div>
+      </ng-template>
+    </li>
+  }
+  @if (canSeeAgreements()) {
+    <li [ngbNavItem]="7" class="d-none">
+      <button ngbNavLink type="button" tabindex="-1">Acordos</button>
+      <ng-template ngbNavContent>
+        <app-agreement-history [caseId]="cs.id" [creditorId]="cs.creditorId" [debtorId]="cs.debtorId" [revision]="dealRevision()" />
       </ng-template>
     </li>
   }

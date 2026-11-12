@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 29,
+    date: '2026-11-12',
+    title: 'Histórico de acordos e ficha lateral mais legível',
+    items: [
+      { text: 'Aba "Acordos" no caso e na ficha do devedor: resumo (acordos, em vigor, cumprimento e total pago) e cada acordo com a situação e as parcelas, aberto numa aba nova.', route: '/negociacao/acordos' },
+      { text: 'Ficha do devedor no painel ao lado da estação: listas em linhas com o resumo e "Mais detalhes", sem rolagem lateral (no celular também).', route: '/cobranca/fila' },
+      { text: 'Recuperação judicial, extrajudicial e falência da empresa aparecem no selo de atenção especial e podem ser marcadas por ali.', route: '/devedores' },
+    ],
+  },
+  {
     version: 28,
     date: '2026-11-11',
     title: 'Contato novo, cobrança de empresas e melhor forma de contato',

@@ -276,6 +276,7 @@ O compliance aciona a anonimização chamando `DebtorUseCases#anonymize` (debt);
 | `/proposals/{id}/adopt` | `POST` | `NEGOTIATION_PROPOSE` |
 | `/proposals/{id}/accept` · `/formalize` | `POST` | `AGREEMENT_FORMALIZE` |
 | `/agreements` · `/agreements/{id}` · `/installments` · `/payments` · `/term` | `GET` | `AGREEMENT_VIEW` |
+| `/agreements/summary` (filtros: credor, devedor, caso) | `GET` — resumo do histórico: quantidade por situação, total negociado e pago, cumprimento ([acordos-ficha-lateral-e-atencao-especial.md](acordos-ficha-lateral-e-atencao-especial.md) §A1) | `AGREEMENT_VIEW` |
 
 Assistente (ator `ASSISTANT`, escopo = credor da conversa): consulta e busca de acordos do credor (24/10/2026 — Pix na conversa, ADR-0009; a ligação ao devedor é garantida no assistant); pagamentos, termo e cancelamento só dos acordos de que a versão da política participou (`closer`/`originator`); propostas só as próprias.
 
@@ -373,3 +374,11 @@ servidor; o que mudou é o que ele **mostra** a quem decide:
   Negociador júnior", nunca "alçada JUNIOR").
 * Teste: `NegotiationAgreementIT.fullFlowApprovalAcceptanceTermFormalizationAndSettlementInTheTitleLedger` (filtro de
   credor, gaps do júnior × gestor, quem propôs vê sem limite de aprovador).
+
+### 10.15 Histórico de acordos no caso e na ficha do devedor (12/11/2026)
+
+Aba **Acordos** na ficha do caso (estação e consulta, `Alt + 8`) e na ficha do devedor, com o resumo calculado no
+servidor (`AgreementUseCases#summary`, consulta agrupada por situação sob RLS e no escopo de credores) e a lista de
+todos os acordos; cada acordo abre numa aba nova. A aba Negociação passa a mostrar só os acordos em vigor. Desenho em
+[acordos-ficha-lateral-e-atencao-especial.md](acordos-ficha-lateral-e-atencao-especial.md) §A1; teste em
+`NegotiationAgreementIT.installmentsReversalBreakAndRenegotiationWithoutRecountingRecovery` e `AgreementSummaryTest`.

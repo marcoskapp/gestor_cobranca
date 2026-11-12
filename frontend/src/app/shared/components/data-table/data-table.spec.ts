@@ -5,6 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { PageRequest } from '../../models/page';
 import { CellDef } from './cell-def';
 import { DataTable, TablePage, TableSort, pageRangeLabel, stackLayout } from './data-table';
+import { CompactTables } from './compact-tables';
 
 interface Row {
   id: string;
@@ -164,6 +165,9 @@ describe('DataTable (Bootstrap)', () => {
       { key: 'stage', header: 'Fase', mobile: 'badge' },
     ]);
     expect([custom.title?.key, custom.badge?.key, custom.meta.map((c) => c.key)]).toEqual(['name', 'stage', ['amount']]);
+    // "Mais detalhes": o que não está no resumo, inclusive as colunas ocultas no resumo
+    expect(custom.details.map((c) => c.key)).toEqual(['code']);
+    expect(layout.details.map((c) => c.key)).toEqual(['updatedAt']);
   });
 
   it('textos da faixa', () => {
@@ -217,5 +221,104 @@ describe('DataTable no celular (< 576 px)', () => {
     ]);
     expect(item.textContent).not.toContain('Pessoa física');
     expect(item.querySelector('.app-table__item-actions button')?.textContent).toBe('Abrir');
+  });
+});
+
+describe('DataTable: linha expansível na lista empilhada', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [{ provide: BreakpointObserver, useValue: { observe: () => of({ matches: true, breakpoints: {} }), isMatched: () => true } }],
+    });
+  });
+
+  it('"Mais detalhes" abre as colunas fora do resumo, com rótulo, e fecha de novo', () => {
+    const fixture = TestBed.createComponent(StackHost);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const toggle = el.querySelector<HTMLButtonElement>('.app-table__item-toggle')!;
+    expect(toggle.textContent?.trim()).toBe('Mais detalhes');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const details = el.querySelector<HTMLElement>('.app-table__item-details')!;
+    expect(details.id).toBe(toggle.getAttribute('aria-controls'));
+    expect([...details.querySelectorAll('div')].map((d) => [d.querySelector('dt')?.textContent, d.querySelector('dd')?.textContent?.trim()])).toEqual([
+      ['Tipo', 'Pessoa física'],
+    ]);
+    toggle.click();
+    fixture.detectChanges();
+    expect(el.querySelector<HTMLElement>('.app-table__item-details')?.hidden).toBe(true);
+    expect(toggle.textContent?.trim()).toBe('Mais detalhes');
+  });
+});
+
+@Component({
+  selector: 'app-stack-host-fit',
+  imports: [DataTable],
+  template: `<app-data-table caption="Devedores" [rows]="rows" [columns]="columns" />`,
+})
+class FitTable extends StackHost {}
+
+@Component({
+  imports: [FitTable, CompactTables],
+  template: `<div appCompactTables><app-stack-host-fit /></div>`,
+})
+class FitHost {}
+
+describe('DataTable dentro de appCompactTables (painel lateral)', () => {
+  let width = 400;
+  let observed: (() => void) | null = null;
+
+  beforeEach(() => {
+    width = 400;
+    observed = null;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          observed = cb;
+        }
+        observe = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
+    // o jsdom não calcula layout: a tabela precisa de 700 px; a área tem `width`
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => width);
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('table-responsive') ? 700 : width;
+    });
+    TestBed.configureTestingModule({
+      providers: [{ provide: BreakpointObserver, useValue: { observe: () => of({ matches: false, breakpoints: {} }), isMatched: () => false } }],
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('tabela que não cabe na área vira lista; com a área larga de novo, volta a ser tabela', async () => {
+    const fixture = TestBed.createComponent(FitHost);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('table')).toBeNull();
+    expect(el.querySelector('ul.app-table__stack')).not.toBeNull();
+
+    width = 900;
+    observed?.();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.querySelector('table')).not.toBeNull();
+  });
+
+  it('fora de appCompactTables, a tela larga mantém a tabela (com rolagem lateral)', async () => {
+    const fixture = TestBed.createComponent(FitTable);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('table')).not.toBeNull();
   });
 });

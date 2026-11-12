@@ -192,6 +192,21 @@ export interface AgreementView {
   version: number;
 }
 
+/** `AgreementUseCases.AgreementSummaryView`: resumo do histórico de acordos (caso ou devedor), no escopo de credores. */
+export interface AgreementSummary {
+  total: number;
+  /** Formalizados ou em pagamento. */
+  active: number;
+  settled: number;
+  broken: number;
+  cancelled: number;
+  renegotiated: number;
+  totalAmount: Amount;
+  paidAmount: Amount;
+  /** Quitados ÷ (quitados + quebrados), de 0 a 1; nulo sem acordo quitado nem quebrado. */
+  fulfillmentRate: number | null;
+}
+
 export interface AgreementFilter {
   creditorId: string | null;
   debtorId: string | null;

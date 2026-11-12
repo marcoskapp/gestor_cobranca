@@ -34,6 +34,12 @@ public interface AgreementUseCases {
      */
     ChangePage<AgreementView> changes(UUID creditorId, ChangeQuery query);
 
+    /**
+     * Resumo dos acordos com os filtros da busca (sem a situação): quantidade por situação, total negociado, total pago
+     * e cumprimento (quitados ÷ quitados + quebrados). {@code AGREEMENT_VIEW} e escopo por credor, como na busca.
+     */
+    AgreementSummaryView summary(AgreementFilter filter);
+
     List<PaymentView> payments(UUID agreementId);
 
     AgreementView cancel(UUID agreementId, String reason);
@@ -51,6 +57,14 @@ public interface AgreementUseCases {
     TermContent openTerm(UUID agreementId);
 
     record AgreementFilter(UUID creditorId, UUID debtorId, UUID caseId, String status) {
+    }
+
+    /**
+     * @param active          formalizados ou em pagamento
+     * @param fulfillmentRate quitados ÷ (quitados + quebrados), de 0 a 1; nulo sem acordo quitado nem quebrado
+     */
+    record AgreementSummaryView(long total, long active, long settled, long broken, long cancelled, long renegotiated,
+                                BigDecimal totalAmount, BigDecimal paidAmount, BigDecimal fulfillmentRate) {
     }
 
     record ParticipantView(String actorType, UUID actorId, String role) {

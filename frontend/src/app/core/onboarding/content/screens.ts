@@ -159,7 +159,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.contact-novelty', version: 1, path: '/devedores/contatos-recebidos' },
   {
     key: 'debt.debtor-detail',
-    version: 10,
+    version: 11,
     path: '/devedores/:id',
     tourId: 'debt.debtor-detail',
     changes: [
@@ -193,6 +193,7 @@ export const SCREENS: readonly ScreenGuide[] = [
         ],
       },
       { version: 10, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
+      { version: 11, items: ['Aba "Acordos": resumo de todos os acordos do devedor (acordos, em vigor, cumprimento e total pago) e cada acordo com o credor, a situação e as parcelas; o link abre o acordo numa aba nova.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial, e "Marcar atenção especial" oferece essas situações a quem pode registrar o processo.', 'Aberta pela estação, as listas que não cabem no painel viram linhas com o resumo e "Mais detalhes", sem rolagem lateral.'] },
     ],
   },
   {
@@ -264,7 +265,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.queue',
-    version: 16,
+    version: 17,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -301,11 +302,12 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 12, items: ['Histórico: a interação que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar" (cada avaliador avalia um atendimento uma vez).'] }, { version: 13, items: ['Agendar retorno para outra pessoa: a lista mostra só quem pode trabalhar o caso.'] },
       { version: 14, items: ['Empresa em recuperação judicial ou falência: o caso fica inelegível e a ficha mostra desde quando, o processo e o atalho para o caso jurídico.'] }, { version: 15, items: ['Cartão "Melhor forma de contato" (para quem vê o score): canal preferido e os contatos do devedor pela taxa de atendimento ou resposta, com a explicação, a confiança e o melhor horário de cada um.'] },
       { version: 16, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
+      { version: 17, items: ['Aba "Acordos" (Alt + 8, em "Mais"): histórico de acordos do caso com resumo, situação e parcelas; cada acordo abre numa aba nova, sem interromper o atendimento. A aba Negociação mostra só os acordos em vigor.', 'Ficha do devedor no painel ao lado: contatos, títulos e demais listas em linhas com o resumo e "Mais detalhes", sem rolagem lateral.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial do cabeçalho.'] },
     ],
   },
   {
     key: 'collection.case',
-    version: 15,
+    version: 16,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -345,6 +347,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 13, items: ['Empresa em recuperação judicial ou falência: o caso fica inelegível e a ficha mostra desde quando, o processo e o atalho para o caso jurídico.'] },
       { version: 14, items: ['Cartão "Melhor forma de contato" (para quem vê o score): canal preferido e os contatos do devedor pela taxa de atendimento ou resposta, com a explicação, a confiança e o melhor horário de cada um.'] },
       { version: 15, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
+      { version: 16, items: ['Aba "Acordos" (Alt + 8, em "Mais"): histórico de acordos do caso com resumo, situação e parcelas; cada acordo abre numa aba nova. A aba Negociação mostra só os acordos em vigor.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial do cabeçalho.'] },
     ],
   },
   {

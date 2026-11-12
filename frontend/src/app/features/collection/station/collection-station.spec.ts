@@ -24,7 +24,7 @@ import { UiStateStore } from '../../../core/preferences/ui-state.store';
 import { CaseSheet, CaseView, ContactAvailability, TabulationView } from '../data/collection.models';
 import { addDays, zonedNow } from '../data/collection.rules';
 import { NameMap } from '../../../shared/data/name-map';
-import { CaseSheetPanel } from './case-sheet-panel';
+import { CaseSheetPanel, allowedSheetTab, tabFromSlug } from './case-sheet-panel';
 import { CollectionStation } from './collection-station';
 import { DENSITY_INVITE_ID } from './density-invite';
 
@@ -258,6 +258,19 @@ describe('CollectionStation', () => {
     expect(t).toContain('foi recusado em 26/10/2026');
     expect(alert.querySelector('.pra--compact')).not.toBeNull();
     expect(alert.querySelector('a[href="/negociacao/acordos/a-1"]')).not.toBeNull();
+  });
+
+  it('aba Acordos (Alt + 8): oculta e sem atalho sem AGREEMENT_VIEW', async () => {
+    const fixture = await render('k-1');
+    expect(fixture.componentInstance['tab']()).toBe(0);
+    press('8');
+    fixture.detectChanges();
+    expect(fixture.componentInstance['tab']()).toBe(0);
+    expect([...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-tour="case-tabs"] .dropdown-item')].map((b) => b.textContent)).not.toContain('Acordos');
+    expect(allowedSheetTab(7, { conversations: false, agreements: true })).toBe(7);
+    expect(allowedSheetTab(7, { conversations: true, agreements: false })).toBe(0);
+    expect(allowedSheetTab(6, { conversations: false, agreements: true })).toBe(0);
+    expect(tabFromSlug('acordos')).toBe(7);
   });
 
   it('Mensagem e aba Conversas: aparecem só com as permissões de comunicação', async () => {

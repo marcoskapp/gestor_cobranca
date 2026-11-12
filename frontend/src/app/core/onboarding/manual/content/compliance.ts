@@ -23,6 +23,7 @@ export const MANUAL: ModuleManual = {
     'Eliminação de dados pede confirmação reforçada e não pode ser desfeita.',
     'As políticas de devedores, arquivos, mensagens e gravações nascem desabilitadas (simule antes de executar); as do portal e do score já descartam pelo padrão do sistema, e a assessoria pode ajustar o prazo.',
     'Atenção especial guarda só a categoria, a base legal e quem registrou: nunca escreva diagnóstico ou relato. A categoria só aparece para compliance e gestão; os demais veem "atenção especial".',
+    'Para empresa, a atenção especial inclui a situação jurídica: recuperação judicial, extrajudicial ou falência. Ela é o processo da empresa (número CNJ, vara, data do pedido), não um dado pessoal: aparece para todos que veem a ficha e suspende a cobrança em todos os credores enquanto estiver em curso.',
     'O assistente de IA só sugere o marcador; uma pessoa confirma a categoria ou dispensa.',
     'Reclamação: o prazo informado pelo canal prevalece; sem ele, vale o prazo do canal configurado pela assessoria.',
   ],

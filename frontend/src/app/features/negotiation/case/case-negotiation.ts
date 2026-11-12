@@ -8,6 +8,7 @@ import { Amount } from '../../../shared/components/amount/amount';
 import { Icon } from '../../../shared/components/icon/icon';
 import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { valueOr } from '../../../shared/data/resource-value';
+import { PageResponse } from '../../../shared/models/page';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { PaymentLauncher } from '../../payment/data/payment-launcher';
 import { AgreementsApi, ProposalsApi } from '../data/agreement.api';
@@ -17,8 +18,8 @@ import { installmentPix } from './installment-pix';
 import { planText } from '../data/negotiation.labels';
 
 /**
- * Aba "Negociação" da ficha do caso na estação de cobrança: propostas em andamento e acordos do caso,
- * com atalhos para simular, abrir a proposta e acompanhar o cronograma.
+ * Aba "Negociação" da ficha do caso na estação de cobrança: propostas em andamento e acordos em vigor do caso,
+ * com atalhos para simular, abrir a proposta, gerar o Pix da parcela e ver o histórico (aba "Acordos").
  */
 @Component({
   selector: 'app-case-negotiation',
@@ -64,12 +65,12 @@ import { planText } from '../data/negotiation.labels';
       </ul>
     }
 
-    <h3 class="app-section-title">Acordos</h3>
+    <h3 class="app-section-title">Acordos em vigor</h3>
     @if (!canReadAgreements()) {
       <p class="app-muted">Seu perfil não consulta acordos.</p>
     } @else {
       <ul class="cn-list" [attr.aria-busy]="agreements.isLoading()">
-        @for (a of agreementRows(); track a.id) {
+        @for (a of activeAgreements(); track a.id) {
           @let s = summary(a);
           <li class="cn-item">
             <app-status-chip domain="agreement" [status]="a.status" />
@@ -91,9 +92,16 @@ import { planText } from '../data/negotiation.labels';
             }
           </li>
         } @empty {
-          <li class="app-muted">Nenhum acordo neste caso.</li>
+          <li class="app-muted">Nenhum acordo em vigor neste caso.</li>
         }
       </ul>
+      <!-- quitados, quebrados, cancelados e renegociados ficam na aba "Acordos" (histórico com resumo) -->
+      @if (agreementTotal() > activeAgreements().length) {
+        <button type="button" class="btn btn-link btn-sm px-0" (click)="historyRequested.emit()" data-testid="agreement-history-link">
+          <app-icon name="clock-history" />
+          Histórico de acordos ({{ agreementTotal() }})
+        </button>
+      }
     }
   `,
   styles: `
@@ -138,6 +146,8 @@ export class CaseNegotiation {
   /** Muda quando a estação cria ou avança uma proposta (recarrega). */
   readonly revision = input(0);
   readonly simulateRequested = output<void>();
+  /** "Histórico de acordos (N)": a ficha abre a aba Acordos. */
+  readonly historyRequested = output<void>();
 
   private readonly auth = inject(AuthService);
   private readonly proposalsApi = inject(ProposalsApi);
@@ -169,11 +179,15 @@ export class CaseNegotiation {
     params: () => (this.canReadAgreements() ? { caseId: this.caseId(), revision: this.revision() } : undefined),
     stream: ({ params }) =>
       this.agreementsApi.search({ creditorId: null, debtorId: null, caseId: params.caseId, status: null }, { page: 0, size: 50 }).pipe(
-        map((page) => page.content),
-        catchError(() => of<AgreementView[]>([])),
+        catchError(() => of<PageResponse<AgreementView> | null>(null)),
       ),
   });
-  protected readonly agreementRows = valueOr(this.agreements, []);
+  private readonly agreementPage = valueOr(this.agreements, null);
+  protected readonly agreementRows = computed<readonly AgreementView[]>(() => this.agreementPage()?.content ?? []);
+  /** Total de acordos do caso (todas as páginas), para o atalho do histórico. */
+  protected readonly agreementTotal = computed(() => this.agreementPage()?.totalElements ?? 0);
+  /** Em vigor (formalizado ou em pagamento): os encerrados ficam no histórico (aba Acordos). */
+  protected readonly activeAgreements = computed(() => this.agreementRows().filter((a) => this.active(a)));
 
   protected plan(p: ProposalView): string {
     return planText({ installments: p.installments, downPayment: p.downPayment });

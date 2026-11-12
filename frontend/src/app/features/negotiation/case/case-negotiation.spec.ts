@@ -34,7 +34,7 @@ describe('CaseNegotiation (aba da estação)', () => {
 
   afterEach(() => http.verify());
 
-  async function render(): Promise<ComponentFixture<CaseNegotiation>> {
+  async function render(extra: ReturnType<typeof agreement>[] = []): Promise<ComponentFixture<CaseNegotiation>> {
     const fixture = TestBed.createComponent(CaseNegotiation);
     fixture.componentRef.setInput('caseId', 'k-1');
     fixture.componentRef.setInput('creditorId', 'c-1');
@@ -48,7 +48,7 @@ describe('CaseNegotiation (aba da estação)', () => {
     proposals.flush(page([proposal({ id: 'p-1', status: 'PENDING_APPROVAL' }), proposal({ id: 'p-3', status: 'EXPIRED' })]));
     const agreements = http.expectOne((r) => r.url === '/api/v1/negotiation/agreements');
     expect(agreements.request.params.get('caseId')).toBe('k-1');
-    agreements.flush(page([agreement({ installments: [...agreement().installments.slice(0, 2), { ...agreement().installments[2], status: 'OVERDUE' }] })]));
+    agreements.flush(page([agreement({ installments: [...agreement().installments.slice(0, 2), { ...agreement().installments[2], status: 'OVERDUE' }] }), ...extra]));
     fixture.detectChanges();
     await tick();
     fixture.detectChanges();
@@ -71,5 +71,23 @@ describe('CaseNegotiation (aba da estação)', () => {
     const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Gerar Pix da 2ª parcela'))!;
     button.click();
     expect(launch).toHaveBeenCalledWith(expect.objectContaining({ debtorId: 'd-1', target: expect.objectContaining({ kind: 'INSTALLMENT', installmentId: 'i-2', balance: 1350 }) }));
+  });
+
+  it('mostra só os acordos em vigor; os encerrados ficam no histórico (aba Acordos)', async () => {
+    const fixture = await render([agreement({ id: 'a-old', status: 'BROKEN', formalizedAt: '2026-01-10T12:00:00Z' })]);
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('a[href^="/negociacao/acordos/"]').length).toBe(1);
+    expect(el.textContent).not.toContain('Quebrado');
+    const history = el.querySelector<HTMLButtonElement>('[data-testid="agreement-history-link"]')!;
+    expect(history.textContent).toContain('Histórico de acordos (2)');
+    const requested = vi.fn();
+    fixture.componentInstance.historyRequested.subscribe(requested);
+    history.click();
+    expect(requested).toHaveBeenCalled();
+  });
+
+  it('sem acordo encerrado não mostra o atalho do histórico', async () => {
+    const fixture = await render();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="agreement-history-link"]')).toBeNull();
   });
 });

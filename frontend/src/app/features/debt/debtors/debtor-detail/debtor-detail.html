@@ -20,7 +20,7 @@
   <app-page-header [title]="d.name" [subtitle]="personTypes[d.personType] + (d.createdAt ? ' · cadastrado em ' + (d.createdAt | appDate: 'date') : '')">
     <!-- embutida no painel da estação, o selo já está no cabeçalho do caso (uma consulta e um log de acesso só) -->
     @if (!embedded) {
-      <app-vulnerability-badge [debtorId]="d.id" />
+      <app-vulnerability-badge [debtorId]="d.id" [personType]="d.personType" />
     }
     <!-- ações de trabalho: fora do painel da estação (embutida, o operador já está no caso) -->
     @if (!embedded && canSeeCases() && openCases().length) {
@@ -292,6 +292,15 @@
           <button ngbNavLink type="button" data-tour="debtor-interactions">Interações</button>
           <ng-template ngbNavContent>
             <div class="debt-tab"><app-debtor-interactions [debtorId]="d.id" [caseLabel]="caseLabelById" /></div>
+          </ng-template>
+        </li>
+      }
+
+      @if (canSeeAgreements()) {
+        <li [ngbNavItem]="'acordos'">
+          <button ngbNavLink type="button" data-tour="debtor-agreements">Acordos</button>
+          <ng-template ngbNavContent>
+            <div class="debt-tab"><app-agreement-history [debtorId]="d.id" /></div>
           </ng-template>
         </li>
       }
