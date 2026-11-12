@@ -3,11 +3,16 @@ import { SessionView } from '../../../core/auth/auth.models';
 import { AppDatePipe } from '../../pipes/date-time.pipe';
 import { CellDef } from '../data-table/cell-def';
 import { DataTable, TableColumn } from '../data-table/data-table';
+import { DATA_TABLE_STACK } from '../data-table/compact-tables';
 import { StatusChip } from '../status-chip/status-chip';
 
-/** Sessões de um usuário (próprias ou administradas). */
+/**
+ * Sessões de um usuário (próprias ou administradas). Oito colunas: onde não cabem (cartão estreito, zoom), a tabela vira
+ * lista com "Mais detalhes" em vez da rolagem lateral (`DATA_TABLE_STACK`).
+ */
 @Component({
   selector: 'app-session-table',
+  providers: [{ provide: DATA_TABLE_STACK, useValue: 'fit' }],
   imports: [DataTable, CellDef, StatusChip, AppDatePipe],
   template: `
     <app-data-table
@@ -51,13 +56,13 @@ export class SessionTable {
   readonly retry = output<void>();
 
   protected readonly columns: TableColumn[] = [
-    { key: 'status', header: 'Situação' },
-    { key: 'startedAt', header: 'Início' },
-    { key: 'lastSeenAt', header: 'Última atividade' },
-    { key: 'absoluteExpiresAt', header: 'Expira em' },
-    { key: 'mfaVerified', header: 'MFA' },
-    { key: 'clientIp', header: 'IP' },
-    { key: 'userAgent', header: 'Navegador' },
+    { key: 'status', header: 'Situação', mobile: 'badge' },
+    { key: 'startedAt', header: 'Início', mobile: 'title' },
+    { key: 'lastSeenAt', header: 'Última atividade', mobile: 'meta' },
+    { key: 'absoluteExpiresAt', header: 'Expira em', mobile: 'hidden' },
+    { key: 'mfaVerified', header: 'MFA', mobile: 'hidden' },
+    { key: 'clientIp', header: 'IP', mobile: 'hidden' },
+    { key: 'userAgent', header: 'Navegador', mobile: 'meta' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
 

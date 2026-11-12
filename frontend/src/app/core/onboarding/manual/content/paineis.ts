@@ -19,6 +19,7 @@ export const MANUAL: ModuleManual = {
     'Cada pessoa vê só os credores do seu escopo; dados por pessoa seguem as permissões de desempenho.',
     'Negociador no indicador é quem formalizou o acordo; acordos do assistente, do portal ou de campanha ficam em "Sem negociador humano".',
     'Período de até 400 dias por consulta, inclusive nas duas pontas, no horário de Brasília.',
+    'Na margem por carteira, quem não vê todos os credores recebe a ociosidade e os custos fixos só na parte rateada aos próprios credores, sem os totais da assessoria.',
     'Cada exportação fica registrada no log de acesso.',
   ],
   screens: [
@@ -102,6 +103,25 @@ export const MANUAL: ModuleManual = {
         { screen: 'ingestion.batches', why: 'Importações com falha.' },
       ],
       terms: ['divergencia', 'base-do-indicador'],
+    },
+    {
+      id: 'analytics.margin',
+      title: 'Margem por carteira',
+      objective: 'Quanto cada credor e carteira rende para a assessoria depois do custo operacional estimado da recuperação.',
+      purpose: [
+        'Mostra a receita, o custo por categoria (pessoas, inteligência artificial, telefonia, mensagens, comissão dos negociadores, jurídico, ociosidade e custos fixos) e as margens de cada credor e carteira. Abre no último mês fechado.',
+        'O custo é estimado: uso registrado vezes as faixas, tarifas e câmbio cadastrados em Custos operacionais. Horas sem faixa, mês sem câmbio ou canal sem tarifa entram com custo zero, e o painel avisa com o atalho para corrigir.',
+        'Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. Depois de corrigir uma faixa, tarifa ou câmbio, "Reapurar o período" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores.',
+      ],
+      profiles: ['GESTOR', 'FINANCEIRO', 'ADMIN', 'AUDITOR'],
+      inputs: ['Comissão e honorários da assessoria, tempo de atendimento, uso de inteligência artificial, chamadas, mensagens, comissão dos negociadores, custas jurídicas e custos fixos.'],
+      outputs: ['Decisão sobre preço de contrato, canal e esforço por carteira; exportação em planilha ou CSV com os mesmos filtros.'],
+      related: [
+        { screen: 'organization.costs', why: 'Faixas, tarifas, câmbio e custos fixos usados no cálculo.' },
+        { screen: 'settlement.ledger', why: 'Os recebimentos e a comissão que formam a receita.' },
+        { screen: 'analytics.recovery', why: 'Valor recuperado por credor e carteira.' },
+      ],
+      terms: ['margem-de-contribuicao', 'margem-liquida', 'custo-estimado', 'rateio'],
     },
   ],
   terms: ['dados-ate', 'base-do-indicador', 'recuperado'],

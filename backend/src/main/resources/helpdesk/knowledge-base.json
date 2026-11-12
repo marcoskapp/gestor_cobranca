@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "9c9e4357c5e978e3",
+ "contentVersion": "2572e737d661e5d5",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -837,6 +837,7 @@
     "Cada pessoa vê só os credores do seu escopo; dados por pessoa seguem as permissões de desempenho.",
     "Negociador no indicador é quem formalizou o acordo; acordos do assistente, do portal ou de campanha ficam em \"Sem negociador humano\".",
     "Período de até 400 dias por consulta, inclusive nas duas pontas, no horário de Brasília.",
+    "Na margem por carteira, quem não vê todos os credores recebe a ociosidade e os custos fixos só na parte rateada aos próprios credores, sem os totais da assessoria.",
     "Cada exportação fica registrada no log de acesso."
    ],
    "terms": [
@@ -882,6 +883,7 @@
     "Perfis de sistema são mantidos atualizados a cada versão e não podem ser desativados; ajustes do administrador são respeitados.",
     "Perfis com acesso a dados sensíveis ou financeiros exigem verificação em duas etapas.",
     "Suspender ou devolver carteira pede motivo; encerrar é definitivo.",
+    "Faixas de custo de pessoas são só por cargo: o valor-hora não aparece por pessoa em nenhuma tela, relatório ou exportação.",
     "A trilha de auditoria é encadeada e a verificação de integridade mostra se algum registro foi alterado fora do sistema.",
     "A cobrança da plataforma à assessoria é independente das condições que a assessoria cobra dos credores: soma o uso de todos os tokens da assessoria, inclusive revogados ou expirados.",
     "Só a equipe da plataforma cadastra a política e fecha ou revisa os extratos da plataforma; a assessoria consulta, sem alterar.",
@@ -6504,6 +6506,56 @@
    }
   },
   {
+   "id": "analytics.margin",
+   "module": "paineis",
+   "title": "Margem por carteira",
+   "objective": "Quanto cada credor e carteira rende para a assessoria depois do custo operacional estimado da recuperação.",
+   "purpose": [
+    "Mostra a receita, o custo por categoria (pessoas, inteligência artificial, telefonia, mensagens, comissão dos negociadores, jurídico, ociosidade e custos fixos) e as margens de cada credor e carteira. Abre no último mês fechado.",
+    "O custo é estimado: uso registrado vezes as faixas, tarifas e câmbio cadastrados em Custos operacionais. Horas sem faixa, mês sem câmbio ou canal sem tarifa entram com custo zero, e o painel avisa com o atalho para corrigir.",
+    "Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. Depois de corrigir uma faixa, tarifa ou câmbio, \"Reapurar o período\" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores."
+   ],
+   "profiles": [
+    "GESTOR",
+    "FINANCEIRO",
+    "ADMIN",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Comissão e honorários da assessoria, tempo de atendimento, uso de inteligência artificial, chamadas, mensagens, comissão dos negociadores, custas jurídicas e custos fixos."
+   ],
+   "outputs": [
+    "Decisão sobre preço de contrato, canal e esforço por carteira; exportação em planilha ou CSV com os mesmos filtros."
+   ],
+   "related": [
+    {
+     "screen": "organization.costs",
+     "why": "Faixas, tarifas, câmbio e custos fixos usados no cálculo."
+    },
+    {
+     "screen": "settlement.ledger",
+     "why": "Os recebimentos e a comissão que formam a receita."
+    },
+    {
+     "screen": "analytics.recovery",
+     "why": "Valor recuperado por credor e carteira."
+    }
+   ],
+   "terms": [
+    "margem-de-contribuicao",
+    "margem-liquida",
+    "custo-estimado",
+    "rateio"
+   ],
+   "path": "/paineis/margem",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "COST_VIEW"
+    ]
+   }
+  },
+  {
    "id": "organization.creditors",
    "module": "administracao",
    "title": "Credores",
@@ -6658,6 +6710,50 @@
     "kind": "MENU",
     "permissions": [
      "ORG_SETTINGS_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "organization.costs",
+   "module": "administracao",
+   "title": "Custos operacionais",
+   "objective": "Faixas de custo de pessoas, tarifas de canal, câmbio da inteligência artificial e custos fixos usados no painel de margem.",
+   "purpose": [
+    "Faixas, tarifas e câmbio têm vigência: uma nova vigência vale a partir da data escolhida e as anteriores ficam no histórico; nada disso é apagado, só encerrado. O custo fixo pode ser excluído em qualquer mês, com motivo opcional: o rateio do mês é refeito na hora e a margem dos credores muda, mesmo em mês já apurado.",
+    "Faixa de custo é o custo-empresa por hora de um cargo. Cada pessoa aponta para uma faixa a partir de uma data, e a tela mostra só o nome da faixa de cada pessoa, nunca o valor. Tarifas de canal: WhatsApp por conversa iniciada pela assessoria, SMS e e-mail por mensagem (o e-mail pode ficar zerado).",
+    "Custos fixos são rateados pelas horas trabalhadas de cada credor no mês, a menos que você escolha outra regra: valor recuperado, casos trabalhados ou direto a um credor. Só quem vê todos os credores altera os cadastros; com acesso a alguns credores, você lança ou exclui só o custo fixo direto a um dos seus credores."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "ADMIN"
+   ],
+   "inputs": [
+    "Custo-empresa por cargo, tarifas dos provedores, câmbio do dólar e despesas fixas do mês."
+   ],
+   "outputs": [
+    "Custo estimado por credor e carteira no painel de margem, recalculado na apuração diária."
+   ],
+   "related": [
+    {
+     "screen": "analytics.margin",
+     "why": "O resultado dos custos por credor e carteira."
+    },
+    {
+     "screen": "telephony.accounts",
+     "why": "Tarifa por minuto de cada plataforma de telefonia."
+    }
+   ],
+   "terms": [
+    "faixa-de-custo",
+    "rateio",
+    "custo-estimado"
+   ],
+   "path": "/organizacao/custos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "COST_MANAGE",
+     "COST_RATE_MANAGE"
     ]
    }
   },
@@ -7542,6 +7638,31 @@
    "id": "quatro-olhos",
    "term": "Segregação de funções",
    "definition": "Quem prepara não aprova: uma segunda pessoa confere publicações, aprovações e valores altos. O sistema recusa a aprovação própria."
+  },
+  {
+   "id": "margem-de-contribuicao",
+   "term": "Margem de contribuição",
+   "definition": "Receita da assessoria menos o custo direto da recuperação (pessoas no tempo de atendimento, inteligência artificial, telefonia, mensagens, comissão dos negociadores e jurídico)."
+  },
+  {
+   "id": "margem-liquida",
+   "term": "Margem líquida",
+   "definition": "Margem de contribuição menos a ociosidade das pessoas e os custos fixos rateados. Negativa quer dizer que o credor ou a carteira consome margem."
+  },
+  {
+   "id": "faixa-de-custo",
+   "term": "Faixa de custo",
+   "definition": "Custo-empresa por hora de um cargo (salário, encargos e benefícios ÷ horas contratadas). Cada pessoa aponta para uma faixa; o valor nunca é mostrado por pessoa."
+  },
+  {
+   "id": "rateio",
+   "term": "Rateio",
+   "definition": "Divisão de um custo que não pertence a um caso (aluguel, licenças, ociosidade) entre os credores, pela regra escolhida: horas trabalhadas, valor recuperado, casos trabalhados ou direto a um credor."
+  },
+  {
+   "id": "custo-estimado",
+   "term": "Custo estimado",
+   "definition": "Custo calculado pelo uso registrado no sistema vezes as faixas, tarifas e câmbio cadastrados. Pode diferir da fatura do provedor."
   },
   {
    "id": "comissao-do-negociador",
@@ -8436,6 +8557,226 @@
    "use": "Carga desigual ou vencidas concentradas em uma pessoa pedem redistribuição; muitas sem responsável pedem distribuição automática ou atribuição.",
    "screens": [
     "analytics.disputes"
+   ]
+  },
+  {
+   "id": "analytics.margin.estimated",
+   "module": "paineis",
+   "title": "Valores estimados",
+   "what": "Os custos do painel são estimados a partir do uso registrado no sistema, e não da fatura dos provedores.",
+   "how": "Tempo de atendimento vezes a faixa de custo do cargo, envios vezes a tarifa do canal, uso de inteligência artificial vezes o câmbio do mês e custos fixos rateados. A apuração roda todo dia e refaz os últimos 35 dias.",
+   "use": "Use para comparar credores e carteiras e encontrar onde a margem some. Para fechar contas com o fornecedor, a referência continua sendo a fatura.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.recovered",
+   "module": "paineis",
+   "title": "Recuperado",
+   "what": "Dinheiro efetivamente recebido dos devedores no período, a base sobre a qual a assessoria ganha.",
+   "how": "Pagamentos confirmados menos estornos, por credor e carteira, a mesma base da prestação de contas e do painel de recuperação.",
+   "use": "Compare com a receita: recuperado alto com receita baixa indica contrato com comissão pequena. Abra o número para ver os recebimentos no Razão de comissão.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.revenue",
+   "module": "paineis",
+   "title": "Receita",
+   "what": "O que a assessoria ganha sobre o recebido no período: comissão, valor fixo e honorários cobrados do devedor.",
+   "how": "Soma da comissão, do valor fixo e dos honorários da assessoria lançados no período, por credor e carteira, pelas regras do contrato vigentes na data de cada pagamento.",
+   "use": "É o topo da cascata. Receita caindo com o mesmo esforço reduz a margem: confira a recuperação e as regras de comissão do contrato.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.direct-cost",
+   "module": "paineis",
+   "title": "Custo direto",
+   "what": "Custo que existe por causa da cobrança daquele credor: pessoas no tempo de atendimento, inteligência artificial, telefonia, mensagens, comissão dos negociadores e jurídico.",
+   "how": "Soma das seis categorias diretas no período. Não inclui a ociosidade das pessoas nem os custos fixos, que entram só na margem líquida.",
+   "use": "É o custo que muda com a decisão de operar a carteira. Se ele passa da receita, cada real recuperado ali dá prejuízo antes mesmo dos custos fixos.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.total-cost",
+   "module": "paineis",
+   "title": "Custo total",
+   "what": "Todo o custo operacional atribuído ao credor ou à carteira no período, direto e indireto.",
+   "how": "Custo direto mais a ociosidade das pessoas (rateada pelo tempo direto de cada credor no dia) e os custos fixos rateados pela regra de cada item.",
+   "use": "Base do custo por real recuperado e do custo por acordo cumprido. Compare com a receita para saber se o credor paga a operação inteira.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.contribution",
+   "module": "paineis",
+   "title": "Margem de contribuição",
+   "what": "Quanto sobra da receita depois do custo direto da recuperação, em reais e em percentual da receita.",
+   "how": "Receita menos custo direto. O percentual divide pela receita; sem receita no período, o percentual fica indisponível.",
+   "use": "Positiva: a carteira ajuda a pagar a estrutura. Negativa: cada real recuperado custa mais do que rende; reveja canal, esforço, automação ou o preço do contrato.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.net",
+   "module": "paineis",
+   "title": "Margem líquida",
+   "what": "O resultado depois de todo o custo operacional, inclusive ociosidade e custos fixos rateados.",
+   "how": "Margem de contribuição menos a ociosidade e os custos fixos rateados ao credor. O percentual divide pela receita do período.",
+   "use": "Negativa por dois meses seguidos pede revisão do contrato ou da forma de operar. Margem de contribuição positiva com líquida negativa indica estrutura grande para o volume.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.roi",
+   "module": "paineis",
+   "title": "ROI operacional",
+   "what": "Retorno de cada real gasto na operação daquele credor ou carteira.",
+   "how": "Margem líquida dividida pelo custo total, em percentual. Sem custo no período, fica indisponível.",
+   "use": "Compara carteiras de tamanhos diferentes: priorize esforço e campanhas onde o retorno é maior e reveja as carteiras com retorno negativo.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-per-recovered",
+   "module": "paineis",
+   "title": "Custo por real recuperado",
+   "what": "Quanto a assessoria gasta, em média, para trazer cada real pago pelos devedores.",
+   "how": "Custo total dividido pelo valor recuperado no período. Sem valor recuperado, fica indisponível. Inclui todos os custos, e não só a comissão dos negociadores.",
+   "use": "Subindo, a recuperação ficou mais cara: veja na cascata qual categoria cresceu. Compare com o percentual de comissão do contrato para saber se ainda há margem.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-per-settled",
+   "module": "paineis",
+   "title": "Custo por acordo cumprido",
+   "what": "Quanto custa, em média, cada acordo que o devedor pagou até a última parcela no período.",
+   "how": "Custo total dividido pelos acordos quitados no período. Sem acordo quitado, fica indisponível.",
+   "use": "Mede o custo do resultado que importa, o acordo cumprido, e não só o fechado. Subindo, reveja a qualidade dos acordos e a régua de lembretes.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.waterfall",
+   "module": "paineis",
+   "title": "Da receita à margem líquida",
+   "what": "Cascata que parte da receita e desconta cada categoria de custo até a margem de contribuição e a margem líquida.",
+   "how": "Cada barra começa onde a anterior terminou; as margens partem do zero. Custos diretos vêm antes da margem de contribuição, ociosidade e fixos depois.",
+   "use": "Mostra qual custo mais consome a receita. A maior barra de custo é o primeiro lugar para buscar eficiência, como canal mais barato ou mais automação.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.by-month",
+   "module": "paineis",
+   "title": "Margem líquida por mês",
+   "what": "A margem líquida de cada mês do período escolhido, com a receita e o custo do mês na tabela.",
+   "how": "A mesma conta da margem líquida, feita mês a mês com os custos apurados em cada dia. Valores à esquerda do zero são margem negativa.",
+   "use": "Mostra a tendência. Dois meses seguidos de margem negativa pedem revisão do contrato ou da forma de operar a carteira.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-human-direct",
+   "module": "paineis",
+   "title": "Pessoas (tempo direto)",
+   "what": "Custo do tempo que as pessoas dedicaram aos casos do credor: atendimento, pós-atendimento das chamadas e conversa no chat.",
+   "how": "Tempo atribuído ao credor vezes o custo por hora da faixa do cargo vigente no dia. Horas sem faixa entram com custo zero, com aviso.",
+   "use": "Geralmente o maior custo. Subindo sem mais acordos cumpridos, reveja filas, roteiro e a parte que pode ir para campanhas ou para o assistente.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-ai",
+   "module": "paineis",
+   "title": "Inteligência artificial",
+   "what": "Custo do assistente de negociação e da leitura de PDFs com inteligência artificial para o credor.",
+   "how": "Custo de uso estimado pela tabela de preços do provedor, em dólar, vezes o câmbio informado para o mês. Sem câmbio do mês, usa o último informado.",
+   "use": "Compare com o tempo de pessoas que o assistente evitou. Custo crescendo sem acordos do assistente indica conversas longas: reveja a política do assistente.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-telephony",
+   "module": "paineis",
+   "title": "Telefonia",
+   "what": "Custo estimado das ligações feitas para os devedores do credor.",
+   "how": "Minutos tarifados de cada chamada atendida, arredondados para cima, vezes a tarifa por minuto da conta de telefonia usada na chamada.",
+   "use": "Subindo sem mais contatos efetivos, reveja horários, listas e a taxa de atendimento das plataformas na comparação da telefonia.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-messaging",
+   "module": "paineis",
+   "title": "Mensagens",
+   "what": "Custo estimado das mensagens enviadas aos devedores do credor por WhatsApp, SMS e e-mail.",
+   "how": "Conversas de WhatsApp iniciadas pela assessoria, por categoria do template, e mensagens de SMS e e-mail, vezes a tarifa de cada canal vigente no dia.",
+   "use": "Compare com o resultado das campanhas: canal caro sem retorno pode ser trocado por outro mais barato ou ter a régua encurtada.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-commission",
+   "module": "paineis",
+   "title": "Comissão dos negociadores",
+   "what": "Remuneração variável paga aos negociadores pelo que recuperaram para o credor.",
+   "how": "Soma dos lançamentos de comissão dos negociadores no período, pelos planos de remuneração vigentes.",
+   "use": "Acompanha a recuperação. Se cresce mais rápido que a receita, o plano paga mais do que a carteira rende: reveja o plano.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-legal",
+   "module": "paineis",
+   "title": "Jurídico",
+   "what": "Custas jurídicas adiantadas pela assessoria que o credor não reembolsa.",
+   "how": "Soma das despesas jurídicas pagas pela assessoria e marcadas como não reembolsáveis. As reembolsáveis voltam na prestação de contas e não entram.",
+   "use": "Custo alto indica processos que talvez não compensem. Confira a viabilidade antes de autorizar novas medidas para o credor.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-idle",
+   "module": "paineis",
+   "title": "Ociosidade",
+   "what": "Custo do tempo em que as pessoas estavam conectadas sem atender nenhum caso: espera, pausa e intervalo entre atendimentos.",
+   "how": "Tempo conectado sem atribuição vezes o custo por hora da faixa, dividido entre os credores na proporção do tempo direto de cada um, para a mesma pessoa e no mesmo dia.",
+   "use": "Ociosidade alta indica equipe maior que a demanda das filas. Ajuste escala, distribuição ou campanhas antes de cortar pessoas.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.cost-overhead",
+   "module": "paineis",
+   "title": "Custos fixos rateados",
+   "what": "A parte dos custos fixos do mês, como aluguel, licenças e gestão, que cabe ao credor.",
+   "how": "Cada custo fixo é dividido pela regra escolhida no cadastro: por horas trabalhadas (padrão), valor recuperado, casos trabalhados ou direto a um credor.",
+   "use": "Entra só na margem líquida. Se a margem de contribuição é positiva e a líquida negativa, o credor não cobre a parte dele da estrutura.",
+   "screens": [
+    "analytics.margin"
    ]
   },
   {

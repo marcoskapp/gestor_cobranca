@@ -86,6 +86,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 4, items: ['Divergências em aberto, abertas no período e por tipo levam à lista de divergências com o mesmo credor e período.'] },
     ],
   },
+  { key: 'analytics.margin', version: 1, path: '/paineis/margem', tourId: 'analytics.margin' },
   { key: 'scoring.models', version: 1, path: '/score/modelos', tourId: 'scoring.models' },
   {
     key: 'scoring.model',
@@ -1010,6 +1011,7 @@ export const SCREENS: readonly ScreenGuide[] = [
     ],
   },
   { key: 'organization.settings', version: 1, path: '/organizacao/configuracoes' },
+  { key: 'organization.costs', version: 1, path: '/organizacao/custos', tourId: 'organization.costs' },
   {
     key: 'governance.access-log',
     version: 3,

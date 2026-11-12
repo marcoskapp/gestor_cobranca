@@ -20,6 +20,7 @@ export const MANUAL: ModuleManual = {
     'Perfis de sistema são mantidos atualizados a cada versão e não podem ser desativados; ajustes do administrador são respeitados.',
     'Perfis com acesso a dados sensíveis ou financeiros exigem verificação em duas etapas.',
     'Suspender ou devolver carteira pede motivo; encerrar é definitivo.',
+    'Faixas de custo de pessoas são só por cargo: o valor-hora não aparece por pessoa em nenhuma tela, relatório ou exportação.',
     'A trilha de auditoria é encadeada e a verificação de integridade mostra se algum registro foi alterado fora do sistema.',
   ],
   screens: [
@@ -79,6 +80,24 @@ export const MANUAL: ModuleManual = {
       outputs: ['Padrões usados por toda a assessoria.'],
       related: [{ screen: 'compliance.contact-policy', why: 'Política de contato por canal.' }],
       terms: ['assessoria'],
+    },
+    {
+      id: 'organization.costs',
+      title: 'Custos operacionais',
+      objective: 'Faixas de custo de pessoas, tarifas de canal, câmbio da inteligência artificial e custos fixos usados no painel de margem.',
+      purpose: [
+        'Faixas, tarifas e câmbio têm vigência: uma nova vigência vale a partir da data escolhida e as anteriores ficam no histórico; nada disso é apagado, só encerrado. O custo fixo pode ser excluído em qualquer mês, com motivo opcional: o rateio do mês é refeito na hora e a margem dos credores muda, mesmo em mês já apurado.',
+        'Faixa de custo é o custo-empresa por hora de um cargo. Cada pessoa aponta para uma faixa a partir de uma data, e a tela mostra só o nome da faixa de cada pessoa, nunca o valor. Tarifas de canal: WhatsApp por conversa iniciada pela assessoria, SMS e e-mail por mensagem (o e-mail pode ficar zerado).',
+        'Custos fixos são rateados pelas horas trabalhadas de cada credor no mês, a menos que você escolha outra regra: valor recuperado, casos trabalhados ou direto a um credor. Só quem vê todos os credores altera os cadastros; com acesso a alguns credores, você lança ou exclui só o custo fixo direto a um dos seus credores.',
+      ],
+      profiles: ['FINANCEIRO', 'ADMIN'],
+      inputs: ['Custo-empresa por cargo, tarifas dos provedores, câmbio do dólar e despesas fixas do mês.'],
+      outputs: ['Custo estimado por credor e carteira no painel de margem, recalculado na apuração diária.'],
+      related: [
+        { screen: 'analytics.margin', why: 'O resultado dos custos por credor e carteira.' },
+        { screen: 'telephony.accounts', why: 'Tarifa por minuto de cada plataforma de telefonia.' },
+      ],
+      terms: ['faixa-de-custo', 'rateio', 'custo-estimado'],
     },
     {
       id: 'admin.users',

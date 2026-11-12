@@ -68,4 +68,23 @@ class DefaultRolesTest {
                 .doesNotContain(VULNERABILITY_MANAGE, VULNERABILITY_SENSITIVE_VIEW, COMPLAINT_MANAGE);
         assertThat(roles.get(DefaultRoles.AUDITOR)).doesNotContain(VULNERABILITY_SENSITIVE_VIEW);
     }
+
+    @Test
+    void margemPorCarteiraSoParaGestaoFinanceiroEAuditoriaEOsCadastrosDeCustoSoComFinanceiroEAdministrador() {
+        for (String code : Set.of(DefaultRoles.GESTOR, DefaultRoles.FINANCEIRO, DefaultRoles.ADMIN, DefaultRoles.AUDITOR)) {
+            assertThat(roles.get(code)).as(code).contains(COST_VIEW);
+        }
+        for (String code : Set.of(DefaultRoles.FINANCEIRO, DefaultRoles.ADMIN)) {
+            assertThat(roles.get(code)).as(code).contains(COST_MANAGE, COST_RATE_MANAGE);
+        }
+        roles.forEach((code, permissions) -> {
+            if (!Set.of(DefaultRoles.FINANCEIRO, DefaultRoles.ADMIN).contains(code)) {
+                assertThat(permissions).as(code).doesNotContain(COST_MANAGE, COST_RATE_MANAGE);
+            }
+            if (!Set.of(DefaultRoles.GESTOR, DefaultRoles.FINANCEIRO, DefaultRoles.ADMIN, DefaultRoles.AUDITOR)
+                    .contains(code)) {
+                assertThat(permissions).as(code).doesNotContain(COST_VIEW);
+            }
+        });
+    }
 }

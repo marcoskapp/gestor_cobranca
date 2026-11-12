@@ -194,6 +194,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 - Cronograma = o da oferta revalidada; regra de quebra (`BreakRule`) **fixada na formalização**. Parcela: `OPEN`, `PAID`, `PARTIALLY_PAID`, `OVERDUE` (vencida e não paga integralmente, inclusive parcial), `CANCELLED` (acordo encerrado).
 - `AgreementTitle` ativo por título; índice único parcial `uk_agreement_title_active` garante um único acordo em vigor por título. Proposta com título coberto por outro acordo em vigor (não o substituído) → `title.under_agreement`.
 - Transições: 1º pagamento → `IN_PAYMENT`; todas pagas → `SETTLED`; estorno de acordo quitado → `IN_PAYMENT`; `AGREEMENT_CANCEL` com motivo → `CANCELLED`; job diário → `BROKEN`; formalização de renegociação → `RENEGOTIATED` (o anterior aponta `replacedByAgreementId`).
+- Índice parcial `ix_agreement_settled` (`V0757`, acordos `SETTLED` por `settled_at`): consumidor é a apuração diária dos custos (custo por acordo cumprido, `costing.src_agreement`, [margem-por-carteira.md](margem-por-carteira.md) §4).
 
 ### 10.4 Baixa de parcelas (`PaymentConfirmed` / `PaymentReversed`)
 

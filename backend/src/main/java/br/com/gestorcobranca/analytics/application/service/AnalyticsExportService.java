@@ -4,7 +4,7 @@ import br.com.gestorcobranca.analytics.application.AnalyticsProperties;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsExportUseCases;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsQueries;
 import br.com.gestorcobranca.analytics.domain.model.ReportFilter;
-import br.com.gestorcobranca.analytics.domain.service.SpreadsheetSafety;
+import br.com.gestorcobranca.shared.export.SpreadsheetSafety;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;

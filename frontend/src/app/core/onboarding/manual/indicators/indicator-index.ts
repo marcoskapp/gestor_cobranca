@@ -9,9 +9,13 @@ import { IndicatorHelp } from './indicator.models';
  */
 const LOADERS: Readonly<Partial<Record<ManualModuleId, () => Promise<readonly IndicatorHelp[]>>>> = {
   geral: () => import('./content/geral').then((m) => m.INDICATORS),
-  // os indicadores do painel de contestações têm arquivo próprio, juntado aos dos painéis
+  // os indicadores do painel de contestações e da margem por carteira têm arquivo próprio, juntado aos dos painéis
   paineis: () =>
-    Promise.all([import('./content/paineis'), import('./content/paineis-contestacoes')]).then(([m, disputes]) => [...m.INDICATORS, ...disputes.INDICATORS]),
+    Promise.all([import('./content/paineis'), import('./content/paineis-contestacoes'), import('./content/paineis-margem')]).then(([m, disputes, margin]) => [
+      ...m.INDICATORS,
+      ...disputes.INDICATORS,
+      ...margin.INDICATORS,
+    ]),
   score: () => import('./content/score').then((m) => m.INDICATORS),
   'remuneracao-variavel': () => import('./content/remuneracao-variavel').then((m) => m.INDICATORS),
   'prestacao-de-contas': () => import('./content/prestacao-de-contas').then((m) => m.INDICATORS),

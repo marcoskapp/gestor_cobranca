@@ -129,6 +129,9 @@ variáveis (criptografadas), assunto e conteúdo criptografados, status (`QUEUED
 RECEIVED`), id do provedor (único por canal — idempotência dos webhooks), tentativa do compliance, tentativas de
 envio, falha (código e detalhe), execução de campanha, rascunho de origem e chave de idempotência do cliente.
 
+Índice parcial `ix_message_outbound_sent` (`V1091`, saídas já enviadas por `sent_at`): consumidor é a apuração diária
+dos custos de mensageria (`costing.src_message`, [margem-por-carteira.md](margem-por-carteira.md) §4).
+
 **Envio (`MessageUseCases#send`)** — destino: conversa, ou devedor + credor + canal (contato de maior prioridade;
 WhatsApp exige contato marcado como WhatsApp); caso: o informado ou o único ativo do devedor no credor.
 1. Autor pelo ator: operador (assume a conversa se pode trabalhá-la), assistente (só se conduz), sistema/campanha.

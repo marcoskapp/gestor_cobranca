@@ -3,6 +3,15 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 30,
+    date: '2026-11-12',
+    title: 'Margem por carteira e credor',
+    items: [
+      { text: 'Novo painel "Margem por carteira": receita, custo por categoria (pessoas, inteligência artificial, telefonia, mensagens, comissão, jurídico, ociosidade e custos fixos), margem de contribuição, margem líquida, custo por real recuperado e por acordo cumprido, por credor e carteira e mês a mês, com exportação.', route: '/paineis/margem' },
+      { text: 'Nova configuração "Custos operacionais": faixas de custo por cargo e a faixa de cada pessoa (sem valor individual), tarifas de canal, câmbio do dólar para a inteligência artificial e custos fixos com a regra de rateio.', route: '/organizacao/custos' },
+    ],
+  },
+  {
     version: 29,
     date: '2026-11-12',
     title: 'Histórico de acordos e ficha lateral mais legível',

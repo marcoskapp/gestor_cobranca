@@ -1,0 +1,220 @@
+<app-page-header title="Margem por carteira" subtitle="Quanto cada credor e carteira rende para a assessoria depois do custo operacional da recuperação.">
+  @if (canRefresh() && report()) {
+    <button class="btn btn-outline-secondary" type="button" (click)="refresh()" [disabled]="refreshing()" data-tour="margin-refresh">
+      <app-icon name="arrow-clockwise" />
+      Reapurar o período
+    </button>
+  }
+  @if (canExport() && report()) {
+    <div ngbDropdown class="d-inline-flex" placement="bottom-end">
+      <button class="btn btn-outline-secondary" type="button" ngbDropdownToggle [disabled]="exporting()" data-tour="margin-export">
+        <app-icon name="download" />
+        Exportar
+        <app-icon name="chevron-down" />
+      </button>
+      <div ngbDropdownMenu class="shadow app-menu" aria-label="Formato da exportação">
+        <button ngbDropdownItem type="button" (click)="export('xlsx')">Planilha (XLSX)</button>
+        <button ngbDropdownItem type="button" (click)="export('csv')">Texto separado por ponto e vírgula (CSV)</button>
+      </div>
+    </div>
+  }
+</app-page-header>
+
+<app-analytics-filters [filter]="analyticsFilter()" [options]="{ period: true, creditor: true, portfolio: true }" (changed)="changeFilter($event)" />
+
+<p class="mp__basis" data-tour="margin-basis">
+  <span class="badge rounded-pill text-bg-secondary">Estimado</span>
+  <span>Custo = uso registrado × faixas de custo, tarifas e câmbio cadastrados; a fatura real dos provedores ainda não entra.</span>
+  <app-info-hint indicator="analytics.margin.estimated" label="Valores estimados" />
+  <app-config-link [route]="settingsRoute" label="Custos operacionais" [permissions]="settingsPermissions" />
+</p>
+
+@if (partialScope()) {
+  <div class="alert alert-info d-flex align-items-start gap-2" role="note">
+    <app-icon name="info-circle" />
+    <span>Você vê só os credores do seu escopo: ociosidade e custos fixos aparecem só na parte rateada a eles, e os totais são a soma desses credores.</span>
+  </div>
+}
+
+@if (data.isLoading() && report()) {
+  <div class="progress mb-2" role="progressbar" aria-label="Atualizando o painel">
+    <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+  </div>
+}
+
+@if (data.error()) {
+  <app-empty-state tone="error" icon="exclamation-circle" title="Não foi possível carregar a margem" message="Verifique os filtros e tente novamente.">
+    <button class="btn btn-primary" type="button" (click)="data.reload()">Tentar novamente</button>
+  </app-empty-state>
+} @else if (!report()) {
+  <app-skeleton variant="card" [rows]="4" />
+} @else {
+  @let r = report()!;
+  @let t = r.totals;
+
+  @if (warnings().length) {
+    <section class="alert alert-warning mp__warnings" aria-labelledby="mp-warnings-title" data-tour="margin-warnings">
+      <h2 class="mp__warnings-title" id="mp-warnings-title"><app-icon name="exclamation-triangle" /> Custos incompletos no período</h2>
+      <ul>
+        @for (w of warnings(); track w.code) {
+          <li>
+            <span>{{ w.text }}</span>
+            @if (w.linkLabel) {
+              <app-config-link [route]="settingsRoute" [queryParams]="w.queryParams" [label]="w.linkLabel" [permissions]="w.permissions" />
+            }
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (empty()) {
+    <app-empty-state icon="pie-chart" title="Sem receita nem custo no período"
+                     message="A apuração dos custos roda todo dia. Escolha outro período ou outro credor; para o mês corrente, os números mudam até o fechamento." />
+  } @else {
+    <section class="app-kpi-grid" aria-label="Indicadores de margem" data-tour="margin-kpis">
+      <app-kpi-card label="Receita" info="analytics.margin.revenue" data-tour="kpi-revenue" [detail]="'de ' + money(t.recovered) + ' recuperado'">
+        <app-drill-link [to]="totalLink()"><app-amount [value]="t.revenue" [compact]="true" /></app-drill-link>
+      </app-kpi-card>
+      <app-kpi-card label="Custo total" info="analytics.margin.total-cost" data-tour="kpi-total-cost" [detail]="costDetail()">
+        <app-amount [value]="t.totalCost" [compact]="true" />
+      </app-kpi-card>
+      <app-kpi-card label="Margem de contribuição" info="analytics.margin.contribution" [tone]="negative(t.contributionMargin) ? 'danger' : null"
+                    [detail]="marginDetail(t, t.contributionMarginRate)">
+        {{ marginShort(t.contributionMargin) }}
+      </app-kpi-card>
+      <app-kpi-card label="Margem líquida" info="analytics.margin.net" data-tour="kpi-net-margin" [tone]="negative(t.netMargin) ? 'danger' : null"
+                    [detail]="marginDetail(t, t.netMarginRate, true)">
+        {{ marginShort(t.netMargin) }}
+      </app-kpi-card>
+      <app-kpi-card label="Custo por real recuperado" info="analytics.margin.cost-per-recovered" [detail]="costPerRecoveredDetail()">
+        {{ t.costPerRecovered === null ? '—' : money(t.costPerRecovered) }}
+      </app-kpi-card>
+      <app-kpi-card label="Custo por acordo cumprido" info="analytics.margin.cost-per-settled" data-tour="kpi-cost-per-settled" [detail]="costPerSettledDetail()">
+        {{ t.costPerSettledAgreement === null ? '—' : money(t.costPerSettledAgreement) }}
+      </app-kpi-card>
+    </section>
+
+    <div class="app-columns mp__grid">
+      <section class="app-card" data-tour="margin-waterfall">
+        <app-waterfall-chart title="Da receita à margem líquida" info="analytics.margin.waterfall" [summary]="waterfallSummary()" [steps]="steps()" />
+        <p class="mp__hint">Horas de trabalho: {{ hours(t.directHours) }} diretas e {{ hours(t.idleHours) }} de ociosidade.</p>
+      </section>
+      <section class="app-card" data-tour="margin-months">
+        <app-waterfall-chart title="Margem líquida por mês" info="analytics.margin.by-month" categoryHeader="Mês" valueHeader="Margem líquida"
+                             [summary]="monthSummary()" [steps]="monthSteps()" [notes]="monthNotes()" />
+      </section>
+    </div>
+
+    <section class="app-card" aria-labelledby="mp-table-title" data-tour="margin-table">
+      <div class="mp__table-head">
+        <h2 class="app-card__title mb-0" id="mp-table-title">Margem por credor e carteira</h2>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" role="switch" id="mp-categories" [checked]="showCategories()" #categoriesBox
+                 (change)="showCategories.set(categoriesBox.checked)" />
+          <label class="form-check-label" for="mp-categories">Mostrar o custo por categoria</label>
+        </div>
+      </div>
+      <p class="mp__hint">Abra o credor para ver as carteiras. Margem negativa aparece com "−" e a palavra "negativa".</p>
+      <div class="mp__table-wrap">
+        <table class="mp__table">
+          <caption class="visually-hidden">Margem por credor e carteira, ordenada por {{ state.sort().key === 'name' ? 'nome' : 'coluna escolhida' }}</caption>
+          <thead>
+            <tr>
+              <th scope="col" [attr.aria-sort]="ariaSort('name')">
+                <button type="button" class="mp__sort" (click)="sortBy('name')">Credor / carteira <app-icon [name]="ariaSort('name') === null ? 'arrow-down-up' : ariaSort('name') === 'descending' ? 'arrow-down' : 'arrow-up'" /></button>
+              </th>
+              @for (c of sortColumns; track c.key) {
+                <th scope="col" class="num" [attr.aria-sort]="ariaSort(c.key)">
+                  <button type="button" class="mp__sort" (click)="sortBy(c.key)">{{ c.label }} <app-icon [name]="ariaSort(c.key) === null ? 'arrow-down-up' : ariaSort(c.key) === 'descending' ? 'arrow-down' : 'arrow-up'" /></button>
+                  <!-- info-hint: analytics.margin.recovered, analytics.margin.revenue -->
+                  <app-info-hint [indicator]="c.info" [label]="c.label" />
+                </th>
+              }
+              @if (showCategories()) {
+                @for (cat of categories; track cat) {
+                  <th scope="col" class="num">
+                    <span [title]="categoryLabels[cat]">{{ categoryShort[cat] }}</span>
+                    <!-- info-hint: analytics.margin.cost-human-direct, analytics.margin.cost-ai, analytics.margin.cost-telephony, analytics.margin.cost-messaging -->
+                    <!-- info-hint: analytics.margin.cost-commission, analytics.margin.cost-legal, analytics.margin.cost-idle, analytics.margin.cost-overhead -->
+                    <app-info-hint [indicator]="categoryInfo[cat]" [label]="categoryLabels[cat]" />
+                  </th>
+                }
+              }
+              @for (c of resultColumns; track c.key) {
+                <th scope="col" class="num" [attr.aria-sort]="ariaSort(c.key)">
+                  <button type="button" class="mp__sort" (click)="sortBy(c.key)">{{ c.label }} <app-icon [name]="ariaSort(c.key) === null ? 'arrow-down-up' : ariaSort(c.key) === 'descending' ? 'arrow-down' : 'arrow-up'" /></button>
+                  <!-- info-hint: analytics.margin.direct-cost, analytics.margin.total-cost, analytics.margin.contribution, analytics.margin.net, analytics.margin.roi -->
+                  <app-info-hint [indicator]="c.info" [label]="c.label" />
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of creditorRows(); track item.row.creditorId) {
+              @let c = item.row;
+              @let open = expanded().has(c.creditorId);
+              <tr class="mp__creditor" [class.mp__negative]="negative(c.netMargin)">
+                <th scope="row">
+                  @if (item.portfolios.length) {
+                    <button type="button" class="btn btn-link mp__expand" (click)="toggle(c.creditorId)" [attr.aria-expanded]="open"
+                            [attr.aria-controls]="'mp-p-' + c.creditorId" [attr.aria-label]="(open ? 'Fechar' : 'Abrir') + ' as carteiras de ' + creditorName(c)">
+                      <app-icon [name]="open ? 'chevron-down' : 'chevron-right'" />
+                    </button>
+                  }
+                  <span>{{ creditorName(c) }}</span>
+                  <span class="sub">{{ count(item.portfolios.length) }} {{ item.portfolios.length === 1 ? 'carteira' : 'carteiras' }}</span>
+                </th>
+                <ng-container *ngTemplateOutlet="cells; context: { $implicit: c, link: creditorLink(c) }" />
+              </tr>
+              @if (open) {
+                @for (p of item.portfolios; track p.portfolioId ?? '-'; let first = $first) {
+                  <tr class="mp__portfolio" [class.mp__negative]="negative(p.netMargin)" [attr.id]="first ? 'mp-p-' + c.creditorId : null">
+                    <th scope="row"><span class="mp__indent">{{ portfolioName(p) }}</span></th>
+                    <ng-container *ngTemplateOutlet="cells; context: { $implicit: p, link: portfolioLink(c, p) }" />
+                  </tr>
+                }
+              }
+            } @empty {
+              <tr><td [attr.colspan]="columnCount()">Nenhum credor com receita ou custo no período.</td></tr>
+            }
+          </tbody>
+          <tfoot>
+            @if (r.unallocated; as u) {
+              <tr class="mp__unallocated" [class.mp__negative]="negative(u.netMargin)">
+                <th scope="row">
+                  <span>Sem credor</span>
+                  <span class="sub">ociosidade sem atendimento no dia e custos sem base de rateio</span>
+                </th>
+                <ng-container *ngTemplateOutlet="cells; context: { $implicit: u, link: null }" />
+              </tr>
+            }
+            <tr class="mp__total">
+              <th scope="row">Total</th>
+              <ng-container *ngTemplateOutlet="cells; context: { $implicit: t, link: totalLink() }" />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+  }
+}
+
+<ng-template #cells let-line let-link="link">
+  <td class="num"><app-drill-link [to]="link"><app-amount [value]="line.recovered" /></app-drill-link></td>
+  <td class="num"><app-drill-link [to]="link"><app-amount [value]="line.revenue" /></app-drill-link></td>
+  @if (showCategories()) {
+    @for (cat of categories; track cat) {
+      <td class="num app-numeric">{{ cost(line, cat) }}</td>
+    }
+  }
+  <td class="num"><app-amount [value]="line.directCost" /></td>
+  <td class="num"><app-amount [value]="line.totalCost" /></td>
+  <td class="num app-numeric" [class.mp__neg-value]="negative(line.contributionMargin)">
+    {{ marginText(line.contributionMargin) }}<span class="sub">{{ rate(line.contributionMarginRate) }} da receita</span>
+  </td>
+  <td class="num app-numeric" [class.mp__neg-value]="negative(line.netMargin)">
+    {{ marginText(line.netMargin) }}<span class="sub">{{ rate(line.netMarginRate) }} da receita</span>
+  </td>
+  <td class="num app-numeric">{{ rate(line.roi) }}</td>
+</ng-template>

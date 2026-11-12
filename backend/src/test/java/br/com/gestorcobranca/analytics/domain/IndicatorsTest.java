@@ -4,7 +4,7 @@ import br.com.gestorcobranca.analytics.domain.model.Dimension;
 import br.com.gestorcobranca.analytics.domain.model.Ratio;
 import br.com.gestorcobranca.analytics.domain.model.ReportFilter;
 import br.com.gestorcobranca.analytics.domain.service.Indicators;
-import br.com.gestorcobranca.analytics.domain.service.SpreadsheetSafety;
+import br.com.gestorcobranca.shared.export.SpreadsheetSafety;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import org.junit.jupiter.api.Test;
 

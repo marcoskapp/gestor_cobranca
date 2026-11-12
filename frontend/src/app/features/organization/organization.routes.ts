@@ -36,4 +36,12 @@ export const ORGANIZATION_ROUTES: Routes = [
     data: { permissions: [Permission.ORGANIZATION_AREA_VIEW], allPermissions: [Permission.PORTFOLIO_VIEW] },
     loadComponent: () => import('./portfolios/portfolio-list/portfolio-list').then((m) => m.PortfolioList),
   },
+  {
+    // custos operacionais (módulo costing): faixas de pessoas (COST_RATE_MANAGE) e tarifas, câmbio e fixos (COST_MANAGE)
+    path: 'custos',
+    title: 'Custos operacionais',
+    canActivate: [permissionGuard],
+    data: { permissions: [Permission.COST_MANAGE, Permission.COST_RATE_MANAGE] },
+    loadComponent: () => import('../costing/settings/cost-settings').then((m) => m.CostSettings),
+  },
 ];

@@ -1,9 +1,10 @@
-package br.com.gestorcobranca.analytics.domain.service;
+package br.com.gestorcobranca.shared.export;
 
 /**
  * Proteção contra injeção de fórmulas (CSV/XLSX injection): texto que começa com {@code = + - @},
  * tabulação ou retorno de carro recebe um apóstrofo à frente e é tratado como texto pela planilha.
- * Números (inclusive negativos) passam inalterados.
+ * Números (inclusive negativos) passam inalterados. Compartilhada pelas exportações CSV/XLSX dos módulos
+ * (analytics, costing).
  */
 public final class SpreadsheetSafety {
 

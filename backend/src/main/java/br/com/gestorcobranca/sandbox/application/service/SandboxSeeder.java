@@ -24,7 +24,8 @@ import java.util.function.Consumer;
  * carteiras → usuários de todos os perfis → configuração operacional → canais e provedores simulados → tokens de
  * integração (ponto de extensão) → carga das carteiras → importação PDF de demonstração (PDFs fictícios e mapa salvo
  * do 1º credor) → cenários operacionais e jurídicos → réguas → distribuição,
- * demonstrativo e painéis. Cada etapa confere o que já existe: subir de novo não duplica nada.
+ * demonstrativo e painéis → custos operacionais (margem). Cada etapa confere o que já existe: subir de novo não
+ * duplica nada.
  * <p>
  * Ativação: perfil {@code sandbox} e {@code app.sandbox.seed.enabled=true} ({@code SandboxSeedGuard} recusa outras
  * combinações).
@@ -45,6 +46,7 @@ class SandboxSeeder {
     private final ConformitySeeder conformity;
     private final LegalSeeder legal;
     private final CampaignSeeder campaigns;
+    private final CostingSeeder costing;
     private final SeedStatus status;
     private final SeedRuntime rt;
     private final MeterRegistry meters;
@@ -52,7 +54,8 @@ class SandboxSeeder {
     SandboxSeeder(IdentitySeeder identity, OrganizationSeeder organization, ConfigurationSeeder configuration,
                   ChannelSeeder channels, IntegrationTokensSeeder integrationTokens, PortfolioLoadSeeder portfolioLoad,
                   PdfImportDemoSeeder pdfImportDemo, OperationSeeder operations, ConformitySeeder conformity,
-                  LegalSeeder legal, CampaignSeeder campaigns, SeedStatus status, SeedRuntime rt, MeterRegistry meters) {
+                  LegalSeeder legal, CampaignSeeder campaigns, CostingSeeder costing, SeedStatus status, SeedRuntime rt,
+                  MeterRegistry meters) {
         this.identity = identity;
         this.organization = organization;
         this.configuration = configuration;
@@ -64,6 +67,7 @@ class SandboxSeeder {
         this.conformity = conformity;
         this.legal = legal;
         this.campaigns = campaigns;
+        this.costing = costing;
         this.status = status;
         this.rt = rt;
         this.meters = meters;
@@ -98,6 +102,7 @@ class SandboxSeeder {
                 step("fluxo jurídico", seed, legal::seed);
                 step("réguas de cobrança", seed, campaigns::seed);
                 step("distribuição, prestação de contas e painéis", seed, operations::finish);
+                step("custos operacionais e margem", seed, costing::seed);
             }
             status.completed(rt.now());
             record("completed", started);

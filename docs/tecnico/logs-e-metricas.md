@@ -826,6 +826,10 @@ fields @timestamp, tenantId, callId, instance, process
 | `analytics.refresh.duration{dataset,outcome}`, `analytics.refresh.rows{dataset}`, `analytics.refresh.cycle.duration{trigger}`, `analytics.refresh.tenants{trigger,outcome}` | reconstrução dos snapshots dos painéis por conjunto e ciclo agendado (carimbo "dados até") |
 | `analytics.refresh.failures{trigger}` | falha ao atualizar os painéis de uma assessoria (alarme) |
 | `analytics.exports{report,format}`, `analytics.export.rows{report}` | exportações de relatórios (cada uma também em `DATA_EXPORTED` no log de acesso) |
+| `costing.refresh.duration{trigger,outcome}` (p50/p95), `costing.refresh.rows{trigger}` | apuração dos custos por assessoria (`trigger`: `scheduled` = job diário `costing.refresh`, `manual` = reapuração pedida na tela; `outcome`: `ok`/`error`); log técnico INFO `Custos da assessoria apurados` com período, linhas e duração (nenhum valor de custo nem de pessoa) |
+| `costing.refresh.failures{trigger}` | falha ao apurar os custos de uma assessoria no job diário (alarme; log técnico ERROR `Falha ao apurar os custos da assessoria` com `tenantId`) |
+| `costing.margin.query.duration{outcome}` (p50/p95/p99) | consulta do painel de margem por carteira |
+| `costing.exports{format}`, `costing.export.rows` | exportações do relatório de margem (cada uma também em `DATA_EXPORTED` no log de acesso, `resource=costing_margin`) |
 | `pendingwork.request.duration{outcome}` (p50/p95/p99), `pendingwork.request.sources` | consulta de "Minhas pendências": `complete` × `partial` (alguma fonte indisponível) e fontes consultadas por requisição (depende das permissões) |
 | `pendingwork.source.duration{source,outcome}` (p50/p95/p99) | cada fonte: `ok`, `error`, `timeout` (acima de `app.pending-work.timeout`, também `statement_timeout`), `busy` (executor saturado) — alarme sugerido: `error`+`timeout` > 5% em 15 min |
 | `executor.*{name=pending_work}` | fila e ocupação do executor das fontes (bulkhead de 4 threads por instância) |

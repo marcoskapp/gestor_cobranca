@@ -132,6 +132,10 @@ export const Permission = {
   DASHBOARD_VIEW: 'DASHBOARD_VIEW',
   REPORT_VIEW: 'REPORT_VIEW',
   REPORT_EXPORT: 'REPORT_EXPORT',
+
+  COST_VIEW: 'COST_VIEW',
+  COST_MANAGE: 'COST_MANAGE',
+  COST_RATE_MANAGE: 'COST_RATE_MANAGE',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -169,6 +173,7 @@ export const PERMISSION_GROUPS: readonly { label: string; prefixes: readonly str
     prefixes: ['PERFORMANCE_', 'COMMISSION_PLAN_', 'COMMISSION_STATEMENT_', 'QUALITY_'],
   },
   { label: 'Gestão e relatórios', prefixes: ['DASHBOARD_', 'REPORT_'] },
+  { label: 'Custos e margem', prefixes: ['COST_'] },
 ];
 
 /** Grupo do prefixo mais longo que casa (`COMMISSION_PLAN_` vence `COMMISSION_`). */

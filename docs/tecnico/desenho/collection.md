@@ -197,6 +197,9 @@ contato efetivo copiados no registro), observação criptografada (AES-GCM, `not
 duração, operador, tipo de ator e origem (`MANUAL`, `TELEPHONY`, `COMMUNICATION`, `ASSISTANT`, `SYSTEM`). Integrações
 informam `externalRef`: reenvio devolve a interação já registrada (`uk_interaction_external`).
 
+Índice por período da assessoria inteira `ix_interaction_tenant_started` (`V0611`): consumidor é a apuração diária dos
+custos (`costing.src_interaction`, [margem-por-carteira.md](margem-por-carteira.md) §4).
+
 Tabulações por assessoria, com flags: `effectiveContact` (CPC), `promise` (exige valor e data), `callback` (exige data e
 hora do retorno), `requiresNote`. Promessa e retorno são exclusivos entre si; promessa pressupõe contato efetivo. Catálogo
 padrão (14 tabulações) semeado no provisionamento (`TenantProvisioned`) e pela `V0601` nas assessorias existentes;

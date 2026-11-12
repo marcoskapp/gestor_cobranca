@@ -69,6 +69,11 @@ import static br.com.gestorcobranca.shared.security.Permission.*;
  * gestor fecham e revisam extratos ({@code PUBLIC_API_BILLING_MANAGE}; os preços ficam no contrato do credor, com
  * {@code CONTRACT_MANAGE}); o auditor consulta tokens e consumo.
  * <p>
+ * Margem por credor e carteira (docs/tecnico/desenho/margem-por-carteira.md §7): gestor, financeiro e auditor
+ * consultam o painel e o relatório ({@code COST_VIEW}); só o financeiro (e o administrador) mantém tarifas, câmbio e
+ * custos fixos ({@code COST_MANAGE}) e as faixas de custo de pessoas ({@code COST_RATE_MANAGE}). Nenhum perfil vê o
+ * custo de uma pessoa: o painel mostra só o custo agregado.
+ * <p>
  * Faturamento da plataforma (docs/negocio/api-publica.md §9): só o administrador da plataforma mantém a política de
  * cobrança de cada assessoria e fecha e revisa os extratos ({@code PLATFORM_BILLING_MANAGE}, exclusiva da plataforma,
  * com {@code PLATFORM_BILLING_VIEW}); na assessoria, só o administrador consulta, sem alterar, a cobrança da
@@ -128,7 +133,7 @@ public final class DefaultRoles {
                 LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, TELEPHONY_MANAGE, SETTLEMENT_APPROVE,
                 ASSISTANT_MANAGE, IMPORT_APPROVE,
                 PUBLIC_API_TOKEN_VIEW, PUBLIC_API_TOKEN_MANAGE, PUBLIC_API_USAGE_VIEW, PUBLIC_API_BILLING_MANAGE,
-                ORGANIZATION_AREA_VIEW, SCORING_AREA_VIEW, VULNERABILITY_SENSITIVE_VIEW));
+                ORGANIZATION_AREA_VIEW, SCORING_AREA_VIEW, VULNERABILITY_SENSITIVE_VIEW, COST_VIEW));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,
@@ -136,14 +141,15 @@ public final class DefaultRoles {
                 RECONCILIATION_MANAGE, COMMISSION_VIEW, COMMISSION_MANAGE, SETTLEMENT_VIEW, SETTLEMENT_CLOSE,
                 DASHBOARD_VIEW, REPORT_VIEW, REPORT_EXPORT, PERFORMANCE_VIEW_ALL, COMMISSION_STATEMENT_APPROVE,
                 LEGAL_VIEW, LEGAL_EXPENSE_MANAGE, SETTLEMENT_TRANSFER, PUBLIC_API_USAGE_VIEW, PUBLIC_API_BILLING_MANAGE,
-                TITLE_AMOUNT_ADJUST, TITLE_AMOUNT_APPROVE, ORGANIZATION_AREA_VIEW, POLICY_AREA_VIEW);
+                TITLE_AMOUNT_ADJUST, TITLE_AMOUNT_APPROVE, ORGANIZATION_AREA_VIEW, POLICY_AREA_VIEW,
+                COST_VIEW, COST_MANAGE, COST_RATE_MANAGE);
 
         Set<Permission> auditor = EnumSet.of(
                 USER_VIEW, ACCESS_LOG_VIEW, AUDIT_VIEW, CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, IMPORT_VIEW,
                 DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW, PAYMENT_VIEW, COMMISSION_VIEW, SETTLEMENT_VIEW,
                 CAMPAIGN_VIEW, INBOX_VIEW, SCORING_VIEW, DASHBOARD_VIEW, REPORT_VIEW, PERFORMANCE_VIEW_ALL, LEGAL_VIEW,
                 PUBLIC_API_TOKEN_VIEW, PUBLIC_API_USAGE_VIEW, ORGANIZATION_AREA_VIEW, POLICY_AREA_VIEW,
-                SCORING_AREA_VIEW);
+                SCORING_AREA_VIEW, COST_VIEW);
 
         Set<Permission> juridico = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,

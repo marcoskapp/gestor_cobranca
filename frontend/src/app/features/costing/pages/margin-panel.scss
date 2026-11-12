@@ -1,0 +1,116 @@
+.mp__basis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0 0 var(--app-gap);
+  font-size: var(--app-text-sm);
+  color: var(--bs-secondary-color);
+}
+.mp__warnings {
+  ul {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding-left: 1.25rem;
+  }
+  li > app-config-link {
+    margin-left: 6px;
+  }
+}
+.mp__warnings-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: var(--app-text-md);
+  font-weight: var(--app-weight-semibold);
+}
+// cartões lado a lado no contêiner padrão `.app-columns` (ux.md §4): sem a margem de cartão empilhado
+.mp__grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  margin-block: var(--app-gap);
+}
+.mp__hint {
+  margin: 8px 0 0;
+  font-size: var(--app-text-xs);
+  color: var(--bs-secondary-color);
+}
+.mp__table-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mp__table-wrap {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+.mp__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--app-text-sm);
+  th,
+  td {
+    padding: 8px;
+    border-bottom: 1px solid var(--bs-border-color);
+    text-align: left;
+    vertical-align: top;
+  }
+  thead th {
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-semibold);
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+  }
+  .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .sub {
+    display: block;
+    font-size: var(--app-text-xs);
+    font-weight: normal;
+    color: var(--bs-secondary-color);
+  }
+}
+.mp__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+.mp__expand {
+  margin: -4px 4px 0 -6px;
+  padding: 0 4px;
+}
+.mp__portfolio th {
+  font-weight: normal;
+}
+.mp__indent {
+  display: inline-block;
+  padding-left: 28px;
+}
+.mp__negative > th:first-child {
+  box-shadow: inset 3px 0 0 var(--bs-danger);
+}
+.mp__neg-value {
+  color: var(--bs-danger-text-emphasis);
+}
+.mp__total th,
+.mp__total td {
+  font-weight: var(--app-weight-semibold);
+  border-bottom: 0;
+}
+// custos sem credor (só para quem vê todos os credores): separados do total por uma linha, em texto secundário
+.mp__unallocated th,
+.mp__unallocated td {
+  color: var(--bs-secondary-color);
+  border-top: var(--bs-border-width) solid var(--bs-border-color);
+}

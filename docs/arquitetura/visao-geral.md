@@ -45,6 +45,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `assistant` | IA de atendimento e negociação: ator próprio (`ASSISTANT`) com perfil de alçada, modos sombra/copiloto/autônomo, guardrails, transferência para humano e Pix da parcela na conversa (pela interface do `payment`, ADR-0009) — ver `docs/tecnico/desenho/assistente.md` | F24 |
 | `analytics` | Read models e relatórios (painel operacional, recuperação, conversão, produtividade, confiabilidade, exportação) por views `security_invoker` e snapshots por assessoria — ver `docs/tecnico/desenho/analytics.md` | F11, F18 |
 | `incentive` | Métricas operacionais dos negociadores, atribuição de crédito (humano × assistente), planos de comissão versionados, apuração, extrato, contestação e aprovação — ver `docs/tecnico/desenho/remuneracao-variavel.md` | remuneração variável |
+| `costing` | Custos operacionais e margem por credor e carteira: cadastros com vigência (faixas de custo de pessoas, faixa de cada usuário, tarifas de canal, câmbio da IA, custos fixos com regra de rateio), apuração diária dos fatos de custo por views `security_invoker` próprias, painel e exportação de margem — ver `docs/tecnico/desenho/margem-por-carteira.md` | margem por carteira |
 | `complaint` | Reclamações de canais externos (Procon, consumidor.gov.br, Banco Central/ouvidoria, Reclame Aqui): protocolo, prazo por canal, responsável, resposta, evidências em quarentena, vínculo ao devedor/caso/credor e indicador por credor — ver `docs/tecnico/desenho/conformidade.md` §3 | conformidade (I5) |
 | `pendingwork` | "Minhas pendências": agrega o que o usuário da sessão pode fazer agora (aprovações, prazos, filas) a partir das fontes que cada módulo dono implementa (`shared.pendingwork.PendingWorkSource`) — ver `docs/tecnico/desenho/pendencias.md` | pendências |
 | `helpdesk` | Chat de suporte com IA para o usuário interno: manual contextual como base de conhecimento, consultas somente leitura como o próprio usuário (permissão, escopo e trilha de acesso), chamado no GitHub com texto mascarado e confirmação; parâmetros da configuração citados no manual (`GET /helpdesk/manual-parameters`, agregados de `shared.manual.ManualParameterSource` que cada módulo dono implementa) — ver `docs/tecnico/desenho/chat-suporte.md` e `ux.md` §8.7 | suporte |
@@ -77,6 +78,7 @@ shared ◄── organization ◄── identity
               ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation e réguas do campaign por evento)
               ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               ├── analytics          (→ organization; lê o banco por views próprias)
+              ├── costing            (→ organization, identity [validar a pessoa de uma faixa]; lê o uso por views próprias)
               ├── pendingwork        (→ só shared; recebe as fontes de pendência dos módulos por injeção)
               │   (o compliance recebe do mesmo jeito as fontes de compartilhamento `shared.privacy.DataSharingSource` de debt, communication, telephony, payment, assistant, legal e publicapi — sem dependência nova)
               ├── helpdesk           (→ identity, organization, debt, collection, negotiation, payment, ingestion, settlement, incentive, pendingwork — só leitura)
@@ -196,6 +198,7 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V2200–V2299 | sandbox (reservada, sem uso — decisão 630) |
 | V2300–V2399 | ingestion — importação PDF inteligente |
 | V2400–V2499 | complaint — reclamações de canais externos |
+| V2500–V2599 | costing — custos operacionais e margem por credor e carteira (contrato de leitura em `R__costing_contract.sql`) |
 
 Como as faixas são por módulo, uma migration nova de faixa baixa pode chegar depois de versões maiores já aplicadas; o Flyway roda com `out-of-order: true` (a validação de checksum continua ativa) — ver `MigrationOrderIT`.
 

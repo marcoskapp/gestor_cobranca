@@ -159,7 +159,12 @@ public enum Permission {
     // Gestão e relatórios
     DASHBOARD_VIEW("Consultar painéis"),
     REPORT_VIEW("Consultar relatórios"),
-    REPORT_EXPORT("Exportar relatórios");
+    REPORT_EXPORT("Exportar relatórios"),
+
+    // Custos operacionais e margem por credor e carteira (módulo costing)
+    COST_VIEW("Consultar o painel e o relatório de margem por credor e carteira e os cadastros de custo"),
+    COST_MANAGE("Manter tarifas de canal, câmbio, custos fixos e rateio e reapurar os custos"),
+    COST_RATE_MANAGE("Manter as faixas de custo de pessoas e a faixa de cada usuário");
 
     /**
      * Permissões exclusivas do operador da plataforma SaaS: só o perfil de sistema {@code PLATFORM_ADMIN} do tenant da

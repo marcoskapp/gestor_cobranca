@@ -5,11 +5,11 @@ Toda assessoria nasce com um perfil para cada tipo de usuário do sistema. Eles 
 | Perfil (código) | Para quem | O que faz | MFA |
 | --- | --- | --- | --- |
 | Administrador (`ADMIN`) | Responsável pela assessoria na plataforma | Acesso total à assessoria (todas as permissões, exceto o provisionamento de assessorias, que é da plataforma) | Obrigatório |
-| Gestor (`GESTOR`) | Gestão da operação | Credores, contratos, carteiras, políticas e alçadas, correção manual do valor do título e aprovação das correções de outra pessoa (correcao-de-valor.md), importação, estratégias, templates, score, portal, jurídico, telefonia, assistente, prestação de contas (aprovação), tokens, consumo e faturamento da API pública | Obrigatório |
+| Gestor (`GESTOR`) | Gestão da operação | Credores, contratos, carteiras, políticas e alçadas, correção manual do valor do título e aprovação das correções de outra pessoa (correcao-de-valor.md), importação, estratégias, templates, score, portal, jurídico, telefonia, assistente, prestação de contas (aprovação), tokens, consumo e faturamento da API pública, painel de margem por carteira | Obrigatório |
 | Supervisor (`SUPERVISOR`) | Coordenação de equipes | Tudo do operador, mais distribuição e redistribuição, filas, gestão das contestações (atribuir, redistribuir, prazos, distribuição, modelos e a quarentena dos e-mails do credor), aprovações de proposta, caixa de entrada, monitoria, gravações e revisão do assistente | — |
 | Operador (`OPERADOR`) | Negociador | Estação de cobrança: casos, interações, retornos, simulação, propostas, formalização dentro da alçada, Pix, mensagens, telefone; contestações atribuídas a si e as sem responsável que assumir, inclusive confirmar as respostas do credor por e-mail (`DISPUTE_WORK`, contestacoes.md §2 e §4) | — |
-| Financeiro (`FINANCEIRO`) | Tesouraria e repasses | Pagamentos, aprovação de pagamento externo, correção manual do valor do título e aprovação das correções de outra pessoa, estornos, conciliação, comissão, fechamento e repasse ao credor, consumo e extratos da API pública | Obrigatório |
-| Auditor (`AUDITOR`) | Auditoria interna/externa | Somente leitura de cadastros, operação, finanças, logs de acesso, trilha de auditoria, tokens e consumo da API pública | Obrigatório |
+| Financeiro (`FINANCEIRO`) | Tesouraria e repasses | Pagamentos, aprovação de pagamento externo, correção manual do valor do título e aprovação das correções de outra pessoa, estornos, conciliação, comissão, fechamento e repasse ao credor, consumo e extratos da API pública, custos operacionais (faixas de custo, tarifas, câmbio, custos fixos) e margem por carteira | Obrigatório |
+| Auditor (`AUDITOR`) | Auditoria interna/externa | Somente leitura de cadastros, operação, finanças, logs de acesso, trilha de auditoria, tokens e consumo da API pública e margem por carteira | Obrigatório |
 | Jurídico (`JURIDICO`) | Jurídico interno | Casos jurídicos, autorização do credor, custas, garantias e prescrição | Obrigatório |
 | Advogado parceiro (`ADVOGADO_PARCEIRO`) | Escritório parceiro | Somente os casos jurídicos atribuídos ao escritório | Obrigatório |
 | Analista de carteiras (`ANALISTA_CARTEIRA`) | Back-office de cargas | Importação e saneamento de carteiras, títulos, garantias e devedores (não aprova a própria carga) | — |
@@ -34,6 +34,19 @@ A lista exata de permissões de cada perfil está em `backend/src/main/java/br/c
 
 O selo de atenção especial aparece a quem vê o devedor; a categoria, só a quem tem `VULNERABILITY_SENSITIVE_VIEW`. Detalhes em
 [conformidade.md](../tecnico/desenho/conformidade.md).
+
+## Custos operacionais e margem por carteira
+
+| Permissão | O que libera | Perfis padrão |
+| --- | --- | --- |
+| `COST_VIEW` | painel e relatório "Margem por carteira" (com exportação, se tiver também `REPORT_EXPORT`) e consulta das faixas de custo, tarifas, câmbio e custos fixos | Gestor, Financeiro, Auditor (leitura), Administrador |
+| `COST_MANAGE` | manter tarifas de canal, câmbio e custos fixos com a regra de rateio e reapurar os custos de um período | Financeiro, Administrador |
+| `COST_RATE_MANAGE` | manter as faixas de custo de pessoas (valor-hora por cargo) e a faixa de cada usuário | Financeiro, Administrador |
+
+Ninguém vê o custo de uma pessoa: a faixa é por cargo e o painel mostra só o custo agregado. Os cadastros valem para a
+assessoria inteira, então alterá-los exige acesso a todos os credores (custo fixo direto a um credor exige só o credor).
+Quem não vê todos os credores vê a margem só dos próprios credores, sem os valores da assessoria sem credor. Detalhes em
+[margem-por-carteira.md](../tecnico/desenho/margem-por-carteira.md).
 
 ## Como os perfis se mantêm atualizados
 

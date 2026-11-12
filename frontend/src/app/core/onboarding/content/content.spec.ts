@@ -171,6 +171,15 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/')?.version).toBe(4);
   });
 
+  it('margem por carteira e custos operacionais registrados com tour e nota de versão', () => {
+    expect(findScreen('/paineis/margem?de=2026-10-01&credor=c-1')?.tourId).toBe('analytics.margin');
+    expect(findScreen('/organizacao/custos?aba=tarifas')?.tourId).toBe('organization.costs');
+    expect(findTour('analytics.margin')!.steps.map((s) => s.anchor)).toContain('info-hint');
+    const note = RELEASE_NOTES.find((n) => n.version === 30)!;
+    expect(note.title).toBe('Margem por carteira e credor');
+    expect(note.items.map((i) => i.route)).toEqual(['/paineis/margem', '/organizacao/custos']);
+  });
+
   it('pagamentos, instruções, aprovação, sobras, conciliação e contas Pix registrados com tour (rotas fixas antes de :id)', () => {
     expect(findScreen('/pagamentos?devedor=d-1')?.tourId).toBe('payment.list');
     expect(findScreen('/pagamentos/instrucoes')?.tourId).toBe('payment.instructions');
