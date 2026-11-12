@@ -8,6 +8,7 @@ import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.Contract
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ObligationPartyRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContractRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.DebtorRecord;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.RepresentativeRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.TitleRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.UpsertResult;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
@@ -146,7 +147,7 @@ class RowWriter {
             record = ImportBatchRow.skipped(target.batchId(), row.titleExternalId(), row.rowNumber(), titleId,
                     rowIssues.size(), decision.suspendExisting());
         } else {
-            UpsertResult debtor = debt.upsertDebtor(debtorRecord(row));
+            UpsertResult debtor = debt.upsertDebtor(debtorRecord(row, target.batchId()));
             UpsertResult title = debt.upsertTitle(titleRecord(target, row, debtor.id()), target.batchId());
             debtor.warnings().forEach(code -> rowIssues.add(DebtWarnings.toIssue(row.rowNumber(), code)));
             title.warnings().forEach(code -> rowIssues.add(DebtWarnings.toIssue(row.rowNumber(), code)));
@@ -191,7 +192,7 @@ class RowWriter {
         }
         for (ParsedLegal.Party party : legal.parties()) {
             warnings.addAll(debt.upsertObligationParty(new ObligationPartyRecord(target.creditorId(), contract,
-                    new DebtorRecord(party.document().number(), party.name(), null, List.of()), party.role(),
+                    new DebtorRecord(party.document().number(), party.name(), null, List.of(), target.batchId()), party.role(),
                     party.since())).warnings());
         }
         ParsedLegal.Collateral c = legal.collateral();
@@ -210,11 +211,16 @@ class RowWriter {
         return warnings;
     }
 
-    private static DebtorRecord debtorRecord(ParsedRow row) {
+    /** Com a carga: contato novo para devedor que já existia fica marcado como novo (contatos-recebidos.md). */
+    private static DebtorRecord debtorRecord(ParsedRow row, UUID batchId) {
         List<ContactRecord> contacts = row.contacts().stream()
-                .map(c -> new ContactRecord(c.kind().name(), c.value(), null, c.whatsapp()))
+                .map(c -> new ContactRecord(c.kind().name(), c.value(), null, c.whatsapp(), c.personName(), c.personRole()))
                 .toList();
-        return new DebtorRecord(row.document().number(), row.name(), row.birthDate(), contacts);
+        List<RepresentativeRecord> representatives = row.representatives().stream()
+                .map(r -> new RepresentativeRecord(r.document().number(), r.name(), r.role(), r.canNegotiate()))
+                .toList();
+        return new DebtorRecord(row.document().number(), row.name(), row.birthDate(), contacts, row.tradeName(),
+                representatives, batchId);
     }
 
     private static TitleRecord titleRecord(Target target, ParsedRow row, UUID debtorId) {

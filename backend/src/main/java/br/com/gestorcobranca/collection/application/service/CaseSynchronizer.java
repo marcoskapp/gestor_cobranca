@@ -15,6 +15,8 @@ import br.com.gestorcobranca.collection.domain.service.QueueRouter;
 import br.com.gestorcobranca.compliance.application.port.in.VulnerabilityQueries;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
+import br.com.gestorcobranca.debt.application.port.in.DebtorSegmentationQueries;
+import br.com.gestorcobranca.debt.application.port.in.DebtorSegmentationQueries.DebtorSegmentation;
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import org.springframework.stereotype.Component;
@@ -58,12 +60,14 @@ class CaseSynchronizer {
     private final DebtorCaseLock lock;
     private final CurrentActor currentActor;
     private final VulnerabilityQueries vulnerability;
+    private final DebtorSegmentationQueries segmentation;
     private final Clock clock;
 
     CaseSynchronizer(CollectionCaseRepository cases, CollectionQueueRepository queues, CollectionTaskRepository tasks,
                      DebtTitleUseCases titles, EligibilityEvaluator eligibility, CaseRecorder recorder,
                      CallbackRecorder callbacks, DebtorCaseLock lock, CurrentActor currentActor,
-                     VulnerabilityQueries vulnerability, Clock clock) {
+                     VulnerabilityQueries vulnerability, DebtorSegmentationQueries segmentation, Clock clock) {
+        this.segmentation = segmentation;
         this.cases = cases;
         this.queues = queues;
         this.tasks = tasks;
@@ -79,7 +83,7 @@ class CaseSynchronizer {
 
     /** Contexto de uma execução (filas ativas e carteiras carregadas uma vez). */
     Context context() {
-        return new Context(queues.findByActiveTrue(), eligibility.batch(), null);
+        return new Context(queues.findByActiveTrue(), eligibility.batch(), null, null);
     }
 
     /**
@@ -87,7 +91,49 @@ class CaseSynchronizer {
      * vez para todos, em vez de uma consulta por caso aberto.
      */
     Context context(java.util.Collection<UUID> debtorIds) {
-        return new Context(queues.findByActiveTrue(), eligibility.batch(), vulnerability.vulnerableAmong(debtorIds));
+        return new Context(queues.findByActiveTrue(), eligibility.batch(), vulnerability.vulnerableAmong(debtorIds),
+                segmentationOf(debtorIds));
+    }
+
+    /** Tipo de pessoa e novidade dos contatos dos devedores (debt), em consultas de até {@code MAX_DEBTORS}. */
+    private Map<UUID, DebtorSegmentation> segmentationOf(java.util.Collection<UUID> debtorIds) {
+        Map<UUID, DebtorSegmentation> result = new HashMap<>();
+        List<UUID> ids = List.copyOf(new java.util.LinkedHashSet<>(debtorIds));
+        for (int from = 0; from < ids.size(); from += DebtorSegmentationQueries.MAX_DEBTORS) {
+            result.putAll(segmentation.segmentation(
+                    ids.subList(from, Math.min(ids.size(), from + DebtorSegmentationQueries.MAX_DEBTORS))));
+        }
+        return result;
+    }
+
+    /** Estado atual no debt (fonte da verdade do tipo de pessoa e do fim da novidade do caso); vazio se fora do escopo. */
+    Optional<DebtorSegmentation> debtorSegmentation(UUID debtorId) {
+        return Optional.ofNullable(segmentation.segmentation(List.of(debtorId)).get(debtorId));
+    }
+
+    /**
+     * Fim da novidade dos contatos do devedor mudou (debt): guarda no caso, com o tipo de pessoa atual, e refaz só o
+     * roteamento (os critérios "só devedores com contato novo" e "tipo de pessoa" podem mudar a fila); a elegibilidade
+     * não depende deles. Qualquer das duas mudanças passa pelo {@code recorder.commit}.
+     *
+     * @return true se o valor do caso mudou
+     */
+    boolean applyNewContact(CollectionCase c, DebtorSegmentation current, String trigger) {
+        if (!c.getStatus().isActive()) {
+            return false;
+        }
+        CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);
+        String previousPersonType = c.getDebtorPersonType();
+        c.identifyDebtorPersonType(current.personType());
+        boolean personTypeChanged = !Objects.equals(previousPersonType, c.getDebtorPersonType());
+        boolean noveltyChanged = c.applyNewContactUntil(current.newContactUntil());
+        if (!personTypeChanged && !noveltyChanged) {
+            return false;
+        }
+        c.routeTo(QueueRouter.route(c, context().queues(), CollectionViews.today(clock), Instant.now(clock))
+                .map(CollectionQueue::getId).orElse(null));
+        recorder.commit(c, before, AssignmentMode.ROUTING, null, trigger);
+        return true;
     }
 
     /** Estado atual do marcador no compliance (fonte da verdade do indicador do caso). */
@@ -183,8 +229,8 @@ class CaseSynchronizer {
         if (!c.markVulnerable(vulnerable)) {
             return false;
         }
-        c.routeTo(QueueRouter.route(c, context().queues(), CollectionViews.today(clock)).map(CollectionQueue::getId)
-                .orElse(null));
+        c.routeTo(QueueRouter.route(c, context().queues(), CollectionViews.today(clock), Instant.now(clock))
+                .map(CollectionQueue::getId).orElse(null));
         recorder.commit(c, before, AssignmentMode.ROUTING, null, trigger);
         return true;
     }
@@ -205,8 +251,8 @@ class CaseSynchronizer {
             cases.save(c);
             return false;
         }
-        c.routeTo(QueueRouter.route(c, context().queues(), CollectionViews.today(clock)).map(CollectionQueue::getId)
-                .orElse(null));
+        c.routeTo(QueueRouter.route(c, context().queues(), CollectionViews.today(clock), Instant.now(clock))
+                .map(CollectionQueue::getId).orElse(null));
         recorder.commit(c, before, AssignmentMode.ROUTING, null, trigger);
         return true;
     }
@@ -215,7 +261,7 @@ class CaseSynchronizer {
     void applyEligibilityAndRoute(CollectionCase c, Context ctx) {
         Instant now = Instant.now(clock);
         c.applyEligibility(ctx.eligibility().evaluate(c), now);
-        UUID queueId = QueueRouter.route(c, ctx.queues(), CollectionViews.today(clock)).map(CollectionQueue::getId)
+        UUID queueId = QueueRouter.route(c, ctx.queues(), CollectionViews.today(clock), now).map(CollectionQueue::getId)
                 .orElse(null);
         c.routeTo(queueId);
     }
@@ -226,6 +272,13 @@ class CaseSynchronizer {
         // devedor já marcado como vulnerável: o caso nasce com o indicador (critério de fila própria)
         c.markVulnerable(ctx.vulnerableDebtors() != null ? ctx.vulnerableDebtors().contains(debtorId)
                 : vulnerability.isVulnerable(debtorId));
+        // tipo de pessoa e contato novo do devedor (critérios de fila); depois, a novidade chega por evento
+        Optional<DebtorSegmentation> debtor = ctx.segmentation() != null
+                ? Optional.ofNullable(ctx.segmentation().get(debtorId)) : debtorSegmentation(debtorId);
+        debtor.ifPresent(d -> {
+            c.identifyDebtorPersonType(d.personType());
+            c.applyNewContactUntil(d.newContactUntil());
+        });
         // id definido antes da avaliação (contestações são consultadas pelo caso; aqui não há nenhuma)
         applyEligibilityAndRoute(c, ctx);
         return recorder.opened(c, trigger);
@@ -300,9 +353,12 @@ class CaseSynchronizer {
         return CloseReason.NO_OPEN_TITLES;
     }
 
-    /** @param vulnerableDebtors devedores com marcador já consultados em lote (nulo = consultar caso a caso) */
+    /**
+     * @param vulnerableDebtors devedores com marcador já consultados em lote (nulo = consultar caso a caso)
+     * @param segmentation      tipo de pessoa e novidade dos contatos já consultados em lote (nulo = consultar caso a caso)
+     */
     record Context(List<CollectionQueue> queues, EligibilityEvaluator.Batch eligibility,
-                   java.util.Set<UUID> vulnerableDebtors) {
+                   java.util.Set<UUID> vulnerableDebtors, Map<UUID, DebtorSegmentation> segmentation) {
 
         Context {
             queues = queues.stream().sorted(Comparator.comparingInt(CollectionQueue::getPriority)

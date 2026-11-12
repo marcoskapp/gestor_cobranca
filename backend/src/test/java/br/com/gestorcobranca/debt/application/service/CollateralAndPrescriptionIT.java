@@ -159,7 +159,7 @@ class CollateralAndPrescriptionIT extends IntegrationTest {
     }
 
     private UUID debtor(String document, String name) {
-        return system(() -> ingestion.upsertDebtor(new DebtorRecord(document, name, null, List.of())).id());
+        return system(() -> ingestion.upsertDebtor(new DebtorRecord(document, name, null, List.of(), null)).id());
     }
 
     private UUID title(UUID debtorId, String externalId, String contractExternalId, LocalDate dueDate) {
@@ -428,13 +428,13 @@ class CollateralAndPrescriptionIT extends IntegrationTest {
         UUID debtorId = debtor(CPF, "Maria Silva");
         title(debtorId, "P-1", "CTR-P", LocalDate.of(2026, 1, 10));
         ObligationPartyRecord guarantor = new ObligationPartyRecord(creditorA, "CTR-P",
-                new DebtorRecord(GUARANTOR_CPF, "João Avalista", null, List.of()), "GUARANTOR_AVAL", LocalDate.of(2019, 1, 10));
+                new DebtorRecord(GUARANTOR_CPF, "João Avalista", null, List.of(), null), "GUARANTOR_AVAL", LocalDate.of(2019, 1, 10));
 
         UpsertResult party = system(() -> ingestion.upsertObligationParty(guarantor));
         assertThat(party.outcome()).isEqualTo(Outcome.CREATED);
         assertThat(system(() -> ingestion.upsertObligationParty(guarantor)).outcome()).isEqualTo(Outcome.UNCHANGED);
         assertThatThrownBy(() -> system(() -> ingestion.upsertObligationParty(new ObligationPartyRecord(creditorA, "CTR-P",
-                new DebtorRecord(CPF, "Maria Silva", null, List.of()), "CO_DEBTOR", null))))
+                new DebtorRecord(CPF, "Maria Silva", null, List.of(), null), "CO_DEBTOR", null))))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasFieldOrPropertyWithValue("code", "obligation_party.principal_cannot_be_party");
 

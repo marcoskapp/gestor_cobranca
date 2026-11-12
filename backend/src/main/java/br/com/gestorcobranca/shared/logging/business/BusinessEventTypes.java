@@ -11,6 +11,8 @@ public final class BusinessEventTypes {
     public static final String CREDITOR_CREATED = "creditor.created";
     public static final String PORTFOLIO_CREATED = "portfolio.created";
     public static final String PORTFOLIO_STATUS_CHANGED = "portfolio.status_changed";
+    /** Regime da carteira alterado (consumo × empresarial, cobrança B2B §6). */
+    public static final String PORTFOLIO_REGIME_CHANGED = "portfolio.regime_changed";
     public static final String POLICY_PUBLISHED = "policy.published";
 
     // Ingestão
@@ -38,6 +40,16 @@ public final class BusinessEventTypes {
 
     // Dívida
     public static final String DEBTOR_CONSOLIDATED = "debtor.consolidated";
+    /** Recuperação judicial, extrajudicial ou falência do devedor PJ registrada (cobrança B2B §7). */
+    public static final String DEBTOR_INSOLVENCY_REGISTERED = "debtor.insolvency_registered";
+    /** Recuperação judicial convolada em falência. */
+    public static final String DEBTOR_INSOLVENCY_CONVERTED = "debtor.insolvency_converted";
+    /** Processo de insolvência encerrado: a cobrança volta a ser avaliada. */
+    public static final String DEBTOR_INSOLVENCY_ENDED = "debtor.insolvency_ended";
+    /** Devedor já existente recebeu contato novo numa carga (quantidade por tipo, sem valor). */
+    public static final String CONTACT_RECEIVED_NEW = "contact.received_new";
+    /** Primeira tentativa por um contato (novo × antigo, efetivo ou não). */
+    public static final String CONTACT_FIRST_ATTEMPT = "contact.first_attempt";
     public static final String TITLE_STATUS_CHANGED = "title.status_changed";
     public static final String COLLATERAL_REGISTERED = "collateral.registered";
     public static final String COLLATERAL_STATUS_CHANGED = "collateral.status_changed";
@@ -215,6 +227,8 @@ public final class BusinessEventTypes {
     /** Pedido que foge do portal (falar com atendente, contestação) encaminhado à fila humana. */
     public static final String PORTAL_SERVICE_REQUESTED = "portal.service_requested";
     public static final String PORTAL_DISPUTE_REGISTERED = "portal.dispute_registered";
+    /** Devedor PJ informou quem está negociando pela empresa no portal (só {@code confirmed}; nunca o CPF ou o nome). */
+    public static final String PORTAL_REPRESENTATIVE_DECLARED = "portal.representative_declared";
     /** Configuração do portal de um credor criada ou alterada. */
     public static final String PORTAL_CONFIGURATION_CHANGED = "portal.configuration_changed";
     public static final String SCORE_CALCULATED = "score.calculated";

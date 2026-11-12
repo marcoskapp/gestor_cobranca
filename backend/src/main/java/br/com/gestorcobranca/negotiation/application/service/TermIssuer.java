@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
+import br.com.gestorcobranca.debt.application.port.in.CompanyRepresentativeUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
 import br.com.gestorcobranca.negotiation.application.port.out.AgreementTermRenderer;
 import br.com.gestorcobranca.negotiation.application.port.out.AgreementTermRenderer.TermDocument;
@@ -41,22 +42,31 @@ class TermIssuer {
     private final FileStorage fileStorage;
     private final CreditorUseCases creditors;
     private final DebtorUseCases debtors;
+    private final CompanyRepresentativeUseCases representatives;
     private final DebtTitles debtTitles;
     private final NegotiationMetrics metrics;
     private final Clock clock;
 
     TermIssuer(AgreementTermRenderer renderer, FileStorage fileStorage, CreditorUseCases creditors,
-               DebtorUseCases debtors, DebtTitles debtTitles, NegotiationMetrics metrics, Clock clock) {
+               DebtorUseCases debtors, CompanyRepresentativeUseCases representatives, DebtTitles debtTitles,
+               NegotiationMetrics metrics, Clock clock) {
         this.renderer = renderer;
         this.fileStorage = fileStorage;
         this.creditors = creditors;
         this.debtors = debtors;
+        this.representatives = representatives;
         this.debtTitles = debtTitles;
         this.metrics = metrics;
         this.clock = clock;
     }
 
     StoredFile issue(Proposal proposal, Evaluation evaluation, BreakRule breakRule, String channel) {
+        return issue(proposal, evaluation, breakRule, channel, null);
+    }
+
+    /** @param representativeId representante da empresa devedora que aceitou (nulo = sem representante) */
+    StoredFile issue(Proposal proposal, Evaluation evaluation, BreakRule breakRule, String channel,
+                     UUID representativeId) {
         Instant started = Instant.now(clock);
         CreditorUseCases.CreditorView creditor = creditors.get(proposal.getCreditorId());
         DebtorUseCases.DebtorView debtor = debtors.get(proposal.getDebtorId());
@@ -77,7 +87,8 @@ class TermIssuer {
                         + " parcela(s) estiverem em atraso há mais de " + breakRule.toleranceDays()
                         + " dia(s); nesse caso as parcelas restantes são canceladas e o saldo devedor volta a ser cobrado"
                         + " pelas condições originais, abatidos os pagamentos efetuados.",
-                proposal.getPolicyVersion(), channel, Instant.now(clock));
+                proposal.getPolicyVersion(), channel, Instant.now(clock),
+                representativeId == null ? null : representative(proposal.getDebtorId(), representativeId));
         byte[] pdf = renderer.render(document);
         StoredFile stored = fileStorage.store(FileCategory.AGREEMENT_TERM, "termo-acordo-" + proposal.getId() + ".pdf",
                 "application/pdf", new ByteArrayInputStream(pdf), pdf.length);
@@ -86,6 +97,17 @@ class TermIssuer {
         return stored;
     }
 
+
+    /** Representante da empresa (404 se não for da empresa do devedor da proposta). */
+    private AgreementTermRenderer.TermRepresentative representative(UUID debtorId, UUID representativeId) {
+        CompanyRepresentativeUseCases.RepresentativeView r = representatives.get(debtorId, representativeId);
+        String role = switch (r.role()) {
+            case "MANAGING_PARTNER" -> "Sócio administrador";
+            case "ATTORNEY_IN_FACT" -> "Procurador";
+            default -> "Representante";
+        };
+        return new AgreementTermRenderer.TermRepresentative(r.name(), r.maskedDocument(), role);
+    }
 
     private void deleteOnRollback(String key) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {

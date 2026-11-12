@@ -9,7 +9,7 @@ import br.com.gestorcobranca.legal.application.port.out.CourtDataProvider;
 import br.com.gestorcobranca.legal.application.port.out.CourtDataProvider.CapturedMovement;
 import br.com.gestorcobranca.legal.application.port.out.CourtDataProvider.CourtCapture;
 import br.com.gestorcobranca.legal.domain.model.CaseMovement;
-import br.com.gestorcobranca.legal.domain.model.CnjNumber;
+import br.com.gestorcobranca.shared.domain.CnjNumber;
 import br.com.gestorcobranca.legal.domain.model.LawsuitStatus;
 import br.com.gestorcobranca.legal.domain.model.Lawsuit;
 import br.com.gestorcobranca.legal.domain.model.LegalDeadline;
@@ -110,7 +110,7 @@ class LawsuitService implements LawsuitUseCases {
         Guard.require(route.isJudicial(), "lawsuit.route_invalid", "Via judicial obrigatória");
         Guard.requireState(requirements.authorizedRoutes(m.getId()).contains(route), "lawsuit.not_authorized",
                 "O credor não autorizou esta via judicial");
-        CnjNumber cnj = CnjNumber.parse(command.cnjNumber());
+        CnjNumber cnj = CnjNumber.parse(command.cnjNumber(), "lawsuit");
         if (lawsuits.existsByCnjNumber(cnj.digits())) {
             throw new ConflictException("lawsuit.duplicate", "Processo já cadastrado na assessoria");
         }

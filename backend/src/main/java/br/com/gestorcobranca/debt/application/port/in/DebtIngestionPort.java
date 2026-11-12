@@ -32,6 +32,15 @@ public interface DebtIngestionPort {
     /** Publica {@code PortfolioLoaded} ao fim do lote, para a abertura/atualização de casos. */
     void completeImport(ImportSummary summary);
 
+    /**
+     * Contatos novos que a carga trouxe para devedores que já existiam (relatório da carga — "312 devedores receberam
+     * contato novo"). O chamador garante o acesso ao lote.
+     */
+    ContactReceiptCount contactReceipt(UUID importBatchId);
+
+    record ContactReceiptCount(long debtorsWithNewContact, long newContacts) {
+    }
+
     // ------------------------------------------------------------------------------------------
     // Campos opcionais do layout (garantias, coobrigados, natureza do título). Todos exigem que o
     // contrato de origem já exista — gravado por upsertTitle na mesma linha/lote — e são
@@ -81,18 +90,62 @@ public interface DebtIngestionPort {
         }
     }
 
-    record DebtorRecord(String document, String name, LocalDate birthDate, List<ContactRecord> contacts) {
+    /**
+     * @param tradeName       nome fantasia (só CNPJ; opcional — vazio mantém o atual)
+     * @param representatives representantes da empresa (só CNPJ; acrescentados ou atualizados pelo CPF)
+     * @param importBatchId   carga que envia o registro: grava a carga de origem do devedor e dos contatos criados e o
+     *                        reenvio dos já existentes; contato novo para devedor que já existia antes desta carga fica
+     *                        marcado como novo (docs/tecnico/desenho/contatos-recebidos.md). Nulo fora de carga (ex.:
+     *                        coobrigado informado na linha, sem contatos)
+     */
+    record DebtorRecord(String document, String name, LocalDate birthDate, List<ContactRecord> contacts,
+                        String tradeName, List<RepresentativeRecord> representatives, UUID importBatchId) {
 
         public DebtorRecord {
             contacts = contacts == null ? List.of() : List.copyOf(contacts);
+            representatives = representatives == null ? List.of() : List.copyOf(representatives);
+        }
+
+        public DebtorRecord(String document, String name, LocalDate birthDate, List<ContactRecord> contacts) {
+            this(document, name, birthDate, contacts, null, List.of(), null);
+        }
+
+        /** Registro de uma carga, sem dados de empresa. */
+        public DebtorRecord(String document, String name, LocalDate birthDate, List<ContactRecord> contacts,
+                            UUID importBatchId) {
+            this(document, name, birthDate, contacts, null, List.of(), importBatchId);
+        }
+
+        /** Registro com dados de empresa, fora de carga. */
+        public DebtorRecord(String document, String name, LocalDate birthDate, List<ContactRecord> contacts,
+                            String tradeName, List<RepresentativeRecord> representatives) {
+            this(document, name, birthDate, contacts, tradeName, representatives, null);
         }
     }
 
     /**
-     * @param type  PHONE, EMAIL ou ADDRESS
-     * @param label MOBILE, HOME, WORK ou OTHER (opcional)
+     * @param type       PHONE, EMAIL ou ADDRESS
+     * @param label      MOBILE, HOME, WORK ou OTHER (opcional)
+     * @param personName nome da pessoa de contato (opcional; contato existente recebe a pessoa se ainda não tiver)
+     * @param personRole FINANCE, ACCOUNTS_PAYABLE, OWNER_PARTNER, LEGAL ou OTHER (opcional)
      */
-    record ContactRecord(String type, String value, String label, boolean whatsapp) {
+    record ContactRecord(String type, String value, String label, boolean whatsapp, String personName,
+                         String personRole) {
+
+        public ContactRecord(String type, String value, String label, boolean whatsapp) {
+            this(type, value, label, whatsapp, null, null);
+        }
+    }
+
+    /**
+     * Representante da empresa vindo da carga: casado pelo CPF entre os vigentes da empresa (nome atualizado; papel e
+     * poder só quando informados); novo CPF → novo representante. Problema no representante volta como aviso.
+     *
+     * @param role         MANAGING_PARTNER, ATTORNEY_IN_FACT ou OTHER; nulo = não informado (mantém o papel cadastrado; na
+     *                     criação vale OTHER)
+     * @param canNegotiate poder para negociar; nulo = não informado (mantém o cadastrado; na criação vale falso)
+     */
+    record RepresentativeRecord(String document, String name, String role, Boolean canNegotiate) {
     }
 
     /**

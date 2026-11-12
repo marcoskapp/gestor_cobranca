@@ -246,7 +246,7 @@ abstract class PortalTestSupport extends IntegrationTest {
 
     private UUID debtor(String cpf, String name, String phone) {
         return system(() -> ingestion.upsertDebtor(new DebtorRecord(cpf, name, LocalDate.of(1985, 3, 15),
-                List.of(new ContactRecord("PHONE", phone, "MOBILE", true)))).id());
+                List.of(new ContactRecord("PHONE", phone, "MOBILE", true)), null)).id());
     }
 
     UUID portfolio(UUID creditorId, String code) {

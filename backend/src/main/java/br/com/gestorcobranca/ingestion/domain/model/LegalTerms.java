@@ -37,6 +37,17 @@ public final class LegalTerms {
     public static final Map<String, String> ASSET_KINDS = Map.of("VEICULO", "VEHICLE", "IMOVEL", "REAL_ESTATE",
             "OUTRO", "OTHER");
 
+    /** Papel da pessoa de contato (cobrança B2B): {@code telefone_N_papel} e {@code email_N_papel}. */
+    public static final Map<String, String> CONTACT_PERSON_ROLES = Map.ofEntries(
+            Map.entry("FINANCEIRO", "FINANCE"), Map.entry("CONTAS_A_PAGAR", "ACCOUNTS_PAYABLE"),
+            Map.entry("CONTAS_PAGAR", "ACCOUNTS_PAYABLE"), Map.entry("SOCIO", "OWNER_PARTNER"),
+            Map.entry("PROPRIETARIO", "OWNER_PARTNER"), Map.entry("JURIDICO", "LEGAL"), Map.entry("OUTRO", "OTHER"));
+
+    /** Papel do representante da empresa (cobrança B2B): {@code representante_N_papel}. */
+    public static final Map<String, String> REPRESENTATIVE_ROLES = Map.ofEntries(
+            Map.entry("SOCIO_ADMINISTRADOR", "MANAGING_PARTNER"), Map.entry("ADMINISTRADOR", "MANAGING_PARTNER"),
+            Map.entry("PROCURADOR", "ATTORNEY_IN_FACT"), Map.entry("OUTRO", "OTHER"));
+
     public static final Map<String, String> APPRAISAL_SOURCES = Map.of("CREDOR", "CREDITOR", "AVALIADOR", "APPRAISER",
             "FIPE", "FIPE", "MERCADO", "MARKET", "LEILAO", "AUCTION");
 

@@ -49,6 +49,15 @@
           </button>
         </div>
       </app-field>
+      @if (!editing) {
+        <app-field class="app-span-all" label="Regime" [hint]="regimeHint()">
+          <select appInput formControlName="regime">
+            @for (r of regimes; track r) {
+              <option [ngValue]="r">{{ regimeLabels[r] }}</option>
+            }
+          </select>
+        </app-field>
+      }
       <app-field class="app-span-all" label="Descrição" [error]="message('description')">
         <textarea appInput formControlName="description" rows="3" [maxlength]="limits.portfolioDescription"></textarea>
       </app-field>

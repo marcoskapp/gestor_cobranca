@@ -43,10 +43,23 @@ public interface DebtorUseCases {
     /** Busca exata por CPF/CNPJ (com ou sem máscara) pelo blind index; vazio se inexistente ou fora do escopo. */
     Optional<DebtorView> findByDocument(String document);
 
+    PageResponse<DebtorView> search(DebtorFilter filter, PageQuery page);
+
     /**
-     * @param text trecho do nome ou CPF/CNPJ completo (opcional)
+     * @param text              trecho do nome ou CPF/CNPJ completo (opcional)
+     * @param newContact        só devedores com contato novo recebido na carga ainda sem tentativa, dentro da janela
+     *                          (docs/tecnico/desenho/contatos-recebidos.md §4)
+     * @param newContactBatchId só devedores que receberam contato novo nesta carga (link do relatório da carga)
      */
-    PageResponse<DebtorView> search(String text, UUID creditorId, UUID portfolioId, PageQuery page);
+    record DebtorFilter(String text, UUID creditorId, UUID portfolioId, boolean newContact, UUID newContactBatchId) {
+    }
+
+    /**
+     * Outras unidades da empresa (matriz e filiais): devedores visíveis ao ator com a mesma raiz do CNPJ do devedor de
+     * referência, sem ele. Devedor pessoa física ou anonimizado → página vazia. O filtro recebe o id do devedor de
+     * referência, nunca o CNPJ.
+     */
+    PageResponse<DebtorView> otherUnits(UUID debtorId, PageQuery page);
 
     /**
      * Elimina os dados pessoais do devedor e seus contatos (LGPD), preservando títulos e razão.
@@ -80,19 +93,28 @@ public interface DebtorUseCases {
         }
     }
 
-    record RegisterDebtorCommand(String document, String name, LocalDate birthDate, String notes) {
+    /** @param tradeName nome fantasia (só pessoa jurídica; opcional) */
+    record RegisterDebtorCommand(String document, String name, LocalDate birthDate, String notes, String tradeName) {
+
+        public RegisterDebtorCommand(String document, String name, LocalDate birthDate, String notes) {
+            this(document, name, birthDate, notes, null);
+        }
     }
 
-    record UpdateDebtorCommand(String name, LocalDate birthDate, String notes) {
+    /** @param tradeName nome fantasia (só pessoa jurídica; nulo ou vazio remove, como as observações) */
+    record UpdateDebtorCommand(String name, LocalDate birthDate, String notes, String tradeName) {
     }
 
     /**
      * @param personType     INDIVIDUAL ou COMPANY
      * @param maskedDocument documento mascarado; nulo após anonimização
      * @param status         ACTIVE ou ANONYMIZED
+     * @param tradeName      nome fantasia (só pessoa jurídica)
+     * @param establishment  "Matriz" ou "Filial 0002" pelo sufixo do CNPJ (só pessoa jurídica)
      */
     record DebtorView(UUID id, String personType, String name, String maskedDocument, LocalDate birthDate,
-                      String status, String notes, Instant createdAt, Instant anonymizedAt) {
+                      String status, String notes, Instant createdAt, Instant anonymizedAt, String tradeName,
+                      String establishment) {
     }
 
     /** @param status ACTIVE ou ANONYMIZED */

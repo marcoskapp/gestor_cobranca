@@ -27,7 +27,7 @@ Devedor ─► /portal/{slug}               (marca pública, aviso de privacidad
   └─ link #token ─► POST access/link ─► sessão (ou etapa de conhecimento) — token consumido
 ```
 
-* **Fatores**: posse (código de 6 dígitos no contato cadastrado do devedor, ou link de uso único com ~256 bits) + conhecimento opcional por credor (data de nascimento ou 4 últimos caracteres de um contrato/título em cobrança no portal). O banco guarda só o HMAC do código (por assessoria e documento) e o SHA-256 do token.
+* **Fatores**: posse (código de 6 dígitos no contato cadastrado do devedor, ou link de uso único com ~256 bits) + conhecimento opcional por credor (data de nascimento ou 4 últimos caracteres de um contrato/título em cobrança no portal). Empresa (CNPJ) nunca recebe o desafio de data de nascimento: com `BIRTH_DATE` configurado, responde `CONTRACT_SUFFIX` (`KnowledgeChallenge#forPerson`), decidido pelo documento digitado (pedido de código) ou pelo devedor do link — nunca pela existência do cadastro, então o CNPJ sem cadastro recebe o mesmo desafio (§2a). O banco guarda só o HMAC do código (por assessoria e documento) e o SHA-256 do token.
 * **Anti-enumeração**: documento inexistente, anonimizado ou sem dívida nas carteiras habilitadas recebe o mesmo 202 e o mesmo formato (desafio fictício, nada enviado); toda falha de verificação é `401 portal.access_invalid`; o bloqueio vale igualmente para documento inexistente. O motivo real só vai ao log de acesso.
 * **Limites**: por instância, 20 requisições/min por IP nos endpoints públicos (429 + `RATE_LIMITED`, antes do banco); persistido por tenant (`portal.access_throttle`, chaves HMAC): 5 falhas ou mais de 3 pedidos de código por documento e 20 falhas ou 15 pedidos por IP em 30 min bloqueiam por 15 min, dobrando a cada reincidência até 24 h (`429 portal.access_locked` + `Retry-After`). Acesso concluído zera as contagens (no documento, também o histórico).
 * **Código**: 10 min, 5 tentativas, uso único; reenvio gera outro desafio (conta como pedido). Teto de 15 códigos por documento por dia na assessoria — somando os portais dos credores, a mesma chave do limite por janela (`document-max-codes-per-day`): acima dele, 429 `portal.access_locked` com `reason = DAILY_CODE_CAP` (o bloqueio progressivo vem como `THROTTLE`; `retryAfterSeconds` arredondado para cima) e liberação à meia-noite, conferido antes do bloqueio progressivo para não mostrar prazo menor (decisão 1090; a tela diz "peça um novo código a partir de amanhã"), sem desafio novo; vale também para documento sem cadastro, então não revela quem é devedor (`dailyCap=true` no log de acesso, `DAILY_CAP` na métrica). O código sai por `MessageUseCases#sendAccessCode` (categoria `AUTHENTICATION` no porteiro: só restrições e anonimização, sem janela de horário, feriados nem limites, fora da contagem — decisão 1083); a confirmação do pedido de atendimento, por `sendOnDebtorRequest` (categoria `RESPONSE`: sem limites de frequência nem intervalo mínimo; restrições, janela, feriados e anonimização valem — decisão 1082). Só o portal chama esses envios (`ArchitectureTest.onlyThePortalSendsOnDebtorRequest`). O template `PORTAL_CODIGO_<CANAL>` tem a finalidade Autenticação, e o código não aparece na conversa (decisão 1084). Link: validade da configuração (1–168 h, padrão 48 h); novo link revoga os abertos; mensagem negada pelo porteiro revoga o link na hora.
@@ -60,6 +60,41 @@ Devedor ─► /portal/{slug}               (marca pública, aviso de privacidad
 * **Retenção dos dados de acesso** (minimização; job diário `portal.retention`, `app.portal.retention-cron`, 03:20, ShedLock, por assessoria, rodadas de 500 por tipo — cada uma na própria transação, até esvaziar, teto de 50): prazos por assessoria na tela de Retenção (compliance, categorias `PORTAL_ACCESS_CHALLENGES`, `PORTAL_ACCESS_THROTTLES` e `PORTAL_SESSION_CLIENT_DATA`, em dias, lidos uma vez por execução por `RetentionUseCases#retentionFor`), com os valores de `app.portal.retention` como **padrão do sistema** enquanto a assessoria não configura (o portal os informa ao compliance pela porta `compliance :: spi` `RetentionDefaults`, `PortalRetentionDefaults`; prazo em dias inteiros, senão a subida falha). O descarte não pode ser desligado, só o prazo ajustado (limites: desafios 1–365 dias, contadores 7–365, IP e navegador 30–1825). Apaga os **desafios** vencidos há mais do prazo (padrão 30 dias), inclusive os **fictícios** (documento de quem não é devedor, `debtor_id` nulo, que a anonimização nunca alcança); apaga os **contadores do bloqueio progressivo** (HMAC do documento e do IP) sem uso há mais do prazo (padrão 30 dias) e sem bloqueio vigente — a escalada do bloqueio recomeça do primeiro nível; e apaga **IP e agente do navegador** das sessões encerradas há mais do prazo (padrão 365 dias, `P365D`; era 180 — a V1303 ainda cita o prazo anterior no comentário, que não é alterado por ser migration publicada) — a sessão fica, sem eles, para o funil e a trilha. A V1303 devolve ao `app_runtime` o `delete` dos desafios (a V1301 o revogara) e cria os índices da varredura. Métrica `portal.retention.purged{kind}` (`CHALLENGE`, `THROTTLE`, `SESSION_CLIENT_DATA`); log INFO `Retenção dos dados de acesso do portal executada` com o prazo e a origem de cada categoria (`*Days`, `*Source` = `TENANT`|`SYSTEM_DEFAULT`); falha → `portal.job.failures{job=portal.retention}` + ERROR. Os três padrões (30 dias, 30 dias e 1 ano) continuam a validar com o encarregado (DPO) (decisões autônomas 874–875 e 901); cada assessoria agora pode ajustá-los com o próprio encarregado (com auditoria `retention_policy.*`).
 * **Logotipo**: `FileStorage` (`PORTAL_BRANDING`, chave por tenant), PNG/JPEG/WebP até 256 KiB pelo conteúdo (SVG recusado); servido em `GET /api/portal/v1/sites/{slug}/logo` com `nosniff`, CSP `sandbox` e cache de 1 h (público controlado: só o logotipo do portal habilitado).
 
+## 2a. Empresa no portal (cobrança B2B, B4 — [cobranca-b2b.md](cobranca-b2b.md) §5.2)
+
+* **Quem negocia**: depois do acesso, a sessão de devedor PJ (`SessionView.company`, `firstName` = nome fantasia ou
+  razão social) informa **CPF e nome** de quem está negociando (`POST /me/representative`, `RepresentativeConfirmation`).
+  O CPF é conferido por `CompanyRepresentativeUseCases#negotiator` (blind index do debt) com os representantes com poder
+  para negociar e vigentes, e o primeiro e o último nome declarados precisam bater com o cadastro (`DeclaredName`, sem
+  acento e sem diferenciar maiúsculas; nome que não confere conta como falha). As duas linhas do limite (`REP_DEBTOR` e
+  depois `REP_IP`) são travadas (`for update`) antes de decidir, até o commit. A resposta (`required`, `declared`, `declaredName` = primeiro nome digitado,
+  `humanCompletion`) é **idêntica** quando o CPF confere e quando não confere; `humanCompletion` só diz que a empresa
+  não tem representante com poder (independe do CPF). A sessão guarda `representative_status`
+  (`CONFIRMED`/`UNCONFIRMED`), o id do representante, o nome declarado cifrado e o CPF **mascarado** (o CPF em claro
+  nunca é gravado nem vai a log técnico, evento, métrica ou auditoria); nome e CPF mascarado saem com IP e agente na
+  retenção `SESSION_CLIENT_DATA`. CPF malformado → 422 `portal.representative_cpf_invalid` (formato, não cadastro);
+  pessoa física → 422 `portal.representative_not_applicable`.
+* **Limites**: CPF que não confere conta falha por devedor PJ (`REP_DEBTOR`) e por IP (`REP_IP`) em
+  `portal.access_throttle` (V1305), à parte do acesso: 5 por devedor e 20 por IP em 30 min bloqueiam por 15 min,
+  dobrando até 24 h (`app.portal.representative.*`). Renovar a sessão não zera. Bloqueado, a declaração é registrada sem
+  conferir (resposta igual; o aceite vira atendimento) — `portal.access.locks{key=REP_DEBTOR|REP_IP}` e `PORTAL_LOCKED`
+  no log de acesso.
+* **Aceite** (`POST /me/agreements`): devedor PJ sem declaração → 409 `portal.representative_required`; exige
+  `preferredChannel` (`portal.channel_required`). Representante confirmado e que ainda negocia hoje → proposta, aceite
+  com `ProposalUseCases.AcceptCommand.representativeId` (o termo PDF traz "Aceito por: nome – CPF mascarado – papel, em
+  nome da empresa devedora"; auditoria `proposal.accepted` com `representativeId`) e formalização; `portal.portal_agreement`
+  guarda `representative_id` e `representative_role`. Sem confirmação (CPF que não confere, bloqueio, sem representante
+  com poder ou poder vencido entre a declaração e o aceite) → **pedido de atendimento** `COMPANY_ACCEPTANCE`
+  (`HandoffRequested` com motivo `PORTAL_NEGOTIATION`; resumo "(empresa) escolheu uma condição, mas o representante não
+  foi confirmado"; a mensagem cifrada do pedido traz a condição escolhida, o nome declarado e o CPF mascarado). A
+  oferta é validada antes (condição fora do oferecido continua `portal.offer_unavailable`). O devedor não escolhe esse
+  motivo em `/me/service-requests` (`portal.request_reason_invalid`). `AcceptanceResult.serviceRequest` traz o pedido.
+* **Logs**: evento de negócio `portal.representative_declared` (só `confirmed`), métrica `portal.representative{outcome}`
+  (`CONFIRMED`, `UNCONFIRMED`, `LOCKED`); `portal.agreement_formalized` ganhou `byRepresentative`.
+* **Testes**: `DeclaredNameTest` (domínio); `PortalCompanyIT` (desafio de PJ, CPF que confere e que não confere com a
+  mesma resposta, CPF certo com nome errado com a mesma resposta e aceite por atendimento, aceite com
+  representante no registro, aceite sem representante vira atendimento, estouro do limite com sessões renovadas, PF).
+
 ## 6. REST
 
 | Recurso | Métodos | Autenticação |
@@ -70,6 +105,7 @@ Devedor ─► /portal/{slug}               (marca pública, aviso de privacidad
 | `/api/portal/v1/me/debts` · `/portfolios/{id}/offers` · `/portfolios/{id}/simulations` | `GET` · `POST` | idem |
 | `/api/portal/v1/me/agreements` · `/{id}` · `/{id}/term` · `/{id}/installments/{iid}/pix` | `POST`/`GET` · `GET` · `GET` · `POST` | idem |
 | `/api/portal/v1/me/service-requests` | `POST`, `GET` | idem |
+| `/api/portal/v1/me/representative` | `GET`, `POST` | idem (empresa: quem está negociando, §2a) |
 | `/api/v1/portal/configurations` · `/{id}` · `/{id}/logo` · `/{id}/funnel` · `/{id}/sessions` · `/sessions/{id}/revoke` | CRUD | `PORTAL_MANAGE` |
 | `/api/v1/portal/access-links` · `/api/v1/portal/service-requests` · `/service-requests/{id}` | `POST` · `GET` · `GET` | `MESSAGE_SEND` · `INBOX_VIEW` · `INBOX_VIEW` (com `SENSITIVE_DATA_VIEWED`) |
 
@@ -117,4 +153,6 @@ aparece para o devedor (`disputeIntakeStatus`) e na lista interna. Evento `porta
 * Renegociação de acordo quebrado e mais de 6 parcelas pelo portal: dependem de a operação atribuir outro perfil ao canal (o perfil `PORTAL` padrão não renegocia).
 * Modelo de termo por credor (pendência do negotiation) aparecerá automaticamente no portal.
 * Templates `PORTAL_*` precisam ser cadastrados e aprovados pelos canais antes de ativar um portal (a tela não verifica).
+* Empresa (B4): a solicitação de titular do representante (compliance) ainda não consulta a `RelatedPersonSource`
+  (fonte entregue no debt); o rascunho de resposta continua só para devedores.
 * Devedor com todos os títulos fora de cobrança aberta (ex.: suspensos) não entra no portal: o link da régua é recusado (`DEBTOR_NOT_IN_PORTAL`).

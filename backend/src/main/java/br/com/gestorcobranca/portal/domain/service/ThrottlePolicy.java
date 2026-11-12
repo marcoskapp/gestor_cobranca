@@ -16,7 +16,11 @@ import java.time.Instant;
  */
 public final class ThrottlePolicy {
 
-    public enum KeyType { DOCUMENT, IP }
+    /**
+     * Chave do contador: documento e IP no acesso; devedor PJ ({@code REP_DEBTOR}) e IP ({@code REP_IP}) na
+     * confirmação do representante (cobrança B2B), contadas à parte do acesso.
+     */
+    public enum KeyType { DOCUMENT, IP, REP_DEBTOR, REP_IP }
 
     public record Limits(int maxFailures, int maxRequests, Duration window, Duration baseLock, Duration maxLock) {
     }

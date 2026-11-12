@@ -6,12 +6,16 @@ import br.com.gestorcobranca.debt.application.port.in.CollateralUseCases.Collate
 import br.com.gestorcobranca.debt.application.port.in.CollateralUseCases.RegistrationView;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
 import br.com.gestorcobranca.debt.application.port.in.OriginContractUseCases.ContractView;
+import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases.ContactReceiptView;
 import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases.ContactView;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorView;
+import br.com.gestorcobranca.debt.application.port.in.CompanyRepresentativeUseCases.RepresentativeView;
 import br.com.gestorcobranca.debt.domain.model.AssetIdentification;
+import br.com.gestorcobranca.debt.domain.model.CompanyRepresentative;
 import br.com.gestorcobranca.debt.domain.model.AssetKind;
 import br.com.gestorcobranca.debt.domain.model.Collateral;
 import br.com.gestorcobranca.debt.domain.model.CollateralAppraisal;
+import br.com.gestorcobranca.debt.domain.model.ContactNovelty;
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import br.com.gestorcobranca.debt.domain.model.OriginContract;
 import br.com.gestorcobranca.debt.domain.model.VehiclePlate;
@@ -20,6 +24,7 @@ import br.com.gestorcobranca.debt.domain.model.DebtorContact;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 
 /** Conversão de entidades em views públicas (dados pessoais sempre mascarados). */
@@ -34,13 +39,32 @@ final class DebtViews {
 
     static DebtorView debtor(Debtor d) {
         return new DebtorView(d.getId(), d.getPersonType().name(), d.getName(), d.maskedDocument(), d.getBirthDate(),
-                d.getStatus().name(), d.getNotes(), d.getCreatedAt(), d.getAnonymizedAt());
+                d.getStatus().name(), d.getNotes(), d.getCreatedAt(), d.getAnonymizedAt(), d.getTradeName(),
+                d.establishmentLabel());
     }
 
-    static ContactView contact(DebtorContact c) {
+    static RepresentativeView representative(CompanyRepresentative r, LocalDate today) {
+        return new RepresentativeView(r.getId(), r.getCompanyDebtorId(), r.getName(), r.maskedDocument(),
+                r.getRole().name(), r.isCanNegotiate(), r.getValidUntil(), r.getEvidenceNote(), r.getSource().name(),
+                r.isActive(), r.canNegotiateOn(today), r.getCreatedAt(), r.getEndedAt(), r.getEndReason());
+    }
+
+    static ContactView contact(DebtorContact c, Instant now) {
         return new ContactView(c.getId(), c.getDebtorId(), c.getType().name(), c.maskedValue(), c.getLabel().name(),
                 c.isWhatsapp(), c.getSource().name(), c.getStatus().name(), c.getPriority(), c.getLastVerifiedAt(),
-                c.getInvalidReason());
+                c.getInvalidReason(), maskFirstName(c.getPersonName()),
+                c.getPersonRole() == null ? null : c.getPersonRole().name(), c.isDecisionMaker(),
+                receipt(c, now));
+    }
+
+    /** Recebimento por carga (selo "Novo" e reenvio); nulo se o contato nunca veio de carga. */
+    static ContactReceiptView receipt(DebtorContact c, Instant now) {
+        if (c.getLastImportBatchId() == null) {
+            return null;
+        }
+        ContactNovelty novelty = c.novelty(now);
+        return new ContactReceiptView(novelty == null ? null : novelty.name(), c.receivedAt(), c.getNoveltyUntil(),
+                c.confirmedByCreditorAt(), c.getFirstAttemptAt());
     }
 
     static TitleView title(DebtTitle t, LocalDate today) {
@@ -102,6 +126,17 @@ final class DebtViews {
             }
         }
         return masked.toString();
+    }
+
+    /**
+     * Nome da pessoa de contato mascarado como o valor do contato: só a inicial do primeiro nome ("A***"); o nome
+     * completo vem na revelação auditada.
+     */
+    static String maskFirstName(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        return name.trim().charAt(0) + "***";
     }
 
     /** Data de nascimento na auditoria: apenas a indicação de preenchimento. */

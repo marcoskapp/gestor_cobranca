@@ -90,7 +90,7 @@ import { FORM_FIELD } from '../../shared/forms/field';
       <h2 class="portal-help-title">Pedidos anteriores</h2>
       <section class="portal-card"><ul class="portal-list">
         @for (h of history.value()!; track h.id) {
-          <li><span>{{ reasonLabels[h.reason].label }}<br /><small>Protocolo {{ h.protocol }}</small>
+          <li><span>{{ h.reason === 'COMPANY_ACCEPTANCE' ? 'Acordo escolhido no portal (um atendente vai concluir)' : reasonLabels[h.reason].label }}<br /><small>Protocolo {{ h.protocol }}</small>
             @if (intakeText(h); as t) {
               <br /><small>{{ t }}</small>
             }</span>

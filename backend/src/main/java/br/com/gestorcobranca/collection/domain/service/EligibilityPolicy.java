@@ -18,6 +18,7 @@ import java.util.Set;
  *   <li>a carteira está ativa e na vigência;</li>
  *   <li>há título em aberto não bloqueado por contestação;</li>
  *   <li>o devedor não foi anonimizado;</li>
+ *   <li>a empresa devedora não está em recuperação judicial, extrajudicial ou falência (cobrança B2B §7);</li>
  *   <li>ao menos um canal de contato não está restrito (opt-out, bloqueio) para o devedor e o
  *       credor.</li>
  * </ol>
@@ -36,8 +37,10 @@ public final class EligibilityPolicy {
      * @param channels resultado das restrições por canal; vazio quando não avaliado (caso
      *                 encerrado ou já inelegível por outro motivo estrutural)
      */
+    /** @param debtorInsolvent processo de insolvência ativo para o devedor (debt) */
     public record Input(CaseStatus status, boolean portfolioOperable, CaseBalance balance, boolean blockingDisputeOpen,
-                        boolean debtorAnonymized, Map<InteractionChannel, ChannelAvailability> channels) {
+                        boolean debtorAnonymized, boolean debtorInsolvent,
+                        Map<InteractionChannel, ChannelAvailability> channels) {
 
         public Input {
             channels = channels == null ? Map.of() : Map.copyOf(channels);
@@ -69,6 +72,9 @@ public final class EligibilityPolicy {
         }
         if (in.debtorAnonymized()) {
             reasons.add(EligibilityReason.DEBTOR_ANONYMIZED);
+        }
+        if (in.debtorInsolvent()) {
+            reasons.add(EligibilityReason.DEBTOR_INSOLVENCY);
         }
         EnumSet<InteractionChannel> contactable = EnumSet.noneOf(InteractionChannel.class);
         in.channels().forEach((channel, availability) -> {

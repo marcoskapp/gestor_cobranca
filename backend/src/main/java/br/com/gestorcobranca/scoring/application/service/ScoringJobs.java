@@ -23,20 +23,28 @@ class ScoringJobs {
 
     private static final Logger LOG = LoggerFactory.getLogger(ScoringJobs.class);
 
+    /** Teto de rodadas da retenção de contato por assessoria e manutenção (o resto fica para o dia seguinte). */
+    static final int MAX_CONTACT_RETENTION_ROUNDS = 500;
+
     private final TenantDirectory tenants;
     private final TenantExecution tenantExecution;
     private final ScoreBatchService batch;
     private final OutcomeService outcomes;
     private final TrainingService training;
+    private final ContactRateBaseService contactRateBase;
+    private final ContactRetentionService contactRetention;
     private final ScoringMetrics metrics;
 
     ScoringJobs(TenantDirectory tenants, TenantExecution tenantExecution, ScoreBatchService batch,
-                OutcomeService outcomes, TrainingService training, ScoringMetrics metrics) {
+                OutcomeService outcomes, TrainingService training, ContactRateBaseService contactRateBase,
+                ContactRetentionService contactRetention, ScoringMetrics metrics) {
         this.tenants = tenants;
         this.tenantExecution = tenantExecution;
         this.batch = batch;
         this.outcomes = outcomes;
         this.training = training;
+        this.contactRateBase = contactRateBase;
+        this.contactRetention = contactRetention;
         this.metrics = metrics;
     }
 
@@ -47,13 +55,19 @@ class ScoringJobs {
         forEachTenant("scoring.batch_start", () -> batch.start(ScoringRun.Trigger.SCHEDULED, null).isPresent());
     }
 
-    /** Desfechos, recuperado × esperado, retenção e execuções interrompidas. */
+    /**
+     * Desfechos, recuperado × esperado, retenção do score, base das taxas e retenção da inteligência de contato (em
+     * rodadas, cada uma na própria transação) e execuções interrompidas.
+     */
     @Scheduled(cron = "${app.scoring.maintenance-cron:0 15 4 * * *}", zone = TimeConfig.BUSINESS_ZONE_ID)
     @SchedulerLock(name = "scoring.maintenance", lockAtMostFor = "PT2H", lockAtLeastFor = "PT1M")
     void maintenance() {
         forEachTenant("scoring.outcomes", outcomes::resolveOutcomes);
         forEachTenant("scoring.cohorts", outcomes::measureCohorts);
         forEachTenant("scoring.retention", outcomes::purge);
+        forEachTenant("scoring.contact_rate_base", contactRateBase::refresh);
+        forEachTenantInRounds("scoring.contact_retention", () -> contactRetention.purgeBatch().more(),
+                MAX_CONTACT_RETENTION_ROUNDS);
         forEachTenant("scoring.stale_runs", outcomes::failStaleRuns);
     }
 
@@ -62,6 +76,31 @@ class ScoringJobs {
     @SchedulerLock(name = "scoring.training", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
     void monthlyTraining() {
         forEachTenant("scoring.training_request", () -> training.requestScheduled().isPresent());
+    }
+
+    /**
+     * Repete a rodada em transações novas por assessoria até ela dizer que acabou (ou até o teto de rodadas); falha
+     * numa rodada encerra a assessoria (o que já foi feito fica) e não impede as demais.
+     */
+    private void forEachTenantInRounds(String process, Supplier<Boolean> round, int maxRounds) {
+        for (UUID tenantId : tenants.activeTenantIds()) {
+            try {
+                for (int i = 0; i < maxRounds; i++) {
+                    if (!Boolean.TRUE.equals(tenantExecution.callInTenant(tenantId, process, round))) {
+                        break;
+                    }
+                    if (i == maxRounds - 1) {
+                        LOG.atWarn().addKeyValue("tenantId", tenantId).addKeyValue("process", process)
+                                .addKeyValue("rounds", maxRounds)
+                                .log("Teto de rodadas atingido; o restante fica para a próxima manutenção");
+                    }
+                }
+            } catch (RuntimeException e) {
+                metrics.jobFailure(process);
+                LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("process", process).setCause(e)
+                        .log("Falha em processamento agendado do módulo scoring");
+            }
+        }
     }
 
     private void forEachTenant(String process, Supplier<?> action) {

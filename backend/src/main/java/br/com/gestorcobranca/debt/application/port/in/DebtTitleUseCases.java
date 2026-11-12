@@ -25,6 +25,13 @@ public interface DebtTitleUseCases {
     /** Título pelo identificador do credor ({@code id_titulo} da carga); vazio se inexistente ou fora do escopo. */
     java.util.Optional<TitleView> findByExternalId(UUID creditorId, String externalId);
 
+    /**
+     * Carteiras em que o devedor tem títulos, <b>todas</b> (sem o filtro de escopo do ator), para regras de proteção
+     * que dependem do regime da carteira (superendividamento no compliance, cobrança B2B §8): a proteção do consumidor
+     * não pode depender de quem pergunta. Só ids; exige o devedor visível ao ator (404).
+     */
+    List<UUID> portfolioIdsOfDebtor(UUID debtorId);
+
     /** Títulos do devedor em credores do escopo do ator. */
     List<TitleView> listByDebtor(UUID debtorId);
 

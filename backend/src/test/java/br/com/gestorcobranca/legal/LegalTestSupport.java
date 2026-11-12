@@ -183,7 +183,7 @@ abstract class LegalTestSupport extends IntegrationTest {
 
     UUID debtor(String cpf) {
         return system(() -> ingestion.upsertDebtor(new DebtorRecord(cpf, "Devedor " + cpf.substring(0, 3),
-                LocalDate.of(1985, 3, 15), List.of())).id());
+                LocalDate.of(1985, 3, 15), List.of(), null)).id());
     }
 
     record LoadedTitle(String externalId, String contract, LocalDate dueDate, String principal) {

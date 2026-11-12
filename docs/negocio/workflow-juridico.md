@@ -53,6 +53,7 @@ flowchart LR
 | Pagamentos | Depósitos e levantamentos judiciais como origem de pagamento |
 | Prestação de contas | Despesas jurídicas e honorários no demonstrativo do credor |
 | Assistente de IA | Caso jurídico fica fora do escopo do assistente; menção a processo transfere para humano |
+| Empresa em recuperação judicial ou falência | Registrada na ficha do devedor PJ (número CNJ, origem da informação): a cobrança da empresa fica suspensa em todos os credores (casos inelegíveis, sem contato nem régua) e o aviso leva ao caso jurídico, onde se decide a habilitação do crédito. Acordo em vigor não é cancelado automaticamente — a decisão é humana, porque a dívida pode estar no plano. Convolação em falência e encerramento são registrados com motivo ([cobranca-b2b.md](../tecnico/desenho/cobranca-b2b.md) §7) |
 
 ## 4. Integrações
 

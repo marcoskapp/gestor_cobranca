@@ -34,9 +34,11 @@ describe('PortalOffers', () => {
     fixture.componentRef.setInput('portfolioId', 'p1');
     fixture.detectChanges();
     http.expectOne('/api/portal/v1/me/portfolios/p1/offers').flush(OFFERS);
+    http.expectOne('/api/portal/v1/me/representative').flush({ required: false, declared: false, declaredName: null, humanCompletion: false });
     await fixture.whenStable();
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
+    expect(el.textContent).not.toContain('Quem está negociando');
     expect(el.textContent).toContain('À vista');
     expect(el.textContent).toContain('3x de');
     const buttons = () => Array.from(el.querySelectorAll('button')) as HTMLButtonElement[];
@@ -59,5 +61,49 @@ describe('PortalOffers', () => {
     fixture.detectChanges();
     expect(el.textContent).toContain('Acordo fechado!');
     expect(el.textContent).toContain('000201pix');
+  });
+
+  it('empresa informa quem está negociando e, sem representante confirmado, o aceite vira atendimento', async () => {
+    const fixture = TestBed.createComponent(PortalOffers);
+    fixture.componentRef.setInput('slug', 'banco-a');
+    fixture.componentRef.setInput('portfolioId', 'p1');
+    fixture.detectChanges();
+    http.expectOne('/api/portal/v1/me/portfolios/p1/offers').flush(OFFERS);
+    http.expectOne('/api/portal/v1/me/representative').flush({ required: true, declared: false, declaredName: null, humanCompletion: false });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const buttons = () => Array.from(el.querySelectorAll('button')) as HTMLButtonElement[];
+    buttons().find((b) => b.textContent?.includes('Continuar'))!.click();
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Quem está negociando pela empresa');
+    (el.querySelector('#portal-agree') as HTMLInputElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    // sem nome e CPF, o aceite não sai
+    expect(buttons().find((b) => b.textContent?.includes('Fechar acordo'))!.disabled).toBe(true);
+    const type = (selector: string, value: string) => {
+      const input = el.querySelector(selector) as HTMLInputElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    };
+    type('#rep-nome', 'João Sócio');
+    type('#rep-cpf', '123.456.789-09');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    buttons().find((b) => b.textContent?.includes('Fechar acordo'))!.click();
+    const declare = http.expectOne('/api/portal/v1/me/representative');
+    expect(declare.request.body).toEqual({ cpf: '12345678909', name: 'João Sócio' });
+    declare.flush({ required: true, declared: true, declaredName: 'João', humanCompletion: false });
+    const accept = http.expectOne('/api/portal/v1/me/agreements');
+    expect(accept.request.body.preferredChannel).toBe('WHATSAPP');
+    accept.flush({ agreement: null, pix: null, pixError: null,
+      serviceRequest: { id: 's1', protocol: 'ABC123XYZ9', reason: 'COMPANY_ACCEPTANCE', preferredChannel: 'WHATSAPP', status: 'OPEN', createdAt: '2026-10-23T10:00:00Z' } });
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Recebemos sua escolha');
+    expect(el.textContent).toContain('ABC123XYZ9');
+    expect(el.textContent).not.toContain('Acordo fechado!');
   });
 });

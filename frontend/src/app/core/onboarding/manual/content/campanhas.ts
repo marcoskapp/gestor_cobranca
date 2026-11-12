@@ -65,6 +65,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Cada etapa espera um tempo, respeita uma janela de horário, verifica uma condição e executa uma ação. A resposta padrão vale para as etapas sem regra própria.',
         'Em cada variável do template, escolha a origem do valor: dados do devedor e da dívida, valor e vencimento da próxima parcela do acordo, ou o link de acesso ao portal com a validade em horas.',
+        'Para empresas: "Nome fantasia da empresa" (variável nome_fantasia; sem nome fantasia, vai a razão social; para pessoa física a etapa é pulada) e "Saudação pelo tipo de pessoa" (variável saudacao: o primeiro nome da pessoa física ou o nome da empresa), para um mesmo modelo servir às duas. Em carteira de empresas, ajuste a janela de horário da política de contato ao horário comercial.',
       ],
       profiles: ['ESTRATEGIA', 'GESTOR'],
       inputs: ['Templates publicados e canais disponíveis.'],
@@ -131,12 +132,13 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Todos os filtros precisam ser atendidos ao mesmo tempo. Casos inelegíveis ficam fora por padrão.',
         'Para lembrete de parcela, use "Parcela do acordo vence em (dias)": entram só os casos com acordo em vigor cuja próxima parcela em aberto vence nesse intervalo.',
+        '"Contato novo" separa quem recebeu telefone, e-mail ou endereço numa nova carga e ainda não foi tentado por ele; "Tipo de pessoa" separa pessoa física de jurídica.',
       ],
       profiles: ['ESTRATEGIA', 'GESTOR'],
       inputs: ['Casos de cobrança do credor ou da assessoria.'],
       outputs: ['Segmento salvo, disponível para campanhas.'],
       related: [{ screen: 'campaign.segments', why: 'Todos os segmentos.' }],
-      terms: ['segmento', 'elegibilidade', 'faixa-de-score'],
+      terms: ['segmento', 'elegibilidade', 'faixa-de-score', 'contato-novo'],
     },
     {
       id: 'campaign.segment',

@@ -1,6 +1,6 @@
 import { IconName } from '../../../shared/components/icon/icon-names';
 import { Option } from '../../../shared/models/lookup';
-import { ContactLabel, ContactSource, ContactType, LedgerComponent, LedgerEntryType, PersonType, AmountAdjustmentBlocker, AmountAdjustmentMode, AmountAdjustmentReason } from './debt.models';
+import { ContactLabel, ContactPersonRole, ContactSource, ContactType, ContactView, LedgerComponent, LedgerEntryType, PersonType, AmountAdjustmentBlocker, AmountAdjustmentMode, AmountAdjustmentReason, RepresentativeRole } from './debt.models';
 
 export const PERSON_TYPE_LABELS: Record<PersonType, string> = {
   INDIVIDUAL: 'Pessoa física',
@@ -18,6 +18,33 @@ export const CONTACT_TYPE_ICONS: Record<ContactType, IconName> = {
   EMAIL: 'envelope',
   ADDRESS: 'house',
 };
+
+/** Papel da pessoa de contato (cobrança B2B). */
+export const CONTACT_PERSON_ROLE_LABELS: Record<ContactPersonRole, string> = {
+  FINANCE: 'Financeiro',
+  ACCOUNTS_PAYABLE: 'Contas a pagar',
+  OWNER_PARTNER: 'Sócio ou proprietário',
+  LEGAL: 'Jurídico',
+  OTHER: 'Outro',
+};
+
+/** Papel do representante da empresa (cobrança B2B). */
+export const REPRESENTATIVE_ROLE_LABELS: Record<RepresentativeRole, string> = {
+  MANAGING_PARTNER: 'Sócio administrador',
+  ATTORNEY_IN_FACT: 'Procurador',
+  OTHER: 'Outro',
+};
+
+/** "Ana (Financeiro) · decide" — pessoa de contato mascarada, como no valor. */
+export function contactPersonText(c: Pick<ContactView, 'maskedPersonName' | 'personRole' | 'decisionMaker'>, fullName?: string | null): string | null {
+  const name = fullName || c.maskedPersonName;
+  const role = c.personRole ? CONTACT_PERSON_ROLE_LABELS[c.personRole] : null;
+  if (!name && !role) {
+    return null;
+  }
+  const who = name ? (role ? `${name} (${role})` : name) : role!;
+  return c.decisionMaker ? `${who} · decide` : who;
+}
 
 export const CONTACT_LABEL_LABELS: Record<ContactLabel, string> = {
   MOBILE: 'Celular',

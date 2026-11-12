@@ -8,6 +8,7 @@ import br.com.gestorcobranca.shared.paging.ChangeQuery;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import br.com.gestorcobranca.organization.domain.model.Creditor;
 import br.com.gestorcobranca.organization.domain.model.Portfolio;
+import br.com.gestorcobranca.organization.domain.model.PortfolioRegime;
 import br.com.gestorcobranca.organization.domain.model.PortfolioStatus;
 import br.com.gestorcobranca.organization.domain.model.ServiceContract;
 import br.com.gestorcobranca.organization.domain.repository.CreditorRepository;
@@ -38,6 +39,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -90,16 +92,20 @@ class PortfolioService implements PortfolioUseCases {
         if (code != null && portfolios.existsByCreditorIdAndCode(creditor.getId(), code)) {
             throw new ConflictException("portfolio.code_taken", "Já existe carteira com este código para o credor");
         }
+        PortfolioRegime regime = command.regime() == null || command.regime().isBlank() ? PortfolioRegime.CONSUMER
+                : parseRegime(command.regime());
         Portfolio portfolio = portfolios.save(new Portfolio(creditor.getId(), contract.getId(), code, command.name(),
-                command.description(), command.receivedOn(), command.validUntil()));
+                command.description(), command.receivedOn(), command.validUntil(), regime));
         auditTrail.record(AuditEntry.of("portfolio.created", "portfolio", portfolio.getId())
                 .creditor(creditor.getId())
                 .created("code", portfolio.getCode())
                 .created("name", portfolio.getName())
                 .created("contractId", contract.getId())
-                .created("validUntil", portfolio.getValidUntil()));
+                .created("validUntil", portfolio.getValidUntil())
+                .created("regime", portfolio.getRegime()));
         businessEvents.log(BusinessEvent.of(BusinessEventTypes.PORTFOLIO_CREATED)
-                .creditor(creditor.getId()).portfolio(portfolio.getId()).reference("portfolio", portfolio.getId()));
+                .creditor(creditor.getId()).portfolio(portfolio.getId()).reference("portfolio", portfolio.getId())
+                .attr("regime", portfolio.getRegime()));
         return view(portfolio);
     }
 
@@ -138,6 +144,36 @@ class PortfolioService implements PortfolioUseCases {
         events.publishEvent(new PortfolioStatusChanged(Ids.newId(), currentActor.tenantId(), Instant.now(clock),
                 portfolioId, portfolio.getCreditorId(), previous.name(), target.name()));
         return view(portfolio);
+    }
+
+    @Override
+    public PortfolioView changeRegime(UUID portfolioId, String regime, String reason, Long expectedVersion) {
+        Portfolio portfolio = loadVisible(portfolioId);
+        accessScope.requireCreditor(portfolio.getCreditorId());
+        requireVersion(portfolio, expectedVersion);
+        PortfolioRegime target = parseRegime(regime);
+        PortfolioRegime previous = portfolio.changeRegime(target, reason);
+        portfolios.save(portfolio);
+        auditTrail.record(AuditEntry.of("portfolio.regime_changed", "portfolio", portfolioId)
+                .creditor(portfolio.getCreditorId())
+                .change("regime", previous, target)
+                .reason(reason));
+        businessEvents.log(BusinessEvent.of(BusinessEventTypes.PORTFOLIO_REGIME_CHANGED)
+                .creditor(portfolio.getCreditorId()).portfolio(portfolioId).reference("portfolio", portfolioId)
+                .attr("from", previous).attr("to", target));
+        return view(portfolio);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean consumerProtectionApplies(Collection<UUID> portfolioIds) {
+        if (portfolioIds == null || portfolioIds.isEmpty()) {
+            return true;
+        }
+        Set<UUID> ids = new HashSet<>(portfolioIds);
+        List<Portfolio> found = portfolios.findAllByIdIn(ids);
+        // carteira desconhecida (outro tenant pela RLS ou id inválido) conta como consumo
+        return found.size() < ids.size() || found.stream().anyMatch(p -> p.getRegime() == PortfolioRegime.CONSUMER);
     }
 
     @Override
@@ -213,6 +249,14 @@ class PortfolioService implements PortfolioUseCases {
         }
     }
 
+    private static PortfolioRegime parseRegime(String regime) {
+        try {
+            return PortfolioRegime.valueOf(regime);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new BusinessRuleException("portfolio.regime_invalid", "Regime de carteira inválido");
+        }
+    }
+
     private LocalDate today() {
         return LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE));
     }
@@ -220,6 +264,6 @@ class PortfolioService implements PortfolioUseCases {
     private PortfolioView view(Portfolio p) {
         return new PortfolioView(p.getId(), p.getCreditorId(), p.getContractId(), p.getCode(), p.getName(),
                 p.getDescription(), p.getReceivedOn(), p.getValidUntil(), p.getStatus().name(), p.getStatusReason(),
-                p.isOperableOn(today()), p.getVersion() == null ? 0L : p.getVersion(), p.getUpdatedAt());
+                p.isOperableOn(today()), p.getRegime().name(), p.getVersion() == null ? 0L : p.getVersion(), p.getUpdatedAt());
     }
 }

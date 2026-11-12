@@ -54,7 +54,19 @@ public final class RowValidator {
     private static final List<CanonicalField> FORMULA_GUARDED = List.of(DEBTOR_NAME, TITLE_EXTERNAL_ID, CONTRACT_NUMBER,
             PRODUCT, ADDRESS_STREET, ADDRESS_NUMBER, ADDRESS_COMPLEMENT, ADDRESS_DISTRICT, ADDRESS_CITY,
             CO_OBLIGOR_1_NAME, CO_OBLIGOR_2_NAME, COLLATERAL_EXTERNAL_ID, COLLATERAL_DESCRIPTION,
-            COLLATERAL_REGISTRY_OFFICE, COLLATERAL_MUNICIPALITY, COLLATERAL_LIEN_AUTHORITY, COLLATERAL_LIEN_NUMBER);
+            COLLATERAL_REGISTRY_OFFICE, COLLATERAL_MUNICIPALITY, COLLATERAL_LIEN_AUTHORITY, COLLATERAL_LIEN_NUMBER,
+            TRADE_NAME, PHONE_1_PERSON, PHONE_2_PERSON, PHONE_3_PERSON, EMAIL_1_PERSON, EMAIL_2_PERSON,
+            REPRESENTATIVE_1_NAME, REPRESENTATIVE_2_NAME);
+    static final int TRADE_NAME_MAX = 200;
+    static final int CONTACT_PERSON_MAX = 120;
+    /** Telefone, indicação de WhatsApp, nome e papel da pessoa de contato. */
+    private static final CanonicalField[][] PHONE_PERSONS = {{PHONE_1, PHONE_1_PERSON, PHONE_1_PERSON_ROLE},
+            {PHONE_2, PHONE_2_PERSON, PHONE_2_PERSON_ROLE}, {PHONE_3, PHONE_3_PERSON, PHONE_3_PERSON_ROLE}};
+    private static final CanonicalField[][] EMAIL_PERSONS = {{EMAIL_1, EMAIL_1_PERSON, EMAIL_1_PERSON_ROLE},
+            {EMAIL_2, EMAIL_2_PERSON, EMAIL_2_PERSON_ROLE}};
+    private static final CanonicalField[][] REPRESENTATIVES = {
+            {REPRESENTATIVE_1_DOCUMENT, REPRESENTATIVE_1_NAME, REPRESENTATIVE_1_ROLE, REPRESENTATIVE_1_NEGOTIATES},
+            {REPRESENTATIVE_2_DOCUMENT, REPRESENTATIVE_2_NAME, REPRESENTATIVE_2_ROLE, REPRESENTATIVE_2_NEGOTIATES}};
     private static final List<CanonicalField> NATURE_FIELDS = List.of(INSTRUMENT_TYPE, EXECUTIVE_TITLE);
     private static final CanonicalField[][] CO_OBLIGORS = {
             {CO_OBLIGOR_1_DOCUMENT, CO_OBLIGOR_1_NAME, CO_OBLIGOR_1_ROLE, CO_OBLIGOR_1_SINCE},
@@ -108,12 +120,17 @@ public final class RowValidator {
         identifiers(ctx);
         Document document = document(ctx, company);
         String name = name(ctx);
-        LocalDate birthDate = birthDate(ctx);
+        boolean companyRow = document != null && document.type() == Document.DocumentType.CNPJ;
+        LocalDate birthDate = birthDate(ctx, companyRow);
+        String tradeName = tradeName(ctx, document);
         List<ParsedContact> contacts = new ArrayList<>();
         phones(ctx, contacts);
-        for (CanonicalField email : List.of(EMAIL_1, EMAIL_2)) {
-            source.get(email).ifPresent(v -> contacts.add(new ParsedContact(ContactKind.EMAIL, v, false)));
+        for (CanonicalField[] email : EMAIL_PERSONS) {
+            Optional<String> value = source.get(email[0]);
+            ContactPerson person = contactPerson(ctx, email, value.isPresent());
+            value.ifPresent(v -> contacts.add(new ParsedContact(ContactKind.EMAIL, v, false, person.name(), person.role())));
         }
+        List<ParsedRow.ParsedRepresentative> representatives = representatives(ctx, document);
         address(ctx).ifPresent(a -> contacts.add(new ParsedContact(ContactKind.ADDRESS, a, false)));
         ParsedContract contract = contract(ctx);
 
@@ -144,7 +161,7 @@ public final class RowValidator {
         }
         ParsedRow row = new ParsedRow(source.rowNumber(), document, name, birthDate, contacts, contract, externalId,
                 installment, dueDate, principal, balance == null ? null : balance.amount(),
-                balance == null ? null : balance.referenceDate(), situation, legal);
+                balance == null ? null : balance.referenceDate(), situation, legal, tradeName, representatives);
         return new RowValidation(source.rowNumber(), row, ctx.issues);
     }
 
@@ -413,7 +430,11 @@ public final class RowValidator {
         return name;
     }
 
-    private LocalDate birthDate(Context ctx) {
+    private LocalDate birthDate(Context ctx, boolean companyRow) {
+        if (companyRow && ctx.source.get(BIRTH_DATE).isPresent()) {
+            ctx.warning(BIRTH_DATE, "row.birth_date_company", "Empresa não tem data de nascimento: dado ignorado");
+            return null;
+        }
         return ctx.source.get(BIRTH_DATE).flatMap(raw -> {
             Optional<LocalDate> date = BrazilianFormats.parseDate(raw)
                     .filter(d -> d.isAfter(MIN_BIRTH_DATE) && !d.isAfter(today));
@@ -422,6 +443,118 @@ public final class RowValidator {
             }
             return date;
         }).orElse(null);
+    }
+
+    /** Nome fantasia: só para CNPJ; dado complementar (problema é aviso e o dado é ignorado). */
+    private static String tradeName(Context ctx, Document document) {
+        Optional<String> raw = ctx.source.get(TRADE_NAME);
+        if (raw.isEmpty()) {
+            return null;
+        }
+        if (document != null && document.type() != Document.DocumentType.CNPJ) {
+            ctx.warning(TRADE_NAME, "row.trade_name_individual", "Nome fantasia só vale para CNPJ: dado ignorado");
+            return null;
+        }
+        String value = raw.get().replaceAll("\\s+", " ");
+        if (value.length() > TRADE_NAME_MAX) {
+            ctx.warning(TRADE_NAME, "row.trade_name_too_long",
+                    "Nome fantasia deve ter até %d caracteres: dado ignorado".formatted(TRADE_NAME_MAX));
+            return null;
+        }
+        return value;
+    }
+
+    private record ContactPerson(String name, String role) {
+
+        static final ContactPerson NONE = new ContactPerson(null, null);
+    }
+
+    /**
+     * Pessoa de contato do telefone ou e-mail ({@code fields} = contato, nome, papel). Dado complementar: sem o contato,
+     * nome longo ou papel desconhecido viram aviso e o dado é ignorado.
+     */
+    private static ContactPerson contactPerson(Context ctx, CanonicalField[] fields, boolean hasContact) {
+        Optional<String> rawName = ctx.source.get(fields[1]);
+        Optional<String> rawRole = ctx.source.get(fields[2]);
+        if (rawName.isEmpty() && rawRole.isEmpty()) {
+            return ContactPerson.NONE;
+        }
+        if (!hasContact) {
+            ctx.warning(rawName.isPresent() ? fields[1] : fields[2], "row.contact_person_without_contact",
+                    "Pessoa de contato sem o %s: dado ignorado".formatted(fields[0].column()));
+            return ContactPerson.NONE;
+        }
+        String name = rawName.map(n -> n.replaceAll("\\s+", " ")).orElse(null);
+        if (name != null && name.length() > CONTACT_PERSON_MAX) {
+            ctx.warning(fields[1], "row.contact_person_too_long",
+                    "Nome da pessoa de contato deve ter até %d caracteres: dado ignorado".formatted(CONTACT_PERSON_MAX));
+            name = null;
+        }
+        String role = rawRole.flatMap(r -> {
+            Optional<String> parsed = LegalTerms.parse(LegalTerms.CONTACT_PERSON_ROLES, r);
+            if (parsed.isEmpty()) {
+                ctx.warning(fields[2], "row.contact_person_role_invalid",
+                        "Papel deve ser FINANCEIRO, CONTAS_A_PAGAR, SOCIO, JURIDICO ou OUTRO: dado ignorado");
+            }
+            return parsed;
+        }).orElse(null);
+        return new ContactPerson(name, role);
+    }
+
+    /**
+     * Representantes da empresa (até dois). Só em linha de CNPJ; dado complementar: CPF inválido, nome ausente ou papel
+     * desconhecido viram aviso e o representante é ignorado (a dívida é carregada). Papel ou "negocia" em branco ou sem
+     * coluna = não informado (nulo): a carga não apaga o que foi cadastrado à mão.
+     */
+    private static List<ParsedRow.ParsedRepresentative> representatives(Context ctx, Document debtorDocument) {
+        List<ParsedRow.ParsedRepresentative> result = new ArrayList<>();
+        for (CanonicalField[] f : REPRESENTATIVES) {
+            if (Arrays.stream(f).noneMatch(field -> ctx.source.get(field).isPresent())) {
+                continue;
+            }
+            if (debtorDocument != null && debtorDocument.type() != Document.DocumentType.CNPJ) {
+                ctx.warning(f[0], "row.representative_individual",
+                        "Representante só vale para devedor com CNPJ: dado ignorado");
+                continue;
+            }
+            Optional<String> rawDocument = ctx.source.get(f[0]);
+            Optional<String> rawName = ctx.source.get(f[1]);
+            if (rawDocument.isEmpty() || rawName.isEmpty()) {
+                ctx.warning(rawDocument.isEmpty() ? f[0] : f[1], "row.representative_incomplete",
+                        "Representante sem CPF ou nome: dado ignorado");
+                continue;
+            }
+            Document cpf;
+            try {
+                cpf = Document.parse(rawDocument.get());
+            } catch (BusinessRuleException e) {
+                cpf = null;
+            }
+            if (cpf == null || cpf.type() != Document.DocumentType.CPF) {
+                ctx.warning(f[0], "row.representative_document_invalid", "CPF do representante inválido: dado ignorado");
+                continue;
+            }
+            String name = rawName.get().replaceAll("\\s+", " ");
+            if (name.length() > NAME_MAX) {
+                ctx.warning(f[1], "row.representative_name_too_long",
+                        "Nome do representante deve ter até %d caracteres: dado ignorado".formatted(NAME_MAX));
+                continue;
+            }
+            Optional<String> rawRole = ctx.source.get(f[2]);
+            Optional<String> role = rawRole.isEmpty() ? Optional.empty()
+                    : LegalTerms.parse(LegalTerms.REPRESENTATIVE_ROLES, rawRole.get());
+            if (rawRole.isPresent() && role.isEmpty()) {
+                ctx.warning(f[2], "row.representative_role_invalid",
+                        "Papel deve ser SOCIO_ADMINISTRADOR, PROCURADOR ou OUTRO: dado ignorado");
+                continue;
+            }
+            Boolean negotiates = ctx.source.get(f[3]).map(raw -> BrazilianFormats.parseFlag(raw).orElseGet(() -> {
+                ctx.warning(f[3], "row.representative_negotiates_invalid", "Negocia deve ser S ou N: considerado N");
+                return false;
+            })).orElse(null);
+            result.add(new ParsedRow.ParsedRepresentative(cpf, name, role.orElse(null), negotiates));
+        }
+        return result;
     }
 
     private static void phones(Context ctx, List<ParsedContact> contacts) {
@@ -434,8 +567,19 @@ public final class RowValidator {
                 }
                 return flag.orElse(false);
             }).orElse(false);
-            phone.ifPresent(v -> contacts.add(new ParsedContact(ContactKind.PHONE, v, whatsapp)));
+            ContactPerson person = personFor(ctx, pair[0], phone.isPresent());
+            phone.ifPresent(v -> contacts.add(new ParsedContact(ContactKind.PHONE, v, whatsapp, person.name(),
+                    person.role())));
         }
+    }
+
+    private static ContactPerson personFor(Context ctx, CanonicalField contact, boolean hasContact) {
+        for (CanonicalField[] fields : PHONE_PERSONS) {
+            if (fields[0] == contact) {
+                return contactPerson(ctx, fields, hasContact);
+            }
+        }
+        return ContactPerson.NONE;
     }
 
     /** Endereço em uma linha: "logradouro, número - complemento - bairro - cidade/UF - CEP 00000-000". */

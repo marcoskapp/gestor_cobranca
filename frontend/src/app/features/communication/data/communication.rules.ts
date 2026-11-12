@@ -310,17 +310,38 @@ export function firstName(fullName: string | null | undefined): string | null {
   return first ? first.slice(0, 30) : null;
 }
 
+/** Tipo de pessoa e nome fantasia do devedor (cobrança B2B), quando a tela os conhece. */
+export interface DebtorProfile {
+  personType: 'INDIVIDUAL' | 'COMPANY';
+  tradeName: string | null;
+}
+
 /**
  * Valores iniciais das variáveis do template no contato ativo: só o que a ficha já sabe sem
- * ambiguidade (primeiro nome do devedor). Valores, datas e links ficam com o operador, que confere
- * na prévia antes de enviar.
+ * ambiguidade — primeiro nome do devedor e, com o perfil, `nome_fantasia` (empresa: nome fantasia ou razão social)
+ * e `saudacao` (pessoa física: primeiro nome; empresa: o nome da empresa), como nas réguas. Valores, datas e links
+ * ficam com o operador, que confere na prévia antes de enviar.
  */
-export function prefillVariables(variables: readonly VariableInput[], debtorName: string | null | undefined): Record<string, string> {
+export function prefillVariables(
+  variables: readonly VariableInput[],
+  debtorName: string | null | undefined,
+  profile?: DebtorProfile | null,
+): Record<string, string> {
   const name = firstName(debtorName);
+  const companyName = profile?.personType === 'COMPANY' ? (profile.tradeName?.trim() || debtorName?.trim() || null) : null;
   const values: Record<string, string> = {};
+  const put = (v: VariableInput, value: string | null) => {
+    if (value) {
+      values[v.name] = v.maxLength ? value.slice(0, v.maxLength) : value;
+    }
+  };
   for (const v of variables) {
-    if (v.type === 'FIRST_NAME' && name) {
-      values[v.name] = v.maxLength ? name.slice(0, v.maxLength) : name;
+    if (v.type === 'FIRST_NAME') {
+      put(v, name);
+    } else if (v.type === 'TEXT' && v.name === 'nome_fantasia') {
+      put(v, companyName);
+    } else if (v.type === 'TEXT' && v.name === 'saudacao' && profile) {
+      put(v, profile.personType === 'COMPANY' ? companyName : name);
     }
   }
   return values;

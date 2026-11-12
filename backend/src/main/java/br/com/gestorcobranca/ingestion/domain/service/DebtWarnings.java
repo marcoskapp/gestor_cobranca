@@ -33,13 +33,26 @@ public final class DebtWarnings {
             case "contact.phone_invalid" -> "Telefone inválido: contato ignorado";
             case "contact.email_invalid" -> "E-mail inválido: contato ignorado";
             case "contact.address_invalid" -> "Endereço inválido: contato ignorado";
-            default -> code.startsWith("contact.") ? "Contato inválido: contato ignorado" : "Aviso do cadastro: " + code;
+            case "contact.person_role_invalid" -> "Papel da pessoa de contato inválido: papel ignorado";
+            case "contact.person_name_too_long" -> "Nome da pessoa de contato muito longo: nome ignorado";
+            case "representative.company_required" -> "Representante só vale para devedor com CNPJ: dado ignorado";
+            case "representative.cpf_required" -> "Representante deve ter CPF válido: dado ignorado";
+            case "representative.role_invalid" -> "Papel do representante inválido: representante ignorado";
+            default -> code.startsWith("contact.") ? "Contato inválido: contato ignorado"
+                    : code.startsWith("representative.") ? "Representante não gravado: revise os dados do representante"
+                    : "Aviso do cadastro: " + code;
         };
     }
 
     private static String field(String code) {
         if (code == null) {
             return null;
+        }
+        if (code.startsWith("contact.person")) {
+            return "contato";
+        }
+        if (code.startsWith("representative.")) {
+            return "representante";
         }
         if (code.startsWith("contact.phone")) {
             return "telefone";

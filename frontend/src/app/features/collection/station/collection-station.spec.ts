@@ -76,7 +76,7 @@ export function sheet(overrides: Partial<CaseSheet> = {}): CaseSheet {
       maskedDocument: '***.982.247-**',
       personType: 'INDIVIDUAL',
       status: 'ACTIVE',
-      contacts: [{ contactId: 'ct-1', type: 'PHONE', maskedValue: '(11) 9****-4321', label: 'MOBILE', whatsapp: true, status: 'VALID', priority: 1 }],
+      contacts: [{ contactId: 'ct-1', type: 'PHONE', maskedValue: '(11) 9****-4321', label: 'MOBILE', whatsapp: true, status: 'VALID', priority: 1, receipt: null }],
     },
     titles: [
       { titleId: 't-1', externalId: 'CARTAO-4471', installmentNumber: null, dueDate: '2026-08-10', principalAmount: 1000, openBalance: 1250.4, status: 'OPEN', disputeBlocked: false, daysOverdue: 74 },

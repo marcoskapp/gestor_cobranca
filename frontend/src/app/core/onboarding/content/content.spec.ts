@@ -36,6 +36,8 @@ describe('conteúdo do onboarding', () => {
   it('telas de devedores, títulos e compliance estão registradas', () => {
     expect(findScreen('/devedores')?.key).toBe('debt.debtors');
     expect(findScreen('/devedores/d-1')?.key).toBe('debt.debtor-detail');
+    // a configuração dos contatos recebidos vem antes da ficha (":id" casaria "contatos-recebidos")
+    expect(findScreen('/devedores/contatos-recebidos')?.key).toBe('debt.contact-novelty');
     expect(findScreen('/titulos?devedor=d-1')?.key).toBe('debt.titles');
     expect(findScreen('/titulos/t-1')?.key).toBe('debt.title-detail');
     expect(findScreen('/compliance/solicitacoes-titulares/q-1')?.key).toBe('compliance.request-detail');
@@ -76,7 +78,7 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/assistente', ASSISTANT_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(68);
+    expect(items.length).toBe(69);
     for (const item of items) {
       expect([...routePermissionsOf(item)].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
@@ -215,7 +217,8 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/assistente/qualidade')?.tourId).toBe('assistant.quality');
     // estação: atendimento guardado por caso, painel lateral e acordo sem sair do caso (revisão de 2026-11); v9: aba "Mais" com seta e contagem
     // v10: endereço único do caso (J9); v11: selo de vulnerabilidade; v12: "Avaliado por você" no histórico; v13: responsável do retorno só entre quem pode trabalhar o caso
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(13);
+    // v14: empresa em recuperação judicial ou falência (cobrança B2B §7); v15: cartão "Melhor forma de contato"; v16: selo "Novo" no contato recebido numa nova carga
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(16);
     expect(findTour('collection.station')?.version).toBe(4);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(4);
     // aprovações no padrão único (revisão 11/2026, 3.1): decisão da fila antes do detalhe (":id" casaria o caminho)

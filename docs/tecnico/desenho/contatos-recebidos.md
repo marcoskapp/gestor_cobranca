@@ -32,7 +32,8 @@ Colunas novas em `debt.debtor_contact` (sem dado pessoal novo):
 Índice parcial `(tenant_id, debtor_id) where novelty_until is not null` para a varredura. Os contatos já existentes
 ficam com `received_after_registration = false` (nenhum é marcado como novo retroativamente).
 
-Prazo por assessoria: `debt.contact_novelty_settings` (`tenant_id` PK, `window_days` com
+Prazo por assessoria: `debt.contact_novelty_settings` (uma linha por assessoria — `id` PK e `unique (tenant_id)`, como
+as demais configurações do módulo, ver §9 —, `window_days` com
 `check (window_days between 1 and 180)`, RLS por `shared.enable_tenant_rls`, auditoria), com padrão do
 sistema `app.debt.contact-novelty.window-days = 30`. Tela em **Configurações › Contatos recebidos** (permissão
 `DEBTOR_MANAGE`, a mesma do cadastro de contatos).
@@ -108,3 +109,50 @@ traz telefone novo → evento, critério de fila e segmento; ligação pelo núm
 * Contatos da carga que criou o devedor nunca são novos.
 * Uso por qualquer canal encerra a novidade só daquele contato.
 * Discador prioriza número novo sem tentativa (ordem, não regra de contato).
+
+## 9. Implementação (11/2026) e diferenças em relação ao desenho
+
+* **Migrations**: `V0309__debt_contact_receipt.sql` (colunas do contato e do devedor, `contact_novelty_settings`),
+  `V0610__collection_case_new_contact_and_person_type.sql` (caso e fila; tipo de pessoa dos casos existentes preenchido
+  a partir do cadastro do devedor, percorrendo as assessorias) e `V1103__campaign_audience_new_contact_and_person_type.sql`.
+* **Índices**: `ix_debtor_contact_novelty (tenant_id, debtor_id)` para o recálculo da novidade do devedor e
+  `ix_debtor_contact_novelty_due (tenant_id, novelty_until, debtor_id)`, parcial em `novelty_until is not null and
+  first_attempt_at is null`, para a varredura diária (janelas sem tentativa vencidas no intervalo, com cursor por
+  devedor). O caso não tem índice em `new_contact_until`: nenhuma consulta filtra por ele (o critério da fila é avaliado
+  sobre o caso já carregado).
+* **Recálculo serializado por devedor**: quem recalcula a novidade (uso de contato novo, invalidação ou revalidação de
+  contato novo e a varredura, devedor a devedor) bloqueia antes a linha do devedor
+  (`ContactNoveltyTracker#lockDebtor` → `DebtorRepository#findByIdForUpdate`, `select … for update`) e só depois lê o
+  estado "antes" e toma o instante do recálculo. Sem o bloqueio, usos concorrentes de contatos diferentes do mesmo
+  devedor liam o mesmo "antes" e o último a confirmar publicava um valor sem o efeito do outro — e o campaign grava o
+  valor do evento. O uso de contato que não é novo não bloqueia (não muda a novidade).
+* **Configuração em tabela com `id`** (não `tenant_id` como PK): segue `AmountAdjustmentSettings` (`TenantScopedEntity`
+  com versão e auditoria de criação/alteração) e a mesma garantia de uma linha por assessoria (`unique (tenant_id)`).
+* **Fim da novidade no consumidor**: o collection e o campaign comparam `new_contact_until` com o instante da avaliação
+  (fila e segmento) — a janela vencida deixa de atender na hora, e a varredura diária só refaz o roteamento e republica
+  o valor. A varredura procura janelas vencidas nos últimos `app.debt.contact-novelty.sweep-lookback` (padrão 7 dias),
+  para cobrir execuções perdidas; um devedor pode ser republicado mais de uma vez (consumidores idempotentes).
+* **Ordem dos eventos**: o collection relê no debt (`DebtorSegmentationQueries`, sob o lock do devedor) o estado atual,
+  como no marcador de vulnerabilidade; o campaign grava o valor do evento em todos os casos do devedor e descarta entrega
+  mais antiga que a aplicada (`new_contact_changed_at`). Na inclusão do caso na projeção, o valor vem do caso do
+  collection; depois, só o evento altera.
+* **Uso do contato**: ligação de saída conta como tentativa (efetiva se `ANSWERED`); ligação recebida só conta quando
+  atendida. Mensagem `SENT`/`DELIVERED`/`READ` é tentativa e `RECEIVED` é tentativa e contato efetivo. A primeira
+  tentativa de **qualquer** contato gera `contact.first_attempt` (comparação novo × antigo).
+* **Contato inválido**: perde o selo e sai do fim da novidade do devedor; invalidar ou revalidar um contato novo recalcula e
+  publica o evento.
+* **Reenvio de contato manual**: contato cadastrado à mão que chega numa carga também ganha a data de confirmação pelo
+  credor (sem virar novo). Reprocessar uma carga (lote novo com o mesmo arquivo) conta como reenvio.
+* **Discador**: `DebtorContactUseCases.ChannelContact` ganhou `newPending`; o `DialerTickJob` escolhe o telefone com
+  `nextPhone(telefones, último discado)`: primeiro o número novo sem tentativa (na ordem de prioridade, sem repetir o
+  último discado); senão, o seguinte ao último discado na ordem de prioridade. O último discado é o contato da última
+  chamada do item (`DialerEntry.lastCallId` → `Call.contactId`); sem ele, ou fora da lista, o primeiro da ordem. O
+  rodízio é estável: antes, `tentativas % quantidade` sobre a lista reordenada pulava o número de maior prioridade quando
+  a novidade acabava (ex.: [P0, P1] + N: N na 1ª tentativa e P1 na 2ª). A ligação manual (clique para ligar) e o envio
+  de mensagens seguem a ordem de prioridade.
+* **APIs**: `GET/PUT /api/v1/debtors/contact-novelty-settings` (`DEBTOR_MANAGE`), `GET /api/v1/debtors?newContact=true`
+  e `?newContactBatchId=`, `GET /api/v1/ingestion/batches/{id}/contact-receipt` (`IMPORT_VIEW`); `receipt` nos contatos da
+  ficha do devedor, do resumo e da ficha do caso; `newContactOnly`/`personType` na fila; `hasNewContact`/`personType` no
+  segmento. Tela nova em **Organização › Contatos recebidos** (`/devedores/contatos-recebidos`), logo depois de
+  Configurações no menu.
+

@@ -7,7 +7,10 @@ import { Amount, formatAmount } from '../../shared/components/amount/amount';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { PortalPix } from '../components/portal-pix';
 import { PortalApi, portalMessage } from '../data/portal.api';
-import { AcceptanceResult, OfferSummary, OffersView, PixView } from '../data/portal.models';
+import { AcceptanceResult, AgreementDetail, OfferSummary, OffersView, PixView, PortalChannel, RepresentativeStatus, ServiceRequestView } from '../data/portal.models';
+import { CHANNEL_LABELS } from '../data/portal.labels';
+import { PortalSite } from '../layout/portal-site';
+import { Observable, catchError, of, switchMap } from 'rxjs';
 import { PortalFlow } from '../data/portal-flow';
 import { Icon } from '../../shared/components/icon/icon';
 
@@ -23,22 +26,31 @@ type Step = 'choose' | 'review' | 'done';
   template: `
     <a class="btn btn-link portal-btn-link" [routerLink]="['/portal', slug(), 'dividas']"><app-icon name="arrow-left" /> Minhas dívidas</a>
 
-    @if (step() === 'done' && result(); as r) {
+    @if (step() === 'done' && handoff(); as h) {
+      <section class="portal-card text-center" aria-labelledby="handoff-titulo">
+        <app-icon class="portal-big-icon" name="headset" />
+        <h1 class="portal-title" id="handoff-titulo" tabindex="-1">Recebemos sua escolha</h1>
+        <p>Um atendente vai concluir o acordo com a empresa pelo {{ channelLabels[h.preferredChannel] }}. Protocolo <strong>{{ h.protocol }}</strong>.</p>
+        <div class="portal-actions">
+          <a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'atendimento']">Ver meus pedidos</a>
+        </div>
+      </section>
+    } @else if (step() === 'done' && result()?.agreement; as agreement) {
       <section class="portal-card text-center" aria-labelledby="ok-titulo">
         <app-icon class="portal-big-icon" name="patch-check" />
         <h1 class="portal-title" id="ok-titulo" tabindex="-1">Acordo fechado!</h1>
-        <p>Pague a {{ r.agreement.installments.length > 1 ? '1ª parcela' : 'parcela única' }} até
-          {{ r.agreement.installments[0].dueDate | appDate: 'date' }} para confirmar o acordo.</p>
+        <p>Pague a {{ agreement.installments.length > 1 ? '1ª parcela' : 'parcela única' }} até
+          {{ agreement.installments[0].dueDate | appDate: 'date' }} para confirmar o acordo.</p>
       </section>
       <section class="portal-card">
         @if (pix(); as p) {
-          <app-portal-pix [pix]="p" (refresh)="refreshPix(r)" />
+          <app-portal-pix [pix]="p" (refresh)="refreshPix(agreement)" />
         } @else {
           <p class="alert alert-info d-flex align-items-start gap-2" role="status"><app-icon name="info-circle" />
             <span>O Pix ainda não está pronto. Gere o código em "Meus acordos".</span></p>
         }
         <div class="portal-actions">
-          <a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'acordos', r.agreement.id]">Ver meu acordo</a>
+          <a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'acordos', agreement.id]">Ver meu acordo</a>
         </div>
       </section>
     } @else if (offers.isLoading() && !offers.value()) {
@@ -101,6 +113,33 @@ type Step = 'choose' | 'review' | 'done';
               por mais de {{ o.breakToleranceDays }} dias, o acordo é desfeito e o desconto deixa de valer.
             } Ao confirmar, geramos o termo do acordo, que fica disponível para baixar.
           </span></p>
+          @if (company()?.required) {
+            <!-- empresa (B4): quem está negociando; a tela é a mesma quando o CPF confere e quando não confere -->
+            <fieldset class="portal-fieldset" aria-describedby="rep-ajuda">
+              <legend>Quem está negociando pela empresa</legend>
+              <p class="portal-label" id="rep-ajuda">
+                @if (company()?.humanCompletion) {
+                  Um atendente vai concluir o acordo com você.
+                } @else {
+                  Informe seus dados. Se precisarmos confirmar algo, um atendente conclui o acordo com você.
+                }
+              </p>
+              @if (!company()?.declared) {
+                <label class="form-label" for="rep-nome">Seu nome</label>
+                <input class="form-control" id="rep-nome" autocomplete="name" maxlength="200" [(ngModel)]="repName" />
+                <label class="form-label mt-2" for="rep-cpf">Seu CPF</label>
+                <input class="form-control" id="rep-cpf" inputmode="numeric" autocomplete="off" maxlength="14" [(ngModel)]="repCpf" />
+              } @else {
+                <p class="mb-2">Negociando: <strong>{{ company()?.declaredName }}</strong></p>
+              }
+              <label class="form-label mt-2" for="rep-canal">Se precisarmos falar com você</label>
+              <select class="form-select" id="rep-canal" [(ngModel)]="repChannel">
+                @for (c of channels(); track c) {
+                  <option [ngValue]="c">{{ channelLabels[c] }}</option>
+                }
+              </select>
+            </fieldset>
+          }
           <div class="form-check portal-radio">
             <input class="form-check-input portal-check" type="checkbox" id="portal-agree" [(ngModel)]="agreed" />
             <label class="form-check-label" for="portal-agree">Li as condições e aceito fechar este acordo</label>
@@ -110,7 +149,7 @@ type Step = 'choose' | 'review' | 'done';
           }
           <div class="portal-actions">
             <button class="btn btn-link portal-btn-link" type="button" (click)="step.set('choose')">Voltar</button>
-            <button class="btn btn-primary portal-btn" type="button" [disabled]="!agreed || busy()" (click)="accept(o, offer)">
+            <button class="btn btn-primary portal-btn" type="button" [disabled]="!agreed || busy() || !representativeReady()" (click)="accept(o, offer)">
               {{ busy() ? 'Fechando o acordo…' : 'Fechar acordo de ' + total(offer) }}
             </button>
           </div>
@@ -126,6 +165,8 @@ type Step = 'choose' | 'review' | 'done';
     .portal-option:focus-within { outline: var(--app-focus-ring); outline-offset: 2px; }
     .portal-card-title { margin: 16px 0 4px; font-size: 16px; font-weight: 600; }
     .portal-radio { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+    .portal-fieldset { margin: 16px 0; padding: 0; border: 0; }
+    .portal-fieldset legend { margin-bottom: 4px; font-size: 1rem; font-weight: 600; }
   `,
 })
 export class PortalOffers {
@@ -151,6 +192,33 @@ export class PortalOffers {
   protected readonly error = signal<string | null>(null);
   protected readonly busy = signal(false);
   protected agreed = false;
+  protected readonly channelLabels = CHANNEL_LABELS;
+  /** Marca do portal (moldura); canais do código = canais por onde o atendente pode responder. */
+  private readonly site = inject(PortalSite, { optional: true });
+  protected readonly channels = computed<PortalChannel[]>(() => this.site?.site()?.otpChannels ?? ['WHATSAPP']);
+  /** Empresa: quem negocia (pessoa física → `required = false`; sem resposta, segue como pessoa física). */
+  private readonly representative = rxResource({
+    stream: () => this.api.representative().pipe(catchError(() => of<RepresentativeStatus | null>(null))),
+  });
+  protected readonly company = computed(() => this.representative.value() ?? null);
+  /** Pedido de atendimento criado no lugar do acordo (empresa sem representante confirmado). */
+  protected readonly handoff = signal<ServiceRequestView | null>(null);
+  /** CPF e nome digitados: só em memória, enviados no aceite. */
+  protected repName = '';
+  protected repCpf = '';
+  protected repChannel: PortalChannel | null = null;
+
+  protected representativeReady(): boolean {
+    const c = this.company();
+    if (!c?.required) {
+      return true;
+    }
+    return (c.declared || (this.repName.trim().length > 0 && this.repCpf.replace(/\D/g, '').length === 11)) && !!this.channelOrDefault();
+  }
+
+  private channelOrDefault(): PortalChannel | null {
+    return this.repChannel ?? this.channels()[0] ?? null;
+  }
 
   protected percent(v: number | string): string {
     return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(Number(v)) + '%';
@@ -184,15 +252,35 @@ export class PortalOffers {
   protected accept(o: OffersView, offer: OfferSummary): void {
     this.busy.set(true);
     this.error.set(null);
-    this.api.accept({ simulationId: o.simulationId, level: offer.level, installments: offer.installments, termsAccepted: true })
+    const company = this.company();
+    // empresa: primeiro quem está negociando (mesma resposta quando o CPF confere e quando não confere)
+    const declared: Observable<unknown> =
+      company?.required && !company.declared
+        ? this.api.declareRepresentative({ cpf: this.repCpf.replace(/\D/g, ''), name: this.repName.trim() })
+        : of(null);
+    declared
+      .pipe(
+        switchMap(() =>
+          this.api.accept({
+            simulationId: o.simulationId,
+            level: offer.level,
+            installments: offer.installments,
+            termsAccepted: true,
+            ...(company?.required ? { preferredChannel: this.channelOrDefault() } : {}),
+          }),
+        ),
+      )
       .subscribe({
         next: (r) => {
           this.busy.set(false);
+          this.repCpf = '';
           this.result.set(r);
+          this.handoff.set(r.serviceRequest ?? null);
           this.pix.set(r.pix);
           this.step.set('done');
-          if (r.pix?.status === 'PENDING') {
-            setTimeout(() => this.refreshPix(r), 2500);
+          if (r.agreement && r.pix?.status === 'PENDING') {
+            const agreement = r.agreement;
+            setTimeout(() => this.refreshPix(agreement), 2500);
           }
         },
         error: (e: unknown) => {
@@ -202,10 +290,10 @@ export class PortalOffers {
       });
   }
 
-  protected refreshPix(r: AcceptanceResult): void {
-    const first = r.agreement.installments.find((i) => i.status !== 'PAID' && i.status !== 'CANCELLED');
+  protected refreshPix(agreement: AgreementDetail): void {
+    const first = agreement.installments.find((i) => i.status !== 'PAID' && i.status !== 'CANCELLED');
     if (first) {
-      this.api.pix(r.agreement.id, first.id).subscribe({ next: (p) => this.pix.set(p), error: () => undefined });
+      this.api.pix(agreement.id, first.id).subscribe({ next: (p) => this.pix.set(p), error: () => undefined });
     }
   }
 

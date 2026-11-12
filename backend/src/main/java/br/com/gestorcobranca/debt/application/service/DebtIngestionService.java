@@ -21,6 +21,7 @@ import br.com.gestorcobranca.debt.domain.model.TitleOwnership;
 import br.com.gestorcobranca.debt.domain.repository.CollateralAppraisalRepository;
 import br.com.gestorcobranca.debt.domain.repository.CollateralRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
+import br.com.gestorcobranca.debt.domain.repository.DebtorContactRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorRepository;
 import br.com.gestorcobranca.debt.domain.repository.ObligationPartyRepository;
 import br.com.gestorcobranca.debt.domain.repository.OriginContractRepository;
@@ -114,6 +115,7 @@ class DebtIngestionService implements DebtIngestionPort {
     private final ApplicationEventPublisher events;
     private final AmountDivergenceRecorder divergenceRecorder;
     private final Clock clock;
+    private final DebtorContactRepository contacts;
 
     DebtIngestionService(DebtorRepository debtors, DebtTitleRepository titles, OriginContractRepository contracts,
                          TitleLedgerEntryRepository ledger, TitleBalanceSnapshotRepository snapshots,
@@ -125,7 +127,8 @@ class DebtIngestionService implements DebtIngestionPort {
                          PrescriptionRecalculator prescriptions, PortfolioUseCases portfolios,
                          AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
                          BusinessEventLogger businessEvents, ApplicationEventPublisher events,
-                         AmountDivergenceRecorder divergenceRecorder, Clock clock) {
+                         AmountDivergenceRecorder divergenceRecorder, Clock clock, DebtorContactRepository contacts) {
+        this.contacts = contacts;
         this.debtors = debtors;
         this.titles = titles;
         this.contracts = contracts;
@@ -483,5 +486,13 @@ class DebtIngestionService implements DebtIngestionPort {
         events.publishEvent(new PortfolioLoaded(Ids.newId(), currentActor.tenantId(), Instant.now(clock),
                 summary.importBatchId(), summary.creditorId(), summary.portfolioId(), summary.titlesCreated(),
                 summary.titlesUpdated(), summary.debtorsAffected()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ContactReceiptCount contactReceipt(UUID importBatchId) {
+        Guard.require(importBatchId != null, "title.import_batch_required", "Lote de importação obrigatório");
+        return new ContactReceiptCount(contacts.countDebtorsReceivedNewIn(importBatchId),
+                contacts.countReceivedNewIn(importBatchId));
     }
 }

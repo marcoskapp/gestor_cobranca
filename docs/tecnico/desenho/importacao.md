@@ -176,7 +176,7 @@ estatísticos (os demais sinais continuam).
 | --- | --- |
 | `FILE_SCALE_SHIFT` (arquivo) | mediana do arquivo ÷ mediana do histórico próxima de 10ⁿ (±25%, n ≠ 0) |
 | `CENTS_PATTERN` (arquivo) | ≥ 99% dos valores do arquivo sem centavos e ≤ 50% no histórico (separador perdido ou valores em centavos), ou o contrário |
-| `BALANCE_ABOVE_PRINCIPAL` | saldo > principal × (1,02 + 0,10 × meses em atraso, mínimo 1 mês) — encargos que não justificam; razão 10ⁿ é destacada |
+| `BALANCE_ABOVE_PRINCIPAL` | saldo > principal × (1,02 + 0,10 × meses em atraso, mínimo 1 mês) — encargos que não justificam; razão 10ⁿ é destacada. **Carteira empresarial** (regime `BUSINESS`, [cobranca-b2b.md](cobranca-b2b.md) §6): o teto de multa de 2% do CDC não vale e os encargos seguem o contrato, então só o saldo a 10ⁿ vezes o principal (separador decimal) é alertado; o resumo da análise grava `portfolioRegime` |
 | `DUE_DATE_TOO_FUTURE` / `DUE_DATE_TOO_OLD` | vencimento além de 10 anos à frente / mais de 20 anos atrás |
 | `DEBTOR_MAGNITUDE_SPREAD` | mesmo devedor (chave = blind index do documento) com títulos cuja razão para a mediana do devedor ≥ 100 |
 | `CONTRACT_INSTALLMENTS_MISMATCH` | contrato com 2+ linhas e mesmo `valor_contrato`: soma das parcelas > 2 × valor do contrato ou razão próxima de 10ⁿ |
@@ -245,6 +245,12 @@ Prefixo `/api/v1/ingestion`.
 | `POST /reviews/{id}/commit` `{confirmationText, forceReason?}` | `IMPORT_EXECUTE` | efetiva (ou pede aprovação) |
 | `POST /reviews/{id}/approve` `{confirmationText, note?}` / `POST /reviews/{id}/reject` `{reason}` | `IMPORT_APPROVE` | aprovação de segunda pessoa |
 | `POST /reviews/{id}/cancel` `{reason}` | `IMPORT_EXECUTE` | abandona a conferência |
+
+`GET /batches/{id}/contact-receipt` (`IMPORT_VIEW`) devolve quantos devedores que já existiam receberam contato novo na
+carga e quantos contatos novos ela trouxe (`{debtorsWithNewContact, newContacts}`; zero fora do modo `IMPORT`) — o
+relatório da carga mostra "N devedores receberam contato novo" com link para a lista de devedores filtrada pela carga
+([contatos-recebidos.md](contatos-recebidos.md) §4). A gravação da linha (`RowWriter`) envia a carga no
+`DebtorRecord.importBatchId`, também para os coobrigados da linha.
 
 `POST /batches/records` aceita números JSON (sem ambiguidade) e strings (analisadas como o CSV), além de
 `numberFormat` (`{"valor_principal": "COMMA"}`) e `controlTotals` (`{rows, principalTotal, balanceTotal,
@@ -317,4 +323,5 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
   responde 409 no download, na nova conferência e no reprocessamento. Unitário `PdfRetentionTest` (rodadas até esvaziar).
 - Integração (`IngestionReviewIT`): separador misturado barrado até a decisão; totais divergentes bloqueiam e apontam
   a razão 10ⁿ; alertas revisados liberam; linha excluída não é gravada; aprovação de segunda pessoa; API com strings
-  ambíguas falha sem decisão e importa com `numberFormat`; totais de controle da API.
+  ambíguas falha sem decisão e importa com `numberFormat`; totais de controle da API; carteira empresarial sem o alerta
+  de encargos do CDC e com o de separador decimal (`ReviewSignalsTest` cobre a regra pura).

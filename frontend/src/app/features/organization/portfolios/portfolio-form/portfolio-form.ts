@@ -13,7 +13,7 @@ import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators, Limits, Patterns } from '../../../../shared/validation/validators';
 import { ContractsApi, PortfoliosApi } from '../../data/organization.api';
 import { CreditorLookup } from '../../data/organization.lookups';
-import { PortfolioView } from '../../data/organization.models';
+import { PORTFOLIO_REGIME_EFFECTS, PORTFOLIO_REGIME_LABELS, PortfolioRegime, PortfolioView } from '../../data/organization.models';
 import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
 import { FORM_FIELD } from '../../../../shared/forms/field';
@@ -40,6 +40,8 @@ export class PortfolioForm {
   protected readonly creditors = inject(CreditorLookup);
 
   protected readonly limits = Limits;
+  protected readonly regimeLabels = PORTFOLIO_REGIME_LABELS;
+  protected readonly regimes: PortfolioRegime[] = ['CONSUMER', 'BUSINESS'];
   protected readonly editing = this.data.portfolio !== null;
   protected readonly saving = signal(false);
   protected readonly generalErrors = signal<string[]>([]);
@@ -61,9 +63,14 @@ export class PortfolioForm {
       // modelo ISO (yyyy-MM-dd) do ngbDatepicker
       receivedOn: [this.data.portfolio?.receivedOn ?? toLocalDate(new Date()), [Validators.required]],
       validUntil: [this.data.portfolio?.validUntil ?? null],
+      // regime: na criação; depois, só pela ação "Alterar regime" (com motivo e auditoria)
+      regime: this.fb.nonNullable.control<PortfolioRegime>(this.data.portfolio?.regime ?? 'CONSUMER'),
     },
     { validators: AppValidators.dateRange('receivedOn', 'validUntil') },
   );
+
+  private readonly regime = toSignal(this.form.controls.regime.valueChanges, { initialValue: this.form.controls.regime.value });
+  protected readonly regimeHint = computed(() => PORTFOLIO_REGIME_EFFECTS[this.regime()]);
 
   private readonly creditorId = toSignal(
     this.form.controls.creditor.valueChanges.pipe(startWith(this.form.controls.creditor.value)),
@@ -116,6 +123,7 @@ export class PortfolioForm {
           creditorId: v.creditor[0],
           contractId: v.contractId ?? '',
           code: (v.code ?? '').trim(),
+          regime: v.regime,
         });
     this.saving.set(true);
     this.generalErrors.set([]);

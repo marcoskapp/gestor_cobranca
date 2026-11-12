@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.debt.application.service;
 
+import br.com.gestorcobranca.debt.domain.model.CompanyRepresentative;
 import br.com.gestorcobranca.debt.domain.model.ContactValue;
 import br.com.gestorcobranca.debt.domain.model.Debtor;
 import br.com.gestorcobranca.shared.crypto.BlindIndex;
@@ -21,6 +22,18 @@ class PersonalDataIndex {
 
     String document(Document document) {
         return blindIndex.of(currentActor.tenantId(), Debtor.DOCUMENT_HASH_PURPOSE, document.number());
+    }
+
+    /** Raiz do CNPJ (matriz e filiais); nulo para CPF. */
+    String documentRoot(Document document) {
+        return document.cnpjRoot()
+                .map(root -> blindIndex.of(currentActor.tenantId(), Debtor.DOCUMENT_ROOT_HASH_PURPOSE, root))
+                .orElse(null);
+    }
+
+    /** CPF do representante da empresa (finalidade própria, diferente da do devedor). */
+    String representative(Document cpf) {
+        return blindIndex.of(currentActor.tenantId(), CompanyRepresentative.DOCUMENT_HASH_PURPOSE, cpf.number());
     }
 
     String contact(ContactValue value) {

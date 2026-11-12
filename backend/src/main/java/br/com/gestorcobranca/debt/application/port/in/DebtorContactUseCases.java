@@ -63,26 +63,65 @@ public interface DebtorContactUseCases {
      * @param label  MOBILE, HOME, WORK ou OTHER (padrão OTHER)
      * @param source MANUAL ou DEBTOR (cargas usam {@code DebtIngestionPort}); padrão MANUAL
      * @param priority ordem de uso (menor primeiro); nulo = após os existentes do mesmo tipo
+     * @param personName nome da pessoa de contato (B2, opcional, até 120 caracteres)
+     * @param personRole FINANCE, ACCOUNTS_PAYABLE, OWNER_PARTNER, LEGAL ou OTHER (opcional)
+     * @param decisionMaker a pessoa de contato decide pelo devedor
      */
     record AddContactCommand(String type, String value, String label, boolean whatsapp, Integer priority,
-                             String source) {
+                             String source, String personName, String personRole, boolean decisionMaker) {
+
+        public AddContactCommand(String type, String value, String label, boolean whatsapp, Integer priority,
+                                 String source) {
+            this(type, value, label, whatsapp, priority, source, null, null, false);
+        }
     }
 
-    record UpdateContactCommand(String label, boolean whatsapp, int priority) {
+    /**
+     * Classificação e pessoa de contato.
+     *
+     * @param personName nulo mantém o nome atual (a tela só conhece o nome mascarado); vazio remove
+     * @param personRole papel (nulo remove)
+     */
+    record UpdateContactCommand(String label, boolean whatsapp, int priority, String personName, String personRole,
+                                boolean decisionMaker) {
     }
 
+    /**
+     * @param maskedPersonName nome da pessoa de contato mascarado como o valor ("A***"); o nome completo vem na revelação
+     * @param personRole       papel da pessoa de contato (nulo se não informado)
+     * @param receipt          recebimento por carga (selo "Novo" e reenvio); nulo se o contato nunca veio de carga
+     */
     record ContactView(UUID id, UUID debtorId, String type, String maskedValue, String label, boolean whatsapp,
-                       String source, String status, int priority, Instant lastVerifiedAt, String invalidReason) {
+                       String source, String status, int priority, Instant lastVerifiedAt, String invalidReason,
+                       String maskedPersonName, String personRole, boolean decisionMaker, ContactReceiptView receipt) {
     }
 
-    record RevealedContact(UUID contactId, UUID debtorId, String type, String value) {
+    /**
+     * Contato recebido em carga (docs/tecnico/desenho/contatos-recebidos.md §4). Só tipo e datas, sem valor.
+     *
+     * @param novelty        NEW (ainda sem tentativa), NEW_ANSWERED ou NEW_NO_ANSWER (já testado, dentro da janela);
+     *                       nulo = sem selo (nunca novo, janela encerrada ou contato inválido)
+     * @param receivedAt     quando a carga criou o contato (nulo se criado fora de carga e só reenviado depois)
+     * @param noveltyUntil   fim da janela de novidade (nulo = nunca foi novo)
+     * @param confirmedAt    último reenvio pelo credor (nulo se nunca reenviado)
+     * @param firstAttemptAt primeira tentativa por este contato
+     */
+    record ContactReceiptView(String novelty, Instant receivedAt, Instant noveltyUntil, Instant confirmedAt,
+                              Instant firstAttemptAt) {
+    }
+
+    /** @param personName nome completo da pessoa de contato (nulo se não informado) */
+    record RevealedContact(UUID contactId, UUID debtorId, String type, String value, String personName) {
     }
 
     /** @param hash blind index (finalidade {@code contact.phone} ou {@code contact.email}) */
     record ContactFingerprint(String type, String hash, String maskedValue) {
     }
 
+    /**
+     * @param newPending contato novo recebido na carga ainda sem tentativa, dentro da janela (o discador o usa primeiro)
+     */
     record ChannelContact(UUID contactId, String type, String value, String label, boolean whatsapp, int priority,
-                          String status) {
+                          String status, boolean newPending) {
     }
 }

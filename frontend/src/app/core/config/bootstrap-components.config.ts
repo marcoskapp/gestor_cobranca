@@ -25,7 +25,11 @@ export function provideBootstrapComponentDefaults(): EnvironmentProviders {
       tooltip.container = 'body';
       tooltip.openDelay = 300;
 
-      inject(NgbDropdownConfig).container = 'body';
+      const dropdown = inject(NgbDropdownConfig);
+      dropdown.container = 'body';
+      // menu no body com posição fixa: nunca aumenta a rolagem da página (zonas com rolagem própria, como a
+      // estação) e o Popper o mantém junto do botão ao rolar — o mesmo do datepicker e do typeahead
+      dropdown.popperOptions = (options) => ({ ...options, strategy: 'fixed' });
 
       const pagination = inject(NgbPaginationConfig);
       pagination.boundaryLinks = true;

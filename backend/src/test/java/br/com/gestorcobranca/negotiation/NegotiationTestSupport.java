@@ -111,7 +111,7 @@ abstract class NegotiationTestSupport extends IntegrationTest {
         operator = user("Operador X", "x", roleIds.get(DefaultRoles.OPERADOR));
         manager = user("Gestor G", "g", roleIds.get(DefaultRoles.GESTOR));
         debtor = system(() -> ingestion.upsertDebtor(new DebtorRecord(CPF, "Maria Devedora", LocalDate.of(1985, 3, 15),
-                java.util.List.of())).id());
+                java.util.List.of(), null)).id());
         UUID batch = Ids.newId();
         title60 = system(() -> ingestion.upsertTitle(new TitleRecord(creditorA, portfolioA, debtor, "T-60", null, 1,
                 today.minusDays(60), new BigDecimal("1000.00"), null, null), batch).id());

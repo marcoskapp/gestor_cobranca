@@ -283,7 +283,7 @@ class PortalAccessIT extends PortalTestSupport {
         // devedor só com dívida em carteira não habilitada não recebe link e não entra pelo documento
         UUID carlos = system(() -> {
             UUID id = ingestion.upsertDebtor(new br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort
-                    .DebtorRecord("870.424.856-29", "Carlos Fora", null, List.of())).id();
+                    .DebtorRecord("870.424.856-29", "Carlos Fora", null, List.of(), null)).id();
             ingestion.upsertTitle(new br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.TitleRecord(
                     creditorA, portfolioA2, id, "CT-9", null, 1, today.minusDays(10), new java.math.BigDecimal("100.00"),
                     null, null), br.com.gestorcobranca.shared.domain.Ids.newId());

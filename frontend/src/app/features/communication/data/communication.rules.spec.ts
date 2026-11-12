@@ -210,6 +210,19 @@ describe('regras da caixa de entrada', () => {
       expect(prefillVariables(vars, '')).toEqual({});
     });
 
+    it('preenche nome_fantasia e saudacao pelo tipo de pessoa (cobrança B2B)', () => {
+      const vars = [
+        { name: 'nome_fantasia', type: 'TEXT', required: true, maxLength: null },
+        { name: 'saudacao', type: 'TEXT', required: true, maxLength: null },
+      ] as never[];
+      expect(prefillVariables(vars, 'Comercial Fictícia Ltda', { personType: 'COMPANY', tradeName: 'Padaria Fictícia' }))
+        .toEqual({ nome_fantasia: 'Padaria Fictícia', saudacao: 'Padaria Fictícia' });
+      expect(prefillVariables(vars, 'Comercial Fictícia Ltda', { personType: 'COMPANY', tradeName: null }))
+        .toEqual({ nome_fantasia: 'Comercial Fictícia Ltda', saudacao: 'Comercial Fictícia Ltda' });
+      expect(prefillVariables(vars, 'Maria Clara', { personType: 'INDIVIDUAL', tradeName: null })).toEqual({ saudacao: 'Maria' });
+      expect(prefillVariables(vars, 'Maria Clara')).toEqual({});
+    });
+
     it('quem atende a conversa', () => {
       const name = (id: string) => (id === 'u-2' ? 'Bruno' : '…');
       const base = { status: 'OPEN' as const, ownerType: 'USER' as const, ownerUserId: 'u-1', requiredProfile: null };

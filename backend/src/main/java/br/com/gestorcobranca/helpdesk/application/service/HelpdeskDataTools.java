@@ -132,7 +132,8 @@ class HelpdeskDataTools {
             if (query.length() < 3 || query.contains("[")) {
                 throw new ToolArgumentException("texto_curto", "Informe ao menos 3 letras do nome ou o marcador [DOCn]");
             }
-            found = debtors.search(query, null, null, PageQuery.of(0, MAX_RESULTS)).content();
+            found = debtors.search(new DebtorUseCases.DebtorFilter(query, null, null, false, null),
+                    PageQuery.of(0, MAX_RESULTS)).content();
         }
         List<Map<String, Object>> out = new ArrayList<>();
         for (DebtorView d : found.stream().limit(MAX_RESULTS).toList()) {

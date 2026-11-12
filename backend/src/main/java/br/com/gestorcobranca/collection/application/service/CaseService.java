@@ -167,7 +167,9 @@ class CaseService implements CaseUseCases {
         DebtorInfo debtor = new DebtorInfo(summary.debtorId(), summary.name(), summary.maskedDocument(),
                 summary.personType(), summary.status(), summary.contacts().stream()
                 .map(k -> new ContactInfo(k.contactId(), k.type(), k.maskedValue(), k.label(), k.whatsapp(), k.status(),
-                        k.priority())).toList());
+                        k.priority(), k.receipt() == null ? null : new ContactReceiptInfo(k.receipt().novelty(),
+                        k.receipt().receivedAt(), k.receipt().noveltyUntil(), k.receipt().confirmedAt(),
+                        k.receipt().firstAttemptAt()))).toList());
         List<TitleInfo> titles = summary.creditors().stream()
                 .filter(p -> p.creditorId().equals(c.getCreditorId()))
                 .flatMap(p -> p.titles().stream())

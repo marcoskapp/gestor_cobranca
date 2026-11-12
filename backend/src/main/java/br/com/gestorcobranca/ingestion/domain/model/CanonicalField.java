@@ -81,7 +81,27 @@ public enum CanonicalField {
     COLLATERAL_LIEN_DATE("garantia_gravame_data", false, false),
     APPRAISAL_AMOUNT("avaliacao_valor", false, false),
     APPRAISAL_DATE("avaliacao_data", false, false),
-    APPRAISAL_SOURCE("avaliacao_fonte", false, false);
+    APPRAISAL_SOURCE("avaliacao_fonte", false, false),
+    // cobrança B2B (docs/tecnico/desenho/cobranca-b2b.md §3 a §5): nome fantasia, pessoa de contato e representantes
+    TRADE_NAME("nome_fantasia", false, true),
+    PHONE_1_PERSON("telefone_1_contato", false, true),
+    PHONE_1_PERSON_ROLE("telefone_1_papel", false, false),
+    PHONE_2_PERSON("telefone_2_contato", false, true),
+    PHONE_2_PERSON_ROLE("telefone_2_papel", false, false),
+    PHONE_3_PERSON("telefone_3_contato", false, true),
+    PHONE_3_PERSON_ROLE("telefone_3_papel", false, false),
+    EMAIL_1_PERSON("email_1_contato", false, true),
+    EMAIL_1_PERSON_ROLE("email_1_papel", false, false),
+    EMAIL_2_PERSON("email_2_contato", false, true),
+    EMAIL_2_PERSON_ROLE("email_2_papel", false, false),
+    REPRESENTATIVE_1_DOCUMENT("representante_1_documento", false, true),
+    REPRESENTATIVE_1_NAME("representante_1_nome", false, true),
+    REPRESENTATIVE_1_ROLE("representante_1_papel", false, false),
+    REPRESENTATIVE_1_NEGOTIATES("representante_1_negocia", false, false),
+    REPRESENTATIVE_2_DOCUMENT("representante_2_documento", false, true),
+    REPRESENTATIVE_2_NAME("representante_2_nome", false, true),
+    REPRESENTATIVE_2_ROLE("representante_2_papel", false, false),
+    REPRESENTATIVE_2_NEGOTIATES("representante_2_negocia", false, false);
 
     private static final Map<String, CanonicalField> BY_COLUMN = Arrays.stream(values())
             .collect(Collectors.toUnmodifiableMap(CanonicalField::column, Function.identity()));

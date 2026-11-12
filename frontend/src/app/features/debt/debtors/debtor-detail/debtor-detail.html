@@ -94,6 +94,9 @@
     </div>
   }
 
+  <!-- recuperação judicial ou falência (só empresa): aviso com o processo e o atalho ao jurídico; ações fora da estação -->
+  <app-insolvency-notice [debtorId]="d.id" [personType]="d.personType" [manage]="!embedded && active()" />
+
   <section class="app-kpi-grid" aria-label="Posição do devedor" data-tour="debtor-summary">
     @if (position(); as p) {
       <app-kpi-card label="Saldo em cobrança" record><app-amount [value]="p.totalOpenBalance" /></app-kpi-card>
@@ -119,8 +122,22 @@
           <app-document [value]="d.maskedDocument" [showKind]="false" [revealable]="canReveal() && active()" (reveal)="revealDocument(d)" />
         }
       </dd>
-      <dt>Nascimento</dt>
-      <dd>{{ d.birthDate | appDate: 'date' }}</dd>
+      @if (d.personType === 'COMPANY') {
+        <dt>Nome fantasia</dt>
+        <dd>{{ d.tradeName || '—' }}</dd>
+        @if (d.establishment) {
+          <dt>Unidade</dt>
+          <dd data-tour="debtor-company-units">
+            {{ d.establishment }}
+            @if (otherUnits() > 0) {
+              <a class="ms-2" routerLink="/devedores" [queryParams]="{ mesmaEmpresa: d.id }">Outras unidades da empresa ({{ otherUnits() }})</a>
+            }
+          </dd>
+        }
+      } @else {
+        <dt>Nascimento</dt>
+        <dd>{{ d.birthDate | appDate: 'date' }}</dd>
+      }
       <dt>Situação</dt>
       <dd><app-status-chip domain="debtor" [status]="d.status" /></dd>
       <dt>Observações</dt>
@@ -213,6 +230,12 @@
                   @if (c.whatsapp) {
                     <span class="app-status app-status--info">WhatsApp</span>
                   }
+                  @if (c.status !== 'INVALID') {
+                    <app-contact-novelty-badge [receipt]="c.receipt" />
+                  }
+                  @if (personText(c, revealedPersons().get(c.id)); as person) {
+                    <span class="app-muted" data-tour="debtor-contact-person">{{ person }}</span>
+                  }
                   @if (full) {
                     <button type="button" class="btn btn-sm btn-outline-secondary border-0" (click)="hideContact(c)" aria-label="Ocultar valor completo" ngbTooltip="Ocultar">
                       <app-icon name="eye-slash" />
@@ -250,9 +273,19 @@
                 }
               </ng-template>
             </app-data-table>
+            <app-contact-profile-card [debtorId]="d.id" [contacts]="contactRows()" />
           </div>
         </ng-template>
       </li>
+
+      @if (d.personType === 'COMPANY') {
+        <li [ngbNavItem]="'representantes'">
+          <button ngbNavLink type="button" data-tour="debtor-representatives">Representantes</button>
+          <ng-template ngbNavContent>
+            <div class="debt-tab"><app-company-representatives [companyId]="d.id" [active]="active()" /></div>
+          </ng-template>
+        </li>
+      }
 
       @if (canSeeCases()) {
         <li [ngbNavItem]="'interacoes'">

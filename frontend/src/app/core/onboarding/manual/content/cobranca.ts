@@ -63,7 +63,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Abre um caso escolhido em listas, agenda, propostas, conversas ou ficha do devedor. Quem opera a cobrança trabalha o caso dentro da estação (fila, cronômetro e registro da interação), com o menu marcando a estação; o endereço antigo da estação com o caso continua funcionando.',
         'Quem só consulta (jurídico, gestor, auditoria) vê os mesmos dados e abas sem fila, cronômetro, janela de contato nem registro de interação; as ações do seu perfil (atribuir, mudar a situação, atualizar a posição, simular) ficam em "Mais ações".',
-        'No histórico, quem avalia a qualidade tem "Avaliar" em cada atendimento de outra pessoa: a monitoria abre com o negociador, o caso e a data preenchidos.',
+        'No histórico, quem avalia a qualidade tem "Avaliar" em cada atendimento de outra pessoa: a monitoria abre com o negociador, o caso e a data preenchidos. Empresa em recuperação judicial ou falência: o aviso mostra desde quando, o processo e o atalho para o caso jurídico; o caso fica inelegível.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'AUDITOR'],
       inputs: ['Títulos, contatos e histórico do devedor na carteira do caso.'],
@@ -72,7 +72,7 @@ export const MANUAL: ModuleManual = {
         { screen: 'collection.cases', why: 'Encontrar outros casos.' },
         { screen: 'debt.debtors', why: 'Ver todos os credores e títulos do devedor.' },
       ],
-      terms: ['caso', 'elegibilidade', 'tabulacao', 'contestacao'],
+      terms: ['caso', 'elegibilidade', 'tabulacao', 'contestacao', 'recuperacao-judicial'],
     },
     {
       id: 'collection.cases',
@@ -108,7 +108,7 @@ export const MANUAL: ModuleManual = {
       title: 'Filas e distribuição',
       objective: 'Defina os critérios e a prioridade das filas e distribua os casos entre os operadores.',
       purpose: [
-        'Cada fila tem critérios (credor, carteira, atraso, saldo, score), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz.',
+        'Cada fila tem critérios (credor, carteira, atraso, saldo, score, tipo de pessoa, contato novo e vulnerabilidade), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz; o de contato novo sai da fila quando todos os contatos novos do devedor forem tentados ou, vencido o prazo, na revisão diária da madrugada.',
         'Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou.',
         'O nome da fila abre a lista de casos dessa fila.',
       ],
@@ -120,7 +120,7 @@ export const MANUAL: ModuleManual = {
         { screen: 'collection.cases', why: 'Ver o resultado da distribuição.' },
         { screen: 'telephony.campaigns', why: 'Discar automaticamente sobre uma fila.' },
       ],
-      terms: ['fila', 'proximo-caso', 'faixa-de-score', 'equipe'],
+      terms: ['fila', 'proximo-caso', 'faixa-de-score', 'equipe', 'contato-novo'],
     },
     {
       id: 'collection.tabulations',
@@ -216,6 +216,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Mostra pessoas e empresas com títulos nos credores que você atende. O documento é enviado de forma protegida, fora do endereço da página.',
         'De qualquer tela, a busca rápida (Ctrl + K) também encontra devedor e caso: nome (3 letras ou mais), CPF/CNPJ ou telefone completos, ou o código do título no credor. Mostra no máximo 10 devedores e o caso de cada um; busca por CPF/CNPJ ou telefone fica registrada no log de acesso, e nada do que você digita vai para o endereço da página. Os "Recentes" ficam só enquanto a sessão estiver aberta.',
+        'Empresas mostram abaixo da razão social o nome fantasia e se são a matriz ou uma filial. Aberta pelo atalho "Outras unidades da empresa" da ficha, a lista traz só as unidades com a mesma raiz do CNPJ (os 8 primeiros números) nos credores que você atende; o endereço leva só o identificador da ficha, nunca o CNPJ. "Com contato novo" mostra quem recebeu telefone, e-mail ou endereço numa nova carga e ainda não foi tentado por ele. Aberta pelo relatório da importação, a lista mostra os devedores que receberam contato novo naquela carga.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'ANALISTA_CARTEIRA', 'AUDITOR', 'COMPLIANCE'],
       inputs: ['Devedores gravados pela importação.'],
@@ -223,17 +224,36 @@ export const MANUAL: ModuleManual = {
       related: [
         { screen: 'debt.titles', why: 'Consultar títulos com filtros.' },
         { screen: 'collection.cases', why: 'Casos de cobrança do devedor.' },
+        { screen: 'ingestion.batch-detail', why: 'Quantos devedores receberam contato novo em cada carga.' },
       ],
-      terms: ['devedor', 'escopo-de-credores'],
+      terms: ['devedor', 'escopo-de-credores', 'contato-novo'],
+    },
+    {
+      id: 'debt.contact-novelty',
+      title: 'Contatos recebidos',
+      objective: 'Defina por quantos dias o contato recebido numa nova carga aparece como "Novo" para a operação.',
+      purpose: [
+        'Quando o credor manda um telefone, e-mail ou endereço que o devedor ainda não tinha, o contato ganha o selo "Novo" na ficha e no caso, entra no filtro da lista de devedores e pode formar fila e segmento próprios.',
+        'O selo vale até a primeira tentativa por esse contato; depois, mostra se atendeu ou não até o fim do prazo. Contatos da carga que criou o devedor nunca são novos. O padrão do sistema é de 30 dias, de 1 a 180.',
+      ],
+      profiles: ['GESTOR', 'ANALISTA_CARTEIRA', 'SUPERVISOR'],
+      inputs: ['Contatos recebidos pelas importações de carteira.'],
+      outputs: ['Prazo do selo "Novo" usado na ficha, no caso, nas filas, nos segmentos e no discador.'],
+      related: [
+        { screen: 'debt.debtors', why: 'Filtrar os devedores com contato novo.' },
+        { screen: 'collection.queues', why: 'Fila só de devedores com contato novo.' },
+        { screen: 'ingestion.batch-detail', why: 'Quantos devedores receberam contato novo na carga.' },
+      ],
+      terms: ['contato-novo', 'lote-de-importacao'],
     },
     {
       id: 'debt.debtor-detail',
       title: 'Ficha do devedor',
       objective: 'Tudo sobre o devedor: posição da dívida, dados, títulos, contatos, interações, razão, titularidade e restrições.',
       purpose: [
-        'Contatos podem ser confirmados ou marcados como inválidos. Ver o documento completo exige permissão e fica registrado. Em "Mais ações" você envia o link do portal de autonegociação e baixa o dossiê de contato.',
-        '"Abrir caso" leva ao caso em cobrança (com mais de um, você escolhe o credor e a carteira) e "Simular" abre o simulador já com o credor, o devedor e o caso. Aberta pela estação (painel lateral), a ficha não mostra os dois: você continua no caso atual.',
-        'A aba Interações reúne os 50 contatos mais recentes de todos os casos do devedor (os anteriores ficam em cada caso); o cartão "Relacionados" lista casos, acordos, pagamentos, contestações, casos jurídicos e conversas — só o que o seu perfil pode abrir.',
+        'Contatos podem ser confirmados ou marcados como inválidos (o recebido numa nova carga mostra o selo "Novo" até a primeira tentativa, e a dica diz quando o credor o confirmou) e trazer a pessoa com quem se fala, o papel dela (financeiro, contas a pagar, sócio, jurídico ou outro) e se ela decide pelo devedor — também para pessoa física, como um recado com um parente. O nome aparece mascarado, como o número, e completo ao exibir o contato; ver o documento ou o contato completo exige permissão e fica registrado. Em "Mais ações" você envia o link do portal de autonegociação e baixa o dossiê de contato.',
+        '"Abrir caso" leva ao caso em cobrança (com mais de um, você escolhe o credor e a carteira) e "Simular" abre o simulador já com o credor, o devedor e o caso; aberta pela estação (painel lateral), a ficha não mostra os dois. A aba Interações reúne os 50 contatos mais recentes de todos os casos e o cartão "Relacionados" lista casos, acordos, pagamentos, contestações, casos jurídicos e conversas — só o que o seu perfil pode abrir.',
+        'Empresas mostram o nome fantasia (usado nas mensagens com a variável nome_fantasia), se é a matriz ou uma filial, o atalho "Outras unidades da empresa" e a aba "Representantes": quem pode negociar pela empresa (sócio administrador, procurador ou outro), com validade e evidência. O representante não é devedor (não entra em listas, filas, campanhas nem no score); no portal, o acordo da empresa só fecha sozinho com um representante com poder e dentro da validade — sem ele, um atendente conclui. O CPF aparece mascarado; incluir, editar e encerrar exigem permissão de cadastro. Empresa em recuperação judicial ou falência: quem edita devedores registra o processo (número no padrão do CNJ e a origem da informação), convola em falência e encerra; enquanto ele estiver em curso, a cobrança da empresa fica suspensa em todos os credores.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'ANALISTA_CARTEIRA', 'AUDITOR', 'COMPLIANCE'],
       inputs: ['Importações, interações, pagamentos e restrições do devedor.'],
@@ -243,7 +263,7 @@ export const MANUAL: ModuleManual = {
         { screen: 'compliance.restrictions', why: 'Restrições de contato do devedor.' },
         { screen: 'portal.configs', why: 'Configuração do portal de autonegociação.' },
       ],
-      terms: ['devedor', 'titulo', 'razao-do-titulo', 'restricao-de-contato'],
+      terms: ['devedor', 'titulo', 'razao-do-titulo', 'restricao-de-contato', 'recuperacao-judicial', 'contato-novo'],
     },
     {
       id: 'debt.titles',

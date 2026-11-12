@@ -111,6 +111,22 @@ export interface CreateContractRequest {
 
 export type PortfolioStatus = 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'RETURNED' | 'CLOSED';
 
+/** Regime da carteira (cobrança B2B §6): consumo (CDC, padrão) ou empresarial (entre empresas). */
+export type PortfolioRegime = 'CONSUMER' | 'BUSINESS';
+
+export const PORTFOLIO_REGIME_LABELS: Record<PortfolioRegime, string> = {
+  CONSUMER: 'Consumo',
+  BUSINESS: 'Empresarial',
+};
+
+/** Efeito de cada regime nas regras de proteção (texto curto da dica e do diálogo). */
+export const PORTFOLIO_REGIME_EFFECTS: Record<PortfolioRegime, string> = {
+  CONSUMER:
+    'Relação de consumo (CDC). A revisão da carga alerta encargos acima do teto de multa de 2% e o superendividamento pode ser registrado.',
+  BUSINESS:
+    'Relação entre empresas (contrato). Sem o alerta de multa do CDC na revisão da carga e sem superendividamento; os demais cuidados com pessoa física continuam.',
+};
+
 /** `PortfolioUseCases.PortfolioView` */
 export interface PortfolioView {
   id: string;
@@ -124,6 +140,7 @@ export interface PortfolioView {
   status: PortfolioStatus;
   statusReason: string | null;
   operable: boolean;
+  regime: PortfolioRegime;
 }
 
 export interface CreatePortfolioRequest {
@@ -134,6 +151,7 @@ export interface CreatePortfolioRequest {
   description: string | null;
   receivedOn: string;
   validUntil: string | null;
+  regime: PortfolioRegime;
 }
 
 export interface UpdatePortfolioRequest {

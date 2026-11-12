@@ -55,7 +55,8 @@ class DebtorContactController {
     @PreAuthorize("hasAuthority('DEBTOR_MANAGE')")
     ContactView add(@PathVariable UUID debtorId, @Valid @RequestBody AddContactRequest request) {
         return contacts.add(debtorId, new AddContactCommand(request.type(), request.value(), request.label(),
-                request.whatsapp(), request.priority(), request.source()));
+                request.whatsapp(), request.priority(), request.source(), request.personName(), request.personRole(),
+                request.decisionMaker()));
     }
 
     @PutMapping("/{contactId}")
@@ -63,7 +64,7 @@ class DebtorContactController {
     ContactView update(@PathVariable UUID debtorId, @PathVariable UUID contactId,
                        @Valid @RequestBody UpdateContactRequest request) {
         return contacts.update(debtorId, contactId, new UpdateContactCommand(request.label(), request.whatsapp(),
-                request.priority()));
+                request.priority(), request.personName(), request.personRole(), request.decisionMaker()));
     }
 
     @PostMapping("/{contactId}/invalidate")
@@ -84,13 +85,21 @@ class DebtorContactController {
                              @Pattern(regexp = "MOBILE|HOME|WORK|OTHER") String label,
                              boolean whatsapp,
                              @Min(0) @Max(1000) Integer priority,
-                             @Pattern(regexp = "MANUAL|DEBTOR") String source) {
+                             @Pattern(regexp = "MANUAL|DEBTOR") String source,
+                             @Size(max = 120) String personName,
+                             @Pattern(regexp = PERSON_ROLES) String personRole,
+                             boolean decisionMaker) {
     }
 
     record UpdateContactRequest(@NotBlank @Pattern(regexp = "MOBILE|HOME|WORK|OTHER") String label,
                                 boolean whatsapp,
-                                @NotNull @Min(0) @Max(1000) Integer priority) {
+                                @NotNull @Min(0) @Max(1000) Integer priority,
+                                @Size(max = 120) String personName,
+                                @Pattern(regexp = PERSON_ROLES) String personRole,
+                                boolean decisionMaker) {
     }
+
+    static final String PERSON_ROLES = "FINANCE|ACCOUNTS_PAYABLE|OWNER_PARTNER|LEGAL|OTHER";
 
     record ReasonRequest(@NotBlank @Size(max = 500) String reason) {
     }

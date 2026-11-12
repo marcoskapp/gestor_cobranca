@@ -12,14 +12,41 @@ import java.time.Duration;
  * @param prescription agendamentos e lotes da prescrição
  * @param evidence         anexos de evidência das interrupções e das correções de valor
  * @param amountAdjustment limite acumulado e proposta de aumento do limite da correção de valor
+ * @param contactNovelty   janela de novidade dos contatos recebidos na carga e varredura diária
  */
 @ConfigurationProperties(prefix = "app.debt")
-public record DebtProperties(Prescription prescription, Evidence evidence, AmountAdjustment amountAdjustment) {
+public record DebtProperties(Prescription prescription, Evidence evidence, AmountAdjustment amountAdjustment,
+                             ContactNovelty contactNovelty) {
 
     public DebtProperties {
         prescription = prescription == null ? new Prescription(null, null, null) : prescription;
         evidence = evidence == null ? new Evidence(null) : evidence;
         amountAdjustment = amountAdjustment == null ? new AmountAdjustment(null, null, null) : amountAdjustment;
+        contactNovelty = contactNovelty == null ? new ContactNovelty(null, null, null) : contactNovelty;
+    }
+
+    /**
+     * Contato novo recebido na carga (docs/tecnico/desenho/contatos-recebidos.md).
+     *
+     * @param windowDays    padrão do sistema da janela de novidade, em dias (1 a 180), enquanto a assessoria não configura
+     *                      ({@code app.debt.contact-novelty.window-days}, padrão 30)
+     * @param sweepCron     varredura diária que encerra a novidade dos contatos vencidos, no fuso de operação
+     *                      ({@code sweep-cron}, lido pelo agendador)
+     * @param sweepLookback quanto para trás a varredura procura janelas vencidas (cobre execuções perdidas; padrão 7 dias)
+     */
+    public record ContactNovelty(Integer windowDays, String sweepCron, Duration sweepLookback) {
+
+        public ContactNovelty {
+            windowDays = windowDays == null ? 30 : windowDays;
+            sweepCron = sweepCron == null ? "0 40 3 * * *" : sweepCron;
+            sweepLookback = sweepLookback == null ? Duration.ofDays(7) : sweepLookback;
+            if (windowDays < 1 || windowDays > 180) {
+                throw new IllegalArgumentException("app.debt.contact-novelty.window-days deve estar entre 1 e 180");
+            }
+            if (sweepLookback.isNegative() || sweepLookback.isZero()) {
+                throw new IllegalArgumentException("app.debt.contact-novelty.sweep-lookback deve ser positivo");
+            }
+        }
     }
 
     /**

@@ -26,6 +26,10 @@ export interface DebtorView {
   notes: string | null;
   createdAt: string;
   anonymizedAt: string | null;
+  /** Nome fantasia (só pessoa jurídica). */
+  tradeName: string | null;
+  /** "Matriz" ou "Filial 0002" pelo sufixo do CNPJ (só pessoa jurídica). */
+  establishment: string | null;
 }
 
 /** `DebtorUseCases.RevealedDocument` — nunca persistir nem registrar em log. */
@@ -40,18 +44,27 @@ export interface RegisterDebtorRequest {
   name: string;
   birthDate: string | null;
   notes: string | null;
+  tradeName: string | null;
 }
 
 export interface UpdateDebtorRequest {
   name: string;
   birthDate: string | null;
   notes: string | null;
+  /** Nome fantasia (só pessoa jurídica; vazio remove). */
+  tradeName: string | null;
 }
 
 export interface DebtorFilter {
   q?: string | null;
   creditorId?: string | null;
   portfolioId?: string | null;
+  /** "Outras unidades da empresa": id do devedor de referência (nunca o CNPJ). */
+  sameCompanyAs?: string | null;
+  /** Só devedores com contato novo ainda sem tentativa, dentro da janela. */
+  newContact?: boolean | null;
+  /** Devedores que receberam contato novo nesta carga (link do relatório da carga). */
+  newContactBatchId?: string | null;
 }
 
 export type ContactType = 'PHONE' | 'EMAIL' | 'ADDRESS';
@@ -72,7 +85,41 @@ export interface ContactView {
   priority: number;
   lastVerifiedAt: string | null;
   invalidReason: string | null;
+  /** Pessoa de contato mascarada como o valor ("A***"); o nome completo vem na revelação. */
+  maskedPersonName: string | null;
+  personRole: ContactPersonRole | null;
+  decisionMaker: boolean;
+  /** Recebimento por carga (selo "Novo"); nulo = o contato nunca veio de carga. */
+  receipt?: ContactReceiptView | null;
 }
+
+/** Situação do contato recebido numa nova carga para devedor já existente (`novelty`). */
+export type ContactNovelty = 'NEW' | 'NEW_ANSWERED' | 'NEW_NO_ANSWER';
+
+/** `DebtorContactUseCases.ContactReceiptView`: só tipo e datas, nunca o valor do contato. */
+export interface ContactReceiptView {
+  /** Nulo: não é contato novo (ou a janela de novidade acabou, ou ficou inválido). */
+  novelty: ContactNovelty | null;
+  /** Carga que criou o contato. */
+  receivedAt: string | null;
+  noveltyUntil: string | null;
+  /** Último reenvio pelo credor; nulo se nunca reenviado. */
+  confirmedAt: string | null;
+  firstAttemptAt: string | null;
+}
+
+/** `GET /debtors/contact-novelty-settings`: janela de novidade da assessoria. */
+export interface ContactNoveltySettings {
+  windowDays: number;
+  defaultWindowDays: number;
+  minWindowDays: number;
+  maxWindowDays: number;
+  customized: boolean;
+  updatedAt: string | null;
+}
+
+/** Papel da pessoa de contato (cobrança B2B). */
+export type ContactPersonRole = 'FINANCE' | 'ACCOUNTS_PAYABLE' | 'OWNER_PARTNER' | 'LEGAL' | 'OTHER';
 
 /** `DebtorContactUseCases.RevealedContact` — nunca persistir nem registrar em log. */
 export interface RevealedContact {
@@ -80,6 +127,7 @@ export interface RevealedContact {
   debtorId: string;
   type: ContactType;
   value: string;
+  personName: string | null;
 }
 
 export interface AddContactRequest {
@@ -89,12 +137,57 @@ export interface AddContactRequest {
   whatsapp: boolean;
   priority: number | null;
   source: 'MANUAL' | 'DEBTOR' | null;
+  personName?: string | null;
+  personRole?: ContactPersonRole | null;
+  decisionMaker?: boolean;
 }
 
 export interface UpdateContactRequest {
   label: ContactLabel;
   whatsapp: boolean;
   priority: number;
+  /** Nulo mantém o nome atual (a tela só conhece o nome mascarado); vazio remove. */
+  personName?: string | null;
+  personRole?: ContactPersonRole | null;
+  decisionMaker?: boolean;
+}
+
+/** Papel do representante da empresa (cobrança B2B). */
+export type RepresentativeRole = 'MANAGING_PARTNER' | 'ATTORNEY_IN_FACT' | 'OTHER';
+
+/** `CompanyRepresentativeUseCases.RepresentativeView` — CPF sempre mascarado. */
+export interface RepresentativeView {
+  id: string;
+  companyId: string;
+  name: string;
+  maskedDocument: string;
+  role: RepresentativeRole;
+  canNegotiate: boolean;
+  validUntil: string | null;
+  evidenceNote: string | null;
+  source: 'MANUAL' | 'IMPORT';
+  active: boolean;
+  /** Vigente, dentro da validade e com poder para negociar hoje. */
+  negotiatesToday: boolean;
+  createdAt: string;
+  endedAt: string | null;
+  endReason: string | null;
+}
+
+/** `CompanyRepresentativeUseCases.RevealedRepresentative` — nunca persistir nem registrar em log. */
+export interface RevealedRepresentative {
+  representativeId: string;
+  companyId: string;
+  document: string;
+}
+
+export interface RepresentativeRequest {
+  document?: string;
+  name: string;
+  role: RepresentativeRole;
+  canNegotiate: boolean;
+  validUntil: string | null;
+  evidenceNote: string | null;
 }
 
 export type TitleStatus = 'OPEN' | 'SETTLED' | 'CANCELLED' | 'SUSPENDED' | 'RETURNED';
@@ -245,6 +338,7 @@ export interface ContactSummary {
   whatsapp: boolean;
   status: ContactStatus;
   priority: number;
+  receipt?: ContactReceiptView | null;
 }
 
 export interface CreditorPosition {

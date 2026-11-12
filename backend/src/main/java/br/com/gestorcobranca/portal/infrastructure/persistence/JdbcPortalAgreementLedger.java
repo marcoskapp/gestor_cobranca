@@ -25,22 +25,25 @@ class JdbcPortalAgreementLedger implements PortalAgreementLedger {
     public void record(Entry e) {
         jdbc.update("""
                 insert into portal.portal_agreement (agreement_id, tenant_id, session_id, configuration_id, creditor_id,
-                       portfolio_id, debtor_id, proposal_id, installments, total_amount, formalized_at)
-                values (?, shared.current_tenant_id(), ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       portfolio_id, debtor_id, proposal_id, installments, total_amount, formalized_at, representative_id,
+                       representative_role)
+                values (?, shared.current_tenant_id(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, e.agreementId(), e.sessionId(), e.configurationId(), e.creditorId(), e.portfolioId(), e.debtorId(),
-                e.proposalId(), e.installments(), e.totalAmount(), Timestamp.from(e.formalizedAt()));
+                e.proposalId(), e.installments(), e.totalAmount(), Timestamp.from(e.formalizedAt()), e.representativeId(),
+                e.representativeRole());
     }
 
     @Override
     public Optional<Entry> find(UUID agreementId) {
         return jdbc.query("""
                 select agreement_id, session_id, configuration_id, creditor_id, portfolio_id, debtor_id, proposal_id,
-                       installments, total_amount, formalized_at, first_paid_at
+                       installments, total_amount, formalized_at, first_paid_at, representative_id, representative_role
                   from portal.portal_agreement where agreement_id = ?
                 """, (rs, i) -> new Entry(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
                 rs.getObject(3, UUID.class), rs.getObject(4, UUID.class), rs.getObject(5, UUID.class),
                 rs.getObject(6, UUID.class), rs.getObject(7, UUID.class), rs.getInt(8), rs.getBigDecimal(9),
-                rs.getTimestamp(10).toInstant(), rs.getTimestamp(11) == null ? null : rs.getTimestamp(11).toInstant()),
+                rs.getTimestamp(10).toInstant(), rs.getTimestamp(11) == null ? null : rs.getTimestamp(11).toInstant(),
+                rs.getObject(12, UUID.class), rs.getString(13)),
                 agreementId).stream().findFirst();
     }
 

@@ -21,6 +21,8 @@ import {
   SessionGrant,
   SessionView,
   SimulateRequest,
+  RepresentativeStatus,
+  DeclareRepresentativeRequest,
   SiteView,
 } from './portal.models';
 
@@ -92,6 +94,16 @@ export class PortalApi {
 
   accept(request: AcceptRequest): Observable<AcceptanceResult> {
     return this.http.post<AcceptanceResult>(`${ME}/agreements`, request, { context: this.context() });
+  }
+
+  /** Quem negocia pela empresa (devedor pessoa jurídica). */
+  representative(): Observable<RepresentativeStatus> {
+    return this.http.get<RepresentativeStatus>(`${ME}/representative`, { context: this.context() });
+  }
+
+  /** CPF e nome de quem negocia: a resposta é a mesma quando confere e quando não confere. */
+  declareRepresentative(request: DeclareRepresentativeRequest): Observable<RepresentativeStatus> {
+    return this.http.post<RepresentativeStatus>(`${ME}/representative`, request, { context: this.context() });
   }
 
   agreements(): Observable<AgreementSummary[]> {

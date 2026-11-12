@@ -35,7 +35,7 @@ describe('rotas e menu do score', () => {
   it('cada item do menu exige as mesmas permissões da rota', () => {
     const routes = new Map(SCORING_ROUTES.filter((r) => r.data?.['permissions']).map((r) => [`/score/${r.path}`, r.data!['permissions'] as string[]]));
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => i.route.startsWith('/score'));
-    expect(items.length).toBe(5);
+    expect(items.length).toBe(6);
     for (const item of items) {
       expect(routes.get(item.route), item.route).toEqual([...item.permissions]);
       expect(item.permissions, item.route).toEqual(['SCORING_AREA_VIEW']);

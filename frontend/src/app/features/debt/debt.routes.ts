@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/auth.guards';
 import { Permission } from '../../core/auth/permission';
 
-/** `/devedores`: busca e ficha (`DebtorController` exige `DEBTOR_VIEW`). */
+/** `/devedores`: busca e ficha (`DebtorController` exige `DEBTOR_VIEW`) e a configuração dos contatos recebidos. */
 export const DEBTOR_ROUTES: Routes = [
   {
     path: '',
@@ -11,6 +11,14 @@ export const DEBTOR_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: [Permission.DEBTOR_VIEW] },
     loadComponent: () => import('./debtors/debtor-list/debtor-list').then((m) => m.DebtorList),
+  },
+  {
+    // Configurações › Contatos recebidos (janela do selo "Novo"); antes de ':id'
+    path: 'contatos-recebidos',
+    title: 'Contatos recebidos',
+    canActivate: [permissionGuard],
+    data: { permissions: [Permission.DEBTOR_MANAGE] },
+    loadComponent: () => import('./settings/contact-novelty-settings').then((m) => m.ContactNoveltySettings),
   },
   {
     path: ':id',

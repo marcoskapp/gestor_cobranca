@@ -166,6 +166,11 @@ export class PortfoliosApi {
     return this.http.put<PortfolioView>(`${this.base}/${id}`, request);
   }
 
+  /** Regime da carteira (consumo × empresarial), com motivo; auditado. */
+  changeRegime(id: string, regime: string, reason: string): Observable<PortfolioView> {
+    return this.http.post<PortfolioView>(`${this.base}/${id}/regime`, { regime, reason });
+  }
+
   changeStatus(id: string, status: string, reason: string | null): Observable<PortfolioView> {
     return this.http.post<PortfolioView>(`${this.base}/${id}/status`, { status, reason });
   }

@@ -36,6 +36,15 @@ export interface BatchCounters {
 }
 
 /** `ImportBatchUseCases.ImportBatchView` */
+/**
+ * `GET /ingestion/batches/{id}/contact-receipt`: contatos recebidos nesta carga para devedores que já existiam
+ * (selo "Novo"); só contagens, sem valor de contato.
+ */
+export interface BatchContactReceipt {
+  debtorsWithNewContact: number;
+  newContacts: number;
+}
+
 export interface ImportBatchView {
   id: string;
   creditorId: string;

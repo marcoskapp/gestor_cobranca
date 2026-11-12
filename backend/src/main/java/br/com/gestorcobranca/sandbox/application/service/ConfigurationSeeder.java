@@ -252,7 +252,7 @@ class ConfigurationSeeder {
             UUID id = Optional.ofNullable(existing.get(code)).map(QueueView::id).orElseGet(() -> rt.as(supervisor,
                     () -> queues.create(new QueueCommand(code, "Fila " + spec.tradeName(),
                             "Casos do credor " + spec.tradeName() + " (sandbox)", priority, creditorId, null, null, null,
-                            null, null, null, null, "OLDEST_OVERDUE", strategy, 40, Set.of(seed.teamId), null))).id());
+                            null, null, null, null, "OLDEST_OVERDUE", strategy, 40, Set.of(seed.teamId), null, null, null))).id());
             seed.queues.put(spec.prefix(), id);
         }
     }

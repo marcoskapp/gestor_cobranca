@@ -13,7 +13,7 @@ class DebtPropertiesTest {
 
     @Test
     void defaultsAreThirtyAndFifteenDays() {
-        AmountAdjustment defaults = new DebtProperties(null, null, null).amountAdjustment();
+        AmountAdjustment defaults = new DebtProperties(null, null, null, null).amountAdjustment();
         assertThat(defaults.cumulativeWindow()).isEqualTo(Duration.ofDays(30));
         assertThat(defaults.proposalValidity()).isEqualTo(Duration.ofDays(15));
     }

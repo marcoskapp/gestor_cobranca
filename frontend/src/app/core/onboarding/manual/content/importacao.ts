@@ -114,7 +114,7 @@ export const MANUAL: ModuleManual = {
       title: 'Lote de importação',
       objective: 'Resultado de um lote: contadores, ocorrências por linha e, quando cabe, importar a prévia ou reprocessar.',
       purpose: [
-        'Mostra quantas linhas foram lidas, aceitas e recusadas e quantos devedores e títulos foram criados ou atualizados.',
+        'Mostra quantas linhas foram lidas, aceitas e recusadas, quantos devedores e títulos foram criados ou atualizados e quantos devedores que já existiam receberam contato novo (com link para a lista desses devedores).',
         'Baixe o relatório de ocorrências para devolver ao credor as linhas que precisam de correção. "Títulos importados" abre a lista de títulos da carga (os que ela criou ou atualizou por último).',
         'Com a retenção de arquivos de importação ligada (Compliance → Retenção), o arquivo original é descartado no prazo: o lote, os contadores e as ocorrências ficam, sem download nem reprocessamento.',
       ],
@@ -125,7 +125,7 @@ export const MANUAL: ModuleManual = {
         { screen: 'ingestion.batches', why: 'Todos os lotes.' },
         { screen: 'debt.titles', why: 'Ver os títulos gravados.' },
       ],
-      terms: ['lote-de-importacao', 'titulo', 'devedor'],
+      terms: ['lote-de-importacao', 'titulo', 'devedor', 'contato-novo'],
     },
     {
       id: 'ingestion.layouts',

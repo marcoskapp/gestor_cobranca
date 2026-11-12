@@ -252,7 +252,7 @@ abstract class CollectionTestSupport extends IntegrationTest {
     UUID debtor(String cpf) {
         return system(() -> ingestion.upsertDebtor(new DebtorRecord(cpf, "Devedor " + cpf.substring(0, 3),
                 LocalDate.of(1985, 3, 15), List.of(new ContactRecord("PHONE", "(11) 98765-4321", "MOBILE", true),
-                new ContactRecord("EMAIL", "devedor" + cpf.substring(0, 3) + "@exemplo.com", null, false)))).id());
+                new ContactRecord("EMAIL", "devedor" + cpf.substring(0, 3) + "@exemplo.com", null, false)), null)).id());
     }
 
     /** Carga de títulos de um devedor na carteira (lote próprio) seguida do fim do lote e da sincronização. */
@@ -286,7 +286,7 @@ abstract class CollectionTestSupport extends IntegrationTest {
 
     QueueCommand queue(String code, int priority, UUID creditorId, String strategy, Integer capacity, Set<UUID> teamIds) {
         return new QueueCommand(code, "Fila " + code, null, priority, creditorId, null, null, null, null, null, null, null,
-                "OLDEST_OVERDUE", strategy, capacity, teamIds, null);
+                "OLDEST_OVERDUE", strategy, capacity, teamIds, null, null, null);
     }
 
     RecordInteractionCommand interaction(String tabulation, InteractionUseCases.PromiseInput promise,

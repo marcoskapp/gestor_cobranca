@@ -44,7 +44,7 @@ public interface DebtorSheetQueries {
     }
 
     record ContactSummary(UUID contactId, String type, String maskedValue, String label, boolean whatsapp,
-                          String status, int priority) {
+                          String status, int priority, DebtorContactUseCases.ContactReceiptView receipt) {
     }
 
     record CreditorPosition(UUID creditorId, BigDecimal openBalance, long maxDaysOverdue, List<TitleSummary> titles) {

@@ -186,7 +186,7 @@ abstract class SettlementTestSupport extends IntegrationTest {
         finance2 = user("Financeiro 2", "f2", roleIds.get(DefaultRoles.FINANCEIRO), true, Set.of());
         financeB = user("Financeiro B", "fb", roleIds.get(DefaultRoles.FINANCEIRO), false, Set.of(creditorB));
         debtor = system(() -> ingestion.upsertDebtor(new DebtorRecord(CPF, "Maria Devedora", LocalDate.of(1985, 3, 15),
-                List.of())).id());
+                List.of(), null)).id());
         UUID batchA = Ids.newId();
         title60 = system(() -> ingestion.upsertTitle(new TitleRecord(creditorA, portfolioA, debtor, "T-60", null, 1,
                 today.minusDays(60), new BigDecimal("1000.00"), null, null), batchA).id());

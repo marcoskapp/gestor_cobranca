@@ -70,6 +70,10 @@ public final class SegmentMatcher {
                 || (toInstallment != null && toInstallment >= c.minDaysToInstallment()));
         check(unmet, "maxDaysToInstallment", c.maxDaysToInstallment() == null
                 || (toInstallment != null && toInstallment >= 0 && toInstallment <= c.maxDaysToInstallment()));
+        if (c.hasNewContact() != null) {
+            check(unmet, "hasNewContact", c.hasNewContact() == s.hasNewContact(now));
+        }
+        check(unmet, "personType", c.personType() == null || c.personType().equals(s.debtorPersonType()));
         return unmet;
     }
 

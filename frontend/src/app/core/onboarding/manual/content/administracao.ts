@@ -56,12 +56,18 @@ export const MANUAL: ModuleManual = {
       id: 'organization.portfolios',
       title: 'Carteiras',
       objective: 'Lotes de títulos recebidos dos credores, com vigência e ciclo de vida.',
-      purpose: ['Carteiras em preparação ainda não estão em cobrança; ativas estão em operação; suspensas ou devolvidas não geram contatos.'],
+      purpose: [
+        'Carteiras em preparação ainda não estão em cobrança; ativas estão em operação; suspensas ou devolvidas não geram contatos.',
+        'O regime diz quais regras valem: consumo (padrão) segue o Código de Defesa do Consumidor; empresarial é dívida entre empresas, sem o alerta de multa acima de 2% na revisão da carga e sem superendividamento. Mudar o regime pede motivo e fica na auditoria; contratos e política não mudam. Na carteira empresarial, prefira modelos de mensagem em tom comercial e janela de contato em horário comercial.',
+      ],
       profiles: ['ADMIN', 'GESTOR', 'ANALISTA_CARTEIRA', 'AUDITOR'],
       inputs: ['Credores e contratos cadastrados.'],
       outputs: ['Destino das importações e base dos casos de cobrança.'],
-      related: [{ screen: 'ingestion.batches', why: 'Importar títulos na carteira.' }],
-      terms: ['carteira'],
+      related: [
+        { screen: 'ingestion.batches', why: 'Importar títulos na carteira.' },
+        { screen: 'negotiation.policies', why: 'Encargos da política conforme o regime.' },
+      ],
+      terms: ['carteira', 'regime-da-carteira'],
     },
     {
       id: 'organization.settings',

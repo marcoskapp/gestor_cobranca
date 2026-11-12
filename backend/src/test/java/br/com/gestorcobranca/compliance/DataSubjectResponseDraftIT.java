@@ -123,9 +123,9 @@ class DataSubjectResponseDraftIT extends IntegrationTest {
         UUID portfolioB = portfolio(creditorB, "B-01");
         debtor = system(() -> ingestion.upsertDebtor(new DebtorRecord(CPF, "Maria Titular", LocalDate.of(1985, 3, 15),
                 List.of(new ContactRecord("PHONE", PHONE, "MOBILE", true),
-                        new ContactRecord("EMAIL", EMAIL, null, false)))).id());
+                        new ContactRecord("EMAIL", EMAIL, null, false)), null)).id());
         otherDebtor = system(() -> ingestion.upsertDebtor(new DebtorRecord("111.444.777-35", "João Outro", null,
-                List.of())).id());
+                List.of(), null)).id());
         title(creditorA, portfolioA, debtor, "A-1");
         title(creditorB, portfolioB, debtor, "B-1");
         title(creditorA, portfolioA, otherDebtor, "A-9");

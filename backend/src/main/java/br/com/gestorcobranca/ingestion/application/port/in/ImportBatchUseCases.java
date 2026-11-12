@@ -50,6 +50,15 @@ public interface ImportBatchUseCases {
 
     ImportBatchView get(UUID batchId);
 
+    /**
+     * Contatos novos que a carga trouxe para devedores que já existiam (relatório da carga; contatos-recebidos.md §4).
+     * Zero fora do modo IMPORT.
+     */
+    ContactReceiptView contactReceipt(UUID batchId);
+
+    record ContactReceiptView(long debtorsWithNewContact, long newContacts) {
+    }
+
     PageResponse<ImportBatchView> search(BatchSearch filter, PageQuery page);
 
     /** Sincronização incremental (API pública): lotes do credor alterados na janela, paginados por cursor. */

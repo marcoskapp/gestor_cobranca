@@ -1,6 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { NavigationHistory } from '../../../core/layout/breadcrumbs/navigation-history';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { catchError, of } from 'rxjs';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -23,11 +24,22 @@ import { CreditorNames, PortfolioNames } from '../../organization/data/organizat
 import { ImportBatchesApi, ImportReviewsApi } from '../data/ingestion.api';
 import { OPTION_LABELS } from '../data/review.rules';
 import { MODE_LABELS, SOURCE_LABELS, UPLOAD_ERROR_LABELS, isTerminal, progressText, sizeText } from '../data/ingestion.labels';
-import { ImportBatchView, IssueSeverity } from '../data/ingestion.models';
+import { BatchContactReceipt, ImportBatchView, IssueSeverity } from '../data/ingestion.models';
 import { POLL_MS } from './batch-list';
 import { Icon } from '../../../shared/components/icon/icon';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
+
+/** "312 devedores receberam contato novo (340 contatos)"; nulo quando a carga não trouxe contato novo. */
+export function contactReceiptText(r: BatchContactReceipt | null | undefined): string | null {
+  if (!r || r.debtorsWithNewContact <= 0) {
+    return null;
+  }
+  const n = new Intl.NumberFormat('pt-BR');
+  const debtors = r.debtorsWithNewContact === 1 ? '1 devedor recebeu contato novo' : `${n.format(r.debtorsWithNewContact)} devedores receberam contato novo`;
+  const contacts = r.newContacts > r.debtorsWithNewContact ? ` (${n.format(r.newContacts)} contatos)` : '';
+  return debtors + contacts;
+}
 
 /**
  * Ações disponíveis pela situação do lote. Importar uma prévia ou reprocessar um arquivo passa sempre pela conferência
@@ -147,6 +159,17 @@ export function batchActions(
         <app-kpi-card [label]="'Principal ' + (b.mode === 'VALIDATE_ONLY' ? 'validado' : 'gravado')" info="ingestion.batch.principal"><app-amount [value]="b.counters.principalTotal" /></app-kpi-card>
       </section>
 
+      @if (contactReceiptText(); as receiptText) {
+        <section class="app-card bd-receipt" aria-label="Contatos novos recebidos" data-tour="batch-contact-receipt">
+          <app-icon name="stars" />
+          <span>{{ receiptText }}</span>
+          <span class="app-muted">Contato recebido para devedor que já existia aparece como "Novo" até a primeira tentativa.</span>
+          @if (canOpenDebtors()) {
+            <a class="ms-auto" routerLink="/devedores" [queryParams]="{ carga: b.id }">Ver os devedores</a>
+          }
+        </section>
+      }
+
       <section class="app-card" aria-labelledby="bd-file">
         <h2 class="app-card__title" id="bd-file">Recebimento</h2>
         <dl class="app-definition-list bd-small">
@@ -236,6 +259,13 @@ export function batchActions(
     }
   `,
   styles: `
+    .bd-receipt {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 12px;
+      margin-bottom: var(--app-gap);
+    }
     .bd-status {
       display: flex;
       flex-wrap: wrap;
@@ -287,6 +317,18 @@ export class BatchDetail {
 
   protected readonly batch = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.batch, undefined);
+  protected readonly canOpenDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
+  /** Contatos novos da carga: consultado só com a carga concluída (a contagem não muda depois). */
+  private readonly contactReceipt = rxResource({
+    params: () => {
+      const b = this.current();
+      return b && b.mode === 'IMPORT' && isTerminal(b.status) ? b.id : undefined;
+    },
+    stream: ({ params }) => this.api.contactReceipt(params).pipe(catchError(() => of(null))),
+  });
+  protected readonly contactReceiptText = computed(() =>
+    contactReceiptText(this.contactReceipt.hasValue() ? this.contactReceipt.value() : null),
+  );
   protected readonly actions = computed(() => (this.current() ? batchActions(this.current()!) : []));
   protected readonly creditors = nameMap(inject(CreditorNames), () => [this.current()?.creditorId]);
   protected readonly portfolios = nameMap(inject(PortfolioNames), () => [this.current()?.portfolioId]);

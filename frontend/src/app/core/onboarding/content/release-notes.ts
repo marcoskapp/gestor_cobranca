@@ -3,6 +3,18 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 28,
+    date: '2026-11-11',
+    title: 'Contato novo, cobrança de empresas e melhor forma de contato',
+    items: [
+      { text: 'Contato recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa; filas, segmentos e a lista de devedores filtram por ele, e o discador liga primeiro para o número novo.', route: '/devedores' },
+      { text: 'Prazo do selo "Novo" ajustável por assessoria (padrão de 30 dias).', route: '/devedores/contatos-recebidos' },
+      { text: 'Empresas: nome fantasia, matriz e filiais, pessoa de contato com o papel dela e representantes que podem negociar; no portal, o acordo da empresa fecha com um representante confirmado ou passa a um atendente.', route: '/devedores' },
+      { text: 'Carteira de consumo ou empresarial, e registro de recuperação judicial ou falência, que suspende a cobrança da empresa em todos os credores.', route: '/organizacao/carteiras' },
+      { text: 'Cartão "Melhor forma de contato" no caso e na ficha do devedor, e a nova tela de inteligência de contato: melhor horário, canal preferido, tentativas até o atendimento e contatos até o acordo cumprido.', route: '/score/contato' },
+    ],
+  },
+  {
     version: 27,
     date: '2026-11-11',
     title: 'Prazos de retenção num lugar só',

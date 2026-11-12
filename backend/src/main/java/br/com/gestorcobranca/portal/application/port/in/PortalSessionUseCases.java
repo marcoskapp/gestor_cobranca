@@ -22,11 +22,16 @@ public interface PortalSessionUseCases {
     SessionView acknowledgePrivacy(int noticeVersion);
 
     /**
-     * @param firstName          primeiro nome do devedor (minimização: nada além disso)
+     * @param firstName          primeiro nome do devedor (minimização: nada além disso); empresa: nome fantasia ou
+     *                           razão social
      * @param privacyAcknowledged aviso vigente reconhecido nesta sessão
+     */
+    /**
+     * @param company devedor pessoa jurídica: {@code firstName} traz o nome fantasia (ou a razão social) e o aceite
+     *                pede quem está negociando pela empresa
      */
     record SessionView(UUID sessionId, String slug, String displayName, String firstName, String method,
                        Instant expiresAt, long idleTimeoutSeconds, boolean privacyAcknowledged,
-                       int privacyNoticeVersion) {
+                       int privacyNoticeVersion, boolean company) {
     }
 }

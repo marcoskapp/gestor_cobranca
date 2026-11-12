@@ -30,9 +30,15 @@ public final class ReviewSignals {
     /**
      * Saldo informado acima do que multa e encargos justificariam: {@code principal × (1 + multa + encargo mensal ×
      * meses em atraso)}, com no mínimo um mês.
+     * <p>
+     * Carteira empresarial (cobrança B2B §6): o teto de multa de 2% do CDC (art. 52 §1º) não se aplica e os encargos
+     * seguem o contrato, então o alerta de encargos não é gerado; só o saldo a 10ⁿ vezes o principal (provável
+     * separador decimal) continua alertado, porque é erro de arquivo, não regra do consumidor.
+     *
+     * @param consumerCharges carteira no regime de consumo (teto de multa do CDC vale)
      */
     public Optional<AlertFinding> balance(long row, BigDecimal principal, BigDecimal balance, LocalDate dueDate,
-                                          LocalDate today) {
+                                          LocalDate today, boolean consumerCharges) {
         if (principal == null || balance == null || principal.signum() <= 0 || balance.signum() <= 0) {
             return Optional.empty();
         }
@@ -43,6 +49,9 @@ public final class ReviewSignals {
             return Optional.empty();
         }
         OptionalInt n = ScaleRatio.exponent(balance, principal, 0.05);
+        if (!consumerCharges && n.isEmpty()) {
+            return Optional.empty();
+        }
         String detail = "Saldo %s maior que o principal %s além do que multa e encargos de %d mês(es) justificariam (até %s)."
                 .formatted(Brl.format(balance), Brl.format(principal), months, Brl.format(ceiling));
         if (n.isPresent()) {

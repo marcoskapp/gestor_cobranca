@@ -1,9 +1,11 @@
 package br.com.gestorcobranca.debt.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
+import br.com.gestorcobranca.debt.domain.model.CompanyRepresentative;
 import br.com.gestorcobranca.debt.domain.model.ContactSource;
 import br.com.gestorcobranca.debt.domain.model.Debtor;
 import br.com.gestorcobranca.debt.domain.model.DebtorContact;
+import br.com.gestorcobranca.debt.domain.repository.CompanyRepresentativeRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorContactRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorRepository;
@@ -26,6 +28,8 @@ import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +60,7 @@ class DebtorService implements DebtorUseCases {
     private final DebtorContactRepository contacts;
     private final DebtTitleRepository titles;
     private final ObligationPartyRepository parties;
+    private final CompanyRepresentativeRepository representatives;
     private final DebtorRegistry registry;
     private final DebtorVisibility visibility;
     private final PersonalDataIndex index;
@@ -67,12 +72,15 @@ class DebtorService implements DebtorUseCases {
     private final Clock clock;
 
     DebtorService(DebtorRepository debtors, DebtorContactRepository contacts, DebtTitleRepository titles,
-                  ObligationPartyRepository parties, DebtorRegistry registry, DebtorVisibility visibility, PersonalDataIndex index, AccessScope accessScope, CurrentActor currentActor,
-                  AuditTrail auditTrail, AccessLogger accessLogger, ApplicationEventPublisher events, Clock clock) {
+                  ObligationPartyRepository parties, CompanyRepresentativeRepository representatives,
+                  DebtorRegistry registry, DebtorVisibility visibility, PersonalDataIndex index, AccessScope accessScope,
+                  CurrentActor currentActor, AuditTrail auditTrail, AccessLogger accessLogger,
+                  ApplicationEventPublisher events, Clock clock) {
         this.debtors = debtors;
         this.contacts = contacts;
         this.titles = titles;
         this.parties = parties;
+        this.representatives = representatives;
         this.registry = registry;
         this.visibility = visibility;
         this.index = index;
@@ -90,8 +98,8 @@ class DebtorService implements DebtorUseCases {
         if (registry.findByDocument(document).isPresent()) {
             throw new ConflictException("debtor.document_taken", "Já existe devedor com este documento");
         }
-        return DebtViews.debtor(registry.create(document, command.name(), command.birthDate(), command.notes(),
-                ContactSource.MANUAL));
+        return DebtViews.debtor(registry.create(document, command.name(), command.tradeName(), command.birthDate(),
+                command.notes(), ContactSource.MANUAL));
     }
 
     @Override
@@ -100,7 +108,8 @@ class DebtorService implements DebtorUseCases {
         String previousName = debtor.getName();
         LocalDate previousBirthDate = debtor.getBirthDate();
         String previousNotes = debtor.getNotes();
-        debtor.update(command.name(), command.birthDate(), command.notes());
+        String previousTradeName = debtor.getTradeName();
+        debtor.update(command.name(), command.tradeName(), command.birthDate(), command.notes());
         debtors.save(debtor);
         // a trilha é imutável e sobrevive à anonimização: nome mascarado, nascimento e notas só indicados
         AuditEntry audit = AuditEntry.of("debtor.updated", "debtor", debtorId);
@@ -112,6 +121,9 @@ class DebtorService implements DebtorUseCases {
         }
         if (!Objects.equals(previousNotes, debtor.getNotes())) {
             audit.meta("notesChanged", true);
+        }
+        if (!Objects.equals(previousTradeName, debtor.getTradeName())) {
+            audit.change("tradeName", DebtViews.maskName(previousTradeName), DebtViews.maskName(debtor.getTradeName()));
         }
         auditTrail.record(audit);
         return DebtViews.debtor(debtor);
@@ -158,10 +170,23 @@ class DebtorService implements DebtorUseCases {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<DebtorView> search(String text, UUID creditorId, UUID portfolioId, PageQuery page) {
-        String documentHash = documentHashIfDocument(text);
-        return PageResponse.of(debtors.search(visibility.allowedCreditors(), creditorId, portfolioId, text, documentHash,
+    public PageResponse<DebtorView> search(DebtorFilter filter, PageQuery page) {
+        String documentHash = documentHashIfDocument(filter.text());
+        return PageResponse.of(debtors.search(visibility.allowedCreditors(), filter.creditorId(), filter.portfolioId(),
+                filter.text(), documentHash, filter.newContact() ? Instant.now(clock) : null, filter.newContactBatchId(),
                 page.toPageable(SEARCH_SORT, Sort.by("name", "id"))), DebtViews::debtor);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<DebtorView> otherUnits(UUID debtorId, PageQuery page) {
+        Debtor reference = visibility.requireVisible(debtorId);
+        Pageable pageable = page.toPageable(SEARCH_SORT, Sort.by("name", "id"));
+        if (reference.getDocumentRootHash() == null) {
+            return PageResponse.of(Page.<Debtor>empty(pageable), DebtViews::debtor);
+        }
+        return PageResponse.of(debtors.searchByDocumentRoot(visibility.allowedCreditors(), reference.getDocumentRootHash(),
+                debtorId, pageable), DebtViews::debtor);
     }
 
     /** Texto com 11 ou 14 dígitos válidos como CPF/CNPJ é buscado pelo blind index, não pelo nome. */
@@ -190,9 +215,12 @@ class DebtorService implements DebtorUseCases {
         }
         String maskedDocument = debtor.maskedDocument();
         List<DebtorContact> removed = contacts.findByDebtorIdOrderByTypeAscPriorityAscCreatedAtAsc(debtorId);
+        // representantes da empresa seguem a retenção do cadastro dela (LGPD): saem junto
+        List<CompanyRepresentative> removedRepresentatives = representatives.findByCompanyDebtorIdOrderByCreatedAtAsc(debtorId);
         Instant now = Instant.now(clock);
         debtor.anonymize(now);
         contacts.deleteAll(removed);
+        representatives.deleteAll(removedRepresentatives);
         debtors.save(debtor);
         // demais módulos (negotiation…) neutralizam os próprios textos livres e evidências do devedor
         events.publishEvent(new DebtorAnonymized(Ids.newId(), currentActor.tenantId(), now, debtorId));
@@ -200,7 +228,8 @@ class DebtorService implements DebtorUseCases {
                 .reason(reason)
                 .change("status", "ACTIVE", debtor.getStatus())
                 .change("document", maskedDocument, null)
-                .meta("contactsRemoved", removed.size()));
+                .meta("contactsRemoved", removed.size())
+                .meta("representativesRemoved", removedRepresentatives.size()));
         return DebtViews.debtor(debtor);
     }
 

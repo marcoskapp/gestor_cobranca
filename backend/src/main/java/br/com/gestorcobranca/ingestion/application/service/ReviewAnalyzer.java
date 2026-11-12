@@ -20,6 +20,7 @@ import br.com.gestorcobranca.ingestion.domain.repository.ImportReviewRepository;
 import br.com.gestorcobranca.ingestion.domain.service.review.AlertSettings;
 import br.com.gestorcobranca.ingestion.domain.service.review.AmountOutlierPolicy;
 import br.com.gestorcobranca.ingestion.domain.service.review.ReviewSignals;
+import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
@@ -65,6 +66,7 @@ class ReviewAnalyzer {
     private final ImportReviewAlertRepository alerts;
     private final RowValueStore rowValues;
     private final TitleAmountStatisticsPort history;
+    private final PortfolioUseCases portfolios;
     private final BusinessEventLogger businessEvents;
     private final IngestionMetrics metrics;
     private final ReviewProperties properties;
@@ -74,12 +76,14 @@ class ReviewAnalyzer {
     private final TransactionTemplate readTx;
 
     ReviewAnalyzer(ImportReviewRepository reviews, ImportReviewAlertRepository alerts, RowValueStore rowValues,
-                   TitleAmountStatisticsPort history, BusinessEventLogger businessEvents, IngestionMetrics metrics,
+                   TitleAmountStatisticsPort history, PortfolioUseCases portfolios, BusinessEventLogger businessEvents,
+                   IngestionMetrics metrics,
                    ReviewProperties properties, JsonCodec json, Clock clock, PlatformTransactionManager transactionManager) {
         this.reviews = reviews;
         this.alerts = alerts;
         this.rowValues = rowValues;
         this.history = history;
+        this.portfolios = portfolios;
         this.businessEvents = businessEvents;
         this.metrics = metrics;
         this.properties = properties;
@@ -101,6 +105,9 @@ class ReviewAnalyzer {
         }
         AlertSettings settings = properties.alertSettings();
         LocalDate today = LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE));
+        // regime da carteira (cobrança B2B §6): o teto de multa do CDC só vale na carteira de consumo
+        String regime = readTx.execute(s -> portfolios.get(review.getPortfolioId()).regime());
+        boolean consumerCharges = !"BUSINESS".equals(regime);
 
         // 1ª passagem: distribuição do próprio arquivo (total e por produto)
         FileDistribution file = new FileDistribution();
@@ -128,7 +135,7 @@ class ReviewAnalyzer {
             AmountReference reference = references.choose(row.product());
             policy.evaluate(row.rowNumber(), "valor_principal", row.principal(), reference)
                     .ifPresent(f -> collector.add(f, row.externalId()));
-            signals.balance(row.rowNumber(), row.principal(), row.balance(), row.dueDate(), today)
+            signals.balance(row.rowNumber(), row.principal(), row.balance(), row.dueDate(), today, consumerCharges)
                     .ifPresent(f -> collector.add(f, row.externalId()));
             signals.dueDate(row.rowNumber(), row.dueDate(), today).ifPresent(f -> collector.add(f, row.externalId()));
         }));
@@ -153,6 +160,7 @@ class ReviewAnalyzer {
                 .ifPresent(f -> collector.add(f, null));
 
         Map<String, Object> summary = summary(references, file, hist, collector);
+        summary.put("portfolioRegime", consumerCharges ? "CONSUMER" : "BUSINESS");
         String summaryJson = json.toJson(summary);
         List<Pending> kept = collector.sorted();
         boolean truncated = collector.total > kept.size();

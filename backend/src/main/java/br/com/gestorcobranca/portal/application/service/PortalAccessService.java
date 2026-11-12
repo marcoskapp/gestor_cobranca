@@ -201,15 +201,18 @@ class PortalAccessService implements PortalAccessUseCases {
             UUID debtorId = matched;
             String code = AccessSecrets.newCode();
             Instant expiresAt = now.plus(properties.access().codeTtl());
+            // empresa não tem data de nascimento (B4): pelo documento digitado, nunca pela existência do cadastro
+            KnowledgeChallenge knowledgeChallenge = config.getKnowledgeChallenge()
+                    .forPerson(document.type() == Document.DocumentType.CNPJ);
             AccessChallenge challenge = challenges.save(AccessChallenge.otp(config.getId(), debtorId, channel, docKey,
-                    codeHash(site, docKey, code), config.getKnowledgeChallenge(), properties.access().codeMaxAttempts(),
+                    codeHash(site, docKey, code), knowledgeChallenge, properties.access().codeMaxAttempts(),
                     expiresAt));
             accessLogger.log(AccessEvent.anonymous(AccessEventType.PORTAL_CODE_REQUESTED, site.tenantId(),
                     document.masked(), Map.of("portal", site.slug(), "channel", channel.name(),
                             "challengeId", challenge.getId().toString(), "match", String.valueOf(matched != null),
                             "dailyCap", "false")));
             ChallengeView view = new ChallengeView(challenge.getId(), expiresAt, channel.name(),
-                    config.getKnowledgeChallenge().name(), true, AccessSecrets.CODE_LENGTH);
+                    knowledgeChallenge.name(), true, AccessSecrets.CODE_LENGTH);
             return new Pending(view, challenge.getId(), debtorId, config.getCreditorId(), channel, code, null, false);
         });
         if (pending.lockedUntil() != null) {
@@ -354,11 +357,13 @@ class PortalAccessService implements PortalAccessUseCases {
             }
             if (config.getKnowledgeChallenge() != KnowledgeChallenge.NONE) {
                 Instant expiresAt = now.plus(properties.access().knowledgeTtl());
+                KnowledgeChallenge knowledgeChallenge = config.getKnowledgeChallenge()
+                        .forPerson("COMPANY".equals(debts.debtor(link.getDebtorId()).personType()));
                 AccessChallenge step = challenges.save(AccessChallenge.afterLink(config.getId(), link.getDebtorId(),
-                        link.getId(), config.getKnowledgeChallenge(), properties.access().codeMaxAttempts(), expiresAt));
+                        link.getId(), knowledgeChallenge, properties.access().codeMaxAttempts(), expiresAt));
                 metrics.login(AccessMethod.LINK.name(), "KNOWLEDGE_REQUIRED");
                 return new Outcome(null, new ChallengeView(step.getId(), expiresAt, link.getChannel().name(),
-                        config.getKnowledgeChallenge().name(), false, 0), null, null);
+                        knowledgeChallenge.name(), false, 0), null, null);
             }
             succeeded(ipKey, null, now);
             return new Outcome(sessionOpener.open(config, link.getDebtorId(), AccessMethod.LINK, client, now), null,

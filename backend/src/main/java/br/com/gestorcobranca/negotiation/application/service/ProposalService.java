@@ -446,7 +446,8 @@ class ProposalService implements ProposalUseCases {
         Guard.require(!DebtorSelfScope.isDebtor(actor) || "PORTAL".equals(channel), "proposal.acceptance_channel_invalid",
                 "O aceite do devedor no portal é sempre pelo canal PORTAL");
         Result r = reevaluate(actor, p);
-        StoredFile term = termIssuer.issue(p, r.evaluation(), r.ctx().rules().breakRule(), channel);
+        StoredFile term = termIssuer.issue(p, r.evaluation(), r.ctx().rules().breakRule(), channel,
+                command.representativeId());
         Instant now = Instant.now(clock);
         String ip = command.clientIp() != null ? command.clientIp() : MDC.get(MdcKeys.CLIENT_IP);
         String userAgent = command.userAgent() != null ? command.userAgent() : MDC.get(MdcKeys.USER_AGENT);
@@ -455,7 +456,8 @@ class ProposalService implements ProposalUseCases {
         proposals.save(p);
         auditTrail.record(AuditEntry.of("proposal.accepted", RESOURCE, p.getId()).creditor(p.getCreditorId())
                 .change("status", ProposalStatus.DRAFT, ProposalStatus.ACCEPTED).meta("channel", channel)
-                .meta("termSha256", term.sha256()).meta("actorType", actor.type()));
+                .meta("termSha256", term.sha256()).meta("actorType", actor.type())
+                .meta("representativeId", command.representativeId()));
         businessEvents.log(base(BusinessEventTypes.PROPOSAL_ACCEPTED, p).channel(channel)
                 .attr("actorType", actor.type()).attr("concessionLevel", p.getLevel())
                 .attr("installments", p.getInstallments()).attr("approved", p.wasApproved()));

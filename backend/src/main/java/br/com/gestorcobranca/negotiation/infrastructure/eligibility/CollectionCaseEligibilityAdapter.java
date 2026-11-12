@@ -46,6 +46,11 @@ import java.util.stream.Collectors;
 class CollectionCaseEligibilityAdapter implements CaseEligibilityPort {
 
     private static final Set<String> NOT_OPERABLE_CASE = Set.of("CLOSED", "SUSPENDED", "LEGAL");
+    /**
+     * Motivos de inelegibilidade do caso que também impedem negociar: devedor anonimizado e empresa em recuperação
+     * judicial, extrajudicial ou falência (cobrança B2B §7 — acordo novo fora do plano; o acordo em vigor continua).
+     */
+    private static final Set<String> NEGOTIATION_BLOCKING_REASONS = Set.of("DEBTOR_ANONYMIZED", "DEBTOR_INSOLVENCY");
     private static final Set<String> OPEN_DISPUTE = Set.of("OPEN", "UNDER_REVIEW");
 
     private final DebtTitleUseCases titles;
@@ -102,7 +107,7 @@ class CollectionCaseEligibilityAdapter implements CaseEligibilityPort {
                 }
                 Optional<CaseView> c = caseByPortfolio.getOrDefault(title.portfolioId(), Optional.empty());
                 if (c.isEmpty() || NOT_OPERABLE_CASE.contains(c.get().status())
-                        || c.get().eligibilityReasons().contains("DEBTOR_ANONYMIZED")) {
+                        || c.get().eligibilityReasons().stream().anyMatch(NEGOTIATION_BLOCKING_REASONS::contains)) {
                     reasons.add("case.not_eligible");
                 }
             }

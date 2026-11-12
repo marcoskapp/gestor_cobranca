@@ -15,6 +15,16 @@ package br.com.gestorcobranca.campaign.domain.model;
  */
 public enum VariableSource {
     DEBTOR_FIRST_NAME,
+    /**
+     * Variável {@code nome_fantasia} (cobrança B2B): nome fantasia da empresa ou, sem ele, a razão social; devedor
+     * pessoa física → etapa pulada ({@code campaign.variable_unavailable}).
+     */
+    DEBTOR_TRADE_NAME,
+    /**
+     * Variável {@code saudacao}: tratamento pelo tipo de pessoa — primeiro nome da pessoa física; nome fantasia (ou
+     * razão social) da empresa — para modelos que servem às duas.
+     */
+    DEBTOR_GREETING,
     OPEN_BALANCE,
     ELIGIBLE_BALANCE,
     OLDEST_DUE_DATE,

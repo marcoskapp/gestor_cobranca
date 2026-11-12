@@ -11,4 +11,7 @@ public interface ScoringLocks {
 
     /** Serializa o cálculo dos casos (lote × sob demanda × evento); obtidos em ordem de id. */
     void lockCases(Collection<UUID> caseIds);
+
+    /** Serializa o recálculo do perfil de contato do devedor (eventos concorrentes × retenção). */
+    void lockDebtor(UUID debtorId);
 }

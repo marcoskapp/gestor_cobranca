@@ -16,9 +16,10 @@ import java.time.Duration;
  */
 @ConfigurationProperties(prefix = "app.portal")
 public record PortalProperties(String publicBaseUrl, Session session, Access access, Templates templates,
-                               Retention retention) {
+                               Retention retention, Representative representative) {
 
     public PortalProperties {
+        representative = representative == null ? new Representative(null, null, null, null, null) : representative;
         publicBaseUrl = publicBaseUrl == null ? "https://localhost:8443" : stripSlash(publicBaseUrl);
         session = session == null ? new Session(null, null, null, null) : session;
         access = access == null ? new Access(null, null, null, null, null, null, null, null, null, null, null, null, null) : access;
@@ -86,6 +87,28 @@ public record PortalProperties(String publicBaseUrl, Session session, Access acc
             baseLock = baseLock == null ? Duration.ofMinutes(15) : baseLock;
             maxLock = maxLock == null ? Duration.ofHours(24) : maxLock;
             minResponseTime = minResponseTime == null ? Duration.ofMillis(400) : minResponseTime;
+        }
+    }
+
+    /**
+     * Confirmação de quem negocia pela empresa (devedor PJ, B4): CPF que não confere com representante com poder para
+     * negociar conta como falha por devedor e por IP, no bloqueio progressivo persistido (renovar a sessão não zera).
+     *
+     * @param debtorMaxFailures falhas por devedor PJ na janela antes do bloqueio
+     * @param ipMaxFailures     falhas por IP na janela
+     * @param window            janela de contagem
+     * @param baseLock          primeiro bloqueio (dobra a cada reincidência)
+     * @param maxLock           bloqueio máximo
+     */
+    public record Representative(Integer debtorMaxFailures, Integer ipMaxFailures, Duration window, Duration baseLock,
+                                 Duration maxLock) {
+
+        public Representative {
+            debtorMaxFailures = debtorMaxFailures == null ? 5 : debtorMaxFailures;
+            ipMaxFailures = ipMaxFailures == null ? 20 : ipMaxFailures;
+            window = window == null ? Duration.ofMinutes(30) : window;
+            baseLock = baseLock == null ? Duration.ofMinutes(15) : baseLock;
+            maxLock = maxLock == null ? Duration.ofHours(24) : maxLock;
         }
     }
 

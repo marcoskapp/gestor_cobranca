@@ -24,6 +24,7 @@ import br.com.gestorcobranca.compliance.application.port.in.ContactGate.DenialRe
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
+import br.com.gestorcobranca.shared.events.debt.DebtorContactNoveltyChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.InstallmentStatusChanged;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
@@ -226,6 +227,17 @@ class CampaignReactions {
                 tryResume(e, c, projection.refresh(e.getCaseId(), "contact_restriction"), "contact_restriction");
             }
         }
+    }
+
+    // ------------------------------------------------------------------ contato novo recebido na carga
+
+    /**
+     * Fim da novidade dos contatos do devedor (debt): grava em todos os casos dele na projeção, para o critério de
+     * segmento "com contato novo" (contatos-recebidos.md §4). As inscrições não mudam aqui: a saída do segmento é
+     * verificada antes de cada etapa, como os demais critérios.
+     */
+    void contactNoveltyChanged(DebtorContactNoveltyChanged event) {
+        audience.applyNewContact(event.debtorId(), event.newContactUntil(), event.occurredAt());
     }
 
     // ------------------------------------------------------------------ interações e mensagens

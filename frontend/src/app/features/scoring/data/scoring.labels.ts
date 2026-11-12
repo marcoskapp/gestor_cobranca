@@ -98,6 +98,9 @@ export const SCORING_ERROR_LABELS: Record<string, string> = {
   'scorecard.bin_invalid': 'Há faixa vazia: o limite inicial precisa ser menor que o final.',
   'scorecard.feature_duplicated': 'Cada variável pode aparecer em uma regra só.',
   'scorecard.points_invalid': 'Pontos fora do limite permitido.',
+  'scoring.range_invalid': 'Período inválido: o fim precisa ser igual ou posterior ao início.',
+  'scoring.range_too_long': 'O período consultado pode ter no máximo 400 dias.',
+  'scoring.person_type_invalid': 'Tipo de pessoa inválido.',
 };
 
 export function featureLabel(features: readonly FeatureInfo[], name: string): string {

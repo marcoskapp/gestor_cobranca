@@ -13,6 +13,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashSet;
@@ -22,7 +23,8 @@ import java.util.UUID;
 
 /**
  * Fila de cobrança (F07): critérios que selecionam casos (credor, carteira, faixa de atraso,
- * faixa de saldo, faixa de score e devedor com marcador de vulnerabilidade), ordem de entrega, estratégia de distribuição e
+ * faixa de saldo, faixa de score, devedor com marcador de vulnerabilidade, devedor com contato novo recebido na carga e
+ * tipo de pessoa do devedor), ordem de entrega, estratégia de distribuição e
  * equipes que a atendem. Um caso pertence à primeira fila ativa (menor {@code priority}) cujos
  * critérios ele satisfaz. Critério nulo não restringe.
  */
@@ -84,6 +86,14 @@ public class CollectionQueue extends TenantScopedEntity {
     @Column(name = "vulnerable_only", nullable = false)
     private boolean vulnerableOnly;
 
+    /** Só casos de devedor com contato novo recebido na carga ainda sem tentativa (contatos-recebidos.md §4). */
+    @Column(name = "new_contact_only", nullable = false)
+    private boolean newContactOnly;
+
+    /** Só casos de devedor do tipo de pessoa (INDIVIDUAL/COMPANY; nulo = qualquer) — cobranca-b2b.md §9. */
+    @Column(name = "person_type", length = 20)
+    private String personType;
+
     /** Último operador que recebeu caso no rodízio. */
     @Column(name = "round_robin_cursor")
     private UUID roundRobinCursor;
@@ -110,12 +120,14 @@ public class CollectionQueue extends TenantScopedEntity {
      * @param priority        ordem de avaliação no roteamento (menor primeiro)
      * @param maxCasesPerUser capacidade por operador nesta fila (nulo = ilimitada)
      * @param vulnerableOnly  só casos de devedor com marcador de vulnerabilidade
+     * @param newContactOnly  só casos de devedor com contato novo recebido na carga ainda sem tentativa
+     * @param personType      só casos de devedor deste tipo de pessoa (INDIVIDUAL/COMPANY; nulo = qualquer)
      */
     public record QueueDefinition(String name, String description, int priority, UUID creditorId, UUID portfolioId,
                                   Integer minDaysOverdue, Integer maxDaysOverdue, Money minBalance, Money maxBalance,
                                   Integer minScore, Integer maxScore, CaseOrdering ordering,
                                   DistributionStrategy strategy, Integer maxCasesPerUser, Set<UUID> teamIds,
-                                  boolean vulnerableOnly) {
+                                  boolean vulnerableOnly, boolean newContactOnly, String personType) {
     }
 
     public void define(QueueDefinition d) {
@@ -139,6 +151,10 @@ public class CollectionQueue extends TenantScopedEntity {
                 "Capacidade por operador deve ser positiva");
         Guard.require(d.description() == null || d.description().length() <= 500, "queue.description_invalid",
                 "Descrição até 500 caracteres");
+        String person = d.personType() == null || d.personType().isBlank() ? null
+                : d.personType().trim().toUpperCase(Locale.ROOT);
+        Guard.require(person == null || CollectionCase.PERSON_TYPES.contains(person), "queue.person_type_invalid",
+                "Tipo de pessoa: pessoa física ou jurídica");
         this.name = d.name().trim();
         this.description = d.description() == null || d.description().isBlank() ? null : d.description().trim();
         this.priority = d.priority();
@@ -154,6 +170,8 @@ public class CollectionQueue extends TenantScopedEntity {
         this.strategy = d.strategy() == null ? DistributionStrategy.PULL : d.strategy();
         this.maxCasesPerUser = d.maxCasesPerUser();
         this.vulnerableOnly = d.vulnerableOnly();
+        this.newContactOnly = d.newContactOnly();
+        this.personType = person;
         replaceTeams(d.teamIds());
     }
 
@@ -176,8 +194,13 @@ public class CollectionQueue extends TenantScopedEntity {
         this.active = false;
     }
 
-    /** Critérios satisfeitos pelo caso na data de referência. */
-    public boolean matches(CollectionCase c, LocalDate today) {
+    /**
+     * Critérios satisfeitos pelo caso.
+     *
+     * @param today data de referência do atraso (fuso de operação)
+     * @param now   instante de referência da janela de novidade do contato novo
+     */
+    public boolean matches(CollectionCase c, LocalDate today, Instant now) {
         if (creditorId != null && !creditorId.equals(c.getCreditorId())) {
             return false;
         }
@@ -185,6 +208,13 @@ public class CollectionQueue extends TenantScopedEntity {
             return false;
         }
         if (vulnerableOnly && !c.isVulnerable()) {
+            return false;
+        }
+        if (newContactOnly && !c.hasNewContact(now)) {
+            return false;
+        }
+        // tipo de pessoa exigido só seleciona casos com o tipo conhecido
+        if (personType != null && !personType.equals(c.getDebtorPersonType())) {
             return false;
         }
         long overdue = c.daysOverdue(today);
@@ -224,6 +254,14 @@ public class CollectionQueue extends TenantScopedEntity {
 
     public boolean isVulnerableOnly() {
         return vulnerableOnly;
+    }
+
+    public boolean isNewContactOnly() {
+        return newContactOnly;
+    }
+
+    public String getPersonType() {
+        return personType;
     }
 
     public String getCode() {

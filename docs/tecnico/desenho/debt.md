@@ -1,6 +1,7 @@
 # Desenho do módulo debt — correção de valor do título e busca rápida
 
-Desenho técnico da correção manual do valor do título (§1–§5) e da busca rápida de devedor (§6). As regras de negócio estão em
+Desenho técnico da correção manual do valor do título (§1–§5), da busca rápida de devedor (§6) e do contato novo
+recebido na carga (§7, desenho completo em [contatos-recebidos.md](contatos-recebidos.md)). As regras de negócio estão em
 [negocio/correcao-de-valor.md](../../negocio/correcao-de-valor.md) (decisões 802–813, 864, 865, 872 e as revisões do
 responsável 888–892). Este documento cobre, por enquanto, só a correção de valor; o restante do
 módulo (devedores, títulos, razão, garantias, prescrição) segue descrito no código e nas decisões.
@@ -124,3 +125,127 @@ Porta `application/port/in/DebtorQuickSearch` (sem endpoint próprio; quem expõ
 Lista de títulos por lote: `TitleSearch.importBatchId` (`GET /titles?importBatchId=`) filtra os títulos cuja **última**
 carga foi o lote (`debt_title.import_batch_id`, atualizado a cada carga que toca o título; índice parcial
 `ix_debt_title_import_batch`). Usado no link "Títulos importados" do lote.
+
+## 7. Recuperação judicial, recuperação extrajudicial e falência (cobrança B2B §7, B6)
+
+Desenho de produto em [cobranca-b2b.md](cobranca-b2b.md) §7. Código em `debt/{domain/model/InsolvencyProceeding,
+application/service/InsolvencyService, web/InsolvencyController}`; migration `V0311__debt_insolvency_proceeding.sql`.
+
+- **Tabela** `debt.insolvency_proceeding`: `debtor_id`, `kind` (`JUDICIAL_RECOVERY`, `EXTRAJUDICIAL_RECOVERY`,
+  `BANKRUPTCY`), `case_number` (20 dígitos CNJ), `court`, `filed_on`, `converted_from`/`converted_on` (convolação),
+  `status` (`ACTIVE`, `ENDED`), `ended_on`, `end_reason`, `note`. RLS (`shared.enable_tenant_rls`); `check` em `kind`,
+  `status`, formato do número, `(status = 'ENDED') = (ended_on is not null)`, motivo obrigatório no encerramento,
+  encerramento depois do pedido e convolação só de recuperação judicial para falência; índice único parcial
+  `uk_insolvency_active` (no máximo um `ACTIVE` por devedor). Sem `delete` para `app_runtime` (o histórico fica).
+- **Número CNJ**: `shared.domain.CnjNumber` (módulo 97, ISO 7064), o mesmo do jurídico — movido de
+  `legal.domain.model` para `shared.domain` para não duplicar a regra; cada módulo informa o prefixo do código de erro
+  (`insolvency.cnj_invalid`, `lawsuit.cnj_invalid`). O ano do número deve ser o da data do pedido
+  (`insolvency.cnj_year_mismatch`); a data do pedido não pode ser futura.
+- **Casos de uso** (`InsolvencyUseCases`): `register` (só PJ — `insolvency.debtor_not_company`, 422; devedor
+  anonimizado → 409; já há ativo → `insolvency.already_active`, 409; a **origem da informação** é obrigatória e vira o
+  motivo da auditoria), `convertToBankruptcy` (art. 73: o mesmo processo muda de tipo, com data da decretação e motivo),
+  `end` (data e motivo), `ofDebtor` (ativo e histórico; devedor visível ao ator) e `isUnderInsolvency` (booleano para a
+  elegibilidade do collection, sem escopo — chamado por ator de sistema).
+- **Escopo**: registrar, convolar e encerrar exigem escopo sobre **todos** os credores do devedor
+  (`DebtorVisibility#requireFullScope`, 403): a suspensão vale para a cobrança em todos eles. A consulta exige o devedor
+  visível (404).
+- **Web**: `GET /debtors/{id}/insolvency` (`DEBTOR_VIEW` ou `CASE_VIEW` — quem atende o caso precisa saber por que ele
+  está suspenso), `POST /debtors/{id}/insolvency`, `POST /insolvency-proceedings/{id}/bankruptcy` e
+  `POST /insolvency-proceedings/{id}/end` (`DEBTOR_MANAGE`).
+- **Rastreabilidade**: auditoria `insolvency.registered` / `insolvency.converted` / `insolvency.ended` (com motivo);
+  eventos de negócio `debtor.insolvency_registered` / `_converted` / `_ended` (tipo e durações, sem texto livre);
+  métrica `debt.insolvency.changes{action,kind}` (sem devedor).
+- **Integração**: cada mudança publica `DebtorInsolvencyChanged` (`shared.events.debt`: `debtorId`, `active`, `kind`).
+  O collection reavalia os casos ativos do devedor em todos os credores e marca `DEBTOR_INSOLVENCY`
+  ([collection.md](collection.md) §2); a régua respeita a elegibilidade ([campanhas.md](campanhas.md)). Interações não
+  são apagadas e acordo em vigor **não** é cancelado (decisão humana: a dívida pode estar no plano de recuperação);
+  acordo **novo** é recusado pela negociação (`CollectionCaseEligibilityAdapter`: `DEBTOR_INSOLVENCY` bloqueia como a
+  anonimização). O processo vale para a empresa inteira: `isUnderInsolvency` e a publicação (um evento por unidade)
+  consideram matriz e filiais pela raiz do CNPJ (`DebtorRepository#findIdsByDocumentRootHash`); `ofDebtor` traz o
+  histórico das unidades, `canManage` e o texto livre só para quem vê o cadastro. Auditoria com motivo fixo (o texto
+  livre fica no processo) e `insolvency.anonymized` na anonimização.
+- **LGPD**: o número, o juízo e as datas são dados públicos da empresa. A nota e o motivo do encerramento são texto livre
+  (podem citar pessoas): a anonimização do devedor os neutraliza (`InsolvencyAnonymizationListener`, consumidor
+  `debt.insolvency-anonymized` de `DebtorAnonymized`). A tela orienta a não registrar dado pessoal.
+- **Tela**: `app-insolvency-notice` (em `features/debt/components`), na ficha do devedor (com as ações, para quem tem
+  `DEBTOR_MANAGE`, fora do painel da estação) e na ficha do caso (só o aviso): "Empresa em recuperação judicial desde
+  …", processo, suspensão da cobrança e atalho para o caso jurídico aberto da empresa (um → abre o caso; vários → menu;
+  nenhum → orientação de habilitar o crédito). Só para PJ: com pessoa física nada é consultado.
+- **Testes**: `InsolvencyIT` (marcador → casos inelegíveis nos dois credores → a régua não envia → convolação →
+  encerrado → elegíveis e a régua volta a enviar; só PJ; escopo total; número CNJ; um ativo; anonimização) e
+  `CnjNumberTest`.
+
+Carteiras em que o devedor tem títulos (todas, sem filtro de escopo): `DebtTitleUseCases#portfolioIdsOfDebtor`, usado
+pelo compliance para o superendividamento por regime da carteira ([conformidade.md](conformidade.md) §1.5).
+
+## 8. Cobrança B2B: empresa, pessoa de contato e representantes (B1–B3)
+
+Desenho funcional em [cobranca-b2b.md](cobranca-b2b.md) §3 a §5. Migration `V0310__debt_company_profile.sql`.
+
+* **Empresa** (`Debtor`): `trade_name_encrypted` (nome fantasia, `EncryptedStringConverter`, até 200) e
+  `document_root_hash` (blind index da raiz do CNPJ, finalidade `debtor.document_root`; nulo para CPF), com `check` de
+  que só pessoa jurídica ativa os tem. Raiz e unidade no domínio: `Document#cnpjRoot`, `#cnpjBranch`, `#isHeadOffice`;
+  `Debtor#establishmentLabel` ("Matriz" / "Filial 0002"). Pessoa jurídica não tem data de nascimento
+  (`debtor.birth_date_company` no cadastro manual; a carga ignora com aviso); nome fantasia só para PJ
+  (`debtor.trade_name_individual`). `DebtorView` ganhou `tradeName` e `establishment` (no fim do record).
+* **Outras unidades**: `DebtorUseCases#otherUnits(debtorId, page)` → `GET /debtors?sameCompanyAs=<id>` (o filtro leva o
+  id do devedor de referência, nunca o CNPJ); mesma raiz, sem o devedor de referência, com o escopo por credor da busca
+  (`DebtorJpaRepository#searchByDocumentRoot`, índice parcial `ix_debtor_document_root`). Cadastros anteriores à V0310
+  recebem a raiz pela varredura diária `debt.document_root_backfill` (`DebtJobs`, ShedLock, lotes de 500 por
+  assessoria; o blind index usa a chave da aplicação e não pode ser calculado pela migration) e pela próxima carga
+  (`Debtor#assignDocumentRoot`, auditado como `documentRootAssigned`).
+* **Pessoa de contato** (`DebtorContact`): `person_name_encrypted` (até 120), `person_role` (`FINANCE`,
+  `ACCOUNTS_PAYABLE`, `OWNER_PARTNER`, `LEGAL`, `OTHER`, com `check`) e `decision_maker`
+  (`contact.decision_maker_without_person` sem nome nem papel). `ContactView` traz o nome **mascarado como o valor**
+  (`maskedPersonName` = "A***"), o papel e `decisionMaker`; o nome completo vem em `RevealedContact.personName`, na
+  mesma revelação auditada do valor (`DEBTOR_SENSITIVE_VIEW` + `SENSITIVE_DATA_VIEWED`). Na edição, `personName` nulo
+  mantém o nome (a tela só conhece o mascarado) e vazio remove. Auditoria com o nome mascarado (iniciais).
+* **Representantes** (`CompanyRepresentative`, `debt.company_representative`, RLS): fora de `debt.debtor` — nunca em
+  listas, buscas, filas, segmentos, score ou réguas. CPF (`document_encrypted` + `document_hash`, finalidade própria
+  `debt.representative.document`), nome cifrado, papel (`MANAGING_PARTNER`, `ATTORNEY_IN_FACT`, `OTHER`),
+  `can_negotiate`, `valid_until`, `evidence_note` (até 200), `source` (`MANUAL`/`IMPORT`), `ended_at` + `end_reason`;
+  único por (empresa, CPF) enquanto vigente (índice parcial). Só devedor PJ (`representative.company_required`); só CPF
+  (`representative.cpf_required`); duplicado vigente → 409 `representative.duplicate`; encerrado não muda
+  (`representative.ended`). `canNegotiateOn(hoje)` = vigente, dentro da validade e com poder.
+  * Caso de uso `CompanyRepresentativeUseCases` (`port/in`): `list`, `add`/`update`/`end` (`DEBTOR_MANAGE`),
+    `revealDocument` (`DEBTOR_SENSITIVE_VIEW` + `SENSITIVE_DATA_VIEWED`, `resource=company_representative`), e para
+    outros módulos `negotiator(companyId, cpf)` (o blind index é calculado aqui — o portal nunca conhece a finalidade),
+    `hasNegotiators` e `get`. REST `/api/v1/debtors/{id}/representatives` (`GET`, `POST`, `PUT /{rid}`,
+    `POST /{rid}/end`, `GET /{rid}/document`).
+  * Auditoria `company_representative.created` / `.updated` / `.ended` com nome mascarado e CPF mascarado.
+  * LGPD: a anonimização da empresa apaga os representantes (`representativesRemoved` na auditoria); a solicitação de
+    titular do representante localiza-o pelo CPF pela fonte `RelatedPersonSource` (`shared.privacy`, implementada por
+    `RepresentativePrivacySource`: só ids, papel e período, com o escopo por credor da consulta).
+* **Carga** (`DebtIngestionPort`): `DebtorRecord.tradeName` e `representatives` (`RepresentativeRecord`),
+  `ContactRecord.personName`/`personRole` — construtores antigos mantidos. Representante e pessoa de contato inválidos
+  voltam como aviso (`representative.*`, `contact.person_role_invalid`); contato existente sem pessoa recebe a da carga.
+  `RepresentativeRecord.role`/`canNegotiate` nulos = não informados: mantêm o papel e o poder cadastrados (na criação,
+  `OTHER` e sem poder).
+* **Testes**: `CompanyProfileTest` (domínio), `CompanyDebtorIT` (carga idempotente com nome fantasia, pessoa de contato e
+  representantes; unidades pela raiz com escopo; raiz preenchida na carga; regras e validade dos representantes; carga sem papel e poder mantém o cadastro manual;
+  permissões; fonte do titular; anonimização).
+
+## 9. Contato novo recebido na carga (`V0309`)
+
+Resumo do que o módulo implementa ([contatos-recebidos.md](contatos-recebidos.md) é o desenho completo):
+
+* `debt.debtor_contact` ganha a carga de origem e a última carga que enviou o contato (`first_import_batch_id`,
+  `last_import_batch_id`, `last_received_at`), `received_after_registration`, `novelty_until`, `first_attempt_at` e
+  `first_effective_at`; `debt.debtor` ganha `created_import_batch_id` (devedor criado por carga). Índices parciais para a
+  recálculo (`ix_debtor_contact_novelty`), para a varredura (`ix_debtor_contact_novelty_due`, contatos novos sem tentativa) e para o relatório/filtro da carga (`ix_debtor_contact_first_batch`).
+* `DebtIngestionPort.DebtorRecord` leva `importBatchId`: `DebtorRegistry.upsertFromImport` marca como novo o contato
+  criado para devedor que já existia antes da carga (`Debtor#existedBefore`) e registra o reenvio dos já existentes
+  (`ContactRegistry#receiveFromImport`); publica `DebtorContactNoveltyChanged` quando o fim da novidade do devedor muda
+  (`ContactNoveltyTracker`).
+* Uso do contato: consumidor `debt.contact-usage` (`DebtEventListeners`) de `InteractionRecorded`, `CallCompleted` e
+  `MessageStatusChanged` com `contactId` → `ContactNoveltyService#recordUse`. Contato inválido perde o selo: invalidar ou
+  revalidar um contato novo também recalcula a novidade do devedor.
+* Varredura diária `debt.contact_novelty_sweep` (`DebtJobs`, 03:40, ShedLock): devedores com janela vencida sem tentativa
+  nos últimos `sweep-lookback` (padrão 7 dias) têm a novidade republicada.
+* Prazo por assessoria: `ContactNoveltySettings` (`debt.contact_novelty_settings`, uma linha por assessoria, RLS),
+  `ContactNoveltyUseCases` e `GET/PUT /api/v1/debtors/contact-novelty-settings` (`DEBTOR_MANAGE`); padrão do sistema
+  `app.debt.contact-novelty.window-days` (30).
+* Leitura: `ContactView.receipt` / `ContactSummary.receipt` (selo), `ChannelContact.newPending` (ordem do discador),
+  `DebtorUseCases.DebtorFilter` (`newContact`, `newContactBatchId`), `DebtIngestionPort#contactReceipt` (contador do
+  relatório da carga) e `DebtorSegmentationQueries` (tipo de pessoa e fim da novidade para o collection na abertura do caso).
+* Testes: `DebtorContactTest` (domínio) e `ContactReceiptIT` (fluxo entre debt, collection e campaign).

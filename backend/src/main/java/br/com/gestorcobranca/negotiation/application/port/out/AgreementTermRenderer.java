@@ -22,7 +22,26 @@ public interface AgreementTermRenderer {
                         String debtorDocument, List<TermTitle> titles, BigDecimal updatedAmount,
                         BigDecimal discountAmount, BigDecimal negotiatedAmount, BigDecimal financingInterest,
                         BigDecimal totalAmount, List<TermInstallment> schedule, String breakRule, int policyVersion,
-                        String channel, Instant generatedAt) {
+                        String channel, Instant generatedAt, TermRepresentative representative) {
+
+        public TermDocument(UUID proposalId, UUID replacedAgreementId, String creditorName, String debtorName,
+                            String debtorDocument, List<TermTitle> titles, BigDecimal updatedAmount,
+                            BigDecimal discountAmount, BigDecimal negotiatedAmount, BigDecimal financingInterest,
+                            BigDecimal totalAmount, List<TermInstallment> schedule, String breakRule, int policyVersion,
+                            String channel, Instant generatedAt) {
+            this(proposalId, replacedAgreementId, creditorName, debtorName, debtorDocument, titles, updatedAmount,
+                    discountAmount, negotiatedAmount, financingInterest, totalAmount, schedule, breakRule, policyVersion,
+                    channel, generatedAt, null);
+        }
+    }
+
+    /**
+     * Representante da empresa devedora que aceitou (cobrança B2B).
+     *
+     * @param maskedDocument CPF mascarado
+     * @param role           papel por extenso ("Sócio administrador", "Procurador", "Representante")
+     */
+    record TermRepresentative(String name, String maskedDocument, String role) {
     }
 
     record TermTitle(String externalId, LocalDate dueDate, BigDecimal updatedAmount) {

@@ -41,7 +41,10 @@ reconciliação diária/sob demanda (`AudienceRebuildJob`, páginas de `CaseUseC
 guardado `AGREEMENT`), a projeção grava também o vencimento da **próxima parcela em aberto do acordo em vigor**
 (`next_installment_due_date`, `V1102`), lido do negotiation no momento (`AgreementInstallments`) e gravado à parte
 (`applyNextInstallment`, sem a guarda de versão: a baixa de parcela nem sempre muda o caso); fora de acordo, nulo sem
-consultar o negotiation.
+consultar o negotiation. A projeção guarda ainda o **fim da novidade dos contatos do devedor recebidos na carga**
+(`new_contact_until`, `V1103`), gravado ao consumir `DebtorContactNoveltyChanged` do debt em todos os casos do devedor
+(`applyNewContact`, sem a guarda de versão; `new_contact_changed_at` descarta entrega fora de ordem) — o caso do
+collection só preenche a inclusão na projeção —, e o **tipo de pessoa** do devedor (`debtor_person_type`, do caso).
 
 `SegmentCriteria` (todos por **E**; nulo = sem filtro): carteiras, faixa de atraso (dias desde o vencimento mais antigo,
 fuso de operação, nunca negativo), faixa de saldo em aberto, situações do caso, somente elegíveis (padrão sim — RB02),
@@ -50,7 +53,10 @@ canal contatável, faixa de interações, já houve/nunca houve contato efetivo,
 mínimos, faixa de score (critério opcional: casos sem score ficam fora; o score vem do módulo `scoring` pelo evento
 `CaseScoreChanged`), dono do atendimento e **parcela do acordo vencendo** (`minDaysToInstallment`/`maxDaysToInstallment`:
 dias de hoje até o vencimento da próxima parcela em aberto, 0 = hoje, até 366; casos sem acordo em vigor com parcela em
-aberto ficam fora; parcela já vencida não atende ao máximo; incompatível com "sem acordo em vigor"). A mesma semântica é implementada em SQL (`JdbcAudienceStore.where`, contagem e
+aberto ficam fora; parcela já vencida não atende ao máximo; incompatível com "sem acordo em vigor"), **com/sem contato
+novo** (`hasNewContact`: contato recebido na carga para devedor já existente ainda sem tentativa, com a janela aberta
+agora — [contatos-recebidos.md](contatos-recebidos.md) §4) e **tipo de pessoa** (`personType` `INDIVIDUAL`/`COMPANY`;
+tipo desconhecido fica fora — [cobranca-b2b.md](cobranca-b2b.md) §9). A mesma semântica é implementada em SQL (`JdbcAudienceStore.where`, contagem e
 seleção em lote) e em memória (`SegmentMatcher`, reavaliação antes de cada etapa) — `SegmentMatcherTest` documenta os
 limites.
 
@@ -90,6 +96,8 @@ PAUSED → FINISHED`.
 * **Ações**: `SEND_MESSAGE` (template publicado, canal WHATSAPP/EMAIL/SMS, variáveis por origem — `DEBTOR_FIRST_NAME`,
   `OPEN_BALANCE`, `ELIGIBLE_BALANCE`, `OLDEST_DUE_DATE`, `DAYS_OVERDUE`, `CREDITOR_NAME`, `NEXT_INSTALLMENT_AMOUNT`,
   `NEXT_INSTALLMENT_DUE_DATE`, `PORTAL_LINK`, `PORTAL_LINK_HOURS` (só junto com `PORTAL_LINK` — `cadence.portal_hours_without_link`),
+  `DEBTOR_TRADE_NAME` (`nome_fantasia`; PF → etapa pulada) e `DEBTOR_GREETING` (`saudacao`; PF → primeiro nome, PJ →
+  nome fantasia ou razão social) — cobrança B2B, B9,
   `LITERAL:texto` e, em oferta, `OFFER_AMOUNT`, `OFFER_DUE_DATE`, `PAYMENT_LINK` — §3.6); `CREATE_TASK` (retorno ou acompanhamento no caso, prazo em minutos);
   `HAND_TO_ASSISTANT` (`CaseWorkUseCases#handToAssistant`); `MOVE_TO_QUEUE` (`assign` à equipe ou `release` para a fila
   do roteamento); `OFFER` (porta §3.5). Entregar ao assistente e mover para a fila encerram a inscrição.
@@ -123,6 +131,12 @@ Campanhas `AGREEMENT_FOLLOW_UP` (lembrete de parcela) não pausam por acordo nem
 também no início de cada etapa (posição atual do caso), então nenhum evento perdido faz a régua seguir num caso
 bloqueado; a inscrição de novos casos exclui essas situações. A retomada manual
 (`POST /enrollments/{id}/resume`) recusa caso ainda bloqueado (`409 enrollment.still_blocked`).
+
+Empresa em recuperação judicial, extrajudicial ou falência ([cobranca-b2b.md](cobranca-b2b.md) §7): o caso fica
+inelegível (`DEBTOR_INSOLVENCY`) e a régua não envia — a etapa seguinte encerra a inscrição por sair do segmento (o
+segmento exige caso elegível por padrão) ou é pulada (`CASE_INELIGIBLE`) se a campanha não sai do segmento; casos assim
+não são inscritos. Não há pausa própria (não muda o `check` de `pause_reason`); encerrado o processo, o caso volta a
+ser inscrito como qualquer caso elegível (`InsolvencyIT`).
 
 ### 3.5 Oferta e link de pagamento (porta)
 
@@ -259,7 +273,8 @@ inscrição × tipo × referência; estorno (`PaymentReversed`) gera valor negat
 * Publicado: `CadenceExhausted` (§4.5).
 * Consumidos (`campaign.<reação>`): `CaseStatusChanged`, `CaseBalanceChanged`, `CaseAssignmentChanged`,
   `PromiseStatusChanged`, `InteractionRecorded`, `DisputeStatusChanged`, `LegalMatterStageChanged`,
-  `AgreementStatusChanged`, `InstallmentStatusChanged` (`campaign.installment-status`), `PaymentConfirmed`, `PaymentReversed`, `ContactRestrictionChanged`, `MessageStatusChanged`.
+  `AgreementStatusChanged`, `InstallmentStatusChanged` (`campaign.installment-status`), `PaymentConfirmed`, `PaymentReversed`, `ContactRestrictionChanged`, `MessageStatusChanged`,
+  `DebtorContactNoveltyChanged` (`campaign.contact-novelty`).
 * Negócio: `campaign.activated`, `campaign.paused` (`scope` campanha ou inscrição, `reason`), `campaign.finished`,
   `campaign.step_executed`, `campaign.step_skipped`, `campaign.replied`, `campaign.cadence_exhausted`,
   `experiment.variant_assigned` — atributos em `logs-e-metricas.md` §3.6. Nunca nome, documento, contato ou conteúdo.

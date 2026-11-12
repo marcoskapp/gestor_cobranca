@@ -230,7 +230,10 @@ export const MANUAL: ModuleManual = {
       id: 'portal.config',
       title: 'Configuração do portal',
       objective: 'Configure o portal de um credor: endereço, marca, carteiras habilitadas, canais do código e aviso de privacidade.',
-      purpose: ['O devedor só vê as carteiras habilitadas e só recebe condições do perfil de alçada do portal. A tela mostra o funil dos últimos 30 dias e as sessões, que podem ser encerradas.'],
+      purpose: [
+        'O devedor só vê as carteiras habilitadas e só recebe condições do perfil de alçada do portal. A tela mostra o funil dos últimos 30 dias e as sessões, que podem ser encerradas.',
+        'Empresas (CNPJ) não têm data de nascimento: com a confirmação "Data de nascimento", elas informam os 4 últimos números do contrato. No aceite, a empresa informa o nome e o CPF de quem está negociando; a tela é a mesma quando o CPF confere e quando não confere. Se o CPF for de um representante com poder para negociar (ficha do devedor → Representantes), o acordo fecha e o termo registra quem aceitou; senão, vira um pedido de atendimento com a condição escolhida e um atendente conclui. Tentativas erradas contam por empresa e por endereço de rede, mesmo em sessões novas.',
+      ],
       profiles: ['GESTOR'],
       inputs: ['Dados do credor, carteiras e templates publicados.'],
       outputs: ['Portal ativo no endereço do credor.'],

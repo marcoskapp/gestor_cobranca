@@ -16,7 +16,7 @@ class RetentionPolicyTest {
                 .allSatisfy(c -> assertThat(c.unit()).isEqualTo(RetentionUnit.DAYS))
                 .containsExactly(RetentionCategory.PORTAL_ACCESS_CHALLENGES, RetentionCategory.PORTAL_ACCESS_THROTTLES,
                         RetentionCategory.PORTAL_SESSION_CLIENT_DATA, RetentionCategory.SCORING_CASE_FACTS,
-                        RetentionCategory.SCORING_FEATURE_SNAPSHOTS);
+                        RetentionCategory.SCORING_FEATURE_SNAPSHOTS, RetentionCategory.SCORING_CONTACT_FACTS);
         assertThat(Arrays.stream(RetentionCategory.values()).filter(c -> !c.hasSystemDefault()))
                 .allSatisfy(c -> {
                     assertThat(c.unit()).isEqualTo(RetentionUnit.MONTHS);

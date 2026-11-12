@@ -10,10 +10,13 @@
  * ({@code DebtorUseCases}, {@code DebtorContactUseCases}, {@code DebtTitleUseCases},
  * {@code DebtorSheetQueries}, {@code OriginContractUseCases}, {@code CollateralUseCases},
  * {@code ObligationPartyUseCases}, {@code PrescriptionRuleUseCases},
- * {@code TitlePrescriptionUseCases}), a busca rápida {@code DebtorQuickSearch} (usada pela busca de devedor e caso
+ * {@code TitlePrescriptionUseCases}, {@code ContactNoveltyUseCases}), a busca rápida {@code DebtorQuickSearch}
+ * (usada pela busca de devedor e caso
  * do collection) e portas internas sem endpoint ({@code DebtLedgerPort} para
  * pagamento/negociação, {@code DebtIngestionPort} para a importação,
- * {@code PrescriptionInterruptionPort} para o módulo legal).
+ * {@code PrescriptionInterruptionPort} para o módulo legal, {@code DebtorSegmentationQueries} para os critérios de fila
+ * do collection). Publica {@code DebtorContactNoveltyChanged} (contato novo recebido na carga) e consome o uso do contato
+ * ({@code InteractionRecorded}, {@code CallCompleted}, {@code MessageStatusChanged}).
  */
 @ApplicationModule(displayName = "Debt", allowedDependencies = {"shared", "organization :: usecases"})
 package br.com.gestorcobranca.debt;

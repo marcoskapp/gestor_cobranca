@@ -39,6 +39,8 @@
     <span>{{ cs.eligibilityReasons.map(eligibilityText).join(' · ') }}</span>
   </div>
 }
+<!-- empresa em recuperação judicial ou falência: desde quando, processo e atalho ao jurídico (cobrança B2B §7) -->
+<app-insolvency-notice [debtorId]="cs.debtorId" [personType]="d.personType" />
 @if (cs.statusReason && (cs.status === 'SUSPENDED' || cs.status === 'LEGAL')) {
   <div class="alert alert-secondary d-flex gap-2 align-items-start sp-alert" role="note">
     <app-icon name="pause-circle" />
@@ -67,6 +69,7 @@
 
 <!-- score de propensão (módulo scoring): só com SCORING_VIEW; o cartão decide se aparece -->
 <app-case-score-card [caseId]="cs.id" [debtorId]="cs.debtorId" />
+<app-contact-profile-card [debtorId]="cs.debtorId" [caseId]="cs.id" [contacts]="d.contacts" />
 
 @if (sheet().pendingPromise; as p) {
   <div class="alert alert-warning d-flex gap-2 align-items-start sp-alert" role="note">
@@ -161,6 +164,9 @@
             <span class="app-muted">{{ contactTypes[ct.type] }} · {{ contactLabels[ct.label] }} · prioridade {{ ct.priority }}</span>
             @if (ct.whatsapp) {
               <span class="app-status app-status--info">WhatsApp</span>
+            }
+            @if (ct.status !== 'INVALID') {
+              <app-contact-novelty-badge [receipt]="ct.receipt" />
             }
             <app-status-chip domain="contact" [status]="ct.status" />
             @if (full) {
@@ -373,7 +379,7 @@
       </ng-template>
     </li>
   }
-  <li class="nav-item sp-more-item" role="presentation" ngbDropdown placement="bottom-end" display="dynamic" (keydown)="keepMenuKeys($event)">
+  <li class="nav-item sp-more-item" role="presentation" ngbDropdown placement="bottom-end top-end" display="dynamic" (keydown)="keepMenuKeys($event)">
     <button
       type="button"
       class="nav-link sp-more"

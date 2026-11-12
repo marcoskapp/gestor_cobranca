@@ -114,6 +114,12 @@ class ImportBatchController {
         return batches.get(id);
     }
 
+    @GetMapping("/{id}/contact-receipt")
+    @PreAuthorize("hasAuthority('IMPORT_VIEW')")
+    ImportBatchUseCases.ContactReceiptView contactReceipt(@PathVariable UUID id) {
+        return batches.contactReceipt(id);
+    }
+
     @GetMapping("/{id}/issues")
     @PreAuthorize("hasAuthority('IMPORT_VIEW')")
     PageResponse<ImportIssueView> issues(@PathVariable UUID id, @RequestParam(required = false) String severity,

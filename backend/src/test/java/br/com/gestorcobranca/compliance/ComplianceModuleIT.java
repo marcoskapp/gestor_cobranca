@@ -142,7 +142,7 @@ class ComplianceModuleIT extends IntegrationTest {
         portfolioB = portfolio(creditorB, "B-01");
         debtor = system(() -> ingestion.upsertDebtor(new DebtorRecord(CPF, "Maria Silva", LocalDate.of(1985, 3, 15),
                 List.of(new ContactRecord("PHONE", PHONE, "MOBILE", true),
-                        new ContactRecord("EMAIL", "maria@exemplo.com", null, false)))).id());
+                        new ContactRecord("EMAIL", "maria@exemplo.com", null, false)), null)).id());
         titleA = title(creditorA, portfolioA, debtor, "A-1", "100.00");
         // janela de dia inteiro em todos os dias: os testes não dependem do horário em que rodam
         publishTenantPolicy(null);
@@ -315,7 +315,7 @@ class ComplianceModuleIT extends IntegrationTest {
     @Test
     void creditorScopeIsEnforced() {
         UUID onlyB = system(() -> {
-            UUID id = ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of())).id();
+            UUID id = ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of(), null)).id();
             ingestion.upsertTitle(new TitleRecord(creditorB, portfolioB, id, "B-9", null, 1, LocalDate.of(2026, 3, 10),
                     new BigDecimal("10.00"), null, null), Ids.newId());
             return id;
@@ -445,7 +445,7 @@ class ComplianceModuleIT extends IntegrationTest {
 
     @Test
     void identityMustMatchTheRequesterDocument() {
-        UUID other = system(() -> ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of())).id());
+        UUID other = system(() -> ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of(), null)).id());
         RequestView opened = system(() -> requests.open(new OpenRequestCommand("ACCESS", "PORTAL", "Maria", CPF, null, null,
                 null)));
         assertThatThrownBy(() -> system(() -> requests.verifyIdentity(opened.id(), other)))
@@ -470,10 +470,10 @@ class ComplianceModuleIT extends IntegrationTest {
         // devedor com título em aberto: nunca é candidato
         ageDebtor(debtor, "40 months");
         // inativo sem títulos há 3 anos
-        UUID inactive = system(() -> ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of())).id());
+        UUID inactive = system(() -> ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of(), null)).id());
         ageDebtor(inactive, "36 months");
         // inativo com título quitado do credor B, cuja base legal exige 10 anos
-        UUID retained = system(() -> ingestion.upsertDebtor(new DebtorRecord("39053344705", "Ana", null, List.of())).id());
+        UUID retained = system(() -> ingestion.upsertDebtor(new DebtorRecord("39053344705", "Ana", null, List.of(), null)).id());
         UUID titleB = title(creditorB, portfolioB, retained, "B-2", "20.00");
         system(() -> ledger.applyPayment(new PaymentApplication(titleB, Ids.newId(),
                 ComponentAmounts.principalOnly(new BigDecimal("20.00")), Instant.now())));
@@ -490,7 +490,7 @@ class ComplianceModuleIT extends IntegrationTest {
         }).extracting(RetentionUseCases.RetentionPolicyView::category)
                 .containsExactly("DEBTOR_INACTIVE", "IMPORT_FILES", "MESSAGE_CONTENT", "CALL_RECORDINGS",
                         "PORTAL_ACCESS_CHALLENGES", "PORTAL_ACCESS_THROTTLES", "PORTAL_SESSION_CLIENT_DATA",
-                        "SCORING_CASE_FACTS", "SCORING_FEATURE_SNAPSHOTS");
+                        "SCORING_CASE_FACTS", "SCORING_FEATURE_SNAPSHOTS", "SCORING_CONTACT_FACTS");
         assertThat(initial).filteredOn(p -> p.unit().equals("MONTHS")).hasSize(4).allSatisfy(p -> {
             assertThat(p.defaultAmount()).isNull();
             assertThat(p.enabled()).isFalse();
@@ -504,7 +504,8 @@ class ComplianceModuleIT extends IntegrationTest {
                         org.assertj.core.groups.Tuple.tuple("PORTAL_ACCESS_THROTTLES", 30, 7, true),
                         org.assertj.core.groups.Tuple.tuple("PORTAL_SESSION_CLIENT_DATA", 365, 30, true),
                         org.assertj.core.groups.Tuple.tuple("SCORING_CASE_FACTS", 1095, 730, true),
-                        org.assertj.core.groups.Tuple.tuple("SCORING_FEATURE_SNAPSHOTS", 730, 365, true));
+                        org.assertj.core.groups.Tuple.tuple("SCORING_FEATURE_SNAPSHOTS", 730, 365, true),
+                        org.assertj.core.groups.Tuple.tuple("SCORING_CONTACT_FACTS", 1095, 730, true));
         // categoria sem padrão e sem política habilitada: nada a descartar
         assertThat(system(() -> retention.retentionFor("IMPORT_FILES"))).isEmpty();
         system(() -> retention.configure("DEBTOR_INACTIVE", 24, false));

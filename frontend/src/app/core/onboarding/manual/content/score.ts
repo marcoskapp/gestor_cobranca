@@ -81,6 +81,23 @@ export const MANUAL: ModuleManual = {
       terms: ['score', 'faixa-de-score'],
     },
     {
+      id: 'scoring.contact',
+      title: 'Inteligência de contato',
+      objective: 'Quando e por onde o contato com o devedor funciona, e quantas tentativas levam a um acordo cumprido.',
+      purpose: [
+        'Mapa de calor por dia e horário, tentativas até o primeiro atendimento, taxa por canal e contatos até o acordo cumprido, com o corte pessoa física e jurídica. Faixa com poucas tentativas não mostra taxa.',
+        'No caso e na ficha do devedor, o cartão "Melhor forma de contato" mostra o canal preferido e os contatos pela taxa, com o melhor horário. Só orienta: não bloqueia contato nem muda a política.',
+      ],
+      profiles: ['ESTRATEGIA', 'GESTOR', 'SUPERVISOR'],
+      inputs: ['Ligações e mensagens registradas com o contato usado e as respostas do devedor.', 'Acordos fechados, cumpridos e quebrados.'],
+      outputs: ['Horários e canais para filas, campanhas e régua de cobrança.'],
+      related: [
+        { screen: 'collection.case', why: 'Cartão "Melhor forma de contato" do devedor.' },
+        { screen: 'scoring.monitoring', why: 'Desempenho do score.' },
+      ],
+      terms: ['contato-efetivo', 'canal', 'acordo'],
+    },
+    {
       id: 'scoring.transparency',
       title: 'Decisões e variáveis do score',
       objective: 'Para que o score serve, com quais dados é calculado e quem decidiu cada troca de modelo.',

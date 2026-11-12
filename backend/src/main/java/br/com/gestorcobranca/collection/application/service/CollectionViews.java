@@ -53,7 +53,7 @@ final class CollectionViews {
                 c.getEligibilityEvaluatedAt(), c.getQueueId(), c.getOwnerType().name(), c.getAssigneeUserId(),
                 c.getAssigneeTeamId(), c.getAssignedAt(), c.getNextActionAt(), c.getLastInteractionAt(),
                 c.getLastEffectiveContactAt(), c.getInteractionCount(), c.getEffectiveContactCount(), c.getScore(),
-                version(c.getVersion()));
+                version(c.getVersion()), c.getNewContactUntil(), c.getDebtorPersonType());
     }
 
     static AssignmentView assignment(CaseAssignment a) {
@@ -67,7 +67,7 @@ final class CollectionViews {
                 q.getCreditorId(), q.getPortfolioId(), q.getMinDaysOverdue(), q.getMaxDaysOverdue(),
                 amount(q.getMinBalance()), amount(q.getMaxBalance()), q.getMinScore(), q.getMaxScore(),
                 q.getOrdering().name(), q.getStrategy().name(), q.getMaxCasesPerUser(), q.getTeamIds(), q.getUpdatedAt(),
-                version(q.getVersion()), q.isVulnerableOnly());
+                version(q.getVersion()), q.isVulnerableOnly(), q.isNewContactOnly(), q.getPersonType());
     }
 
     static TabulationView tabulation(Tabulation t) {

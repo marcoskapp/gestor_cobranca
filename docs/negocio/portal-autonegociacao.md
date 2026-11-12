@@ -14,6 +14,18 @@ Segurança: a resposta ao pedido do código é sempre a mesma, exista ou não o 
 
 Antes de ver as dívidas, o devedor lê e confirma o aviso de privacidade do credor; a confirmação é registrada no compliance com a base legal vigente. Mudou o texto, todos confirmam de novo.
 
+### Empresas (CNPJ)
+
+* Empresa não tem data de nascimento: quando o credor pede a data de nascimento, a empresa informa os **4 últimos
+  números do contrato** (vale também para CNPJ sem cadastro, para não revelar quem é devedor).
+* Ao fechar o acordo, a empresa informa **nome e CPF de quem está negociando** e por onde podemos falar com ela. A tela
+  é a mesma quando o CPF confere e quando não confere. Se o CPF for de um representante com poder para negociar
+  (cadastrado na ficha do devedor → Representantes, dentro da validade), o acordo fecha e o termo registra quem aceitou
+  (nome, CPF mascarado e papel). Senão — ou se a empresa não tiver representante com poder, caso em que o portal já avisa
+  "um atendente vai concluir o acordo com você" — vira um pedido de atendimento com a condição escolhida.
+* Tentativas com CPF errado contam por empresa e por endereço de rede (5 e 20 em 30 minutos), mesmo em sessões novas;
+  bloqueado, o portal continua aceitando a declaração, mas o acordo é concluído por um atendente.
+
 ## O que o devedor vê e faz
 
 1. **Minhas dívidas**: só as carteiras que a operação habilitou no portal, com o valor atualizado de hoje (juros, multa e encargos pela política do credor) e as parcelas em aberto.

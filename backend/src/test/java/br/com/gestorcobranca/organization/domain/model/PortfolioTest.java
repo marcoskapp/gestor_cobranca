@@ -14,7 +14,7 @@ class PortfolioTest {
 
     private Portfolio portfolio() {
         return new Portfolio(UUID.randomUUID(), UUID.randomUUID(), "cart-01", "Carteira", null,
-                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 12, 31));
+                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 12, 31), null);
     }
 
     @Test
@@ -42,5 +42,20 @@ class PortfolioTest {
         p.transitionTo(PortfolioStatus.ACTIVE, null);
         assertThat(p.isOperableOn(LocalDate.of(2026, 12, 31))).isTrue();
         assertThat(p.isOperableOn(LocalDate.of(2027, 1, 1))).isFalse();
+    }
+
+    @Test
+    void regimeDefaultsToConsumerAndChangesOnlyWithReason() {
+        Portfolio p = portfolio();
+        assertThat(p.getRegime()).isEqualTo(PortfolioRegime.CONSUMER);
+        assertThat(p.getRegime().cdcFineCapApplies()).isTrue();
+        assertThat(p.getRegime().superIndebtednessApplies()).isTrue();
+        assertThatThrownBy(() -> p.changeRegime(PortfolioRegime.BUSINESS, " "))
+                .isInstanceOf(BusinessRuleException.class).extracting("code").isEqualTo("portfolio.regime_reason_required");
+        assertThat(p.changeRegime(PortfolioRegime.BUSINESS, "Contrato entre empresas")).isEqualTo(PortfolioRegime.CONSUMER);
+        assertThat(p.getRegime().cdcFineCapApplies()).isFalse();
+        assertThat(p.getRegime().superIndebtednessApplies()).isFalse();
+        assertThatThrownBy(() -> p.changeRegime(PortfolioRegime.BUSINESS, "de novo"))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("portfolio.regime_unchanged");
     }
 }

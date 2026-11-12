@@ -86,6 +86,30 @@ class ScoringMetrics {
         registry.counter("scoring.facts.ignored", "type", type, "reason", reason).increment();
     }
 
+    /** Fato da inteligência de contato gravado ({@code kind}: ATTEMPT, RESPONSE, READ; canal; com ou sem contato). */
+    void contactFact(String kind, String channel, boolean withContact) {
+        registry.counter("scoring.contact_facts", "kind", kind, "channel", channel, "contact",
+                withContact ? "known" : "none").increment();
+    }
+
+    /**
+     * Evento sem fato de contato ({@code no_legal_basis}, {@code duplicate}, {@code unknown_source}, {@code mirrored},
+     * {@code contact_mismatch}, {@code agreement_not_tracked}, {@code not_applicable}).
+     */
+    void contactFactIgnored(String reason) {
+        registry.counter("scoring.contact_facts.ignored", "reason", reason).increment();
+    }
+
+    /** Perfil de contato do devedor recalculado ({@code trigger}: event, retention). */
+    void contactProfileRebuilt(String trigger) {
+        registry.counter("scoring.contact_profile.rebuild", "trigger", trigger).increment();
+    }
+
+    /** Base das taxas da inteligência de contato recalculada (manutenção diária, por assessoria). */
+    void contactRateBaseRefreshed(Duration duration) {
+        Timer.builder("scoring.contact_rate_base.refresh").register(registry).record(duration);
+    }
+
     void eventConsumed(String type) {
         registry.counter("scoring.events.consumed", "type", type).increment();
     }

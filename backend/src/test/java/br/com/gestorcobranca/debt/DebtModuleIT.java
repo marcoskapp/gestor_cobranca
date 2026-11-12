@@ -20,6 +20,7 @@ import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases.Cont
 import br.com.gestorcobranca.debt.application.port.in.DebtorSheetQueries;
 import br.com.gestorcobranca.debt.application.port.in.DebtorSheetQueries.DebtorSummary;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
+import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorFilter;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorView;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases.CreditorCommand;
@@ -141,7 +142,7 @@ class DebtModuleIT extends IntegrationTest {
     }
 
     private DebtorRecord debtorRecord(String name, ContactRecord... contactRecords) {
-        return new DebtorRecord(CPF, name, LocalDate.of(1985, 3, 15), List.of(contactRecords));
+        return new DebtorRecord(CPF, name, LocalDate.of(1985, 3, 15), List.of(contactRecords), null);
     }
 
     private TitleRecord titleRecord(UUID creditorId, UUID portfolioId, UUID debtorId, String externalId, String principal,
@@ -216,7 +217,7 @@ class DebtModuleIT extends IntegrationTest {
         UUID debtorId = system(() -> ingestion.upsertDebtor(debtorRecord("Maria Silva")).id());
         system(() -> ingestion.upsertTitle(titleRecord(creditorA, portfolioA, debtorId, "A-1", "1000.00", null), Ids.newId()));
         // outro credor envia o mesmo CPF com outro nome: mesma pessoa
-        UUID sameDebtor = system(() -> ingestion.upsertDebtor(new DebtorRecord("52998224725", "MARIA S", null, List.of())).id());
+        UUID sameDebtor = system(() -> ingestion.upsertDebtor(new DebtorRecord("52998224725", "MARIA S", null, List.of(), null)).id());
         assertThat(sameDebtor).isEqualTo(debtorId);
         system(() -> ingestion.upsertTitle(titleRecord(creditorB, portfolioB, debtorId, "B-1", "500.00", null), Ids.newId()));
 
@@ -228,7 +229,7 @@ class DebtModuleIT extends IntegrationTest {
         DebtorView found = system(() -> debtors.findByDocument("529.982.247-25")).orElseThrow();
         assertThat(found.id()).isEqualTo(debtorId);
         assertThat(found.maskedDocument()).isEqualTo("***.982.247-**");
-        assertThat(system(() -> debtors.search(CPF, null, null, PageQuery.of(0, 10)).content()))
+        assertThat(system(() -> debtors.search(new DebtorFilter(CPF, null, null, false, null), PageQuery.of(0, 10)).content()))
                 .extracting(DebtorView::id).containsExactly(debtorId);
 
         DebtorSummary summary = system(() -> sheets.summary(debtorId));
@@ -250,7 +251,7 @@ class DebtModuleIT extends IntegrationTest {
         UUID titleB = system(() -> ingestion.upsertTitle(titleRecord(creditorB, portfolioB, debtorId, "B-1", "500.00", null),
                 Ids.newId()).id());
         UUID onlyBDebtor = system(() -> {
-            UUID id = ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of())).id();
+            UUID id = ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of(), null)).id();
             ingestion.upsertTitle(titleRecord(creditorB, portfolioB, id, "B-2", "200.00", null), Ids.newId());
             return id;
         });
@@ -262,7 +263,7 @@ class DebtModuleIT extends IntegrationTest {
         assertThatThrownBy(() -> asUserOf(creditorA, () -> titles.suspend(titleB, "x", null)))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        assertThat(asUserOf(creditorA, () -> debtors.search(null, null, null, PageQuery.of(0, 50)).content()))
+        assertThat(asUserOf(creditorA, () -> debtors.search(new DebtorFilter(null, null, null, false, null), PageQuery.of(0, 50)).content()))
                 .extracting(DebtorView::id).containsExactly(debtorId);
         assertThatThrownBy(() -> asUserOf(creditorA, () -> debtors.get(onlyBDebtor)))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -417,12 +418,12 @@ class DebtModuleIT extends IntegrationTest {
     void inactiveDebtorQueryReturnsOnlyDebtorsWithoutTitlesInCollection() {
         UUID open = system(() -> ingestion.upsertDebtor(debtorRecord("Maria Silva")).id());
         system(() -> ingestion.upsertTitle(titleRecord(creditorA, portfolioA, open, "A-1", "100.00", null), Ids.newId()));
-        UUID settled = system(() -> ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of())).id());
+        UUID settled = system(() -> ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of(), null)).id());
         UUID settledTitle = system(() -> ingestion.upsertTitle(titleRecord(creditorB, portfolioB, settled, "B-1", "50.00",
                 null), Ids.newId()).id());
         system(() -> ledgerPort.applyPayment(new PaymentApplication(settledTitle, Ids.newId(),
                 ComponentAmounts.principalOnly(new BigDecimal("50.00")), Instant.now())));
-        UUID withoutTitles = system(() -> ingestion.upsertDebtor(new DebtorRecord("39053344705", "Ana", null, List.of())).id());
+        UUID withoutTitles = system(() -> ingestion.upsertDebtor(new DebtorRecord("39053344705", "Ana", null, List.of(), null)).id());
         system(() -> jdbcTemplate.update("update debt.debtor set created_at = now() - interval '2 years'"));
         system(() -> jdbcTemplate.update("update debt.debt_title set updated_at = now() - interval '2 years'"));
         Instant cutoff = Instant.now().minusSeconds(365L * 86400);

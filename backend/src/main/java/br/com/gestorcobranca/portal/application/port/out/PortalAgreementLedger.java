@@ -21,8 +21,12 @@ public interface PortalAgreementLedger {
 
     Set<UUID> agreementIdsOf(UUID debtorId, UUID creditorId);
 
+    /**
+     * @param representativeId   representante da empresa que aceitou (devedor PJ; nulo para pessoa física)
+     * @param representativeRole papel do representante (MANAGING_PARTNER, ATTORNEY_IN_FACT, OTHER)
+     */
     record Entry(UUID agreementId, UUID sessionId, UUID configurationId, UUID creditorId, UUID portfolioId,
                  UUID debtorId, UUID proposalId, int installments, BigDecimal totalAmount, Instant formalizedAt,
-                 Instant firstPaidAt) {
+                 Instant firstPaidAt, UUID representativeId, String representativeRole) {
     }
 }

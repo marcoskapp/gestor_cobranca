@@ -26,9 +26,9 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 
 | Domínio | Eventos |
 | --- | --- |
-| Estrutura | `creditor.created`, `portfolio.created`, `portfolio.status_changed`, `policy.published` |
+| Estrutura | `creditor.created`, `portfolio.created` (`regime`), `portfolio.status_changed`, `portfolio.regime_changed` (`from`, `to` — consumo × empresarial, cobrança B2B §6), `policy.published` |
 | Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled`, `import.format_confirmed`, `import.totals_matched`, `import.totals_mismatch`, `import.alerts_detected`, `import.outliers_reviewed`, `import.review_committed`, `import.review_approved`, `import.review_rejected`, `pdf_import.received`, `pdf_import.map_proposed`, `pdf_import.map_reused`, `pdf_import.map_edited`, `pdf_import.map_approved`, `pdf_import.imported`, `pdf_import.discarded`, `pdf_import.mapping_failed` |
-| Dívida | `debtor.consolidated`, `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching`, `title.amount_adjustment_requested`, `title.amount_adjusted`, `title.amount_adjustment_rejected`, `title.amount_divergence_detected`, `title.amount_divergence_resolved` |
+| Dívida | `debtor.consolidated`, `debtor.insolvency_registered`, `debtor.insolvency_converted`, `debtor.insolvency_ended` (§3.2), `contact.received_new`, `contact.first_attempt` (§3.2b), `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching`, `title.amount_adjustment_requested`, `title.amount_adjusted`, `title.amount_adjustment_rejected`, `title.amount_divergence_detected`, `title.amount_divergence_resolved` |
 | Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `interaction.follow_up`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.handoff_requested`, `proposal.approved`, `proposal.rejected`, `proposal.accepted`, `proposal.expired`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `agreement.break_suspended`, `agreement.break_suspension_ended`, `installment.overdue`, `installment.paid` |
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.rejected`, `payment.reconciled`, `payment.reallocated`, `payment.divergence`, `payment.reversed` |
@@ -41,7 +41,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Jurídico (legal) | `legal.matter_referred`, `legal.stage_changed`, `legal.matter_assigned`, `legal.viability_assessed`, `legal.authorization_requested`, `legal.authorization_decided`, `legal.measure_registered`, `legal.measure_status_changed`, `legal.lawsuit_filed`, `legal.movement_recorded`, `legal.recovery_recorded`, `legal.deadline_created`, `legal.deadline_approaching`, `legal.deadline_met`, `legal.deadline_missed`, `legal.hearing_scheduled`, `legal.hearing_held`, `legal.expense_recorded`, `legal.expense_cancelled`, `legal.expense_reimbursed`, `legal.agreement_linked`, `legal.agreement_broken`, `legal.titles_settled`, `legal.prescription_alert`, `legal.matter_closed` |
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
 | Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`, `assistant.pix_issued`, `assistant.pix_denied`, `assistant.pix_suggested`, `assistant.pix_delivery`, `assistant.pix_paid`; `policy.published` com `policyKind = assistant` |
-| Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.dispute_registered`, `portal.configuration_changed` (§3.10) |
+| Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.dispute_registered`, `portal.representative_declared`, `portal.configuration_changed` (§3.10) |
 | Chat de suporte (helpdesk) | `helpdesk.question_answered`, `helpdesk.question_unanswered`, `helpdesk.feedback_recorded`, `helpdesk.ticket_drafted`, `helpdesk.ticket_opened`, `helpdesk.ticket_cancelled` (§3.12) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 | Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
@@ -93,9 +93,25 @@ Nenhum evento leva placa, RENAVAM, chassi, matrícula, documento ou nome: apenas
 | `title.amount_adjustment_rejected` | correção recusada por quem aprova | os mesmos + `hoursPending` |
 | `title.amount_divergence_detected` | carga com principal diferente do corrigido manualmente (correção mantida) | `divergenceId`, `occurrences`, `importBatchId`; `amount` = informado − corrigido |
 | `title.amount_divergence_resolved` | divergência decidida (`KEPT_MANUAL`, `ACCEPTED_CREDITOR`) ou encerrada pela carga (`RESOLVED_BY_CREDITOR`) | `divergenceId`, `decision`, `daysOpen`, `occurrences` |
+| `debtor.insolvency_registered` | recuperação judicial, extrajudicial ou falência registrada para o devedor PJ (cobrança B2B §7) | `kind`, `daysSinceFiled`; `debtorId`; sem número do processo nem texto livre |
+| `debtor.insolvency_converted` | recuperação judicial convolada em falência | `from`, `to`, `daysInRecovery` |
+| `debtor.insolvency_ended` | processo encerrado (a cobrança volta a ser avaliada) | `kind`, `activeDays` |
 | `title.prescription_approaching` | varredura diária: data estimada entrou na janela da regra (uma vez por data) | `claim` (`EXECUTION`/`COLLECTION`), `instrumentType`, `executiveTitle`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `titleStatus`; `amount` = saldo em aberto |
 
 Auditoria da correção de valor (decisão 810): `title_amount.requested`, `adjusted`, `applied`, `rejected`, `cancelled`, `divergence_detected`, `divergence_resolved`; do limite da assessoria: `title_amount.settings_updated` (redução ou manutenção do limite, que vale na hora; `discardedProposal` quando descarta uma proposta de aumento em aberto), `title_amount.settings_proposed` (aumento proposto, que **não** muda o limite vigente: antes e depois de `proposedThreshold`, mais `approvalThreshold` vigente), `title_amount.settings_confirmed` (outra pessoa confirmou: antes e depois de `approvalThreshold`, `proposedBy`) e `title_amount.settings_proposal_expired` (job diário `debt.amount_threshold_proposal_expiry`, ator sistema: proposta vencida sem confirmação descartada; antes e depois de `proposedThreshold`, mais `approvalThreshold` vigente, `proposedBy` e `proposedAt`). `title_amount.requested` leva `cumulativeLimit` (limite acumulado por título).
+
+### 3.2b Atributos dos eventos de contato recebido na carga (debt)
+
+Sem valor de contato nem documento: só ids, tipos e datas ([desenho/contatos-recebidos.md](desenho/contatos-recebidos.md) §5).
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `contact.received_new` | devedor que já existia recebeu contato novo numa carga (um por devedor e linha que trouxe contato novo) | `debtorId`; `referenceType = import_batch`, `referenceId` = carga; quantidade por tipo: `phone`, `email`, `address` |
+| `contact.first_attempt` | primeira tentativa por um contato (qualquer contato, novo ou antigo — base da comparação novo × antigo da inteligência de contato) | `debtorId`; `referenceType = debtor_contact`, `referenceId` = contato; `channel` (do uso: `PHONE`, `WHATSAPP`, `EMAIL`, `SMS`…); `contactType`, `receivedAfterRegistration`, `effective` |
+
+Auditoria: `debtor_contact.created` ganha `receivedAfterRegistration`; alteração do prazo da janela →
+`contact_novelty_settings.updated` (antes e depois de `windowDays`, `customizedBefore`). O reenvio (mesmo contato numa
+carga posterior) só atualiza `last_received_at`/`last_import_batch_id` e conta na métrica `debt.contacts.received{kind=resent}`.
 
 ### 3.2a Atributos dos eventos de ingestão
 
@@ -401,7 +417,8 @@ Sem documento, contato, nome ou IP: só ids, canal `PORTAL`, valores e códigos.
 | `portal.agreement_formalized` | acordo fechado no portal | `installments`, `concessionLevel`, `discountAmount`, `origin` (`PORTAL_SELF_SERVICE`), `method`; `durationMs` = desde a abertura da sessão; `amount` = total |
 | `portal.pix_issued` | Pix da parcela emitido ou reaproveitado (2ª via) | `installmentNumber`, `reused`; `amount` |
 | `portal.payment_confirmed` | primeiro pagamento confirmado de acordo fechado no portal | `installments`, `method`; `durationMs` = desde a formalização; `amount` |
-| `portal.service_requested` | pedido de atendimento humano | `reason` (`TALK_TO_AGENT`, `DISPUTE`, `CANNOT_AFFORD`, `OTHER`), `preferredChannel`, `withNote` |
+| `portal.service_requested` | pedido de atendimento humano | `reason` (`TALK_TO_AGENT`, `DISPUTE`, `CANNOT_AFFORD`, `OTHER`, `COMPANY_ACCEPTANCE` = aceite de empresa sem representante confirmado), `preferredChannel`, `withNote` |
+| `portal.representative_declared` | empresa informou quem está negociando (cobrança B2B) | `confirmed` (só isso: nunca o CPF, o nome ou o motivo); referência `portal_session` |
 | `portal.dispute_registered` | contestação do portal registrada no collection (job `portal.dispute_intake`) | `outcome` (`OPENED`, `ALREADY_OPEN`, `NO_CASE`, `NO_TITLES`), `disputeType`, `opened`, `secondsToRegister`; referência `portal_service_request` |
 | `portal.configuration_changed` | configuração do portal criada/alterada | `operation`, `enabled`, `portfolios`, `knowledgeChallenge`, `privacyNoticeVersion`, `noticeChanged` |
 
@@ -621,7 +638,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `collection.disputes.evidence_link{outcome}` | downloads do link de evidências (`served`, `expired`, `exhausted`, `unknown`, `malformed`, `rate_limited`) — recusas em alta podem indicar varredura |
 | `integration.calls{provider=smtp,operation=dispute_mail,outcome}` | chamadas ao SMTP dos e-mails de contestação |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |
-| `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos (inclui `case_score`, do scoring) e falhas dos agendamentos (alarme) |
+| `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos (inclui `case_score`, do scoring, `debtor_insolvency` e `contact_novelty`, do debt) e falhas dos agendamentos (alarme) |
 | `ingestion.batches.received{source,mode}`, `ingestion.batches.finished{source,mode,status}`, `ingestion.batch.duration{source,mode,status}` | volume e duração dos lotes de importação |
 | `ingestion.files.rejected{reason}` | envios recusados no recebimento (tamanho, tipo pelo conteúdo, duplicidade, chave de idempotência…) |
 | `ingestion.rows{mode,outcome}`, `ingestion.titles{outcome}`, `ingestion.issues{severity}`, `ingestion.issues.stored` | linhas válidas/rejeitadas, títulos criados/atualizados/inalterados/não gravados/suspensos, ocorrências |
@@ -682,10 +699,14 @@ fields @timestamp, tenantId, callId, instance, process
 | `debt.title_amount.threshold_proposals_expired` | propostas de aumento do limite descartadas por vencer sem confirmação (`proposal-validity`, padrão 15 dias) |
 | `debt.title_amount.divergences{outcome}` | divergências com a carga: `detected`, `seen_again`, `KEPT_MANUAL`, `ACCEPTED_CREDITOR`, `RESOLVED_BY_CREDITOR` |
 | `debt.prescription.interruptions{type,origin}` | interrupções de prescrição registradas |
+| `debt.insolvency.changes{action,kind}` | processos de insolvência `registered`/`converted`/`ended` por tipo (sem devedor) |
 | `debt.prescription.recalculated{trigger}` | linhas de prescrição criadas/alteradas/removidas por recálculo (`IMPORT`, `CLASSIFICATION`, `INTERRUPTION`, `RULE_CHANGE`, `RECONCILIATION`); `RECONCILIATION` contínuo indica recálculo que não está acontecendo na origem |
 | `debt.prescription.alerts{claim,instrumentType}` | alertas de prescrição próxima emitidos |
 | `debt.prescription.scan.duration{phase}` | duração da varredura diária por fase (`reconcile`, `alert`) |
-| `debt.jobs.failures{job}` | falhas dos agendamentos do módulo debt (alarme): `prescription_daily`, `debt.amount_threshold_proposal_expiry` |
+| `debt.jobs.failures{job}` | falhas dos agendamentos do módulo debt (alarme): `prescription_daily`, `debt.amount_threshold_proposal_expiry`, `debt.contact_novelty_sweep`, `debt.document_root_backfill` (raiz do CNPJ de cadastros anteriores; log INFO com a quantidade preenchida por assessoria) |
+| `debt.contacts.received{kind}` | contatos recebidos em carga: `new` (contato novo para devedor já existente, abre a janela de novidade), `resent` (reenvio de contato que o devedor já tinha) |
+| `debt.contacts.usage_ignored{reason}` | uso de contato descartado pelo consumidor `debt.contact-usage`: `contact_mismatch` (o contato do evento não é do devedor do evento — investigar o produtor), `contact_not_found` (contato removido, ex.: anonimização) |
+| `debt.contacts.novelty_sweep{outcome}` | varredura diária da novidade vencida (`app.debt.contact-novelty.sweep-cron`, 03:40): `published` (devedores com a novidade republicada), `failed` (assessorias com falha) |
 | `legal.matters.referred{origin}`, `legal.matters.transitions{from,to}` | indicações e ciclo dos casos jurídicos |
 | `legal.eligibility.evaluations{outcome}`, `legal.eligibility.reasons{reason}` | avaliações de elegibilidade (`eligible`, `ineligible`, `already_open`, `cooldown`, `case_status`, `no_rule`) e motivos |
 | `legal.viability.assessments{viable,economicallyViable}`, `legal.authorizations{decision}` | triagem e decisões do credor |
@@ -757,7 +778,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `campaign.replies{transition}`, `campaign.attributions{kind}`, `campaign.cadence.exhausted{purpose}` | respostas (RB07), resultados atribuídos e réguas esgotadas |
 | `campaign.audience.refreshes{trigger,outcome}`, `campaign.segment.evaluation{operation}` (p50/p95/p99) | atualização do read model e tempo de avaliação de segmentos |
 | `campaign.experiment.assignments{arm}` | atribuições de braço (controle × variante) |
-| `campaign.events.consumed{type}`, `campaign.jobs.failures{job}` | consumo de eventos e falhas de agendamentos/etapas (alarme) |
+| `campaign.events.consumed{type}`, `campaign.jobs.failures{job}` | consumo de eventos (inclui `contact_novelty`, do debt) e falhas de agendamentos/etapas (alarme) |
 | `telephony.calls{direction,origin,result}` | chamadas encerradas que chegaram ao provedor, por resultado (base do ASR: atendidas ÷ discadas) |
 | `telephony.dial.requests{origin,outcome}` | pedidos de discagem: `accepted`, `rejected`, `transient`, `blocked`, `exhausted` |
 | `telephony.calls.blocked{origin,stage,reason}` | negações do porteiro por motivo (`precheck`/`dial`) |
@@ -781,7 +802,8 @@ fields @timestamp, tenantId, callId, instance, process
 | `telephony.softphone.tokens{provider,outcome}` | tokens do softphone de navegador (`issued`, `failed`); log técnico com ids, nunca o token |
 | `portal.funnel{step}` | funil do portal por sessão: `ACCESS`, `SIMULATION`, `ACCEPTANCE`, `PIX_ISSUED`, `PAYMENT_CONFIRMED` (conversão = etapa ÷ anterior) |
 | `portal.access.code_requests{channel,outcome}`, `portal.access.logins{method,outcome}` | pedidos de código (`SENT`, `DECOY` = documento sem cadastro, `NOT_DELIVERED`, `DAILY_CAP` = teto diário de códigos do documento atingido — 429 até a meia-noite, sem desafio, documento com ou sem cadastro, decisões 1083 e 1090; no log de acesso, `dailyCap=true` sem `challengeId`) e verificações (`SUCCESS`, `INVALID`, `KNOWLEDGE_REQUIRED`); alta de `INVALID`/`DECOY` = varredura |
-| `portal.access.locks{key,event}`, `portal.access.rate_limited` | bloqueios progressivos aplicados/recusados por documento ou IP e limite por IP (alarme sugerido: > 50 em 15 min) |
+| `portal.access.locks{key,event}`, `portal.access.rate_limited` | bloqueios progressivos aplicados/recusados por documento ou IP e limite por IP (alarme sugerido: > 50 em 15 min); na confirmação do representante da empresa, `key` = `REP_DEBTOR`/`REP_IP` (aplicado) ou `REPRESENTATIVE` (recusado) |
+| `portal.representative{outcome}` | confirmação de quem negocia pela empresa: `CONFIRMED`, `UNCONFIRMED`, `LOCKED` (alta de `UNCONFIRMED` concentrada = tentativa de adivinhar CPF) |
 | `portal.access.links{channel,outcome}`, `portal.sessions{event}` | links emitidos e ciclo das sessões (`OPENED`, `REFRESHED`, `LOGOUT`, `REVOKED`, `EXPIRED`) |
 | `portal.offers.refused{reason}`, `portal.agreements.formalized{plan}`, `portal.pix{outcome}` | condições recusadas no servidor (`not_offered`, `guard_*`), acordos (`CASH`/`INSTALLMENTS`) e Pix (`ISSUED`, `REUSED`, `FAILED`) |
 | `portal.service_requests{reason,outcome}`, `portal.job.failures{job}` | pedidos à fila humana (`CREATED`, `FORWARDED`, `UNDELIVERED` — alarme se crescer) e falhas de jobs (`portal.session_expiry`, `portal.retention`) |
@@ -795,7 +817,11 @@ fields @timestamp, tenantId, callId, instance, process
 | `scoring.monitoring.psi{scope}`, `scoring.monitoring.alerts{level,kind}` | PSI do score e das features; alertas de deriva (alarme em `level=ALERT`) |
 | `scoring.outcomes.resolved`, `scoring.cohorts.measured` | desfechos apurados e safras de recuperado × esperado publicadas |
 | `scoring.facts.recorded{kind}`, `scoring.facts.ignored{type,reason}`, `scoring.events.consumed{type}` | fatos gravados; ignorados (`disabled` = sem base legal, `no_portfolio`, `duplicate`, `not_applicable`) |
-| `scoring.retention.purged{what}`, `scoring.jobs.failures{job}` | retenção (`facts`, `snapshots`; prazo e origem `TENANT`/`SYSTEM_DEFAULT` no log técnico INFO `Retenção de fatos e snapshots do score executada`) e falhas de agendamento/execução interrompida (alarme) |
+| `scoring.contact_facts{kind,channel,contact}` | fatos da inteligência de contato gravados (`kind`: `ATTEMPT`, `RESPONSE`, `READ`; canal `PHONE`/`WHATSAPP`/`SMS`/`EMAIL`/`OTHER`; `contact`: `known` ou `none` — evento sem contato identificado) |
+| `scoring.contact_facts.ignored{reason}` | eventos sem fato de contato: `no_legal_basis`, `duplicate`, `unknown_source` (interação sem origem ou de versão anterior), `mirrored` (interação de telefonia/comunicação, contada pelo evento próprio, ou do assistente, cuja conversa já entrou como resposta), `contact_mismatch` (contato de outro devedor; também WARN técnico com ids), `agreement_not_tracked` (acordo cujo primeiro evento visto não é a formalização: fica sem desfecho), `not_applicable` |
+| `scoring.contact_profile.rebuild{trigger}` | perfis de contato recalculados por devedor (`event`, `retention`) |
+| `scoring.contact_rate_base.refresh` (timer) | recálculo diário da base das taxas da inteligência de contato por assessoria (manutenção, processo `scoring.contact_rate_base`; log técnico INFO `Base das taxas da inteligência de contato recalculada` com `rows` e `durationMs`) |
+| `scoring.retention.purged{what}`, `scoring.jobs.failures{job}` | retenção (`facts`, `snapshots`, `contact_facts`, `contact_outcomes` — esta última conta desfechos de acordo que ficaram sem identificação; log técnico INFO `Retenção da inteligência de contato executada` com prazo e origem, um por rodada que descartou algo; WARN `Teto de rodadas atingido…` quando a assessoria passa de 500 rodadas); prazo e origem `TENANT`/`SYSTEM_DEFAULT` no log técnico INFO `Retenção de fatos e snapshots do score executada`) e falhas de agendamento/execução interrompida (alarme) |
 | `analytics.query.duration{report,outcome}` (p50/p95/p99), `analytics.queries.slow{report}` | latência das consultas dos painéis e consultas acima de `app.analytics.slow-query-threshold` (2 s; WARN no log técnico com relatório e agrupamento) |
 | `analytics.refresh.duration{dataset,outcome}`, `analytics.refresh.rows{dataset}`, `analytics.refresh.cycle.duration{trigger}`, `analytics.refresh.tenants{trigger,outcome}` | reconstrução dos snapshots dos painéis por conjunto e ciclo agendado (carimbo "dados até") |
 | `analytics.refresh.failures{trigger}` | falha ao atualizar os painéis de uma assessoria (alarme) |

@@ -12,6 +12,7 @@ import {
   AlertType,
   AlertView,
   AnalysisView,
+  BatchContactReceipt,
   BatchFilter,
   BreakdownRow,
   CanonicalLayoutView,
@@ -57,6 +58,11 @@ export class ImportBatchesApi {
 
   get(id: string): Observable<ImportBatchView> {
     return this.http.get<ImportBatchView>(`${BASE}/batches/${id}`);
+  }
+
+  /** Devedores que receberam contato novo na carga (selo "Novo"). Falha não interrompe o relatório. */
+  contactReceipt(id: string): Observable<BatchContactReceipt> {
+    return this.http.get<BatchContactReceipt>(`${BASE}/batches/${id}/contact-receipt`, { context: silentErrorContext() });
   }
 
   issues(id: string, severity: IssueSeverity | null, page: PageRequest): Observable<PageResponse<ImportIssueView>> {

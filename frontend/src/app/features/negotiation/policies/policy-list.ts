@@ -53,7 +53,8 @@ interface PolicyFilter {
         }
         <p class="app-dialog-message">
           A política começa como rascunho com o <strong>modelo de mercado</strong> (juros 1% a.m., multa 2%, honorários 10%, até 12 pagamentos,
-          escada de 4 níveis). Ajuste os parâmetros às condições do credor antes de publicar.
+          escada de 4 níveis), pensado para carteira de consumo (CDC). Para carteira empresarial, use os encargos do contrato.
+          Ajuste os parâmetros às condições do credor antes de publicar.
         </p>
         <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor" [single]="true" hint="Cada credor tem uma única linha de versões." />
         @if (form.controls.creditor.touched && form.controls.creditor.invalid) {

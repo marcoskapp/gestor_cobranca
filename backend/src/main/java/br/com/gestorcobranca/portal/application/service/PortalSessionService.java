@@ -107,14 +107,19 @@ class PortalSessionService implements PortalSessionUseCases {
     private SessionView view(Current c) {
         PortalSession s = c.session();
         String firstName;
+        boolean company;
         try {
-            firstName = firstName(debts.debtor(s.getDebtorId()).name());
+            var debtor = debts.debtor(s.getDebtorId());
+            company = "COMPANY".equals(debtor.personType());
+            // empresa: o nome que ela usa (fantasia) ou a razão social; pessoa física: só o primeiro nome
+            firstName = company ? (debtor.tradeName() != null ? debtor.tradeName() : debtor.name())
+                    : firstName(debtor.name());
         } catch (RuntimeException e) {
             throw AuthenticationFailedException.invalidToken();
         }
         return new SessionView(s.getId(), c.config().getSlug(), c.config().getDisplayName(), firstName, s.getMethod().name(),
                 s.getExpiresAt(), properties.session().idleTimeout().toSeconds(),
-                s.privacyAcknowledged(c.config().getPrivacyNoticeVersion()), c.config().getPrivacyNoticeVersion());
+                s.privacyAcknowledged(c.config().getPrivacyNoticeVersion()), c.config().getPrivacyNoticeVersion(), company);
     }
 
     /** Primeiro nome com inicial maiúscula (minimização: a tela não precisa do nome completo). */

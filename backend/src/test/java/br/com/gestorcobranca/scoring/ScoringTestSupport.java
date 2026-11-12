@@ -196,7 +196,7 @@ abstract class ScoringTestSupport extends IntegrationTest {
         manager2 = user("Gestor H", "h", roleIds.get(DefaultRoles.GESTOR), true, Set.of());
         team = system(() -> teams.create(new TeamCommand("Equipe 1", null, manager, Set.of(operatorX))).id());
         queueA = asManager(manager, () -> queues.create(new QueueCommand("BANCO_A", "Fila A", null, 10, creditorA, null,
-                null, null, null, null, null, null, "HIGHEST_SCORE", "PULL", null, Set.of(team), null)).id());
+                null, null, null, null, null, null, "HIGHEST_SCORE", "PULL", null, Set.of(team), null, null, null)).id());
         awaitTrue("catálogo de tabulações", () -> count("select count(*) from collection.tabulation") >= 12);
     }
 
@@ -235,7 +235,7 @@ abstract class ScoringTestSupport extends IntegrationTest {
 
     UUID debtor(String cpf) {
         return system(() -> ingestion.upsertDebtor(new DebtorRecord(cpf, "Devedor " + cpf.substring(0, 3),
-                LocalDate.of(1985, 3, 15), List.of(new ContactRecord("PHONE", "(11) 98765-4321", "MOBILE", true)))).id());
+                LocalDate.of(1985, 3, 15), List.of(new ContactRecord("PHONE", "(11) 98765-4321", "MOBILE", true)), null)).id());
     }
 
     /** Carga de um título vencido do devedor na carteira, seguida da sincronização dos casos. */

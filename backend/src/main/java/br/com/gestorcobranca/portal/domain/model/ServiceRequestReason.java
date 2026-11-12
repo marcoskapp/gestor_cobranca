@@ -11,13 +11,19 @@ public enum ServiceRequestReason {
     DISPUTE,
     /** Nenhuma condição do portal cabe no orçamento. */
     CANNOT_AFFORD,
-    OTHER;
+    OTHER,
+    /**
+     * Devedor pessoa jurídica escolheu uma condição, mas quem negocia não foi confirmado como representante com poder
+     * para negociar (ou a empresa não tem representante cadastrado): um atendente conclui o acordo (B4). Criado pelo
+     * próprio portal no aceite, nunca escolhido pelo devedor.
+     */
+    COMPANY_ACCEPTANCE;
 
     /** Motivo estável do {@code HandoffRequested} (contrato do communication). */
     public String handoffReason() {
         return switch (this) {
             case DISPUTE -> "DISPUTE";
-            case CANNOT_AFFORD -> "PORTAL_NEGOTIATION";
+            case CANNOT_AFFORD, COMPANY_ACCEPTANCE -> "PORTAL_NEGOTIATION";
             default -> "DEBTOR_REQUESTED_HUMAN";
         };
     }

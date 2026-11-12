@@ -6,6 +6,8 @@ import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.compliance.ContactPolicyPublished;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
 import br.com.gestorcobranca.shared.events.compliance.VulnerabilityMarkerChanged;
+import br.com.gestorcobranca.shared.events.debt.DebtorContactNoveltyChanged;
+import br.com.gestorcobranca.shared.events.debt.DebtorInsolvencyChanged;
 import br.com.gestorcobranca.shared.events.debt.PortfolioLoaded;
 import br.com.gestorcobranca.shared.events.debt.TitleStatusChanged;
 import br.com.gestorcobranca.shared.events.identity.TenantProvisioned;
@@ -79,6 +81,19 @@ class CollectionEventListeners extends TenantEventListener {
     @TransactionalEventListener
     void on(VulnerabilityMarkerChanged event) {
         handleOnce(event, "collection.vulnerability-marker", () -> reactions.vulnerabilityMarkerChanged(event));
+    }
+
+    /** Recuperação judicial, extrajudicial ou falência da empresa devedora (cobrança B2B §7). */
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(DebtorInsolvencyChanged event) {
+        handleOnce(event, "collection.debtor-insolvency", () -> reactions.debtorInsolvencyChanged(event));
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(DebtorContactNoveltyChanged event) {
+        handleOnce(event, "collection.contact-novelty", () -> reactions.contactNoveltyChanged(event));
     }
 
     @Async(AsyncConfig.EVENT_EXECUTOR)

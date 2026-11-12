@@ -40,7 +40,7 @@ const AXIS_COUNT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
         <div class="cc__table-wrap">
           <table class="cc__table">
             <thead>
-              <tr><th scope="col">Período</th><th scope="col" class="num">{{ series().name }}</th>@if (hasNotes()) {<th scope="col">Observação</th>}</tr>
+              <tr><th scope="col">{{ categoryHeader() }}</th><th scope="col" class="num">{{ series().name }}</th>@if (hasNotes()) {<th scope="col">Observação</th>}</tr>
             </thead>
             <tbody>
               @for (r of rows(); track r.key) {
@@ -98,6 +98,8 @@ export class ColumnChart {
   readonly summary = input.required<string>();
   readonly series = input.required<ChartSeries>();
   readonly rows = input.required<ChartRow[]>();
+  /** Cabeçalho da coluna de categorias na tabela equivalente (padrão: período, como nas séries temporais). */
+  readonly categoryHeader = input('Período');
   /** Eixo em reais (marcas compactas "R$ 1,2 mil") ou contagem. */
   readonly money = input(true);
   /** Casas decimais das marcas do eixo de contagem (índices pequenos, como PSI ou AUC, pedem 2). */

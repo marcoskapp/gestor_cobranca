@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -55,11 +56,12 @@ class DebtorSheetService implements DebtorSheetQueries {
     public DebtorSummary summary(UUID debtorId) {
         Debtor debtor = visibility.requireVisible(debtorId);
         LocalDate today = DebtViews.today(clock);
+        Instant now = Instant.now(clock);
 
         List<ContactSummary> usableContacts = contacts.findByDebtorIdOrderByTypeAscPriorityAscCreatedAtAsc(debtorId).stream()
                 .filter(c -> c.getStatus().isUsable())
                 .map(c -> new ContactSummary(c.getId(), c.getType().name(), c.maskedValue(), c.getLabel().name(),
-                        c.isWhatsapp(), c.getStatus().name(), c.getPriority()))
+                        c.isWhatsapp(), c.getStatus().name(), c.getPriority(), DebtViews.receipt(c, now)))
                 .toList();
 
         List<DebtTitle> visibleTitles = titles.findByDebtor(debtorId, visibility.allowedCreditors());

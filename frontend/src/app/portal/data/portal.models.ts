@@ -48,6 +48,23 @@ export interface SessionView {
   idleTimeoutSeconds: number;
   privacyAcknowledged: boolean;
   privacyNoticeVersion: number;
+  /** Devedor pessoa jurídica: `firstName` traz o nome fantasia (ou a razão social). */
+  company: boolean;
+}
+
+/** Quem negocia pela empresa (devedor pessoa jurídica). A resposta não diz se o CPF conferiu. */
+export interface RepresentativeStatus {
+  required: boolean;
+  declared: boolean;
+  declaredName: string | null;
+  /** A empresa não tem representante com poder para negociar: um atendente conclui o acordo. */
+  humanCompletion: boolean;
+}
+
+/** CPF e nome de quem está negociando — nunca guardar no navegador. */
+export interface DeclareRepresentativeRequest {
+  cpf: string;
+  name: string;
 }
 
 export interface TitleSummary {
@@ -122,6 +139,8 @@ export interface AcceptRequest {
   downPayment?: number | null;
   firstDueDate?: string | null;
   termsAccepted: boolean;
+  /** Empresa: por onde o atendente fala se precisar concluir o acordo. */
+  preferredChannel?: PortalChannel | null;
 }
 
 export type InstallmentStatus = 'OPEN' | 'PAID' | 'PARTIALLY_PAID' | 'OVERDUE' | 'CANCELLED';
@@ -182,9 +201,12 @@ export interface PixView {
 }
 
 export interface AcceptanceResult {
-  agreement: AgreementDetail;
+  /** Nulo quando o aceite da empresa virou atendimento (`serviceRequest`). */
+  agreement: AgreementDetail | null;
   pix: PixView | null;
   pixError: string | null;
+  /** Empresa sem representante confirmado: um atendente conclui o acordo. */
+  serviceRequest?: ServiceRequestView | null;
 }
 
 export type ServiceReason = 'TALK_TO_AGENT' | 'DISPUTE' | 'CANNOT_AFFORD' | 'OTHER';
@@ -206,7 +228,8 @@ export interface ServiceRequestBody {
 export interface ServiceRequestView {
   id: string;
   protocol: string;
-  reason: ServiceReason;
+  /** `COMPANY_ACCEPTANCE`: aceite da empresa encaminhado a um atendente (criado pelo portal, nunca escolhido). */
+  reason: ServiceReason | 'COMPANY_ACCEPTANCE';
   preferredChannel: PortalChannel;
   status: 'OPEN' | 'FORWARDED' | 'UNDELIVERED';
   createdAt: string;

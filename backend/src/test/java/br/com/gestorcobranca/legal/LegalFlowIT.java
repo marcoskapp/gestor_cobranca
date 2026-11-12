@@ -280,7 +280,7 @@ class LegalFlowIT extends LegalTestSupport {
     /** Número CNJ válido do ano informado (TJSP, foro central). */
     static String cnj(int year) {
         String sequential = "0001234";
-        String dd = br.com.gestorcobranca.legal.domain.model.CnjNumber.checkDigitsFor(sequential, String.valueOf(year),
+        String dd = br.com.gestorcobranca.shared.domain.CnjNumber.checkDigitsFor(sequential, String.valueOf(year),
                 "8", "26", "0100");
         return sequential + "-" + dd + "." + year + ".8.26.0100";
     }

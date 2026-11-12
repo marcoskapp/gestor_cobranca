@@ -25,6 +25,7 @@ import { RestrictionsApi } from '../../../compliance/data/compliance.api';
 import { CreditorNames, PortfolioNames } from '../../../organization/data/organization.lookups';
 import { PortalAdminApi } from '../../../portal-admin/data/portal-admin.api';
 import { OverdueBadge } from '../../components/overdue-badge';
+import { ContactNoveltyBadge } from '../../components/contact-novelty-badge';
 import { DebtorContactsApi, DebtorsApi, TitlesApi } from '../../data/debt.api';
 import {
   CONTACT_LABEL_LABELS,
@@ -32,6 +33,7 @@ import {
   CONTACT_TYPE_ICONS,
   CONTACT_TYPE_LABELS,
   PERSON_TYPE_LABELS,
+  contactPersonText,
   titleLabel,
 } from '../../data/debt.labels';
 import { ContactView, DebtorView, TitleView } from '../../data/debt.models';
@@ -58,7 +60,10 @@ import { CHANNEL_LABELS as CONVERSATION_CHANNELS } from '../../../communication/
 import { DISPUTE_TYPE_LABELS } from '../../../collection/data/collection.labels';
 import { RELATED_PREVIEW, activeCases, debtorLinks } from '../../data/debtor-links';
 import { DebtorInteractions } from '../debtor-interactions/debtor-interactions';
+import { CompanyRepresentatives } from '../representatives/company-representatives';
 import { VulnerabilityBadge } from '../../../compliance/vulnerability/vulnerability-badge';
+import { InsolvencyNotice } from '../../components/insolvency-notice';
+import { ContactProfileCard } from '../../../scoring/contact/contact-profile-card';
 
 /**
  * Ficha do devedor: dados cadastrais (documento mascarado, revelação auditada), posição por
@@ -73,7 +78,7 @@ import { VulnerabilityBadge } from '../../../compliance/vulnerability/vulnerabil
  */
 @Component({
   selector: 'app-debtor-detail',
-  imports: [TabsMore, VulnerabilityBadge, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions, RelatedRecords, DebtorInteractions],
+  imports: [TabsMore, VulnerabilityBadge, ContactNoveltyBadge, InsolvencyNotice, FormsModule, RouterLink, PageHeader, StatusChip, DocumentDisplay, Skeleton, EmptyState, DataTable, CellDef, Amount, AppDatePipe, OverdueBadge, TitleLedger, TitleOwnership, DebtorCompliance, OriginContracts, DebtorGuarantees, Icon, NgbTooltip, ...FORM_FIELD, NgbDropdownModule, NgbNavModule, KpiCard, MoreActions, RelatedRecords, DebtorInteractions, ContactProfileCard, CompanyRepresentatives],
   templateUrl: './debtor-detail.html',
   styleUrl: '../../debt.scss',
 })
@@ -92,7 +97,10 @@ export class DebtorDetail {
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
   /** Aba ativa na URL (`?aba=`): voltar para a ficha reabre a mesma aba. */
-  protected readonly tab = urlTab(['titulos', 'contatos', 'interacoes', 'contratos', 'garantias', 'razao', 'titularidade', 'restricoes'], 'titulos');
+  protected readonly tab = urlTab(
+    ['titulos', 'contatos', 'representantes', 'interacoes', 'contratos', 'garantias', 'razao', 'titularidade', 'restricoes'],
+    'titulos',
+  );
   /** Dentro do painel da estação: sem ações que tirem o operador do caso atual. */
   protected readonly embedded = inject(URL_STATE_EMBEDDED, { optional: true }) ?? false;
 
@@ -102,6 +110,7 @@ export class DebtorDetail {
   protected readonly contactLabels = CONTACT_LABEL_LABELS;
   protected readonly contactSources: Record<string, string> = CONTACT_SOURCE_LABELS;
   protected readonly titleLabel = titleLabel;
+  protected readonly personText = contactPersonText;
 
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.DEBTOR_MANAGE));
   protected readonly canReveal = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
@@ -148,6 +157,13 @@ export class DebtorDetail {
   protected readonly contactRows = valueOr(this.contacts, []);
 
   protected readonly active = computed(() => this.current()?.status === 'ACTIVE');
+
+  /** Matriz e filiais (mesma raiz do CNPJ) visíveis no escopo: o filtro leva só o id do devedor, nunca o CNPJ. */
+  private readonly units = rxResource({
+    params: () => (this.current()?.establishment ? this.id() : undefined),
+    stream: ({ params }) => this.debtorsApi.search({ sameCompanyAs: params }, { page: 0, size: 1 }),
+  });
+  protected readonly otherUnits = computed(() => this.units.value()?.totalElements ?? 0);
 
   /** Vínculos nos outros módulos (só o que o perfil abre; ver `debtorLinks`). */
   protected readonly links = debtorLinks(() => this.id(), [
@@ -269,6 +285,8 @@ export class DebtorDetail {
   protected readonly revealedDocument = signal<string | null>(null);
   /** Valores de contato revelados por id (somente em memória, nesta tela). */
   protected readonly revealedContacts = signal<ReadonlyMap<string, string>>(new Map());
+  /** Nome completo da pessoa de contato revelado junto com o valor (somente em memória). */
+  protected readonly revealedPersons = signal<ReadonlyMap<string, string>>(new Map());
 
   protected readonly titleColumns: TableColumn[] = [
     { key: 'title', header: 'Título', mobile: 'title' },
@@ -312,10 +330,19 @@ export class DebtorDetail {
       this.id();
       this.revealedDocument.set(null);
       this.revealedContacts.set(new Map());
+      this.revealedPersons.set(new Map());
+    });
+    // `?aba=representantes` em pessoa física (link antigo): a aba não existe, volta para Títulos
+    effect(() => {
+      const d = this.current();
+      if (d && this.tab.value() === 'representantes' && d.personType !== 'COMPANY') {
+        untracked(() => this.tab.set('titulos'));
+      }
     });
     inject(DestroyRef).onDestroy(() => {
       this.revealedDocument.set(null);
       this.revealedContacts.set(new Map());
+      this.revealedPersons.set(new Map());
     });
   }
 
@@ -331,15 +358,22 @@ export class DebtorDetail {
   protected revealContact(contact: ContactView): void {
     this.contactsApi
       .reveal(contact.debtorId, contact.id)
-      .subscribe((revealed) => this.revealedContacts.update((m) => new Map(m).set(contact.id, revealed.value)));
+      .subscribe((revealed) => {
+        this.revealedContacts.update((m) => new Map(m).set(contact.id, revealed.value));
+        if (revealed.personName) {
+          this.revealedPersons.update((m) => new Map(m).set(contact.id, revealed.personName!));
+        }
+      });
   }
 
   protected hideContact(contact: ContactView): void {
-    this.revealedContacts.update((m) => {
+    const without = (m: ReadonlyMap<string, string>) => {
       const next = new Map(m);
       next.delete(contact.id);
       return next;
-    });
+    };
+    this.revealedContacts.update(without);
+    this.revealedPersons.update(without);
   }
 
   protected edit(debtor: DebtorView): void {

@@ -50,11 +50,17 @@ public class Portfolio extends TenantScopedEntity {
     @Column(name = "status_reason", length = 500)
     private String statusReason;
 
+    /** Regime jurídico (cobrança B2B §6); padrão consumo. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "regime", nullable = false, length = 20)
+    private PortfolioRegime regime;
+
     protected Portfolio() {
     }
 
+    /** @param regime nulo = {@link PortfolioRegime#CONSUMER} (proteção nunca retirada por inferência) */
     public Portfolio(UUID creditorId, UUID contractId, String code, String name, String description,
-                     LocalDate receivedOn, LocalDate validUntil) {
+                     LocalDate receivedOn, LocalDate validUntil, PortfolioRegime regime) {
         Guard.require(creditorId != null, "portfolio.creditor_required", "Credor obrigatório");
         Guard.require(contractId != null, "portfolio.contract_required", "Contrato obrigatório");
         Guard.require(code != null && !code.isBlank(), "portfolio.code_required", "Código obrigatório");
@@ -62,7 +68,23 @@ public class Portfolio extends TenantScopedEntity {
         this.contractId = contractId;
         this.code = code.trim().toUpperCase();
         this.status = PortfolioStatus.DRAFT;
+        this.regime = regime == null ? PortfolioRegime.CONSUMER : regime;
         update(name, description, receivedOn, validUntil);
+    }
+
+    /**
+     * Muda o regime da carteira. Não altera contrato nem política: só as regras de proteção que dependem do regime.
+     *
+     * @return regime anterior
+     */
+    public PortfolioRegime changeRegime(PortfolioRegime target, String reason) {
+        Guard.require(target != null, "portfolio.regime_invalid", "Regime de carteira inválido");
+        Guard.require(reason != null && !reason.isBlank(), "portfolio.regime_reason_required",
+                "Informe o motivo da mudança de regime");
+        Guard.requireState(target != regime, "portfolio.regime_unchanged", "A carteira já está neste regime");
+        PortfolioRegime previous = this.regime;
+        this.regime = target;
+        return previous;
     }
 
     public void update(String name, String description, LocalDate receivedOn, LocalDate validUntil) {
@@ -136,5 +158,9 @@ public class Portfolio extends TenantScopedEntity {
 
     public String getStatusReason() {
         return statusReason;
+    }
+
+    public PortfolioRegime getRegime() {
+        return regime;
     }
 }

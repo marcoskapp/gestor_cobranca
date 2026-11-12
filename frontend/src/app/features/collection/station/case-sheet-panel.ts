@@ -19,11 +19,13 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { RESTRICTION_TYPE_LABELS } from '../../compliance/data/compliance.labels';
 import { OverdueBadge } from '../../debt/components/overdue-badge';
+import { ContactNoveltyBadge } from '../../debt/components/contact-novelty-badge';
 import { CaseNegotiation } from '../../negotiation/case/case-negotiation';
 import { CaseDealCard } from '../../negotiation/case/case-deal-card';
 import { ProposalView } from '../../negotiation/data/agreement.models';
 import { CaseConversations } from '../../communication/station/case-conversations';
 import { CaseScoreCard } from '../../scoring/case/case-score-card';
+import { ContactProfileCard } from '../../scoring/contact/contact-profile-card';
 import { DebtorContactsApi, DebtorsApi } from '../../debt/data/debt.api';
 import { CONTACT_LABEL_LABELS, CONTACT_TYPE_ICONS, CONTACT_TYPE_LABELS } from '../../debt/data/debt.labels';
 import { PaymentReviewAlert } from '../../payment/components/payment-review-alert';
@@ -37,6 +39,7 @@ import { ScheduleDialog, ScheduleDialogData } from './schedule-dialog';
 import type { OwnEvaluation } from '../../incentive/data/incentive.models';
 import { EvaluationLauncher, attendanceDate, ownEvaluationHint, ownEvaluationText } from '../../incentive/quality/evaluation-launcher';
 import { VulnerabilityBadge } from '../../compliance/vulnerability/vulnerability-badge';
+import { InsolvencyNotice } from '../../debt/components/insolvency-notice';
 
 /** Abas da ficha na ordem dos atalhos `Alt + 1…7`. */
 export const SHEET_TABS = ['Títulos', 'Contatos', 'Histórico', 'Agenda e promessas', 'Contestações', 'Negociação', 'Conversas'] as const;
@@ -82,12 +85,15 @@ export function tabFromSlug(slug: string | null | undefined): number | null {
     StatusChip,
     AppDatePipe,
     OverdueBadge,
+    ContactNoveltyBadge,
     CaseNegotiation,
     CaseConversations,
     CaseScoreCard,
+    ContactProfileCard,
     CaseDealCard,
     PaymentReviewAlert,
     VulnerabilityBadge,
+    InsolvencyNotice,
   ],
   templateUrl: './case-sheet-panel.html',
   styleUrl: './case-sheet-panel.scss',

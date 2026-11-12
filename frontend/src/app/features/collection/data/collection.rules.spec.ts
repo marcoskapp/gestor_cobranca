@@ -179,6 +179,7 @@ describe('regras de tela do módulo collection', () => {
         whatsapp: false,
         status: 'VALID',
         priority: 2,
+        receipt: null,
         ...overrides,
       });
       const contacts = [c('a', { priority: 3 }), c('b', { whatsapp: true, priority: 1 }), c('c', { status: 'INVALID' }), c('d', { type: 'EMAIL' })];
@@ -257,6 +258,9 @@ describe('regras de tela do módulo collection', () => {
       const q = { minDaysOverdue: 91, maxDaysOverdue: null, minBalance: null, maxBalance: 500, minScore: null, maxScore: null } as QueueView;
       expect(criteriaText(q)).toBe('a partir de 91 dias · até R$\u00a0500,00');
       expect(criteriaText({ ...q, minDaysOverdue: null, maxBalance: null })).toBe('Qualquer atraso, saldo e score');
+      expect(criteriaText({ ...q, minDaysOverdue: null, maxBalance: null, personType: 'COMPANY', newContactOnly: true })).toBe(
+        'Pessoa jurídica · com contato novo',
+      );
       const group = new FormGroup({ a: new FormControl<number | null>(10), b: new FormControl<number | null>(5) }, { validators: rangeValidator('a', 'b') });
       expect(group.errors).toEqual({ range: 'a-b' });
       group.controls.b.setValue(null);

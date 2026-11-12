@@ -192,7 +192,10 @@ curta sob lock da campanha (o HTTP ao provedor e o resultado vêm depois, §3.1)
      até a taxa baixar; teto de 50 chamadas novas por ciclo;
 3. itens vencidos por prioridade (`FOR UPDATE SKIP LOCKED`): caso encerrado → `EXCLUDED/CASE_CLOSED`; atribuído a
    operador sem `includeAssigned` → `EXCLUDED/CASE_ASSIGNED`; inelegível ou fora de `OPEN`/`IN_NEGOTIATION` → adiado
-   pelo intervalo; sem telefone → `EXCLUDED/NO_PHONE`; telefone em rodízio pela prioridade dos contatos a cada tentativa;
+   pelo intervalo; sem telefone → `EXCLUDED/NO_PHONE`; telefone escolhido por `nextPhone`: os **números novos recebidos
+   na carga ainda sem tentativa primeiro** (`ChannelContact.newPending`, sem repetir o último discado) e, depois, o
+   seguinte ao último discado (contato da última chamada do item) na ordem de prioridade dos contatos
+   ([contatos-recebidos.md](contatos-recebidos.md) §4 e §9 — só escolha: o porteiro continua decidindo cada discagem);
 4. porteiro por item (§2), pedido gravado (`DIALING` sem id) e, depois do commit, `dialBatch` por conta; recusa do
    provedor ou lote indisponível → tentativa `FAILED` (retentativa).
 

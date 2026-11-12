@@ -54,6 +54,13 @@ export const SCORING_ROUTES: Routes = [
     loadComponent: () => import('./monitoring/monitoring-page').then((m) => m.MonitoringPage),
   },
   {
+    path: 'contato',
+    title: 'Inteligência de contato',
+    canActivate: [permissionGuard],
+    data: { permissions: SCORING_PERMISSIONS.view, allPermissions: SCORING_PERMISSIONS.data },
+    loadComponent: () => import('./contact/contact-insights-page').then((m) => m.ContactInsightsPage),
+  },
+  {
     path: 'transparencia',
     title: 'Decisões e variáveis do score',
     canActivate: [permissionGuard],

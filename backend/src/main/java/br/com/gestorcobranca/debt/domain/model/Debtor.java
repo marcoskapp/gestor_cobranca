@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Devedor (pessoa física ou jurídica). A identidade é o documento (RB01): dois cadastros com o
@@ -30,6 +31,9 @@ public class Debtor extends TenantScopedEntity {
 
     /** Finalidade do blind index do documento. */
     public static final String DOCUMENT_HASH_PURPOSE = "debtor.document";
+    /** Finalidade do blind index da raiz do CNPJ (matriz e filiais). */
+    public static final String DOCUMENT_ROOT_HASH_PURPOSE = "debtor.document_root";
+    static final int TRADE_NAME_MAX = 200;
     public static final String ANONYMIZED_NAME = "Titular anonimizado";
     private static final LocalDate MIN_BIRTH_DATE = LocalDate.of(1900, 1, 1);
 
@@ -50,6 +54,15 @@ public class Debtor extends TenantScopedEntity {
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
+    /** Nome fantasia (só pessoa jurídica); a razão social é {@link #name}. */
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "trade_name_encrypted", length = 1024)
+    private String tradeName;
+
+    /** Blind index da raiz do CNPJ (finalidade {@link #DOCUMENT_ROOT_HASH_PURPOSE}); nulo para CPF. */
+    @Column(name = "document_root_hash", length = 64)
+    private String documentRootHash;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private DebtorStatus status;
@@ -60,6 +73,10 @@ public class Debtor extends TenantScopedEntity {
     @Column(name = "anonymized_at")
     private Instant anonymizedAt;
 
+    /** Carga que criou o devedor (nulo se criado à mão ou antes do registro): contato da mesma carga nunca é "novo". */
+    @Column(name = "created_import_batch_id", updatable = false)
+    private UUID createdImportBatchId;
+
     protected Debtor() {
     }
 
@@ -67,6 +84,16 @@ public class Debtor extends TenantScopedEntity {
      * @param documentHash blind index de {@code document.number()} com finalidade {@link #DOCUMENT_HASH_PURPOSE}
      */
     public Debtor(Document document, String documentHash, String name, LocalDate birthDate, String notes) {
+        this(document, documentHash, null, name, null, birthDate, notes);
+    }
+
+    /**
+     * @param documentRootHash blind index da raiz do CNPJ (finalidade {@link #DOCUMENT_ROOT_HASH_PURPOSE}); obrigatório
+     *                         para CNPJ, nulo para CPF
+     * @param tradeName        nome fantasia (só CNPJ; opcional)
+     */
+    public Debtor(Document document, String documentHash, String documentRootHash, String name, String tradeName,
+                  LocalDate birthDate, String notes) {
         Objects.requireNonNull(document, "document");
         Guard.require(documentHash != null && !documentHash.isBlank(), "debtor.document_hash_required",
                 "Índice do documento obrigatório");
@@ -74,13 +101,27 @@ public class Debtor extends TenantScopedEntity {
         this.document = document.number();
         this.documentHash = documentHash;
         this.status = DebtorStatus.ACTIVE;
-        update(name, birthDate, notes);
+        if (personType == PersonType.COMPANY && documentRootHash != null) {
+            this.documentRootHash = documentRootHash;
+        }
+        update(name, tradeName, birthDate, notes);
     }
 
-    /** Alteração cadastral manual. */
+    /** Alteração cadastral manual (sem nome fantasia: o atual é mantido). */
     public void update(String name, LocalDate birthDate, String notes) {
+        update(name, tradeName, birthDate, notes);
+    }
+
+    /**
+     * Alteração cadastral manual. Pessoa jurídica não tem data de nascimento ({@code debtor.birth_date_company}); nome
+     * fantasia só existe para pessoa jurídica ({@code debtor.trade_name_individual}).
+     */
+    public void update(String name, String tradeName, LocalDate birthDate, String notes) {
         requireActive();
+        Guard.require(birthDate == null || personType == PersonType.INDIVIDUAL, "debtor.birth_date_company",
+                "Empresa não tem data de nascimento");
         this.name = validName(name);
+        this.tradeName = validTradeName(tradeName);
         this.birthDate = validBirthDate(birthDate);
         Guard.require(notes == null || notes.length() <= 2000, "debtor.notes_too_long", "Observações muito longas");
         this.notes = notes == null || notes.isBlank() ? null : notes.trim();
@@ -93,13 +134,49 @@ public class Debtor extends TenantScopedEntity {
      * @return true se algum dado mudou
      */
     public boolean updateFromImport(String name, LocalDate birthDate) {
+        return updateFromImport(name, null, birthDate);
+    }
+
+    /**
+     * Como {@link #updateFromImport(String, LocalDate)}, com o nome fantasia (só pessoa jurídica: substituído quando
+     * informado). Data de nascimento informada para pessoa jurídica é ignorada (a carga já avisa a linha).
+     *
+     * @return true se algum dado mudou
+     */
+    public boolean updateFromImport(String name, String tradeName, LocalDate birthDate) {
         requireActive();
         String newName = validName(name);
-        LocalDate newBirthDate = birthDate == null ? this.birthDate : validBirthDate(birthDate);
-        boolean changed = !newName.equals(this.name) || !Objects.equals(newBirthDate, this.birthDate);
+        String newTradeName = tradeName == null || tradeName.isBlank() || personType != PersonType.COMPANY
+                ? this.tradeName : validTradeName(tradeName);
+        LocalDate newBirthDate = birthDate == null || personType != PersonType.INDIVIDUAL ? this.birthDate
+                : validBirthDate(birthDate);
+        boolean changed = !newName.equals(this.name) || !Objects.equals(newBirthDate, this.birthDate)
+                || !Objects.equals(newTradeName, this.tradeName);
         this.name = newName;
+        this.tradeName = newTradeName;
         this.birthDate = newBirthDate;
         return changed;
+    }
+
+    /**
+     * Raiz do CNPJ de cadastros anteriores a ela (preenchida pela varredura do módulo ou na próxima carga).
+     *
+     * @return true se foi preenchida agora
+     */
+    public boolean assignDocumentRoot(String rootHash) {
+        if (personType != PersonType.COMPANY || status != DebtorStatus.ACTIVE || documentRootHash != null
+                || rootHash == null || rootHash.isBlank()) {
+            return false;
+        }
+        this.documentRootHash = rootHash;
+        return true;
+    }
+
+    /** "Matriz" ou "Filial 0002" pelo sufixo do CNPJ; nulo para pessoa física ou após anonimização. */
+    public String establishmentLabel() {
+        return document().filter(d -> d.type() == Document.DocumentType.CNPJ)
+                .map(d -> d.isHeadOffice() ? "Matriz" : "Filial " + d.cnpjBranch().orElseThrow())
+                .orElse(null);
     }
 
     /**
@@ -114,6 +191,8 @@ public class Debtor extends TenantScopedEntity {
         this.documentHash = null;
         this.birthDate = null;
         this.notes = null;
+        this.tradeName = null;
+        this.documentRootHash = null;
         this.status = DebtorStatus.ANONYMIZED;
         this.anonymizedAt = now;
     }
@@ -162,6 +241,17 @@ public class Debtor extends TenantScopedEntity {
         return trimmed;
     }
 
+    private String validTradeName(String tradeName) {
+        if (tradeName == null || tradeName.isBlank()) {
+            return null;
+        }
+        Guard.require(personType == PersonType.COMPANY, "debtor.trade_name_individual",
+                "Nome fantasia só existe para pessoa jurídica");
+        String trimmed = tradeName.trim().replaceAll("\\s+", " ");
+        Guard.require(trimmed.length() <= TRADE_NAME_MAX, "debtor.trade_name_too_long", "Nome fantasia muito longo");
+        return trimmed;
+    }
+
     private static LocalDate validBirthDate(LocalDate birthDate) {
         Guard.require(birthDate == null || birthDate.isAfter(MIN_BIRTH_DATE), "debtor.birth_date_invalid",
                 "Data de nascimento inválida");
@@ -184,6 +274,18 @@ public class Debtor extends TenantScopedEntity {
         return birthDate;
     }
 
+    public String getTradeName() {
+        return tradeName;
+    }
+
+    public String getDocumentRootHash() {
+        return documentRootHash;
+    }
+
+    public boolean isCompany() {
+        return personType == PersonType.COMPANY;
+    }
+
     public DebtorStatus getStatus() {
         return status;
     }
@@ -194,5 +296,21 @@ public class Debtor extends TenantScopedEntity {
 
     public Instant getAnonymizedAt() {
         return anonymizedAt;
+    }
+
+    /** Registra a carga que criou o devedor (somente na criação por carga). */
+    public void createdByImport(UUID importBatchId) {
+        Guard.requireState(this.createdImportBatchId == null && getVersion() == null, "debtor.import_origin_immutable",
+                "A carga de origem é definida só na criação do devedor");
+        this.createdImportBatchId = importBatchId;
+    }
+
+    /** O devedor já existia antes da carga informada (criado à mão ou por outra carga). */
+    public boolean existedBefore(UUID importBatchId) {
+        return importBatchId == null || !importBatchId.equals(createdImportBatchId);
+    }
+
+    public UUID getCreatedImportBatchId() {
+        return createdImportBatchId;
     }
 }

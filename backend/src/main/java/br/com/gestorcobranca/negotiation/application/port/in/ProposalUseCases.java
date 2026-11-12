@@ -90,7 +90,16 @@ public interface ProposalUseCases {
      *                  servidor usa o IP da requisição
      * @param userAgent agente de usuário informado por integração (idem)
      */
-    record AcceptCommand(String channel, String reference, String clientIp, String userAgent) {
+    /**
+     * @param representativeId representante da empresa devedora que aceitou (cobrança B2B; nulo para pessoa física ou
+     *                         aceite sem representante identificado): vai para o termo (nome, CPF mascarado e papel) e
+     *                         para a trilha
+     */
+    record AcceptCommand(String channel, String reference, String clientIp, String userAgent, UUID representativeId) {
+
+        public AcceptCommand(String channel, String reference, String clientIp, String userAgent) {
+            this(channel, reference, clientIp, userAgent, null);
+        }
     }
 
     /** @param caseId propostas de um caso de cobrança (aba Negociação da estação) */

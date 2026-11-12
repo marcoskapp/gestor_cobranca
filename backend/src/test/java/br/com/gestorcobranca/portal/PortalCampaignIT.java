@@ -156,7 +156,7 @@ class PortalCampaignIT extends PortalTestSupport {
                         new VariableInput("link", "URL", true, null), new VariableInput("horas", "INTEGER", true, null)),
                 "UTILITY");
         SegmentCriteria dueSoon = new SegmentCriteria(Set.of(portfolioA), null, null, null, null, null, null, null, null,
-                null, null, null, null, null, true, null, null, null, null, null, 60);
+                null, null, null, null, null, true, null, null, null, null, null, 60, null, null);
         UUID segmentId = asManager(() -> segments.create(new CreateSegmentCommand(creditorA, "PARCELA_60",
                 "Parcela vencendo", null, dueSoon))).id();
         assertThat(asManager(() -> segments.count(segmentId, creditorA, null)).cases()).isEqualTo(1);

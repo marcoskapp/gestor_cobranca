@@ -23,4 +23,22 @@ public final class ScoringTestHooks {
     public static int purge(ApplicationContext context) {
         return context.getBean(OutcomeService.class).purge();
     }
+
+    /**
+     * Uma rodada da retenção da inteligência de contato (manutenção {@code scoring.contact_retention}); o teste
+     * repete em transações novas enquanto {@link RetentionRound#more()}, como o agendamento.
+     */
+    public static RetentionRound purgeContactFactsRound(ApplicationContext context) {
+        ContactRetentionService.Round round = context.getBean(ContactRetentionService.class).purgeBatch();
+        return new RetentionRound(round.removed(), round.more());
+    }
+
+    /** @param removed fatos apagados + desfechos sem identificação na rodada */
+    public record RetentionRound(int removed, boolean more) {
+    }
+
+    /** Base das taxas da inteligência de contato (manutenção {@code scoring.contact_rate_base}). */
+    public static int refreshContactRateBase(ApplicationContext context) {
+        return context.getBean(ContactRateBaseService.class).refresh();
+    }
 }

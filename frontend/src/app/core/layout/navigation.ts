@@ -240,6 +240,7 @@ export const NAVIGATION: readonly NavSection[] = [
       { label: 'Modelos do score', icon: 'diagram-3', route: '/score/modelos', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
       { label: 'Execuções do score', icon: 'arrow-repeat', route: '/score/execucoes', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
       { label: 'Monitoramento do score', icon: 'bar-chart-steps', route: '/score/monitoramento', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
+      { label: 'Inteligência de contato', icon: 'grid-3x3', route: '/score/contato', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
       { label: 'Decisões e variáveis', icon: 'card-list', route: '/score/transparencia', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
       { label: 'Parâmetros do score', icon: 'toggle-on', route: '/score/parametros', permissions: [P.SCORING_AREA_VIEW], alsoRequires: [P.SCORING_VIEW] },
     ],
@@ -323,6 +324,7 @@ export const NAVIGATION: readonly NavSection[] = [
       { label: 'Carteiras', icon: 'folder2-open', route: '/organizacao/carteiras', permissions: [P.ORGANIZATION_AREA_VIEW], alsoRequires: [P.PORTFOLIO_VIEW] },
       { label: 'Importação de carteiras', icon: 'file-earmark-arrow-up', route: '/importacao', permissions: [P.IMPORT_VIEW] },
       { label: 'Configurações', icon: 'gear', route: '/organizacao/configuracoes', permissions: [P.ORG_SETTINGS_MANAGE] },
+      { label: 'Contatos recebidos', icon: 'bookmark-plus', route: '/devedores/contatos-recebidos', permissions: [P.DEBTOR_MANAGE] },
     ],
   },
   {

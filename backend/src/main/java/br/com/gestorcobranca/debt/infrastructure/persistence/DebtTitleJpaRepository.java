@@ -78,6 +78,10 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
     List<UUID> findCreditorIdsByDebtorId(UUID debtorId);
 
     @Override
+    @Query("select distinct t.portfolioId from DebtTitle t where t.debtorId = :debtorId")
+    List<UUID> findPortfolioIdsByDebtorId(UUID debtorId);
+
+    @Override
     @Query("select distinct t.debtorId from DebtTitle t where t.debtorId in :debtorIds and t.creditorId in :creditorIds")
     List<UUID> findDebtorIdsWithTitlesInCreditors(Collection<UUID> debtorIds, Collection<UUID> creditorIds);
 

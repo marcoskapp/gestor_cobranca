@@ -77,7 +77,7 @@ class ActionExecutorTest {
                 step(Map.of()), NOW);
         when(gate.evaluate(any())).thenReturn(new ContactDecision(true, List.of(), null, null));
         when(debtors.get(snapshot.debtorId())).thenReturn(new DebtorView(snapshot.debtorId(), "PF", "Maria da Silva",
-                "***", null, "ACTIVE", null, NOW, null));
+                "***", null, "ACTIVE", null, NOW, null, null, null));
         when(creditors.get(snapshot.creditorId())).thenReturn(new CreditorView(snapshot.creditorId(), "Banco A S.A.",
                 "Banco A", "00000000000191", null, null, "ACTIVE"));
     }

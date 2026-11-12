@@ -8,8 +8,8 @@ import { errorMessage } from '../../../../shared/validation/error-messages';
 import { applyServerErrors } from '../../../../shared/validation/server-errors';
 import { AppValidators } from '../../../../shared/validation/validators';
 import { DebtorContactsApi } from '../../data/debt.api';
-import { CONTACT_LABEL_LABELS, CONTACT_TYPE_LABELS, options } from '../../data/debt.labels';
-import { ContactLabel, ContactType, ContactView } from '../../data/debt.models';
+import { CONTACT_LABEL_LABELS, CONTACT_PERSON_ROLE_LABELS, CONTACT_TYPE_LABELS, options } from '../../data/debt.labels';
+import { ContactLabel, ContactPersonRole, ContactType, ContactView } from '../../data/debt.models';
 import { FORM_FIELD } from '../../../../shared/forms/field';
 import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
 import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
@@ -30,7 +30,7 @@ export const phoneValidator: ValidatorFn = (control) => {
   return /^[1-9]{2}9?\d{8}$/.test(digits) ? null : { phone: true };
 };
 
-type Field = 'type' | 'value' | 'label' | 'priority' | 'source';
+type Field = 'type' | 'value' | 'label' | 'priority' | 'source' | 'personName';
 
 @Component({
   selector: 'app-contact-form',
@@ -98,6 +98,32 @@ type Field = 'type' | 'value' | 'label' | 'priority' | 'source';
               <label class="form-check-label" for="contact-form-whatsapp">Número com WhatsApp</label>
             </div>
           }
+          <!-- pessoa de contato (B2): com quem se fala neste telefone ou e-mail -->
+          <app-field
+            label="Pessoa de contato"
+            [hint]="data.contact?.maskedPersonName ? 'Atual: ' + data.contact.maskedPersonName + '. Deixe vazio para manter; para remover, use Sem pessoa.' : 'Ex.: Ana, do financeiro. Opcional.'"
+            [error]="form.controls.personName.invalid ? (message('personName')) : undefined"
+          >
+            <input appInput formControlName="personName" maxlength="120" autocomplete="off" />
+          </app-field>
+          <app-field label="Papel" hint="Função da pessoa na empresa (ou relação com o devedor).">
+            <select appInput formControlName="personRole">
+              <option [ngValue]="null">Não informado</option>
+              @for (r of personRoles; track r.value) {
+                <option [ngValue]="r.value">{{ r.label }}</option>
+              }
+            </select>
+          </app-field>
+          <div class="form-check form-switch app-span-all">
+            <input class="form-check-input" type="checkbox" role="switch" id="contact-form-decision" formControlName="decisionMaker" />
+            <label class="form-check-label" for="contact-form-decision">Esta pessoa decide pelo devedor</label>
+          </div>
+          @if (data.contact?.maskedPersonName) {
+            <div class="form-check app-span-all">
+              <input class="form-check-input" type="checkbox" id="contact-form-clear-person" formControlName="clearPerson" />
+              <label class="form-check-label" for="contact-form-clear-person">Sem pessoa (remover o nome atual)</label>
+            </div>
+          }
         </div>
       </div>
       <div class="modal-footer">
@@ -130,7 +156,12 @@ export class ContactForm {
       Validators.max(1000),
     ]),
     source: this.fb.control<'MANUAL' | 'DEBTOR'>('MANUAL'),
+    personName: ['', [Validators.maxLength(120)]],
+    personRole: this.fb.control<ContactPersonRole | null>(this.data.contact?.personRole ?? null),
+    decisionMaker: [this.data.contact?.decisionMaker ?? false],
+    clearPerson: [false],
   });
+  protected readonly personRoles = options(CONTACT_PERSON_ROLE_LABELS);
   protected readonly type = toSignal(this.form.controls.type.valueChanges, { initialValue: this.form.controls.type.value });
 
   constructor() {
@@ -153,8 +184,17 @@ export class ContactForm {
     }
     const v = this.form.getRawValue();
     const whatsapp = v.type === 'PHONE' && v.whatsapp;
+    const personName = v.personName.trim();
     const request = this.data.contact
-      ? this.api.update(this.data.debtorId, this.data.contact.id, { label: v.label, whatsapp, priority: v.priority ?? 0 })
+      ? this.api.update(this.data.debtorId, this.data.contact.id, {
+          label: v.label,
+          whatsapp,
+          priority: v.priority ?? 0,
+          // a tela só conhece o nome mascarado: vazio mantém o atual; "Sem pessoa" remove
+          personName: v.clearPerson ? '' : personName || null,
+          personRole: v.personRole,
+          decisionMaker: v.decisionMaker,
+        })
       : this.api.add(this.data.debtorId, {
           type: v.type,
           value: v.value.trim(),
@@ -162,6 +202,9 @@ export class ContactForm {
           whatsapp,
           priority: v.priority,
           source: v.source,
+          personName: personName || null,
+          personRole: v.personRole,
+          decisionMaker: v.decisionMaker,
         });
     this.saving.set(true);
     this.generalErrors.set([]);

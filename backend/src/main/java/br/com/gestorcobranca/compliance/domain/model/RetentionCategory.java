@@ -44,7 +44,13 @@ public enum RetentionCategory {
      * Snapshots de features com o desfecho já apurado (treino e monitoramento do modelo), contados da data de
      * referência. Mínimo de 365 dias: a janela de treino padrão.
      */
-    SCORING_FEATURE_SNAPSHOTS(RetentionAction.DELETE_RECORD, false, DAYS, 365, 3_650, true);
+    SCORING_FEATURE_SNAPSHOTS(RetentionAction.DELETE_RECORD, false, DAYS, 365, 3_650, true),
+    /**
+     * Fatos da inteligência de contato do score (tentativas, respostas e leituras por contato, sem o valor do contato),
+     * contados da data do fato; o perfil por contato é recalculado com os fatos que ficam. Mesmos limites dos fatos dos
+     * casos.
+     */
+    SCORING_CONTACT_FACTS(RetentionAction.DELETE_RECORD, false, DAYS, 730, 3_650, true);
 
     private final RetentionAction action;
     private final boolean executableHere;

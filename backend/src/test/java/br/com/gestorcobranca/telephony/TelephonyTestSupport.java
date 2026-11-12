@@ -182,7 +182,7 @@ public abstract class TelephonyTestSupport extends IntegrationTest {
 
     protected UUID debtor(String cpf, String phone) {
         return system(() -> ingestion.upsertDebtor(new DebtorRecord(cpf, "Devedor " + cpf.substring(0, 3),
-                LocalDate.of(1985, 3, 15), List.of(new ContactRecord("PHONE", phone, "MOBILE", true)))).id());
+                LocalDate.of(1985, 3, 15), List.of(new ContactRecord("PHONE", phone, "MOBILE", true)), null)).id());
     }
 
     /** Carga de títulos seguida da sincronização de casos; devolve o caso ativo. */
@@ -204,7 +204,7 @@ public abstract class TelephonyTestSupport extends IntegrationTest {
     /** Fila do credor A (criada antes dos casos, que são roteados na abertura). */
     protected UUID queueA(String code) {
         UUID id = asManager(() -> queues.create(new QueueCommand(code, "Fila " + code, null, 10, creditorA, null, null,
-                null, null, null, null, null, "OLDEST_OVERDUE", "PULL", null, Set.of(), null)).id());
+                null, null, null, null, null, "OLDEST_OVERDUE", "PULL", null, Set.of(), null, null, null)).id());
         JobDrain.drain(applicationContext, jdbcTemplate, "collection.");
         return id;
     }

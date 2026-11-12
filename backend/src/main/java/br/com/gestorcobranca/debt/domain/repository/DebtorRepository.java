@@ -16,6 +16,15 @@ public interface DebtorRepository {
 
     Optional<Debtor> findById(UUID id);
 
+    /**
+     * Devedor com bloqueio de escrita na linha até o fim da transação: serializa o recálculo da novidade dos contatos
+     * do mesmo devedor (docs/tecnico/desenho/contatos-recebidos.md §9).
+     */
+    Optional<Debtor> findByIdForUpdate(UUID id);
+
+    /** Ids das unidades da mesma empresa (mesma raiz do CNPJ), sem escopo — uso interno (insolvência). */
+    List<UUID> findIdsByDocumentRootHash(String documentRootHash);
+
     Optional<Debtor> findByDocumentHash(String documentHash);
 
     List<Debtor> findAllByIdIn(Collection<UUID> ids);
@@ -34,6 +43,26 @@ public interface DebtorRepository {
      */
     List<InactiveDebtorCandidate> findInactive(Instant closedBefore, UUID afterId, int limit);
 
+    default Page<Debtor> search(Collection<UUID> allowedCreditorIds, UUID creditorId, UUID portfolioId, String text,
+                                String documentHash, Pageable pageable) {
+        return search(allowedCreditorIds, creditorId, portfolioId, text, documentHash, null, null, pageable);
+    }
+
+    /**
+     * @param newContactAt      não nulo = só devedores com contato novo recebido na carga ainda sem tentativa, com a
+     *                          janela aberta neste instante e utilizável
+     * @param newContactBatchId só devedores que receberam contato novo nesta carga
+     */
     Page<Debtor> search(Collection<UUID> allowedCreditorIds, UUID creditorId, UUID portfolioId, String text,
-                        String documentHash, Pageable pageable);
+                        String documentHash, Instant newContactAt, UUID newContactBatchId, Pageable pageable);
+
+    /**
+     * Outras unidades da mesma empresa (mesma raiz do CNPJ), sem o devedor de referência, com o escopo de
+     * {@link #search}.
+     */
+    Page<Debtor> searchByDocumentRoot(Collection<UUID> allowedCreditorIds, String documentRootHash, UUID excludeDebtorId,
+                                      Pageable pageable);
+
+    /** Pessoas jurídicas ativas sem a raiz do CNPJ (cadastros anteriores a ela), em ordem de id. */
+    List<Debtor> findCompaniesWithoutDocumentRoot(int limit);
 }

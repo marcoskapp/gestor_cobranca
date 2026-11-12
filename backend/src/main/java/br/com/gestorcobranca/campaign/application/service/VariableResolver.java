@@ -59,6 +59,17 @@ class VariableResolver {
         OfferResult offer = in.offer();
         return switch (source) {
             case DEBTOR_FIRST_NAME -> firstName(debtors.get(debtorId).name());
+            case DEBTOR_TRADE_NAME -> {
+                DebtorUseCases.DebtorView debtor = debtors.get(debtorId);
+                if (!COMPANY.equals(debtor.personType())) {
+                    throw unavailable(source);
+                }
+                yield companyName(debtor);
+            }
+            case DEBTOR_GREETING -> {
+                DebtorUseCases.DebtorView debtor = debtors.get(debtorId);
+                yield COMPANY.equals(debtor.personType()) ? companyName(debtor) : firstName(debtor.name());
+            }
             case OPEN_BALANCE -> money(s.openBalance());
             case ELIGIBLE_BALANCE -> money(s.eligibleBalance());
             case OLDEST_DUE_DATE -> {
@@ -88,6 +99,17 @@ class VariableResolver {
             case LITERAL -> StepAction.literal(spec);
         };
     }
+
+    /** Nome fantasia da empresa ou, sem ele, a razão social (tipo TEXT do communication). */
+    static String companyName(DebtorUseCases.DebtorView debtor) {
+        String name = debtor.tradeName() != null && !debtor.tradeName().isBlank() ? debtor.tradeName() : debtor.name();
+        if (name == null || name.isBlank() || "ANONYMIZED".equals(debtor.status())) {
+            throw unavailable(VariableSource.DEBTOR_TRADE_NAME);
+        }
+        return name.trim();
+    }
+
+    private static final String COMPANY = "COMPANY";
 
     /** Primeira palavra do nome, só com letras, apóstrofo e hífen (tipo FIRST_NAME do communication). */
     static String firstName(String fullName) {

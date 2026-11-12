@@ -57,6 +57,7 @@ export const ELIGIBILITY_LABELS: Record<EligibilityReason, string> = {
   NO_OPEN_TITLES: 'Sem títulos vencidos em aberto',
   TITLES_DISPUTED: 'Todos os títulos estão bloqueados',
   DEBTOR_ANONYMIZED: 'Devedor anonimizado (LGPD)',
+  DEBTOR_INSOLVENCY: 'Empresa em recuperação judicial ou falência (cobrança suspensa)',
   CONTACT_RESTRICTED: 'Todos os canais com restrição de contato',
 };
 

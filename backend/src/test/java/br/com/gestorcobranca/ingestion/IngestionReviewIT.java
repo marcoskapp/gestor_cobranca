@@ -398,4 +398,35 @@ class IngestionReviewIT extends IngestionTestSupport {
         assertThat(cancelled.status()).isEqualTo("CANCELLED");
         assertThat(cancelled.batch().status()).isEqualTo("CANCELLED");
     }
+
+    /**
+     * Regime da carteira (cobrança B2B §6): o alerta de encargos acima do teto do consumidor (multa de 2% do CDC) não
+     * vale na carteira empresarial; o saldo a 10ⁿ vezes o principal (provável separador decimal) continua alertado.
+     */
+    @Test
+    void businessPortfolioTurnsOffTheConsumerChargesAlertButKeepsTheScaleAlert() {
+        UUID business = portfolio(creditorA, "EMP-01");
+        system(() -> portfolios.changeRegime(business, "BUSINESS", "Contrato entre empresas", null));
+        String due = java.time.LocalDate.now().minusMonths(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        // saldo 2,5× o principal (encargos acima do teto do consumidor) e 100× (separador decimal)
+        String csv = file(withBalance(1, "B-1", due, "100,00", "250,00"), withBalance(2, "B-2", due, "100,00", "10000,00"));
+
+        List<AlertView> consumer = balanceAlerts(start(portfolioA, creditorA, csv));
+        assertThat(consumer).extracting(AlertView::externalId).containsExactlyInAnyOrder("B-1", "B-2");
+        List<AlertView> company = balanceAlerts(start(business, creditorA, csv));
+        assertThat(company).singleElement().satisfies(a -> assertThat(a.externalId()).isEqualTo("B-2"));
+    }
+
+    private List<AlertView> balanceAlerts(ReviewView started) {
+        runJobs();
+        assertThat(review(started.id()).analysis().status()).isEqualTo("DONE");
+        return asAna(() -> reviews.alerts(started.id(), "BALANCE_ABOVE_PRINCIPAL", null, PageQuery.of(0, 50)).content());
+    }
+
+    /** Linha do layout {@link #HEADER} com saldo informado. */
+    private static String withBalance(int seed, String externalId, String due, String principal, String balance) {
+        return "%s;Devedor %d;(11) 98765-4321;S;;C-%s;%s;1;%s;%s;%s;;".formatted(cpf(seed), seed, externalId, externalId,
+                due, principal, balance);
+    }
 }

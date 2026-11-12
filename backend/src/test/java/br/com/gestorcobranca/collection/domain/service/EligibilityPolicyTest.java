@@ -24,7 +24,7 @@ class EligibilityPolicyTest {
 
     @Test
     void eligibleWithActivePortfolioOpenTitlesAndAChannel() {
-        Eligibility e = EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, OPEN, false, false, ALL));
+        Eligibility e = EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, OPEN, false, false, false, ALL));
         assertThat(e.eligible()).isTrue();
         assertThat(e.reasons()).isEmpty();
         assertThat(e.contactableChannels()).containsExactlyInAnyOrder(InteractionChannel.PHONE, InteractionChannel.WHATSAPP,
@@ -36,7 +36,7 @@ class EligibilityPolicyTest {
         CaseBalance disputed = new CaseBalance(Money.of("500.00"), Money.ZERO, 1, 0, 1, LocalDate.of(2026, 5, 1));
         Map<InteractionChannel, ChannelAvailability> none = Map.of(InteractionChannel.PHONE, ChannelAvailability.RESTRICTED,
                 InteractionChannel.EMAIL, ChannelAvailability.RESTRICTED);
-        Eligibility e = EligibilityPolicy.evaluate(new Input(CaseStatus.SUSPENDED, false, disputed, true, false, none));
+        Eligibility e = EligibilityPolicy.evaluate(new Input(CaseStatus.SUSPENDED, false, disputed, true, false, false, none));
         assertThat(e.eligible()).isFalse();
         assertThat(e.reasons()).containsExactlyInAnyOrder(EligibilityReason.CASE_SUSPENDED, EligibilityReason.DISPUTE_OPEN,
                 EligibilityReason.PORTFOLIO_NOT_OPERABLE, EligibilityReason.TITLES_DISPUTED,
@@ -46,17 +46,27 @@ class EligibilityPolicyTest {
     @Test
     void onlySuspendedTitlesMeansNoOpenTitles() {
         CaseBalance suspended = new CaseBalance(Money.of("100.00"), Money.ZERO, 0, 1, 0, LocalDate.of(2026, 5, 1));
-        Eligibility e = EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, suspended, false, false, ALL));
+        Eligibility e = EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, suspended, false, false, false, ALL));
         assertThat(e.reasons()).containsExactly(EligibilityReason.NO_OPEN_TITLES);
     }
 
     @Test
     void anonymizedDebtorAndClosedCase() {
-        assertThat(EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, OPEN, false, true, Map.of())).reasons())
+        assertThat(EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, OPEN, false, true, false, Map.of())).reasons())
                 .containsExactly(EligibilityReason.DEBTOR_ANONYMIZED);
-        assertThat(EligibilityPolicy.evaluate(new Input(CaseStatus.CLOSED, true, OPEN, false, false, ALL)).reasons())
+        assertThat(EligibilityPolicy.evaluate(new Input(CaseStatus.CLOSED, true, OPEN, false, false, false, ALL)).reasons())
                 .containsExactly(EligibilityReason.CASE_CLOSED);
-        assertThat(EligibilityPolicy.evaluate(new Input(CaseStatus.LEGAL, true, OPEN, false, false, ALL)).reasons())
+        assertThat(EligibilityPolicy.evaluate(new Input(CaseStatus.LEGAL, true, OPEN, false, false, false, ALL)).reasons())
                 .containsExactly(EligibilityReason.CASE_LEGAL);
+    }
+
+    @Test
+    void companyUnderInsolvencyIsIneligibleEvenWithChannelsAvailable() {
+        Eligibility e = EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, OPEN, false, false, true, ALL));
+        assertThat(e.eligible()).isFalse();
+        assertThat(e.reasons()).containsExactly(EligibilityReason.DEBTOR_INSOLVENCY);
+        // encerrado o processo, o mesmo caso volta a ser elegível
+        assertThat(EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, OPEN, false, false, false, ALL)).eligible())
+                .isTrue();
     }
 }

@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -46,8 +47,13 @@ class AudienceProjection {
     }
 
     AudienceSnapshot apply(CaseView view, String trigger) {
-        int broken = store.find(view.id()).map(AudienceSnapshot::brokenAgreements).orElse(0);
+        Optional<AudienceSnapshot> stored = store.find(view.id());
+        int broken = stored.map(AudienceSnapshot::brokenAgreements).orElse(0);
         AudienceSnapshot snapshot = snapshot(view, Instant.now(clock)).withBrokenAgreements(broken);
+        // contato novo: depois da inclusão, a fonte é o evento do debt (applyNewContact), não a posição lida do caso
+        if (stored.isPresent()) {
+            snapshot = snapshot.withNewContactUntil(stored.get().newContactUntil());
+        }
         // parcela do acordo: só consulta o negotiation quando o caso está (ou estava, numa retenção) em acordo
         LocalDate nextInstallment = snapshot.activeAgreement() && snapshot.active()
                 ? installments.nextDueDate(view.id(), view.debtorId(), view.creditorId(), view.portfolioId()).orElse(null)
@@ -64,7 +70,7 @@ class AudienceProjection {
                 v.eligible(), v.eligibilityReasons(), v.contactableChannels(), zero(v.openBalance()),
                 zero(v.eligibleBalance()), v.oldestDueDate(), v.ownerType() == null ? "NONE" : v.ownerType(),
                 v.interactionCount(), v.effectiveContactCount(), v.lastInteractionAt(), v.lastEffectiveContactAt(),
-                v.score(), 0, v.version(), now, null);
+                v.score(), 0, v.version(), now, null, v.newContactUntil(), v.debtorPersonType());
     }
 
     private static BigDecimal zero(BigDecimal value) {

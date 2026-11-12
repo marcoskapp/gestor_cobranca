@@ -1,4 +1,4 @@
-import { batchActions } from '../batches/batch-detail';
+import { batchActions, contactReceiptText } from '../batches/batch-detail';
 import { toBatchFilter } from '../batches/batch-list';
 import { columnProblems } from '../layouts/layout-form';
 import { fileProblem, isTerminal, progressText, sizeText } from './ingestion.labels';
@@ -63,5 +63,15 @@ describe('regras de tela do módulo ingestion', () => {
       ),
     ).toEqual(['"documento" mapeado mais de uma vez.', 'Informe o cabeçalho de "id_titulo".']);
     expect(columnProblems([{ field: 'documento', header: null, position: 1 }, { field: 'id_titulo', header: null, position: 2 }], fields, false)).toEqual([]);
+  });
+});
+
+describe('contatos novos da carga', () => {
+  it('conta os devedores e só cita os contatos quando há mais de um por devedor', () => {
+    expect(contactReceiptText(null)).toBeNull();
+    expect(contactReceiptText({ debtorsWithNewContact: 0, newContacts: 0 })).toBeNull();
+    expect(contactReceiptText({ debtorsWithNewContact: 1, newContacts: 1 })).toBe('1 devedor recebeu contato novo');
+    expect(contactReceiptText({ debtorsWithNewContact: 312, newContacts: 312 })).toBe('312 devedores receberam contato novo');
+    expect(contactReceiptText({ debtorsWithNewContact: 1200, newContacts: 1500 })).toBe('1.200 devedores receberam contato novo (1.500 contatos)');
   });
 });

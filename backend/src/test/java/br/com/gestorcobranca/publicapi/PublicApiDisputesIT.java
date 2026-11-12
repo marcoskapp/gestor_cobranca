@@ -107,7 +107,7 @@ class PublicApiDisputesIT extends PublicApiTestSupport {
 
     private DisputeView disputeWithRequest() {
         UUID debtor = system(() -> ingestion.upsertDebtor(new DebtorRecord("52998224725", "Devedor API",
-                LocalDate.of(1980, 1, 1), List.of(new ContactRecord("EMAIL", "devedor.api@exemplo.com", null, false))))
+                LocalDate.of(1980, 1, 1), List.of(new ContactRecord("EMAIL", "devedor.api@exemplo.com", null, false)), null))
                 .id());
         UUID batch = Ids.newId();
         system(() -> {

@@ -64,6 +64,8 @@ export const REPLY_LABELS: Record<ReplyTransition, string> = {
 
 export const VARIABLE_SOURCE_LABELS: Record<VariableSource, string> = {
   DEBTOR_FIRST_NAME: 'Primeiro nome do devedor',
+  DEBTOR_TRADE_NAME: 'Nome fantasia da empresa (pessoa física: etapa pulada)',
+  DEBTOR_GREETING: 'Saudação pelo tipo de pessoa (primeiro nome ou nome da empresa)',
   OPEN_BALANCE: 'Saldo em aberto',
   ELIGIBLE_BALANCE: 'Saldo negociável',
   OLDEST_DUE_DATE: 'Vencimento mais antigo',
@@ -82,6 +84,8 @@ export const VARIABLE_SOURCE_LABELS: Record<VariableSource, string> = {
 /** Tipo de variável do template (communication) que cada origem produz; `LITERAL` serve a texto e código. */
 export const SOURCE_VARIABLE_TYPES: Record<VariableSource, readonly string[]> = {
   DEBTOR_FIRST_NAME: ['FIRST_NAME'],
+  DEBTOR_TRADE_NAME: ['TEXT'],
+  DEBTOR_GREETING: ['TEXT'],
   OPEN_BALANCE: ['MONEY'],
   ELIGIBLE_BALANCE: ['MONEY'],
   OLDEST_DUE_DATE: ['DATE'],

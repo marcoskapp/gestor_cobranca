@@ -241,6 +241,13 @@ app:
       # prazo para outra pessoa confirmar o aumento do limite; depois, a proposta vence e o job diário a descarta
       proposal-validity: P15D
       proposal-expiry-cron: "0 50 3 * * *"
+    contact-novelty:
+      # contato recebido numa nova carga para devedor já existente fica "Novo" até a primeira tentativa ou o fim
+      # desta janela (padrão do sistema; cada assessoria pode configurar de 1 a 180 dias)
+      window-days: 30
+      # varredura que encerra a novidade vencida e avisa collection/campaign (DebtorContactNoveltyChanged)
+      sweep-cron: "0 40 3 * * *"
+      sweep-lookback: P7D
 
   compliance:
     data-subject-request:
@@ -433,6 +440,14 @@ app:
       max-lock: PT24H
       # equaliza o tempo de resposta do pedido de código (documento existente × inexistente)
       min-response-time: PT0.4S
+    # confirmação de quem negocia pela empresa (devedor PJ, cobrança B2B): CPF que não confere conta por devedor e por
+    # IP no bloqueio progressivo persistido (15 min, dobrando até 24 h)
+    representative:
+      debtor-max-failures: 5
+      ip-max-failures: 20
+      window: PT30M
+      base-lock: PT15M
+      max-lock: PT24H
     # templates do communication (sufixo = canal: _WHATSAPP, _SMS, _EMAIL)
     templates:
       access-code: PORTAL_CODIGO

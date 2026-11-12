@@ -11,6 +11,7 @@ import br.com.gestorcobranca.compliance.application.port.in.ContactGate.ContactD
 import br.com.gestorcobranca.compliance.application.port.in.ContactGate.ContactRequest;
 import br.com.gestorcobranca.compliance.application.port.in.ContactGate.DenialReason;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
+import br.com.gestorcobranca.debt.application.port.in.InsolvencyUseCases;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import org.springframework.stereotype.Component;
 
@@ -30,7 +31,7 @@ import java.util.UUID;
  *   <li>carteira ativa e na vigência — {@code organization};</li>
  *   <li>títulos em aberto e bloqueio por contestação — posição do caso (cache do {@code debt}) e
  *       contestações do próprio módulo;</li>
- *   <li>devedor anonimizado — {@code debt};</li>
+ *   <li>devedor anonimizado e empresa em recuperação judicial, extrajudicial ou falência — {@code debt};</li>
  *   <li>restrições de contato por canal — porteiro do {@code compliance} em modo consulta
  *       ({@code ContactGate#evaluate}, sem registrar tentativa).</li>
  * </ul>
@@ -48,14 +49,16 @@ class EligibilityEvaluator {
 
     private final PortfolioUseCases portfolios;
     private final DebtorUseCases debtors;
+    private final InsolvencyUseCases insolvency;
     private final ContactGate contactGate;
     private final DisputeRepository disputes;
     private final Clock clock;
 
-    EligibilityEvaluator(PortfolioUseCases portfolios, DebtorUseCases debtors, ContactGate contactGate,
-                         DisputeRepository disputes, Clock clock) {
+    EligibilityEvaluator(PortfolioUseCases portfolios, DebtorUseCases debtors, InsolvencyUseCases insolvency,
+                         ContactGate contactGate, DisputeRepository disputes, Clock clock) {
         this.portfolios = portfolios;
         this.debtors = debtors;
+        this.insolvency = insolvency;
         this.contactGate = contactGate;
         this.disputes = disputes;
         this.clock = clock;
@@ -73,18 +76,20 @@ class EligibilityEvaluator {
     final class Batch {
 
         private final Map<UUID, Boolean> operablePortfolios = new HashMap<>();
+        private final Map<UUID, Boolean> insolventDebtors = new HashMap<>();
 
         Eligibility evaluate(CollectionCase c) {
             if (!c.getStatus().isActive()) {
                 return EligibilityPolicy.evaluate(new EligibilityPolicy.Input(c.getStatus(), false, c.balance(), false,
-                        false, Map.of()));
+                        false, false, Map.of()));
             }
             boolean operable = operablePortfolios.computeIfAbsent(c.getPortfolioId(), id -> portfolios.get(id).operable());
             boolean anonymized = ANONYMIZED.equals(debtors.get(c.getDebtorId()).status());
+            boolean insolvent = insolventDebtors.computeIfAbsent(c.getDebtorId(), insolvency::isUnderInsolvency);
             boolean blockingDispute = c.getId() != null && disputes.existsBlockingByCaseId(c.getId());
             Map<InteractionChannel, ChannelAvailability> channels = anonymized ? Map.of() : channels(c);
             return EligibilityPolicy.evaluate(new EligibilityPolicy.Input(c.getStatus(), operable, c.balance(),
-                    blockingDispute, anonymized, channels));
+                    blockingDispute, anonymized, insolvent, channels));
         }
 
         private Map<InteractionChannel, ChannelAvailability> channels(CollectionCase c) {

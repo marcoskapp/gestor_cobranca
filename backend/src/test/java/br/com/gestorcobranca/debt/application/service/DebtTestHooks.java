@@ -17,4 +17,9 @@ public final class DebtTestHooks {
     public static boolean expireThresholdProposal(ApplicationContext context, UUID tenantId) {
         return context.getBean(DebtJobs.class).expireThresholdProposal(tenantId);
     }
+
+    /** Varredura da novidade dos contatos recebidos na carga de uma assessoria (job diário). */
+    public static int sweepContactNovelty(ApplicationContext context, UUID tenantId) {
+        return context.getBean(DebtJobs.class).sweepContactNovelty(tenantId);
+    }
 }

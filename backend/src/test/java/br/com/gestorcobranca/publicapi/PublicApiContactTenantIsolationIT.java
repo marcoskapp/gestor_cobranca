@@ -44,7 +44,7 @@ class PublicApiContactTenantIsolationIT extends PublicApiTestSupport {
     void contactsAreSharedAmongCreditorsOfTheSameTenantButNeverAcrossTenants() throws Exception {
         // assessoria A: devedor com títulos nos dois credores; o contato chegou pela carga do credor B
         UUID debtorA = system(() -> ingestion.upsertDebtor(new DebtorRecord("52998224725", "Devedora Fictícia A",
-                LocalDate.of(1980, 1, 1), List.of(new ContactRecord("PHONE", "+5511987654321", "MOBILE", false)))).id());
+                LocalDate.of(1980, 1, 1), List.of(new ContactRecord("PHONE", "+5511987654321", "MOBILE", false)), null)).id());
         system(() -> {
             UUID batch = Ids.newId();
             ingestion.upsertTitle(title(creditorA, portfolioA, debtorA, "T-A-1"), batch);
@@ -114,7 +114,7 @@ class PublicApiContactTenantIsolationIT extends PublicApiTestSupport {
         });
         UUID debtor = inTenant(tenantB, () -> ingestion.upsertDebtor(new DebtorRecord("11144477735",
                 "Devedor Fictício B", LocalDate.of(1975, 5, 5),
-                List.of(new ContactRecord("PHONE", "+5511955554444", "MOBILE", false)))).id());
+                List.of(new ContactRecord("PHONE", "+5511955554444", "MOBILE", false)), null)).id());
         inTenant(tenantB, () -> ingestion.upsertTitle(title(creditor, portfolio, debtor, "T-C-1"), Ids.newId()));
         return new Other(tenantB, debtor, contactOf(tenantB, debtor));
     }

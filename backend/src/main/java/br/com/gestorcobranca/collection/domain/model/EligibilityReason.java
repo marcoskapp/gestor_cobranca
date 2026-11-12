@@ -16,5 +16,10 @@ public enum EligibilityReason {
     /** Todos os canais estão restritos para o devedor/credor (opt-out, bloqueio). */
     CONTACT_RESTRICTED,
     /** Dados pessoais do devedor eliminados (LGPD). */
-    DEBTOR_ANONYMIZED
+    DEBTOR_ANONYMIZED,
+    /**
+     * Empresa devedora em recuperação judicial, recuperação extrajudicial ou falência (Lei 11.101/2005; cobrança B2B
+     * §7): a cobrança fica suspensa e o caminho é o jurídico.
+     */
+    DEBTOR_INSOLVENCY
 }

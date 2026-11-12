@@ -37,6 +37,15 @@ public interface AudienceStore {
      */
     void applyNextInstallment(UUID caseId, LocalDate dueDate);
 
+    /**
+     * Grava o fim da novidade dos contatos do devedor (evento {@code DebtorContactNoveltyChanged} do debt) em todos os
+     * casos dele na projeção; independe da versão do caso. Evento mais antigo que o já aplicado ({@code changedAt}) é
+     * descartado.
+     *
+     * @return casos atualizados
+     */
+    int applyNewContact(UUID debtorId, Instant newContactUntil, Instant changedAt);
+
     /** Conta mais um acordo quebrado no caso (sem efeito se o caso ainda não está na projeção). */
     void incrementBrokenAgreements(UUID caseId);
 

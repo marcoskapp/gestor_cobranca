@@ -19,9 +19,10 @@ import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
 import { PORTFOLIO_TRANSITIONS, statusOptions } from '../../../../shared/status/status';
 import { PortfoliosApi } from '../../data/organization.api';
 import { CreditorLookup } from '../../data/organization.lookups';
-import { PortfolioView } from '../../data/organization.models';
+import { PORTFOLIO_REGIME_EFFECTS, PORTFOLIO_REGIME_LABELS, PortfolioView } from '../../data/organization.models';
 import { PortfolioForm, PortfolioFormData } from '../portfolio-form/portfolio-form';
 import { PortfolioStatusDialog } from '../portfolio-status/portfolio-status';
+import { PortfolioRegimeDialog } from '../portfolio-regime/portfolio-regime';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../../shared/forms/field';
@@ -97,11 +98,15 @@ export class PortfolioList {
     { key: 'code', header: 'Código' },
     { key: 'name', header: 'Carteira' },
     { key: 'creditor', header: 'Credor' },
+    { key: 'regime', header: 'Regime' },
     { key: 'receivedOn', header: 'Recebida em' },
     { key: 'validUntil', header: 'Válida até' },
     { key: 'status', header: 'Situação' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
+
+  protected readonly regimeLabels = PORTFOLIO_REGIME_LABELS;
+  protected readonly regimeEffects = PORTFOLIO_REGIME_EFFECTS;
 
   protected creditorName(id: string): string {
     return this.creditorNames().get(id) ?? '…';
@@ -122,6 +127,14 @@ export class PortfolioList {
   protected changeStatus(portfolio: PortfolioView): void {
     this.dialog
       .open<PortfolioStatusDialog, PortfolioView, PortfolioView>(PortfolioStatusDialog, { data: portfolio })
+      .afterClosed()
+      .subscribe((updated) => updated && this.query.reload());
+  }
+
+  /** Regime (consumo × empresarial): diálogo próprio, com motivo e auditoria. */
+  protected changeRegime(portfolio: PortfolioView): void {
+    this.dialog
+      .open<PortfolioRegimeDialog, PortfolioView, PortfolioView>(PortfolioRegimeDialog, { data: portfolio })
       .afterClosed()
       .subscribe((updated) => updated && this.query.reload());
   }

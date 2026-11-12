@@ -7,6 +7,8 @@ import br.com.gestorcobranca.portal.application.port.in.PortalSelfServiceUseCase
 import br.com.gestorcobranca.portal.application.port.in.PortalSelfServiceUseCases.AgreementDetail;
 import br.com.gestorcobranca.portal.application.port.in.PortalSelfServiceUseCases.AgreementSummary;
 import br.com.gestorcobranca.portal.application.port.in.PortalSelfServiceUseCases.DebtsView;
+import br.com.gestorcobranca.portal.application.port.in.PortalSelfServiceUseCases.DeclareRepresentativeCommand;
+import br.com.gestorcobranca.portal.application.port.in.PortalSelfServiceUseCases.RepresentativeView;
 import br.com.gestorcobranca.portal.application.port.in.PortalSelfServiceUseCases.OffersView;
 import br.com.gestorcobranca.portal.application.port.in.PortalSelfServiceUseCases.PixView;
 import br.com.gestorcobranca.portal.application.port.in.PortalSelfServiceUseCases.ServiceRequestCommand;
@@ -70,7 +72,11 @@ class PortalSelfServiceController {
     }
 
     record AcceptRequest(@NotNull UUID simulationId, @Min(0) @Max(99) int level, @Min(1) @Max(12) int installments,
-                         @DecimalMin("0.01") BigDecimal downPayment, LocalDate firstDueDate, boolean termsAccepted) {
+                         @DecimalMin("0.01") BigDecimal downPayment, LocalDate firstDueDate, boolean termsAccepted,
+                         @Size(max = 20) String preferredChannel) {
+    }
+
+    record RepresentativeRequest(@NotBlank @Size(max = 20) String cpf, @NotBlank @Size(max = 200) String name) {
     }
 
     record ServiceRequestBody(@NotBlank @Size(max = 20) String reason, @NotBlank @Size(max = 20) String preferredChannel,
@@ -118,7 +124,19 @@ class PortalSelfServiceController {
     ResponseEntity<AcceptanceResult> accept(@Valid @RequestBody AcceptRequest body) {
         return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore())
                 .body(selfService.accept(new AcceptCommand(body.simulationId(), body.level(), body.installments(),
-                        body.downPayment(), body.firstDueDate(), body.termsAccepted())));
+                        body.downPayment(), body.firstDueDate(), body.termsAccepted(), body.preferredChannel())));
+    }
+
+    /** Quem negocia pela empresa (devedor pessoa jurídica). */
+    @GetMapping("/representative")
+    ResponseEntity<RepresentativeView> representative() {
+        return noStore(selfService.representative());
+    }
+
+    /** CPF e nome de quem negocia pela empresa: mesma resposta quando confere e quando não confere. */
+    @PostMapping("/representative")
+    ResponseEntity<RepresentativeView> declareRepresentative(@Valid @RequestBody RepresentativeRequest body) {
+        return noStore(selfService.declareRepresentative(new DeclareRepresentativeCommand(body.cpf(), body.name())));
     }
 
     @GetMapping("/agreements")

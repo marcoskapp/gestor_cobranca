@@ -1,8 +1,10 @@
 package br.com.gestorcobranca.portal.domain.model;
 
+import br.com.gestorcobranca.shared.crypto.EncryptedStringConverter;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.TenantScopedEntity;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -70,6 +72,26 @@ public class PortalSession extends TenantScopedEntity {
 
     @Column(name = "pix_issued_at")
     private Instant pixIssuedAt;
+
+    /** Confirmação de quem negocia pela empresa (devedor PJ, B4): nulo = ainda não informado. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "representative_status", length = 12)
+    private RepresentativeStatus representativeStatus;
+
+    @Column(name = "representative_id")
+    private UUID representativeId;
+
+    @Column(name = "representative_checked_at")
+    private Instant representativeCheckedAt;
+
+    /** Nome declarado por quem negocia (para o atendente); criptografado e apagado com os dados do navegador. */
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "representative_name_encrypted", length = 1024)
+    private String representativeName;
+
+    /** CPF declarado, só mascarado (o CPF em claro nunca é gravado). */
+    @Column(name = "representative_document_masked", length = 14)
+    private String representativeDocumentMasked;
 
     protected PortalSession() {
     }
@@ -144,10 +166,34 @@ public class PortalSession extends TenantScopedEntity {
         return true;
     }
 
-    /** LGPD: anonimização do devedor remove IP e agente de usuário. */
+    /**
+     * Quem está negociando pela empresa (B4). {@code representativeId} nulo = não confirmado (CPF que não confere,
+     * representante sem poder ou fora da validade, confirmação bloqueada): a sessão segue para consulta e o aceite vira
+     * pedido de atendimento. Pode ser informado de novo na mesma sessão (o limite de tentativas é por devedor e IP).
+     *
+     * @param maskedDocument CPF declarado, mascarado
+     */
+    public void declareRepresentative(UUID representativeId, String name, String maskedDocument, Instant now) {
+        Guard.require(name != null && !name.isBlank(), "portal.representative_name_required",
+                "Informe o nome de quem está negociando");
+        this.representativeStatus = representativeId == null ? RepresentativeStatus.UNCONFIRMED
+                : RepresentativeStatus.CONFIRMED;
+        this.representativeId = representativeId;
+        this.representativeCheckedAt = now;
+        this.representativeName = truncate(name.trim().replaceAll("\\s+", " "), 200);
+        this.representativeDocumentMasked = truncate(maskedDocument, 14);
+    }
+
+    public boolean representativeDeclared() {
+        return representativeStatus != null;
+    }
+
+    /** LGPD: anonimização do devedor remove IP, agente de usuário e o representante declarado. */
     public void anonymize() {
         this.clientIp = null;
         this.userAgent = null;
+        this.representativeName = null;
+        this.representativeDocumentMasked = null;
     }
 
     private static String truncate(String value, int max) {
@@ -168,4 +214,13 @@ public class PortalSession extends TenantScopedEntity {
     public Instant getSimulatedAt() { return simulatedAt; }
     public Instant getAcceptedAt() { return acceptedAt; }
     public Instant getPixIssuedAt() { return pixIssuedAt; }
+    public RepresentativeStatus getRepresentativeStatus() { return representativeStatus; }
+    public UUID getRepresentativeId() { return representativeId; }
+    public Instant getRepresentativeCheckedAt() { return representativeCheckedAt; }
+    /** Nome declarado (descriptografado): só para o pedido de atendimento. */
+    public String getRepresentativeName() { return representativeName; }
+    public String getRepresentativeDocumentMasked() { return representativeDocumentMasked; }
+
+    /** Situação da confirmação do representante. */
+    public enum RepresentativeStatus { CONFIRMED, UNCONFIRMED }
 }

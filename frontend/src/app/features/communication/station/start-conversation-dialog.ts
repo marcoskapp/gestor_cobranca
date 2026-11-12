@@ -22,7 +22,8 @@ import { CONTACT_LABEL_LABELS } from '../../debt/data/debt.labels';
 import { ConversationsApi, MessagesApi, TemplatesApi } from '../data/communication.api';
 import { CHANNEL_ICONS, CHANNEL_LABELS, START_ERROR_LABELS, VARIABLE_TYPE_LABELS } from '../data/communication.labels';
 import { ChannelType, ConversationView, MessageView, TemplateView } from '../data/communication.models';
-import { StationContact, blockText, channelContacts, idempotencyKey, ownerText, prefillVariables, stationChannels } from '../data/communication.rules';
+import { DebtorProfile, StationContact, blockText, channelContacts, idempotencyKey, ownerText, prefillVariables, stationChannels } from '../data/communication.rules';
+import { DebtorsApi } from '../../debt/data/debt.api';
 import { applicableTemplates } from '../inbox/composer';
 
 /** Contato da ficha com o valor mascarado (o valor completo nunca chega a este diálogo). */
@@ -234,6 +235,19 @@ export class StartConversationDialog {
   private readonly conversationsApi = inject(ConversationsApi);
   private readonly messagesApi = inject(MessagesApi);
   private readonly templatesApi = inject(TemplatesApi);
+  private readonly debtorsApi = inject(DebtorsApi);
+  /**
+   * Tipo de pessoa e nome fantasia (B9: `nome_fantasia` e `saudacao` pré-preenchidos). Só com `DEBTOR_VIEW`; sem ela
+   * ou em falha, essas variáveis ficam com o operador.
+   */
+  private readonly profile = rxResource({
+    params: () => (this.auth.hasPermission(Permission.DEBTOR_VIEW) ? this.data.debtorId : undefined),
+    stream: ({ params }) =>
+      this.debtorsApi.profile(params).pipe(
+        map((d): DebtorProfile => ({ personType: d.personType, tradeName: d.tradeName })),
+        catchError(() => of(null)),
+      ),
+  });
 
   protected readonly channelLabels = CHANNEL_LABELS;
   protected readonly channelIcons = CHANNEL_ICONS;
@@ -348,7 +362,7 @@ export class StartConversationDialog {
   protected pickTemplate(id: string): void {
     this.templateId.set(id);
     const t = this.template();
-    this.values.set(t ? prefillVariables(t.variables, this.data.debtorName) : {});
+    this.values.set(t ? prefillVariables(t.variables, this.data.debtorName, this.profile.value() ?? null) : {});
     this.clearPreview();
     this.refreshPreview();
   }

@@ -31,6 +31,11 @@ class PostgresScoringLocks implements ScoringLocks {
         caseIds.stream().distinct().sorted().forEach(id -> lock("scoring.case:" + id));
     }
 
+    @Override
+    public void lockDebtor(UUID debtorId) {
+        lock("scoring.debtor:" + debtorId);
+    }
+
     private void lock(String key) {
         jdbc.queryForList("select pg_advisory_xact_lock(hashtextextended(shared.current_tenant_id()::text || ':' || :key, 0))",
                 new MapSqlParameterSource("key", key));

@@ -62,7 +62,7 @@ class CampaignSeeder {
         rt.optional("régua de atraso inicial", () -> {
             UUID segment = segment(seed, creditorId, "ATRASO_INICIAL", "Atraso de 15 a 90 dias, sem contato efetivo",
                     new SegmentCriteria(Set.of(seed.portfolioId(0, 0)), 15, 90, null, null, Set.of("OPEN"), true,
-                            "WHATSAPP", null, null, false, null, null, null, null, null, null, null, null, null, null));
+                            "WHATSAPP", null, null, false, null, null, null, null, null, null, null, null, null, null, null, null));
             campaign(seed, "REGUA_" + prefix + "_ATRASO", new CampaignSettings("Régua de atraso inicial",
                     "Abertura sem expor a dívida, retomada e tarefa de ligação (sandbox)", segment,
                     "EXTRAJUDICIAL_COLLECTION", 10, "COBRANCA", null, 7, null, 24, true),
@@ -83,7 +83,7 @@ class CampaignSeeder {
         rt.optional("régua de lembrete de parcela", () -> {
             UUID segment = segment(seed, creditorId, "LEMBRETE_PARCELA", "Acordo em vigor com parcela vencendo em 3 dias",
                     new SegmentCriteria(null, null, null, null, null, null, null, "WHATSAPP", null, null, null, null, null,
-                            null, true, null, null, null, null, 3, 3));
+                            null, true, null, null, null, null, 3, 3, null, null));
             campaign(seed, "REGUA_" + prefix + "_LEMBRETE", new CampaignSettings("Lembrete de parcela do acordo",
                     "Lembrete três dias antes do vencimento (sandbox)", segment, "AGREEMENT_FOLLOW_UP", 20,
                     null, 20, 7, null, 24, true),

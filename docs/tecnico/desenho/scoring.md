@@ -2,9 +2,10 @@
 
 Escopo: F23 — score de propensão "avaliado com métricas e validação", usado **somente para priorização operacional**.
 Regra de negócio, ética e LGPD: [docs/negocio/score-propensao.md](../../negocio/score-propensao.md).
-Schema `scoring`, migrations V1400–V1499 (`V1400` tabelas). Dependências declaradas: `shared`,
-`collection :: usecases` (posição dos casos, varredura `CaseUseCases#listActiveAfter`), `debt :: usecases` (carteira do
-título de um pagamento sem carteira). O grafo também permite `payment` e `organization`, não usados: os fatos de
+Schema `scoring`, migrations V1400–V1499 (`V1400` tabelas, `V1401` inteligência de contato). Dependências declaradas:
+`shared`, `collection :: usecases` (posição dos casos, varredura `CaseUseCases#listActiveAfter`), `debt :: usecases`
+(carteira do título de um pagamento sem carteira; na inteligência de contato, `DebtorContactUseCases#list` para conferir
+que o contato do evento é do devedor e `DebtorUseCases#get` para o tipo de pessoa e a visibilidade do devedor). O grafo também permite `payment` e `organization`, não usados: os fatos de
 pagamento chegam por eventos. Nenhum módulo depende do `scoring`; os consumidores recebem o score por eventos.
 
 ## 1. Visão geral
@@ -160,6 +161,45 @@ recusada (`plan.rules.goal_metric_unavailable`, mensagem atualizada): o motor de
 
 `GET /expected-recovery` expõe o mesmo indicador por `NONE`/`CREDITOR`/`PORTFOLIO`/`ASSIGNEE`, filtrado pelo escopo.
 
+## 7.1 Inteligência de contato
+
+Desenho completo e regras: [inteligencia-de-contato.md](inteligencia-de-contato.md) (fase 1 implementada).
+
+* **Fatos** (`scoring.contact_attempt`, `ContactFactRecorder`, consumidores `scoring.contact.*` em
+  `ContactIntelligenceListeners`, separados dos fatos do score): ligação só pelo `CallCompleted` (saída = tentativa,
+  sucesso com `ANSWERED` e conversação > 0; entrada = contato do devedor), mensagem só pelo `MessageStatusChanged`
+  (`SENT` = tentativa, `READ` = leitura, `RECEIVED` = contato do devedor que marca como respondida só a tentativa mais
+  recente do mesmo canal e credor — e contato, quando identificado — em até 72 h, se ela estiver sem sucesso),
+  `InteractionRecorded` só com origem `MANUAL`/`SYSTEM` (origem `TELEPHONY`/`COMMUNICATION` espelha os eventos próprios
+  e `ASSISTANT` a conversa em que o assistente registrou promessa ou retorno; origem nula é ignorada). Contato informado que não é do
+  devedor do evento → ignorado (`contact_mismatch`). Sem base legal → nada. Hora e dia da semana no fuso de operação;
+  tipo de pessoa do devedor gravado no fato (corte PF/PJ). Fato sem contato identificado é gravado (conta no canal, no
+  horário e no acordo; no cartão aparece como "contato não identificado").
+* **Perfil** (`scoring.contact_profile`, por devedor × credor × contato × canal): recalculado inteiro a partir dos fatos
+  do devedor a cada fato novo (lock consultivo por devedor) e no descarte da retenção; cálculo puro em
+  `ContactProfileCalculator` (suavização Beta-Binomial força 10 pela taxa da carteira no canal nos últimos 180 dias,
+  ≥ 30 tentativas; senão assessoria no canal; senão assessoria; senão 50%), melhor faixa de 3 h com ≥ 3 tentativas
+  (empate pela mais recente), tentativas até o 1º sucesso, canal preferido (peso 2 para contato iniciado pelo devedor,
+  ≥ 2 respostas, empate = sem preferência) e confiança (`LOW` < 5, `MEDIUM` 5–19, `HIGH` ≥ 20). Contato iniciado pelo
+  devedor: ligação recebida sempre; mensagem recebida só quando não responde a uma tentativa da série nem continua a
+  conversa nas últimas 72 h (`REPLY_WINDOW`; a resposta já é o sucesso da tentativa).
+* **Base das taxas** (`scoring.contact_rate_base`, `ContactRateBaseService`, manutenção `scoring.contact_rate_base`
+  antes da retenção): tentativas e sucessos de 180 dias por carteira e canal e por assessoria e canal, e por carteira a
+  mediana de tentativas até o 1º sucesso; o cartão só lê a tabela. Até a primeira manutenção a priori é neutra (50%)
+  e a mediana não aparece.
+* **Desfecho por acordo** (`scoring.agreement_contact_outcome`): criado só quando o primeiro evento visto do acordo é
+  `FORMALIZED` (senão `ignored{reason=agreement_not_tracked}`), com as tentativas e contatos efetivos do devedor no
+  credor desde o acordo anterior; atualiza a situação final (`ACTIVE`, `COMPLETED` = quitado, `BROKEN`, `CANCELLED`;
+  renegociação de acordo quebrado continua quebrado, de acordo em vigor vira cancelado) e recalcula as contagens a cada
+  mudança; evento mais antigo que a situação gravada não a substitui (comparação em microssegundos; no mesmo instante a
+  situação final vence `ACTIVE` — `ContactFactRecorder#supersedes`).
+* **Leitura** (`ContactIntelligenceService`): perfil do devedor junta os credores do escopo (com `caseId`, só o credor do
+  caso e a taxa da carteira do caso como referência) com explicações em texto; painel da carteira por período (até 400
+  dias), credor (escopo), carteira e tipo de pessoa, com taxa exibida só a partir de 10 tentativas por célula/linha.
+* **LGPD**: `DebtorAnonymized` apaga fatos e perfis e tira `case_id`, `agreement_id` e `debtor_id` dos desfechos, com
+  `agreed_at`, `status_at` e `updated_at` truncados para o dia no fuso de operação; retenção `SCORING_CONTACT_FACTS`
+  (abaixo). IT: `ContactIntelligenceIT`.
+
 ## 8. Explicabilidade, LGPD e retenção
 
 * Cada `case_score` guarda features e **contribuições por feature** (log-odds; pontos no scorecard). `GET /cases/{id}`
@@ -184,6 +224,11 @@ recusada (`plan.rules.goal_metric_unavailable`, mensagem atualizada): o motor de
   desligado. `OutcomeService#purge` lê os prazos por `RetentionUseCases#retentionFor` no tenant e registra log INFO com
   prazo e origem (`factSource`/`snapshotSource` = `TENANT`|`SYSTEM_DEFAULT`) quando descarta algo. IT:
   `ScoringRetentionIT`.
+* `SCORING_CONTACT_FACTS` (fatos da inteligência de contato, contados de `occurred_at`; 730–3650 dias, padrão o mesmo
+  `fact-retention-days`, sem mínimo exigido pelo módulo): `ContactRetentionService#purgeBatch` (manutenção
+  `scoring.contact_retention`, em rodadas de até 200 devedores e 1000 desfechos, cada uma na própria transação, até
+  terminar ou até 500 rodadas) apaga os fatos, recalcula o perfil dos devedores afetados e tira a identificação dos
+  desfechos encerrados de acordos anteriores ao prazo (instantes truncados para o dia).
 
 ## 9. Segurança, escopo e auditoria
 
@@ -221,6 +266,7 @@ recusada (`plan.rules.goal_metric_unavailable`, mensagem atualizada): o motor de
 | `/settings/legal-basis` | `PUT` | `SCORING_MANAGE` |
 | `/runs` | `GET` / `POST` (202) | `SCORING_VIEW` / `SCORING_MANAGE` |
 | `/runs/{id}` · `/monitoring` · `/expected-recovery` | `GET` | `SCORING_VIEW` |
+| `/debtors/{debtorId}/contact-profile?caseId=` · `/contact-insights?from=&to=&creditorId=&portfolioId=&personType=` | `GET` | `SCORING_VIEW` (devedor/caso no escopo; painel filtrado pelo escopo) |
 
 ## 12. Telas (`frontend/src/app/features/scoring`)
 
@@ -236,6 +282,7 @@ credores: quem tem escopo restrito vê a explicação (`app-scoring-scope-notice
 | Execuções | `/score/execucoes`, `/score/execucoes/:id` | Escoragens e treinos com resumo (escorados, ignorados, mudanças de faixa; histórico insuficiente com os mínimos; modelo reprovado com os motivos), ficha com contagens, motivos, links para os modelos e para o monitoramento; atualiza a cada 5 s enquanto `RUNNING` | Escorar agora (confirmação; devolve a do dia) |
 | Monitoramento | `/score/monitoramento` | Aba **Estabilidade e calibração**: último retrato (situação, população, PSI do score, alertas em texto), PSI do score por retrato e AUC realizada por safra (`app-column-chart` com marcas de 2 casas), PSI por variável e calibração da última safra apurada, tabela dos relatórios (26 últimos). Aba **Recuperado × esperado** (filtrada pelo escopo; padrão para quem não tem todos os credores): período (até 400 dias, padrão 180), agrupamento por credor/carteira/responsável e credor; indicadores, gráfico esperado × recuperado e tabela | — |
 | Decisões e variáveis | `/score/transparencia` | Finalidade e limites (LGPD art. 20), variáveis permitidas com a transformação da regressão, o que nunca é usado, decisões de promoção/rejeição com quem decidiu, justificativa e a comparação vista (`DetailDialog`) | — |
+| Inteligência de contato | `/score/contato` | Filtros na URL (período até 400 dias, credor, carteira, tipo de pessoa); indicadores; mapa de calor dia × faixa horária; tentativas até o 1º atendimento (`app-column-chart`); taxa por canal e contatos até o acordo e até o acordo cumprido (`app-bar-chart`); corte PF/PJ; cada gráfico com tabela | — |
 | Parâmetros do score | `/score/parametros` | Base legal (situação, referência, quem registrou) e os parâmetros em três grupos (desfecho e faixas com a chance de cada corte; treino; escoragem e monitoramento), com as regras cruzadas do domínio (pagantes ≤ casos, janela de treino ≥ 2× desfecho, PSI de atenção < alerta, cortes decrescentes) | Registrar/alterar a base legal (diálogo); salvar parâmetros com o resumo só do que mudou |
 
 **Ficha do caso** (`app-case-score-card`, em `features/scoring/case`, inserido em `collection/station/case-sheet-panel`
@@ -248,6 +295,11 @@ explicação** (diálogo com todos os fatores, histórico dos retratos com o des
 solicitação "revisão de decisão automatizada" aberta do devedor no compliance (lista com
 `DATA_SUBJECT_REQUEST_MANAGE`; sem ela, o identificador opcional). Erros de regra (`scoring.legal_basis_missing`,
 `scoring.case_not_scorable`, `scoring.model.self_promotion`…) com texto próprio (`SCORING_ERROR_LABELS`).
+
+**Melhor forma de contato** (`app-contact-profile-card`, em `features/scoring/contact`, incluído no
+`case-sheet-panel` abaixo do cartão do score e na aba "Contatos" da ficha do devedor — uma linha em cada): só com
+`SCORING_VIEW`; junta o perfil (por `contactId`) com a lista de contatos que a tela já tem (valor mascarado do `debt`);
+canal preferido, contatos pela taxa com explicação, confiança e melhor horário; sem dados suficientes, diz o que falta.
 
 Componentes compartilhados reaproveitados: `app-page-header`, `app-data-table`, `app-empty-state`, `app-status-chip`
 (domínios `scoringModel`, `scoringRun`, `scoringMonitoring` em `shared/status`), `app-field`/`appInput`,

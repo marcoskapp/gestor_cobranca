@@ -5,6 +5,7 @@
  */
 import { formatAmount } from '../../../shared/components/amount/amount';
 import { describeStatus } from '../../../shared/status/status';
+import { PERSON_TYPE_LABELS } from '../../debt/data/debt.labels';
 import {
   ACTION_LABELS,
   CHANNEL_LABELS,
@@ -87,6 +88,8 @@ export function emptyCriteria(): SegmentCriteria {
     ownerTypes: null,
     minDaysToInstallment: null,
     maxDaysToInstallment: null,
+    hasNewContact: null,
+    personType: null,
   };
 }
 
@@ -120,10 +123,12 @@ export function normalizeCriteria(input: Partial<SegmentCriteria> | null | undef
     ownerTypes: list(c.ownerTypes),
     minDaysToInstallment: num(c.minDaysToInstallment),
     maxDaysToInstallment: num(c.maxDaysToInstallment),
+    hasNewContact: c.hasNewContact ?? null,
+    personType: c.personType || null,
   };
 }
 
-export type FilterKind = 'portfolios' | 'int-range' | 'money-range' | 'statuses' | 'owners' | 'channel' | 'yes-no' | 'int';
+export type FilterKind = 'portfolios' | 'int-range' | 'money-range' | 'statuses' | 'owners' | 'channel' | 'yes-no' | 'int' | 'person-type';
 
 /** Filtro combinável do construtor de segmentos (um ou dois campos de `SegmentCriteria`). */
 export interface CriteriaFilter {
@@ -138,17 +143,24 @@ export interface CriteriaFilter {
   no?: string;
   /** Limites do campo numérico. */
   max?: number;
+  /** Opção inicial do `yes-no` ao acrescentar o filtro (padrão: "não"). */
+  initial?: boolean;
 }
+
+/** Tipos de pessoa do filtro de segmento (`SegmentCriteria.personType`). */
+export const SEGMENT_PERSON_TYPES = ['INDIVIDUAL', 'COMPANY'] as const;
 
 export const CRITERIA_FILTERS: readonly CriteriaFilter[] = [
   { key: 'portfolios', label: 'Carteiras', group: 'Carteira e situação', kind: 'portfolios', fields: ['portfolioIds'] },
   { key: 'caseStatuses', label: 'Situação do caso', group: 'Carteira e situação', kind: 'statuses', fields: ['caseStatuses'], hint: 'Sem seleção: qualquer situação ativa.' },
   { key: 'ownerTypes', label: 'Dono do atendimento', group: 'Carteira e situação', kind: 'owners', fields: ['ownerTypes'] },
+  { key: 'personType', label: 'Tipo de pessoa', group: 'Carteira e situação', kind: 'person-type', fields: ['personType'] },
   { key: 'daysOverdue', label: 'Atraso (dias)', group: 'Dívida', kind: 'int-range', fields: ['minDaysOverdue', 'maxDaysOverdue'], hint: 'Desde o vencimento mais antigo em cobrança.', max: MAX_DAYS },
   { key: 'balance', label: 'Saldo em aberto (R$)', group: 'Dívida', kind: 'money-range', fields: ['minBalance', 'maxBalance'] },
   { key: 'contactableChannel', label: 'Canal contatável', group: 'Contato', kind: 'channel', fields: ['contactableChannel'], hint: 'Canal sem restrição de contato para o devedor.' },
   { key: 'interactions', label: 'Interações registradas', group: 'Contato', kind: 'int-range', fields: ['minInteractions', 'maxInteractions'], hint: 'Máximo 0 = nunca trabalhado.', max: MAX_DAYS },
   { key: 'everEffectiveContact', label: 'Contato efetivo', group: 'Contato', kind: 'yes-no', fields: ['everEffectiveContact'], yes: 'Já houve contato efetivo', no: 'Nunca houve contato efetivo' },
+  { key: 'hasNewContact', label: 'Contato novo', group: 'Contato', kind: 'yes-no', fields: ['hasNewContact'], yes: 'Com contato novo', no: 'Sem contato novo', initial: true, hint: 'Telefone, e-mail ou endereço recebido numa nova carga e ainda sem tentativa.' },
   { key: 'noInteractionDays', label: 'Sem interação há (dias)', group: 'Contato', kind: 'int', fields: ['noInteractionDays'], hint: 'Inclui casos nunca trabalhados.', max: MAX_DAYS },
   { key: 'noEffectiveContactDays', label: 'Sem contato efetivo há (dias)', group: 'Contato', kind: 'int', fields: ['noEffectiveContactDays'], hint: 'Inclui casos sem contato efetivo.', max: MAX_DAYS },
   { key: 'pendingPromise', label: 'Promessa de pagamento', group: 'Negociação', kind: 'yes-no', fields: ['pendingPromise'], yes: 'Com promessa pendente', no: 'Sem promessa pendente' },
@@ -240,6 +252,9 @@ export function criteriaSummary(c: SegmentCriteria, portfolioName: (id: string) 
         break;
       case 'ownerTypes':
         if (c.ownerTypes?.length) items.push(`Dono: ${c.ownerTypes.map((o) => OWNER_TYPE_LABELS[o] ?? o).join(', ')}`);
+        break;
+      case 'personType':
+        if (c.personType) items.push(PERSON_TYPE_LABELS[c.personType]);
         break;
       case 'daysOverdue':
         if (c.minDaysOverdue !== null || c.maxDaysOverdue !== null) items.push(`Atraso ${rangeText(c.minDaysOverdue, c.maxDaysOverdue, days)}`);

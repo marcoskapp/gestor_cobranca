@@ -36,6 +36,10 @@ import java.util.UUID;
  * @param minDaysToInstallment  próxima parcela em aberto do acordo em vigor vence em ao menos N dias (0 = hoje);
  *                              casos sem acordo em vigor com parcela em aberto ficam fora
  * @param maxDaysToInstallment  idem, vence em até N dias (lembrete de parcela: "vence nos próximos N dias")
+ * @param hasNewContact         com ({@code true}) ou sem ({@code false}) contato novo recebido na carga ainda sem
+ *                              tentativa, dentro da janela (docs/tecnico/desenho/contatos-recebidos.md §4)
+ * @param personType            tipo de pessoa do devedor: INDIVIDUAL ou COMPANY (cobranca-b2b.md §9); casos com tipo
+ *                              desconhecido ficam fora
  */
 @org.springframework.modulith.NamedInterface("usecases")
 public record SegmentCriteria(
@@ -59,12 +63,15 @@ public record SegmentCriteria(
         Integer maxScore,
         Set<String> ownerTypes,
         Integer minDaysToInstallment,
-        Integer maxDaysToInstallment) {
+        Integer maxDaysToInstallment,
+        Boolean hasNewContact,
+        String personType) {
 
     public static final Set<String> CASE_STATUSES = Set.of("OPEN", "IN_NEGOTIATION", "PROMISE", "AGREEMENT", "DISPUTED",
             "SUSPENDED", "LEGAL");
     public static final Set<String> CHANNELS = Set.of("WHATSAPP", "EMAIL", "SMS", "PHONE");
     public static final Set<String> OWNER_TYPES = Set.of("ASSISTANT", "QUEUE", "USER", "NONE");
+    public static final Set<String> PERSON_TYPES = Set.of("INDIVIDUAL", "COMPANY");
     private static final int MAX_DAYS = 36_500;
     /** Horizonte do filtro de parcela vencendo (um ano). */
     public static final int MAX_INSTALLMENT_DAYS = 366;
@@ -76,12 +83,13 @@ public record SegmentCriteria(
         eligibleOnly = eligibleOnly == null ? Boolean.TRUE : eligibleOnly;
         contactableChannel = contactableChannel == null || contactableChannel.isBlank() ? null
                 : contactableChannel.trim().toUpperCase(Locale.ROOT);
+        personType = personType == null || personType.isBlank() ? null : personType.trim().toUpperCase(Locale.ROOT);
     }
 
     /** Segmento sem filtros além da elegibilidade. */
     public static SegmentCriteria any() {
         return new SegmentCriteria(null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
     }
 
     /** Valida faixas e valores; lança {@code BusinessRuleException} com código {@code segment.*}. */
@@ -96,6 +104,8 @@ public record SegmentCriteria(
         Guard.require(contactableChannel == null || CHANNELS.contains(contactableChannel), "segment.channel_invalid",
                 "Canal inválido");
         Guard.require(OWNER_TYPES.containsAll(ownerTypes), "segment.owner_type_invalid", "Dono do atendimento inválido");
+        Guard.require(personType == null || PERSON_TYPES.contains(personType), "segment.person_type_invalid",
+                "Tipo de pessoa: pessoa física ou jurídica");
         range(minInteractions, maxInteractions, "segment.interactions_invalid", "Faixa de interações inválida");
         Guard.require(minDaysToInstallment == null || (minDaysToInstallment >= 0 && minDaysToInstallment <= MAX_INSTALLMENT_DAYS),
                 "segment.installment_days_invalid", "Dias até a parcela entre 0 e " + MAX_INSTALLMENT_DAYS);

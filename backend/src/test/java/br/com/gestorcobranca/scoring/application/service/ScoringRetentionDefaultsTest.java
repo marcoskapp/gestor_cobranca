@@ -20,7 +20,8 @@ class ScoringRetentionDefaultsTest {
     void declaresTheFactLookbackAsTheMinimumOfTheCaseFactsRetention() {
         assertThat(new ScoringRetentionDefaults(properties(900)).retentionDefaults())
                 .containsExactly(new RetentionDefault("SCORING_CASE_FACTS", 1095, 900),
-                        new RetentionDefault("SCORING_FEATURE_SNAPSHOTS", 730, 0));
+                        new RetentionDefault("SCORING_FEATURE_SNAPSHOTS", 730, 0),
+                        new RetentionDefault("SCORING_CONTACT_FACTS", 1095, 0));
         assertThat(new ScoringRetentionDefaults(properties(null)).retentionDefaults().getFirst().requiredMinimum())
                 .isEqualTo(730);
     }

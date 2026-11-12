@@ -86,6 +86,27 @@ Aplicada no `NegotiationGuard` (validação única de todas as ofertas — tela,
 O sistema não fixa percentual de renda nem valor de mínimo existencial (o Decreto 11.150/2022 e suas alterações, o
 plano de repactuação e a política do credor definem); a assessoria registra a capacidade declarada.
 
+### 1.5 Categoria por tipo de pessoa e regime da carteira (cobrança B2B §8)
+
+`VulnerabilityApplicability` (domínio puro) decide quais categorias podem ser **registradas** para o devedor:
+
+| Devedor | Categorias | Recusa (422) |
+| --- | --- | --- |
+| Empresa (CNPJ) | só `OTHER` — superendividamento, idade, saúde e instrução são condições de pessoa natural | `vulnerability.not_applicable_to_company` |
+| Pessoa física com alguma carteira de consumo (ou sem carteira) | todas | — |
+| Pessoa física só com carteiras empresariais | todas menos `SUPER_INDEBTED` (instituto do CDC, Lei 14.181/2021) | `vulnerability.not_applicable_to_business_portfolio` |
+
+- As carteiras do devedor vêm de `DebtTitleUseCases#portfolioIdsOfDebtor` e o regime de
+  `PortfolioUseCases#consumerProtectionApplies`, **sem filtro de escopo**: a proteção do consumidor não pode depender de
+  quem pergunta (o devedor pode ter títulos de consumo num credor fora do escopo do ator). A resposta é só um booleano.
+  Carteira desconhecida ou lista vazia contam como consumo (proteção nunca retirada por inferência).
+- Vale para o registro manual e para a confirmação da sugestão do assistente. Marcadores já registrados não são
+  retirados pela regra; o regime não retira os demais marcadores de pessoa física.
+- O selo devolve `availableCategories` (vazio para quem não registra); o diálogo oferece só essas e explica o porquê
+  (empresa ou carteira empresarial).
+- Teste: `PortfolioRegimeIT` (superendividamento recusado em carteira empresarial e aceito com uma carteira de consumo
+  em outro credor; idade continua; empresa só "Outra situação").
+
 ## 2. Contestação aberta no portal → contestação no collection (I14)
 
 - No portal, o pedido `DISPUTE` traz o motivo (`NOT_RECOGNIZED`, `ALREADY_PAID`, `WRONG_AMOUNT`, `OTHER`) e, se o
@@ -244,6 +265,7 @@ como **padrão do sistema** enquanto a assessoria não configura.
 | `PORTAL_SESSION_CLIENT_DATA` | IP e navegador das sessões encerradas | dias | 30–1825 | 365 (`session-client-data`) | apagar IP e navegador | portal |
 | `SCORING_CASE_FACTS` | fatos dos casos usados nas features | dias | 730–3650 | 1095 (`app.scoring.fact-retention-days`) | excluir registro | scoring |
 | `SCORING_FEATURE_SNAPSHOTS` | snapshots com desfecho apurado (treino e monitoramento) | dias | 365–3650 | 730 (`snapshot-retention-days`) | excluir registro | scoring |
+| `SCORING_CONTACT_FACTS` | fatos da inteligência de contato (tentativas, respostas e leituras por contato; o perfil é recalculado com o que fica e os desfechos de acordo encerrados anteriores ao prazo ficam sem identificação) | dias | 730–3650 | 1095 (mesmo `app.scoring.fact-retention-days`) | excluir registro | scoring |
 
 - **Unidade e limites** são da categoria (`RetentionCategory`), conferidos no domínio (`retention.amount_invalid`) e no
   formulário. Mínimos com motivo técnico: contadores do portal 7 dias (menos zera a escalada do bloqueio de quem
@@ -337,6 +359,13 @@ guardado; a troca fica na trilha de auditoria) e as medidas extrajudiciais/prove
 texto livre); consultas da API pública por devedor (o log de acesso guarda o padrão da rota, não o id — só a carga por
 lote é rastreável, e um título regravado guarda só o último lote); boleto e link de pagamento (sem prestador registrado);
 o SMTP é o servidor de envio da plataforma (sem conta por empresa) — o nome da empresa vem do cadastro de operadores.
+
+**Pessoas ligadas a uma empresa devedora (cobrança B2B):** o representante da empresa (sócio administrador,
+procurador) é titular dos próprios dados sem ser devedor. Contrato `shared.privacy.RelatedPersonSource`
+(`linksOf(cpf, creditorScope)`: vínculo, empresa, papel, categoria de dados e período — nunca o CPF ou o nome),
+implementado pelo debt (`RepresentativePrivacySource`, blind index do CPF com finalidade própria). **Pendência:** a
+solicitação de titular ainda localiza só devedores; usar a fonte no `verifyIdentity`/rascunho de resposta quando o CPF
+não for de devedor.
 
 ### 8.2 Cadastro de operadores e suboperadores (compliance)
 

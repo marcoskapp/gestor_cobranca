@@ -95,6 +95,17 @@ describe('regras de segmento', () => {
     ]);
   });
 
+  it('contato novo e tipo de pessoa: normalização, resumo e filtros ativos', () => {
+    expect(normalizeCriteria({}).hasNewContact).toBeNull();
+    expect(normalizeCriteria({}).personType).toBeNull();
+    const c = criteria({ hasNewContact: true, personType: 'COMPANY' });
+    expect(criteriaSummary(c)).toEqual(['Somente casos elegíveis', 'Pessoa jurídica', 'Com contato novo']);
+    expect(criteriaSummary(criteria({ hasNewContact: false }))).toContain('Sem contato novo');
+    expect(activeFilterKeys(c)).toEqual(['personType', 'hasNewContact']);
+    clearFilter(c, 'hasNewContact');
+    expect(c.hasNewContact).toBeNull();
+  });
+
   it('identifica e limpa os filtros ativos', () => {
     const c = criteria({ minScore: 100, pendingPromise: true });
     expect(activeFilterKeys(c)).toEqual(['pendingPromise', 'score']);

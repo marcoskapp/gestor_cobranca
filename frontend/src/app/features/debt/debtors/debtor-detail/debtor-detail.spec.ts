@@ -20,6 +20,8 @@ const debtor: DebtorView = {
   notes: null,
   createdAt: '2026-01-10T12:00:00Z',
   anonymizedAt: null,
+  tradeName: null,
+  establishment: null,
 };
 
 const summary: DebtorSummary = {
@@ -70,6 +72,10 @@ const contact: ContactView = {
   priority: 1,
   lastVerifiedAt: null,
   invalidReason: null,
+  maskedPersonName: null,
+  personRole: null,
+  decisionMaker: false,
+  receipt: null,
 };
 
 const caseOf = (id: string, status: CaseView['status'], portfolioId = 'p-1'): CaseView =>

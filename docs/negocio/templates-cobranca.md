@@ -37,7 +37,12 @@
 * Nas réguas, cada variável recebe uma **origem**: `DEBTOR_FIRST_NAME`, `OPEN_BALANCE`, `ELIGIBLE_BALANCE`,
   `OLDEST_DUE_DATE`, `DAYS_OVERDUE`, `CREDITOR_NAME`, `OFFER_AMOUNT`, `OFFER_DUE_DATE`, `PAYMENT_LINK`,
   `NEXT_INSTALLMENT_AMOUNT`, `NEXT_INSTALLMENT_DUE_DATE` (próxima parcela em aberto do acordo em vigor do caso),
-  `PORTAL_LINK`, `PORTAL_LINK_HOURS` (link de uso único do portal, gerado no envio, e sua validade) ou `LITERAL`.
+  `PORTAL_LINK`, `PORTAL_LINK_HOURS` (link de uso único do portal, gerado no envio, e sua validade),
+  `DEBTOR_TRADE_NAME` (variável `nome_fantasia`, tipo `TEXT`: nome fantasia da empresa ou, sem ele, a razão social;
+  devedor pessoa física → etapa pulada), `DEBTOR_GREETING` (variável `saudacao`, `TEXT`: primeiro nome da pessoa física,
+  nome da empresa para PJ — um mesmo modelo para carteiras mistas) ou `LITERAL`. A régua sugere essas origens pelo nome
+  da variável; na mensagem manual, `nome_fantasia` e `saudacao` já vêm preenchidas para quem vê o cadastro do devedor.
+  Em carteira de empresas, a janela de contato da política deve seguir o horário comercial (configuração da política).
   Sem acordo em vigor, sem parcela em aberto ou sem portal para a carteira do caso, a etapa é **pulada** com o motivo
   (`NO_ACTIVE_AGREEMENT`, `NO_OPEN_INSTALLMENT`, `PORTAL_UNAVAILABLE`) — nunca sai mensagem com valor vazio.
 * Troque `[NOME DA ASSESSORIA]` pelo nome fantasia antes de submeter (não há variável para o nome da assessoria; o

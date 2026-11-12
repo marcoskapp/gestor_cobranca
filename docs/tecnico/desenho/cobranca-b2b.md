@@ -70,7 +70,9 @@ representantes; o representante é sempre CPF.
 * Tela: seção **Representantes** na ficha do devedor PJ (inclusão, edição e encerramento com `DEBTOR_MANAGE`; CPF
   mascarado, revelação com `DEBTOR_SENSITIVE_VIEW` e log de acesso).
 * Carga: `representante_1_documento`, `representante_1_nome`, `representante_1_papel` (`SOCIO_ADMINISTRADOR`,
-  `PROCURADOR`, `OUTRO`), `representante_1_negocia` (`S`/`N`), e `representante_2_*`.
+  `PROCURADOR`, `OUTRO`), `representante_1_negocia` (`S`/`N`), e `representante_2_*`. Papel ou negocia em branco =
+  não informado: a carga mantém o que está cadastrado (nunca apaga o papel ou o poder registrados à mão); na criação
+  valem `OUTRO` e sem poder.
 * Caso de uso para outros módulos: `CompanyRepresentativeUseCases#canNegotiate(companyId, cpfHash)` e
   `#representatives(companyId)` (visão sem documento em claro).
 
@@ -80,12 +82,14 @@ representantes; o representante é sempre CPF.
   credor configurou `BIRTH_DATE`, o PJ responde `CONTRACT_SUFFIX` (4 últimos caracteres de um contrato ou título). A
   tela de configuração explica a regra. Corrige a falha de hoje (PJ nunca passava).
 * **Identificação do representante**: depois do acesso, devedor PJ informa **CPF e nome de quem está negociando**. O
-  portal confere com os representantes com poder para negociar e vigentes, **pelo blind index do CPF** (o CPF digitado
+  portal confere com os representantes com poder para negociar e vigentes, **pelo blind index do CPF**, e exige que o
+  primeiro e o último nome declarados batam com o cadastro (sem acento e sem diferenciar maiúsculas; nome que não
+  confere conta como falha, com a mesma resposta) (o CPF digitado
   nunca vai a log técnico, evento, métrica ou auditoria; o evento de negócio registra só "confirmado"/"não confirmado").
   A resposta não revela quem está cadastrado: CPF que não confere segue no portal para **consulta** (dívidas, ofertas),
   mas o aceite vira **pedido de atendimento** (`PORTAL_NEGOTIATION`, "representante não confirmado"); a tela é a mesma
   nos dois casos até o aceite.
-* **Limites**: tentativas de CPF contadas **por devedor PJ e por IP** em janela de 30 min no mesmo mecanismo persistido
+* **Limites**: tentativas de CPF (e nome) contadas **por devedor PJ e por IP** em janela de 30 min no mesmo mecanismo persistido
   do bloqueio progressivo (`portal.access_throttle`, chaves HMAC; categoria de retenção `PORTAL_ACCESS_THROTTLES`) —
   renovar a sessão não zera a contagem. Padrão: 5 falhas por devedor e 20 por IP bloqueiam a confirmação por 15 min,
   dobrando até 24 h. O desafio `CONTRACT_SUFFIX` de PJ usa os mesmos limites do desafio atual.
@@ -109,6 +113,23 @@ representantes; o representante é sempre CPF.
 
 O regime nunca muda contrato existente; a política continua sendo a fonte das condições.
 
+**Implementação (11/2026).** `PortfolioRegime` no domínio (`cdcFineCapApplies`, `superIndebtednessApplies`); a criação
+aceita o regime (ausente = consumo, também na API pública v1, que não expõe o campo) e a mudança é um caso de uso
+próprio, `PortfolioUseCases#changeRegime` (`POST /portfolios/{id}/regime`, `PORTFOLIO_MANAGE`), com **motivo
+obrigatório**, auditoria `portfolio.regime_changed` e evento de negócio de mesmo nome. Para as regras de outros
+módulos, `PortfolioUseCases#consumerProtectionApplies(portfolioIds)` responde só um booleano, sem filtro de escopo
+(carteira desconhecida ou lista vazia = consumo). Tela: coluna "Regime" e ação "Alterar regime" na lista de carteiras;
+regime no cadastro. Efeitos entregues:
+
+* **Revisão da carga**: em carteira empresarial o alerta `BALANCE_ABOVE_PRINCIPAL` por encargos acima do teto do
+  consumidor não é gerado; **diverge do desenho** num ponto: o saldo a 10ⁿ vezes o principal continua alertado, porque é
+  provável erro de separador decimal no arquivo, não regra do CDC ([importacao.md](importacao.md) §4.3).
+* **Superendividamento**: §8.
+* **Política padrão sugerida**: a política é por credor (não por carteira) e o "modelo de mercado" continua sendo o
+  ponto de partida; a tela da política passou a dizer que a multa de 2% é do consumo e que a carteira empresarial usa
+  os encargos do contrato. Modelos com tom de consumidor: orientação no manual da tela de carteiras (B9 trata os
+  modelos).
+
 ## 7. Recuperação judicial e falência (B6) — `debt`, `V0311__debt_insolvency_proceeding.sql`
 
 `debt.insolvency_proceeding`: `debtor_id` (só PJ), `kind` (`JUDICIAL_RECOVERY`, `EXTRAJUDICIAL_RECOVERY`,
@@ -122,7 +143,32 @@ manuais (`DEBTOR_MANAGE`) com motivo.
   ao encerrar, a elegibilidade é reavaliada. Ficha do caso mostra "Empresa em recuperação judicial desde …" com atalho
   para o jurídico.
 * Interação já registrada não é apagada; acordo em vigor não é cancelado automaticamente (decisão humana: a dívida pode
-  estar no plano de recuperação).
+  estar no plano de recuperação). **Acordo novo é recusado** enquanto o processo estiver em curso (pagar crédito
+  sujeito ao processo fora do plano fere a igualdade entre credores — Lei 11.101, arts. 49, 129 e 172): a negociação
+  trata `DEBTOR_INSOLVENCY` como `case.not_eligible`, no portal e para o operador.
+* **A empresa inteira**: o processo registrado numa unidade vale para matriz e filiais (mesma raiz do CNPJ). As
+  filiais mostram o processo, ficam inelegíveis juntas e registrar, convolar ou encerrar exige escopo sobre os credores
+  de todas as unidades. Cadastros antigos ainda sem a raiz (preenchida pela varredura diária) valem só para si.
+* A tela só mostra as ações a quem pode executá-las (`canManage` da consulta: `DEBTOR_MANAGE` e escopo total); a nota e
+  o motivo livres só vão a quem vê o cadastro do devedor (`DEBTOR_VIEW`/`DEBTOR_MANAGE`), e a trilha de auditoria
+  guarda motivos fixos — o texto livre fica só no processo, que a anonimização neutraliza (com `insolvency.anonymized`).
+
+**Implementação (11/2026)** — detalhes em [debt.md](debt.md) §7:
+
+* Número CNJ validado por `shared.domain.CnjNumber` (movido do jurídico para não duplicar a regra); o ano do número é o
+  da data do pedido.
+* A **origem da informação** (nota) é obrigatória no registro e é o motivo da auditoria; encerramento e convolação
+  pedem data e motivo.
+* **Convolação** em falência (art. 73) muda o tipo do mesmo processo (`converted_from`/`converted_on`), sem a janela
+  sem suspensão que "encerrar e registrar de novo" abriria.
+* Registrar, convolar e encerrar exigem escopo sobre **todos** os credores do devedor (a suspensão vale em todos); a
+  consulta aceita `DEBTOR_VIEW` ou `CASE_VIEW` (quem atende o caso vê o aviso).
+* `DEBTOR_INSOLVENCY` não precisou de migration no collection (`eligibility_reasons` é texto sem `check`;
+  `V0611` não foi usada). Na régua, o caso inelegível sai do segmento ou tem a etapa pulada; não há pausa própria
+  ([campanhas.md](campanhas.md) §3.4).
+* Aviso `app-insolvency-notice` na ficha do devedor (com as ações) e na ficha do caso; o atalho abre o caso jurídico
+  aberto da empresa (um → o caso; vários → menu; nenhum → orientação de habilitar o crédito).
+* A anonimização do devedor neutraliza a nota e o motivo (texto livre); o processo, dado público, permanece.
 
 ## 8. Vulnerabilidade (B7) — `compliance`
 
@@ -131,11 +177,21 @@ só para CPF (`422 vulnerability.not_applicable_to_company`); a tela esconde a a
 O regime da carteira não retira marcador de vulnerabilidade de pessoa física: só o superendividamento deixa de ser
 oferecido em carteira empresarial (§6).
 
+**Implementação (11/2026)** — [conformidade.md](conformidade.md) §1.5: `VulnerabilityApplicability` (domínio puro).
+Superendividamento é recusado (`422 vulnerability.not_applicable_to_business_portfolio`) quando **todas** as carteiras
+em que o devedor tem títulos são empresariais; basta uma de consumo, em qualquer credor (consulta sem escopo), para
+continuar valendo. O selo devolve `availableCategories` e o diálogo oferece só essas, explicando o motivo. Vale também
+na confirmação da sugestão do assistente; marcadores já registrados não são retirados.
+
 ## 9. Segmentação (B8)
 
 * `collection`: critério `person_type` (`INDIVIDUAL`/`COMPANY`/nulo) na fila; o caso guarda `debtor_person_type`
   (preenchido na abertura pelo `DebtorView`), na mesma migration do critério de contato novo (`V0610`), entregue junto.
 * `campaign`: critério `personType` no segmento (SQL e memória), coluna em `audience_case`.
+* **Implementado** junto com o contato novo: `collection_case.debtor_person_type` e `queue.person_type` (`V0610`, casos
+  existentes preenchidos pela migration a partir do cadastro do devedor; os novos, na abertura, por
+  `DebtorSegmentationQueries`), `audience_case.debtor_person_type` (`V1103`, lido do caso). Tipo exigido só seleciona
+  casos com o tipo conhecido. Telas: critério "Tipo de pessoa" na fila e no segmento.
 
 ## 10. Testes
 
@@ -143,6 +199,53 @@ Domínio (raiz do CNPJ, representantes com validade, regime), `CompanyDebtorIT` 
 pessoa e representantes; filiais pela raiz), `PortalCompanyIT` (desafio PJ, representante que confere e que não confere
 — mesma resposta, aceite com representante, aceite sem representante vira atendimento), `InsolvencyIT` (marcador →
 inelegível → encerrado → elegível), testes do frontend.
+
+## 10a. Entrega de B1–B4 e B9 (11/2026) — o que divergiu do desenho e por quê
+
+Implementação: [debt.md](debt.md) §7 (empresa, pessoa de contato, representantes), [portal.md](portal.md) §2a
+(portal para PJ), [layout de importação](../../negocio/layout-importacao.md) §2.0 (colunas) e
+[templates](../../negocio/templates-cobranca.md) (variáveis). Divergências:
+
+* **Caso de uso do representante para outros módulos**: em vez de `canNegotiate(companyId, cpfHash)`, o debt expõe
+  `negotiator(companyId, cpf)` (e `hasNegotiators`, `get`). O blind index do CPF tem finalidade própria do debt; se o
+  portal calculasse o hash, ele precisaria conhecer a finalidade e a chave de outro módulo (acoplamento). O CPF só
+  trafega em memória entre os módulos e nunca é registrado.
+* **Pessoa de contato mascarada na lista**: "o nome só aparece para quem vê o contato (mesmo mascaramento do valor)" foi
+  implementado como o valor: a lista mostra "A*** (Financeiro) · decide"; o nome completo aparece na revelação auditada
+  do contato. Na edição, nome vazio mantém o atual (a tela não conhece o nome completo) e "Sem pessoa" remove.
+* **Confirmação bloqueada**: com o limite estourado, a declaração continua aceita com a mesma resposta, sem conferir o CPF
+  (o aceite vira atendimento), em vez de recusar com 429 — recusar diria ao atacante que as tentativas anteriores
+  estavam erradas.
+* **Canal do atendimento no aceite**: o aceite da empresa exige `preferredChannel` (por onde o atendente fala se precisar
+  concluir), pedido sempre — confirmada ou não — para a tela ser a mesma nos dois casos.
+* **Motivo do pedido**: o "PORTAL_NEGOTIATION, representante não confirmado" virou o motivo próprio
+  `COMPANY_ACCEPTANCE` no portal (V1305), que vai ao communication como `PORTAL_NEGOTIATION`; o devedor não o escolhe.
+* **Raiz do CNPJ de cadastros anteriores**: preenchida por varredura diária (`debt.document_root_backfill`) e pela
+  próxima carga, porque o blind index depende da chave da aplicação (a migration não consegue calculá-lo).
+* **Solicitação de titular do representante**: entregue a fonte `shared.privacy.RelatedPersonSource` (debt); o uso no
+  compliance (localizar o titular que não é devedor) ficou como pendência ([conformidade.md](conformidade.md) §8.1).
+* **Coluna `data_nascimento` em CNPJ**: ignorada com aviso na carga e recusada no cadastro manual
+  (`debtor.birth_date_company`); cadastros antigos de empresa com data são limpos na próxima edição.
+* **Nome declarado no portal** (correção de revisão): além do CPF, o primeiro e o último nome declarados precisam bater
+  com o cadastro (`portal.domain.service.DeclaredName`, sem acento e sem diferenciar maiúsculas; nomes do meio livres).
+  Antes bastava o CPF. Nome que não confere conta como falha no limite, com a mesma resposta (anti-enumeração).
+* **Trava do limite antes de decidir** (correção de revisão): `RepresentativeConfirmation#declare` trava as duas linhas
+  de `portal.access_throttle` (empresa e depois IP, sempre nessa ordem; `update` com transição identidade, que faz
+  `select … for update`) antes de ler o bloqueio; a trava dura até o commit de `declareRepresentative`
+  (`@Transactional`). Antes a leitura sem trava deixava declarações simultâneas furarem o limite.
+* **Carga não apaga papel nem poder** (correção de revisão): `representante_N_papel` e `representante_N_negocia` em
+  branco passaram a significar "não informado" (`RepresentativeRecord.role`/`canNegotiate` nulos) e mantêm o valor
+  atual; antes viravam `OTHER` e `N` e sobrescreviam o cadastro manual. Na criação os padrões continuam `OTHER` e sem
+  poder.
+
+**Pendências** (registradas na revisão de código):
+
+* O aceite de PJ pelo **operador** (tela da negociação) e pelo **assistente** ainda não registra o representante que
+  aceitou em nome da empresa — só o portal leva o representante ao termo e ao registro do acordo.
+* A **retenção do representante encerrado** (hoje fica até a anonimização da empresa) e a **cifra de `evidence_note` e
+  `end_reason`** (hoje em claro, texto livre curto que pode conter dado pessoal) dependem de decisão do responsável.
+* `RepresentativePrivacySource` precisa alinhar o escopo por credor com `DebtorVisibility.creditorsOf` antes de ser
+  ligada ao compliance (solicitação de titular do representante).
 
 ## 11. Decisões (numeradas em `decisoes-autonomas.md` na entrega)
 

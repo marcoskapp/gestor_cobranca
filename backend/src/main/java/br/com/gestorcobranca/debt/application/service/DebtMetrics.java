@@ -77,6 +77,26 @@ class DebtMetrics {
         registry.counter("debt.title_amount.threshold_proposals_expired").increment();
     }
 
+    /**
+     * Contato recebido numa carga: {@code new} = contato novo para devedor já existente (abre a janela de novidade),
+     * {@code resent} = reenvio de contato que o devedor já tinha.
+     */
+    void contactReceived(String kind) {
+        registry.counter("debt.contacts.received", "kind", kind).increment();
+    }
+
+    /** Uso de contato ignorado pelo consumidor (contact_mismatch, contact_not_found). */
+    void contactUsageIgnored(String reason) {
+        registry.counter("debt.contacts.usage_ignored", "reason", reason).increment();
+    }
+
+    /** @param outcome published (novidade do devedor republicada após janela vencida), failed (assessoria com falha) */
+    void noveltySweep(String outcome, int count) {
+        if (count > 0) {
+            registry.counter("debt.contacts.novelty_sweep", "outcome", outcome).increment(count);
+        }
+    }
+
     /** @param outcome detected, seen_again, KEPT_MANUAL, ACCEPTED_CREDITOR, RESOLVED_BY_CREDITOR */
     void amountDivergence(String outcome) {
         registry.counter("debt.title_amount.divergences", "outcome", outcome).increment();

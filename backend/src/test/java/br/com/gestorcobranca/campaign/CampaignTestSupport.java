@@ -59,7 +59,7 @@ public abstract class CampaignTestSupport extends CommunicationTestSupport {
     protected UUID debtorWithPhone(String cpf, int index) {
         String phone = "(11) 9%04d-%04d".formatted(1000 + index, 2000 + index);
         return system(() -> ingestion.upsertDebtor(new DebtorRecord(cpf, "Devedor " + cpf.substring(0, 3),
-                LocalDate.of(1985, 3, 15), List.of(new ContactRecord("PHONE", phone, "MOBILE", true)))).id());
+                LocalDate.of(1985, 3, 15), List.of(new ContactRecord("PHONE", phone, "MOBILE", true)), null)).id());
     }
 
     /** Caso com um título vencido em {@code dueDate}. */

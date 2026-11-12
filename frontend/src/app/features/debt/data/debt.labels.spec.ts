@@ -64,8 +64,16 @@ describe('rótulos e regras de tela do módulo debt', () => {
     expect(parseDebtorQuery('529.982.247-25', 'c-1', null)).toEqual({ mode: 'document', document: '52998224725' });
     expect(parseDebtorQuery('529.982', null, null)).toEqual({ mode: 'incomplete' });
     expect(parseDebtorQuery('111.111.111-11', null, null)).toEqual({ mode: 'incomplete' });
-    expect(parseDebtorQuery('  Maria ', 'c-1', 'p-1')).toEqual({ mode: 'name', q: 'Maria', creditorId: 'c-1', portfolioId: 'p-1' });
-    expect(parseDebtorQuery('', null, null)).toEqual({ mode: 'name', q: null, creditorId: null, portfolioId: null });
+    expect(parseDebtorQuery('  Maria ', 'c-1', 'p-1')).toEqual({ mode: 'name', q: 'Maria', creditorId: 'c-1', portfolioId: 'p-1', newContact: false, newContactBatchId: null });
+    expect(parseDebtorQuery('', null, null)).toEqual({ mode: 'name', q: null, creditorId: null, portfolioId: null, newContact: false, newContactBatchId: null });
+    expect(parseDebtorQuery('', null, null, true, 'b-1')).toEqual({
+      mode: 'name',
+      q: null,
+      creditorId: null,
+      portfolioId: null,
+      newContact: true,
+      newContactBatchId: 'b-1',
+    });
   });
 
   it('agrupa títulos por contrato de origem e soma só o saldo em cobrança', () => {

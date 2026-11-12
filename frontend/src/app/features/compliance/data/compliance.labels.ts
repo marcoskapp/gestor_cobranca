@@ -134,6 +134,7 @@ export const RETENTION_CATEGORY_LABELS: Record<RetentionCategory, string> = {
   PORTAL_SESSION_CLIENT_DATA: 'Portal: IP e navegador das sessões',
   SCORING_CASE_FACTS: 'Score: histórico dos casos',
   SCORING_FEATURE_SNAPSHOTS: 'Score: fotografias para treino do modelo',
+  SCORING_CONTACT_FACTS: 'Score: histórico de tentativas por contato',
 };
 
 /** A partir de quando o prazo conta e o que é descartado (dica do campo de prazo). */
@@ -152,6 +153,8 @@ export const RETENTION_CATEGORY_HINTS: Record<RetentionCategory, string> = {
     'Contatos, promessas, acordos e pagamentos usados no cálculo do score, contados da data de cada um. O mínimo é o período que o score considera.',
   SCORING_FEATURE_SNAPSHOTS:
     'Fotografias periódicas dos casos com o resultado já apurado, usadas para treinar e acompanhar o modelo; contadas da data da fotografia.',
+  SCORING_CONTACT_FACTS:
+    'Ligações, mensagens e respostas por contato usadas na melhor forma de contato, contadas da data de cada uma. O perfil de cada contato é refeito com o que fica.',
 };
 
 export const RETENTION_ACTION_LABELS: Record<string, string> = {

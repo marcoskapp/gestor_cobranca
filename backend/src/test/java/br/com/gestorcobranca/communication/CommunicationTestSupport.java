@@ -177,7 +177,7 @@ public abstract class CommunicationTestSupport extends IntegrationTest {
     protected UUID debtor(String cpf) {
         return system(() -> ingestion.upsertDebtor(new DebtorRecord(cpf, "Devedor " + cpf.substring(0, 3),
                 LocalDate.of(1985, 3, 15), List.of(new ContactRecord("PHONE", PHONE, "MOBILE", true),
-                new ContactRecord("EMAIL", "devedor" + cpf.substring(0, 3) + "@exemplo.com", null, false)))).id());
+                new ContactRecord("EMAIL", "devedor" + cpf.substring(0, 3) + "@exemplo.com", null, false)), null)).id());
     }
 
     /** Carga de títulos seguida da sincronização de casos; devolve o caso ativo. */

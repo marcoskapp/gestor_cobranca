@@ -96,6 +96,18 @@ const num = (v: number | null | string) => (v === null || v === '' || v === unde
             <label class="form-check-label" for="queue-vulnerable">Só devedores com marcador de vulnerabilidade (fila de atendimento cuidadoso)</label>
             <div class="form-text">Use com prioridade menor que a das demais filas do credor para que esses casos caiam aqui primeiro.</div>
           </div>
+          <div class="form-check form-switch app-span-all" data-tour="queue-new-contact">
+            <input class="form-check-input" type="checkbox" role="switch" id="queue-new-contact" formControlName="newContactOnly" aria-describedby="queue-new-contact-hint" />
+            <label class="form-check-label" for="queue-new-contact">Só devedores com contato novo</label>
+            <div class="form-text" id="queue-new-contact-hint">Telefone, e-mail ou endereço recebido numa nova carga e ainda sem tentativa. O caso sai da fila quando todos os contatos novos do devedor forem tentados ou, vencido o prazo, na revisão diária da madrugada.</div>
+          </div>
+          <app-field label="Tipo de pessoa" hint="Pessoa física (CPF) ou jurídica (CNPJ).">
+            <select appInput formControlName="personType">
+              <option value="">Qualquer</option>
+              <option value="INDIVIDUAL">Pessoa física</option>
+              <option value="COMPANY">Pessoa jurídica</option>
+            </select>
+          </app-field>
           @if (form.errors?.['range']) {
             <p class="app-field-error app-span-all" role="alert">O mínimo de cada faixa não pode passar do máximo.</p>
           }
@@ -163,6 +175,8 @@ export class QueueForm {
       maxCasesPerUser: this.fb.control<number | null>(this.data?.maxCasesPerUser ?? null, [Validators.min(1)]),
       teams: this.fb.control<string[]>(this.data?.teamIds ?? []),
       vulnerableOnly: this.fb.control<boolean>(this.data?.vulnerableOnly ?? false),
+      newContactOnly: this.fb.control<boolean>(this.data?.newContactOnly ?? false),
+      personType: this.fb.control<'' | 'INDIVIDUAL' | 'COMPANY'>(this.data?.personType ?? ''),
     },
     {
       validators: [
@@ -202,6 +216,8 @@ export class QueueForm {
       maxCasesPerUser: num(v.maxCasesPerUser),
       teamIds: v.teams,
       vulnerableOnly: v.vulnerableOnly,
+      newContactOnly: v.newContactOnly,
+      personType: v.personType || null,
     };
     this.saving.set(true);
     this.errors.set([]);

@@ -96,3 +96,25 @@ incluir um dado novo exige mudança de código, revisão e atualização deste d
   do desafiante.
 * **Recuperado × esperado** por credor, carteira e negociador: valor recuperado ÷ valor que o score esperava para os
   casos recebidos — o indicador mais justo para comparar negociadores com carteiras diferentes (painel de desempenho).
+
+## 8. Inteligência de contato
+
+Responde, com os dados que a operação já gera, **qual telefone mais atende, em que horário, depois de quantas
+tentativas, se o devedor prefere WhatsApp ou ligação e depois de quantos contatos ele fecha e cumpre o acordo**. Desenho
+técnico: [inteligencia-de-contato.md](../tecnico/desenho/inteligencia-de-contato.md).
+
+* **Mesma finalidade e base legal do score** (priorização operacional): sem base legal registrada nada é coletado. Os
+  dados são ids de contato, canal, contagens, hora e dia da semana — o número ou e-mail continua só no cadastro do
+  devedor, e a tela mostra o valor mascarado que já exibia.
+* **Só orienta**: o cartão "Melhor forma de contato" (painel do caso e ficha do devedor) e a tela "Inteligência de
+  contato" (`/score/contato`) sugerem contato, canal e horário. Nada muda a política de contato (horários, limites,
+  canais permitidos), o discador ou as réguas; usar o perfil automaticamente é fase 2 e depende de aprovação.
+* **Explicável e honesto**: todo número mostra a base ("6 de 10 ligações atendidas") e a quantidade de observações; as
+  taxas são ajustadas pela média da carteira (ou da assessoria, sem dados suficientes na carteira) para que 1 de 1 não vire 100%; com menos de 5 tentativas o perfil diz
+  "dados insuficientes". Mensagem lida não conta como resposta.
+* **Sucesso de negociação é o acordo cumprido**: a tela mostra quantas tentativas antecederam cada acordo e a taxa de
+  cumprimento (cumpridos ÷ cumpridos + quebrados; acordos em vigor e cancelados ficam fora).
+* **Escopo por credor**: fatos de credor fora do escopo do usuário nunca entram na resposta.
+* **Retenção**: categoria "Score: histórico de tentativas por contato" na tela de Retenção (padrão 1095 dias, de 730 a
+  3650); o perfil é refeito com o que fica. Na anonimização do devedor, fatos e perfis são apagados e os desfechos de
+  acordo ficam só como estatística, sem identificação.

@@ -50,7 +50,7 @@ class FictitiousDataTest {
                 + number.substring(9);
         assertThat(CnjNumbers.isValid(tampered)).isFalse();
         // mesmo cálculo da validação do módulo legal (o cadastro de ações recusa número inválido)
-        assertThat(number.substring(8, 10)).isEqualTo(br.com.gestorcobranca.legal.domain.model.CnjNumber
+        assertThat(number.substring(8, 10)).isEqualTo(br.com.gestorcobranca.shared.domain.CnjNumber
                 .checkDigitsFor("0001234", "2026", "8", "26", "0100"));
         IntStream.range(0, 200).forEach(i -> assertThat(CnjNumbers.isValid(
                 CnjNumbers.format(1_000_000L + i * 37L, 2025, 8, 26, 100))).isTrue());

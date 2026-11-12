@@ -24,6 +24,7 @@ import {
   ScoringSettingsView,
   TrainingRequestView,
 } from './scoring.models';
+import { ContactInsightsFilter, ContactInsightsView, ContactProfileView } from './contact-intelligence.models';
 
 const BASE = `${API_V1}/scoring`;
 
@@ -156,5 +157,29 @@ export class CaseScoreApi {
 
   review(caseId: string, request: ReviewRequest): Observable<ScoreReviewView> {
     return this.http.post<ScoreReviewView>(`${this.base(caseId)}/reviews`, request, { context: silentErrorContext() });
+  }
+}
+
+/**
+ * Inteligência de contato (`SCORING_VIEW`): perfil do devedor (o devedor e, se informado, o caso precisam
+ * estar no escopo; fora dele, 404) e o retrato agregado da operação (fora do escopo de credor, tudo
+ * zerado). Erros ficam com a tela (mensagem inline).
+ */
+@Injectable({ providedIn: 'root' })
+export class ContactIntelligenceApi {
+  private readonly http = inject(HttpClient);
+
+  profile(debtorId: string, caseId: string | null): Observable<ContactProfileView> {
+    return this.http.get<ContactProfileView>(`${BASE}/debtors/${debtorId}/contact-profile`, {
+      params: toHttpParams({ caseId }),
+      context: silentErrorContext(),
+    });
+  }
+
+  insights(filter: ContactInsightsFilter): Observable<ContactInsightsView> {
+    return this.http.get<ContactInsightsView>(`${BASE}/contact-insights`, {
+      params: toHttpParams({ ...filter }),
+      context: silentErrorContext(),
+    });
   }
 }

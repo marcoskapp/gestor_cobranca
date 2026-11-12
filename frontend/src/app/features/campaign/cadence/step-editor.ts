@@ -27,6 +27,12 @@ const REPLIES = Object.keys(REPLY_LABELS) as ReplyTransition[];
 const MESSAGE_CHANNELS: readonly MessageChannel[] = ['WHATSAPP', 'EMAIL', 'SMS'];
 const SOURCES = Object.keys(VARIABLE_SOURCE_LABELS) as VariableSource[];
 
+/** Sugestão de origem pelo nome da variável (cobrança B2B), antes da sugestão pelo tipo. */
+const SUGGESTED_BY_NAME: Record<string, VariableSource> = {
+  nome_fantasia: 'DEBTOR_TRADE_NAME',
+  saudacao: 'DEBTOR_GREETING',
+};
+
 /** Sugestão de origem pelo tipo declarado no template. */
 const SUGGESTED: Record<string, VariableSource> = {
   FIRST_NAME: 'DEBTOR_FIRST_NAME',
@@ -246,7 +252,7 @@ export class StepEditor {
       const next: Record<string, string> = {};
       for (const v of t.variables) {
         const current = a.variables?.[v.name];
-        const suggested = a.type === 'OFFER' && v.type === 'MONEY' ? 'OFFER_AMOUNT' : a.type === 'OFFER' && v.type === 'URL' ? 'PAYMENT_LINK' : SUGGESTED[v.type];
+        const suggested = a.type === 'OFFER' && v.type === 'MONEY' ? 'OFFER_AMOUNT' : a.type === 'OFFER' && v.type === 'URL' ? 'PAYMENT_LINK' : (SUGGESTED_BY_NAME[v.name] ?? SUGGESTED[v.type]);
         if (current) next[v.name] = current;
         else if (v.required && suggested) next[v.name] = suggested;
         else if (v.required) next[v.name] = 'LITERAL:';

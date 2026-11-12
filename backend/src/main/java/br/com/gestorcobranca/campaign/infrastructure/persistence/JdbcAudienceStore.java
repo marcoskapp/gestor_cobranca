@@ -36,7 +36,7 @@ class JdbcAudienceStore implements AudienceStore {
             a.eligibility_reasons, a.contactable_channels, a.open_balance, a.eligible_balance, a.oldest_due_date,
             a.owner_type, a.interaction_count, a.effective_contact_count, a.last_interaction_at,
             a.last_effective_contact_at, a.score, a.broken_agreements, a.case_version, a.refreshed_at,
-            a.next_installment_due_date
+            a.next_installment_due_date, a.new_contact_until, a.debtor_person_type
             """;
     private static final String DAYS_OVERDUE = "greatest(0, coalesce(cast(:today as date) - a.oldest_due_date, 0))";
     /** Dias de hoje (fuso de operação) até a próxima parcela em aberto do acordo; negativo = vencida. */
@@ -58,11 +58,13 @@ class JdbcAudienceStore implements AudienceStore {
                   (tenant_id, case_id, debtor_id, creditor_id, portfolio_id, status, resume_status, eligible,
                    eligibility_reasons, contactable_channels, open_balance, eligible_balance, oldest_due_date, owner_type,
                    interaction_count, effective_contact_count, last_interaction_at, last_effective_contact_at, score,
-                   broken_agreements, case_version, refreshed_at, next_installment_due_date)
+                   broken_agreements, case_version, refreshed_at, next_installment_due_date, new_contact_until,
+                   debtor_person_type)
                 values (:tenant, :caseId, :debtorId, :creditorId, :portfolioId, :status, :resumeStatus, :eligible,
                         :reasons, :channels, :openBalance, :eligibleBalance, :oldestDueDate, :ownerType,
                         :interactions, :effectiveContacts, :lastInteraction, :lastEffective, :score,
-                        :brokenAgreements, :caseVersion, :refreshedAt, :nextInstallmentDueDate)
+                        :brokenAgreements, :caseVersion, :refreshedAt, :nextInstallmentDueDate, :newContactUntil,
+                        :debtorPersonType)
                 on conflict (tenant_id, case_id) do update set
                    status = excluded.status, resume_status = excluded.resume_status, eligible = excluded.eligible,
                    eligibility_reasons = excluded.eligibility_reasons,
@@ -74,7 +76,8 @@ class JdbcAudienceStore implements AudienceStore {
                    last_effective_contact_at = excluded.last_effective_contact_at,
                    score = case when campaign.audience_case.score_calculated_at is null then excluded.score
                                 else campaign.audience_case.score end,
-                   case_version = excluded.case_version, refreshed_at = excluded.refreshed_at
+                   case_version = excluded.case_version, refreshed_at = excluded.refreshed_at,
+                   debtor_person_type = coalesce(excluded.debtor_person_type, campaign.audience_case.debtor_person_type)
                  where campaign.audience_case.case_version <= excluded.case_version
                 """, new MapSqlParameterSource()
                 .addValue("tenant", currentActor.tenantId())
@@ -99,7 +102,24 @@ class JdbcAudienceStore implements AudienceStore {
                 .addValue("brokenAgreements", s.brokenAgreements())
                 .addValue("caseVersion", s.caseVersion())
                 .addValue("refreshedAt", timestamp(s.refreshedAt()))
-                .addValue("nextInstallmentDueDate", s.nextInstallmentDueDate()));
+                .addValue("nextInstallmentDueDate", s.nextInstallmentDueDate())
+                .addValue("newContactUntil", timestamp(s.newContactUntil()))
+                .addValue("debtorPersonType", s.debtorPersonType()));
+    }
+
+    /**
+     * Contato novo: o valor vem do evento do debt e vale para todos os casos do devedor; a posição lida do caso só
+     * preenche a inclusão na projeção (o {@link #upsert} não o altera depois). Evento mais antigo que o já aplicado é
+     * descartado.
+     */
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int applyNewContact(UUID debtorId, Instant newContactUntil, Instant changedAt) {
+        return jdbc.update("""
+                update campaign.audience_case set new_contact_until = :until, new_contact_changed_at = :changedAt
+                 where debtor_id = :debtorId and (new_contact_changed_at is null or new_contact_changed_at <= :changedAt)
+                """, new MapSqlParameterSource("debtorId", debtorId).addValue("until", timestamp(newContactUntil))
+                .addValue("changedAt", timestamp(changedAt)));
     }
 
     @Override
@@ -275,6 +295,15 @@ class JdbcAudienceStore implements AudienceStore {
                     .append(" between 0 and :maxInstallmentDays");
             params.addValue("maxInstallmentDays", c.maxDaysToInstallment());
         }
+        if (c.hasNewContact() != null) {
+            String has = "(a.new_contact_until is not null and a.new_contact_until > :noveltyNow)";
+            w.append(c.hasNewContact() ? " and " + has : " and not " + has);
+            params.addValue("noveltyNow", timestamp(selection.now()));
+        }
+        if (c.personType() != null) {
+            w.append(" and a.debtor_person_type = :personType");
+            params.addValue("personType", c.personType());
+        }
         return w.toString();
     }
 
@@ -287,7 +316,8 @@ class JdbcAudienceStore implements AudienceStore {
             rs.getString("owner_type"), rs.getInt("interaction_count"), rs.getInt("effective_contact_count"),
             instant(rs.getTimestamp("last_interaction_at")), instant(rs.getTimestamp("last_effective_contact_at")),
             (Integer) rs.getObject("score"), rs.getInt("broken_agreements"), rs.getLong("case_version"),
-            instant(rs.getTimestamp("refreshed_at")), rs.getObject("next_installment_due_date", java.time.LocalDate.class));
+            instant(rs.getTimestamp("refreshed_at")), rs.getObject("next_installment_due_date", java.time.LocalDate.class),
+            instant(rs.getTimestamp("new_contact_until")), rs.getString("debtor_person_type"));
 
     private static List<String> split(String value) {
         return value == null || value.isBlank() ? List.of() : Arrays.stream(value.split(",")).filter(v -> !v.isBlank()).toList();

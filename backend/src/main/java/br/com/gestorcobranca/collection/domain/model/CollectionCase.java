@@ -146,6 +146,17 @@ public class CollectionCase extends TenantScopedEntity {
     @Column(name = "vulnerable", nullable = false)
     private boolean vulnerable;
 
+    /**
+     * Fim da novidade dos contatos do devedor recebidos na carga (debt, evento {@code DebtorContactNoveltyChanged}):
+     * critério "só devedores com contato novo" das filas. Só a data, sem o contato.
+     */
+    @Column(name = "new_contact_until")
+    private Instant newContactUntil;
+
+    /** Tipo de pessoa do devedor (INDIVIDUAL/COMPANY), gravado na abertura: critério de fila por PF/PJ. */
+    @Column(name = "debtor_person_type", length = 20)
+    private String debtorPersonType;
+
     protected CollectionCase() {
     }
 
@@ -365,6 +376,40 @@ public class CollectionCase extends TenantScopedEntity {
     public boolean isVulnerable() {
         return vulnerable;
     }
+
+    /** @return true se o fim da novidade dos contatos do devedor mudou */
+    public boolean applyNewContactUntil(Instant until) {
+        if (Objects.equals(newContactUntil, until)) {
+            return false;
+        }
+        newContactUntil = until;
+        return true;
+    }
+
+    /** O devedor tem contato novo ainda sem tentativa agora. */
+    public boolean hasNewContact(Instant now) {
+        return newContactUntil != null && newContactUntil.isAfter(now);
+    }
+
+    public Instant getNewContactUntil() {
+        return newContactUntil;
+    }
+
+    /** Tipo de pessoa do devedor (do cadastro no debt); só preenche ou corrige, nunca apaga. */
+    public void identifyDebtorPersonType(String personType) {
+        Guard.require(personType == null || PERSON_TYPES.contains(personType), "case.person_type_invalid",
+                "Tipo de pessoa inválido");
+        if (personType != null) {
+            this.debtorPersonType = personType;
+        }
+    }
+
+    public String getDebtorPersonType() {
+        return debtorPersonType;
+    }
+
+    /** Tipos de pessoa do devedor (debt {@code PersonType}). */
+    public static final Set<String> PERSON_TYPES = Set.of("INDIVIDUAL", "COMPANY");
 
     /**
      * Aplica o score de propensão calculado em {@code calculatedAt}. Cálculos mais antigos que o já

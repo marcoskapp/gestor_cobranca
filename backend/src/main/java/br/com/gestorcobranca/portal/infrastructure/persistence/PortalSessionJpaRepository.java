@@ -60,10 +60,12 @@ interface PortalSessionJpaRepository extends JpaRepository<PortalSession, UUID>,
     @Override
     @Modifying
     @Query(value = """
-            update portal.portal_session set client_ip = null, user_agent = null
+            update portal.portal_session set client_ip = null, user_agent = null, representative_name_encrypted = null,
+                   representative_document_masked = null
              where id in (select id from portal.portal_session
                            where tenant_id = shared.current_tenant_id() and ended_at < :cutoff
-                             and (client_ip is not null or user_agent is not null)
+                             and (client_ip is not null or user_agent is not null
+                                  or representative_name_encrypted is not null or representative_document_masked is not null)
                            limit :max)
             """, nativeQuery = true)
     int clearClientDataEndedBefore(Instant cutoff, @Param("max") int limit);

@@ -2,6 +2,7 @@ package br.com.gestorcobranca.debt.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases;
 import br.com.gestorcobranca.debt.domain.model.ContactLabel;
+import br.com.gestorcobranca.debt.domain.model.ContactPersonRole;
 import br.com.gestorcobranca.debt.domain.model.ContactSource;
 import br.com.gestorcobranca.debt.domain.model.ContactStatus;
 import br.com.gestorcobranca.debt.domain.model.ContactType;
@@ -42,10 +43,12 @@ class DebtorContactService implements DebtorContactUseCases {
     private final AuditTrail auditTrail;
     private final AccessLogger accessLogger;
     private final Clock clock;
+    private final ContactNoveltyTracker novelty;
 
     DebtorContactService(DebtorContactRepository contacts, ContactRegistry registry, PersonalDataIndex index,
                          DebtorVisibility visibility, AccessScope accessScope, CurrentActor currentActor,
-                         AuditTrail auditTrail, AccessLogger accessLogger, Clock clock) {
+                         AuditTrail auditTrail, AccessLogger accessLogger, Clock clock, ContactNoveltyTracker novelty) {
+        this.novelty = novelty;
         this.contacts = contacts;
         this.registry = registry;
         this.index = index;
@@ -69,9 +72,13 @@ class DebtorContactService implements DebtorContactUseCases {
             throw new BusinessRuleException("contact.source_invalid", "Origem permitida: MANUAL ou DEBTOR");
         }
         ContactValue value = ContactValue.parse(type, command.value());
-        DebtorContact contact = registry.addIfAbsent(debtor, value, label, command.whatsapp(), source, command.priority())
+        ContactPersonRole personRole = personRole(command.personRole());
+        boolean hasPerson = (command.personName() != null && !command.personName().isBlank()) || personRole != null
+                || command.decisionMaker();
+        DebtorContact contact = registry.addIfAbsent(debtor, value, label, command.whatsapp(), source, command.priority(),
+                        hasPerson ? new ContactRegistry.Person(command.personName(), personRole, command.decisionMaker()) : null)
                 .orElseThrow(() -> new ConflictException("contact.duplicate", "Contato já cadastrado para o devedor"));
-        return DebtViews.contact(contact);
+        return DebtViews.contact(contact, Instant.now(clock));
     }
 
     @Override
@@ -79,47 +86,92 @@ class DebtorContactService implements DebtorContactUseCases {
         DebtorContact contact = loadVisible(debtorId, contactId);
         ContactLabel label = DebtViews.parseEnum(ContactLabel.class, command.label(), "contact.label_invalid",
                 "Classificação do contato");
+        ContactPersonRole personRole = personRole(command.personRole());
         AuditEntry audit = AuditEntry.of("debtor_contact.updated", "debtor_contact", contactId)
                 .meta("debtorId", debtorId)
                 .change("label", contact.getLabel(), label)
                 .change("whatsapp", contact.isWhatsapp(), command.whatsapp())
                 .change("priority", contact.getPriority(), command.priority());
+        String previousPerson = DebtViews.maskName(contact.getPersonName());
+        ContactPersonRole previousRole = contact.getPersonRole();
+        boolean previousDecisionMaker = contact.isDecisionMaker();
         contact.classify(label, command.whatsapp(), command.priority());
+        contact.assignPerson(command.personName() == null ? contact.getPersonName() : command.personName(), personRole,
+                command.decisionMaker());
+        if (!java.util.Objects.equals(previousPerson, DebtViews.maskName(contact.getPersonName()))) {
+            audit.change("personName", previousPerson, DebtViews.maskName(contact.getPersonName()));
+        }
+        if (previousRole != contact.getPersonRole()) {
+            audit.change("personRole", previousRole, contact.getPersonRole());
+        }
+        if (previousDecisionMaker != contact.isDecisionMaker()) {
+            audit.change("decisionMaker", previousDecisionMaker, contact.isDecisionMaker());
+        }
         contacts.save(contact);
         auditTrail.record(audit);
-        return DebtViews.contact(contact);
+        return DebtViews.contact(contact, Instant.now(clock));
     }
 
     @Override
     public ContactView markInvalid(UUID debtorId, UUID contactId, String reason) {
         DebtorContact contact = loadVisible(debtorId, contactId);
+        lockNovelty(contact);
+        Instant now = Instant.now(clock);
+        ContactNoveltyTracker.Pending before = noveltyBefore(contact, now);
         ContactStatus previous = contact.getStatus();
-        contact.markInvalid(reason, Instant.now(clock));
+        contact.markInvalid(reason, now);
         contacts.save(contact);
         auditTrail.record(AuditEntry.of("debtor_contact.invalidated", "debtor_contact", contactId)
                 .meta("debtorId", debtorId).reason(contact.getInvalidReason())
                 .change("status", previous, contact.getStatus()));
-        return DebtViews.contact(contact);
+        noveltyAfter(contact, before, now);
+        return DebtViews.contact(contact, now);
     }
 
     @Override
     public ContactView markValid(UUID debtorId, UUID contactId) {
         DebtorContact contact = loadVisible(debtorId, contactId);
+        lockNovelty(contact);
+        Instant now = Instant.now(clock);
+        ContactNoveltyTracker.Pending before = noveltyBefore(contact, now);
         ContactStatus previous = contact.getStatus();
-        contact.markValid(Instant.now(clock));
+        contact.markValid(now);
         contacts.save(contact);
         auditTrail.record(AuditEntry.of("debtor_contact.validated", "debtor_contact", contactId)
                 .meta("debtorId", debtorId)
                 .change("status", previous, contact.getStatus()));
-        return DebtViews.contact(contact);
+        noveltyAfter(contact, before, now);
+        return DebtViews.contact(contact, now);
+    }
+
+    /**
+     * Contato novo: bloqueia o devedor antes de ler a novidade "antes" e de tomar o instante, como no uso do contato
+     * (contatos-recebidos.md §9).
+     */
+    private void lockNovelty(DebtorContact contact) {
+        if (contact.isReceivedAfterRegistration()) {
+            novelty.lockDebtor(contact.getDebtorId());
+        }
+    }
+
+    /** Contato inválido perde o selo: invalidar ou revalidar um contato novo pode mudar a novidade do devedor. */
+    private ContactNoveltyTracker.Pending noveltyBefore(DebtorContact contact, Instant now) {
+        return contact.isReceivedAfterRegistration() ? novelty.pending(contact.getDebtorId(), now) : null;
+    }
+
+    private void noveltyAfter(DebtorContact contact, ContactNoveltyTracker.Pending before, Instant now) {
+        if (before != null) {
+            novelty.publishIfChanged(contact.getDebtorId(), before, novelty.pending(contact.getDebtorId(), now), null, now);
+        }
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ContactView> list(UUID debtorId) {
         visibility.requireVisible(debtorId);
+        Instant now = Instant.now(clock);
         return contacts.findByDebtorIdOrderByTypeAscPriorityAscCreatedAtAsc(debtorId).stream()
-                .map(DebtViews::contact).toList();
+                .map(c -> DebtViews.contact(c, now)).toList();
     }
 
     @Override
@@ -130,7 +182,8 @@ class DebtorContactService implements DebtorContactUseCases {
         accessLogger.log(AccessEvent.of(AccessEventType.SENSITIVE_DATA_VIEWED, currentActor.get(),
                 Map.of("resource", "debtor_contact", "resourceId", contactId.toString(), "debtorId", debtorId.toString(),
                         "field", contact.getType().name())));
-        return new RevealedContact(contactId, debtorId, contact.getType().name(), contact.getValue());
+        return new RevealedContact(contactId, debtorId, contact.getType().name(), contact.getValue(),
+                contact.getPersonName());
     }
 
     @Override
@@ -138,10 +191,11 @@ class DebtorContactService implements DebtorContactUseCases {
     public List<ChannelContact> contactsForChannel(UUID debtorId, String type) {
         visibility.requireVisible(debtorId);
         ContactType contactType = DebtViews.parseEnum(ContactType.class, type, "contact.type_invalid", "Tipo de contato");
+        Instant now = Instant.now(clock);
         return contacts.findByDebtorIdAndTypeOrderByPriorityAscCreatedAtAsc(debtorId, contactType).stream()
                 .filter(c -> c.getStatus().isUsable())
                 .map(c -> new ChannelContact(c.getId(), c.getType().name(), c.getValue(), c.getLabel().name(),
-                        c.isWhatsapp(), c.getPriority(), c.getStatus().name()))
+                        c.isWhatsapp(), c.getPriority(), c.getStatus().name(), c.isNoveltyPending(now)))
                 .toList();
     }
 
@@ -175,6 +229,12 @@ class DebtorContactService implements DebtorContactUseCases {
         } catch (BusinessRuleException e) {
             return java.util.Optional.empty();
         }
+    }
+
+    private static ContactPersonRole personRole(String value) {
+        return value == null || value.isBlank() ? null
+                : DebtViews.parseEnum(ContactPersonRole.class, value, "contact.person_role_invalid",
+                "Papel da pessoa de contato");
     }
 
     private DebtorContact loadVisible(UUID debtorId, UUID contactId) {

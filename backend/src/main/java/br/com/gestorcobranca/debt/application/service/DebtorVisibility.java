@@ -64,6 +64,11 @@ class DebtorVisibility {
         return debtor;
     }
 
+    /** Para a tela: o ator tem escopo sobre todos os credores do devedor (o que {@link #requireFullScope} exige). */
+    boolean hasFullScope(UUID debtorId) {
+        return accessScope.hasAllCreditors() || creditorsOf(debtorId).stream().allMatch(accessScope::canAccessCreditor);
+    }
+
     Optional<Debtor> findVisible(Debtor debtor) {
         if (accessScope.hasAllCreditors()) {
             return Optional.of(debtor);

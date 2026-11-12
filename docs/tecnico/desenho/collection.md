@@ -75,6 +75,7 @@ quando, ao mesmo tempo:
 | carteira ativa e na vigência | `PortfolioUseCases#get().operable` | `PORTFOLIO_NOT_OPERABLE` |
 | título vencido em aberto | posição do caso | `NO_OPEN_TITLES` (só suspensos), `TITLES_DISPUTED` (todos bloqueados) |
 | devedor não anonimizado | `DebtorUseCases#get().status` | `DEBTOR_ANONYMIZED` |
+| empresa fora de recuperação judicial, extrajudicial ou falência | `InsolvencyUseCases#isUnderInsolvency` (debt) | `DEBTOR_INSOLVENCY` |
 | ao menos um canal sem restrição | `ContactGate#evaluate` por canal (PHONE, WHATSAPP, EMAIL, SMS), sem registrar tentativa | `CONTACT_RESTRICTED` |
 
 Um canal é **restrito** quando a negação do porteiro decorre de restrição (`RESTRICTED_DEBTOR`, `RESTRICTED_CHANNEL`,
@@ -90,6 +91,7 @@ Os motivos e os canais contatáveis ficam persistidos no caso (`eligibility_reas
 | `ContactRestrictionChanged` | casos ativos do devedor (no credor, se a restrição for de um credor) — síncrono no consumo |
 | `ContactPolicyPublished` | casos ativos do credor (ou de todos, política da assessoria) — job `collection.case_sweep` a partir de `effectiveFrom` |
 | `PortfolioStatusChanged` | casos ativos da carteira — job `collection.case_sweep` |
+| `DebtorInsolvencyChanged` | casos ativos do devedor em todos os credores — síncrono no consumo (`collection.debtor-insolvency`), relendo o estado no debt sob o lock do devedor |
 | `TitleStatusChanged`, contestação, mudança de status | o próprio caso |
 
 Mudança de elegibilidade publica `CaseStatusChanged` (campo `eligible`) e registra `case.eligibility_changed`.
@@ -99,11 +101,20 @@ Mudança de elegibilidade publica `CaseStatusChanged` (campo `eligible`) e regis
 ### 3.1 Filas
 
 `CollectionQueue`: critérios opcionais (credor, carteira, faixa de atraso, faixa de saldo, faixa de score, **só devedores
-com marcador de vulnerabilidade** — `vulnerable_only`, [conformidade.md](conformidade.md) §1.3), prioridade,
+com marcador de vulnerabilidade** — `vulnerable_only`, [conformidade.md](conformidade.md) §1.3 —, **só devedores com
+contato novo** recebido na carga ainda sem tentativa — `new_contact_only`, [contatos-recebidos.md](contatos-recebidos.md)
+§4 —, **tipo de pessoa** do devedor — `person_type` `INDIVIDUAL`/`COMPANY`, [cobranca-b2b.md](cobranca-b2b.md) §9),
+prioridade,
 ordem de entrega (`OLDEST_OVERDUE`, `HIGHEST_BALANCE`, `LOWEST_BALANCE`, `LEAST_RECENTLY_WORKED`, `HIGHEST_SCORE`),
 estratégia (`PULL`, `ROUND_ROBIN`, `LEAST_LOADED`), capacidade por operador e equipes que a atendem (vazio = qualquer
 operador). O caso pertence à **primeira fila ativa por prioridade** (empate pelo código) cujos critérios satisfaz
 (`QueueRouter`). Criar/alterar/ativar/desativar fila reprocessa o roteamento dos casos ativos (`collection.case_sweep`).
+
+O caso guarda os atributos do devedor usados nesses critérios (`V0610`): `debtor_person_type` (lido na abertura por
+`DebtorSegmentationQueries` do debt; os casos existentes foram preenchidos pela migration) e `new_contact_until` (fim da
+novidade dos contatos, lido na abertura e mantido pelo evento `DebtorContactNoveltyChanged`). O critério de contato novo
+compara `new_contact_until` com o instante do roteamento: janela vencida já não atende, mesmo antes da varredura diária do
+debt republicar a novidade. Tipo de pessoa exigido só seleciona casos com o tipo conhecido.
 
 ### 3.2 Próximo caso
 
@@ -558,6 +569,8 @@ evento (pendência registrada lá).
 
 `TitleStatusChanged`, `PortfolioLoaded`, `PortfolioStatusChanged`, `ContactRestrictionChanged`, `ContactPolicyPublished`,
 `VulnerabilityMarkerChanged` (indicador `collection_case.vulnerable` e nova fila dos casos ativos do devedor),
+`DebtorContactNoveltyChanged` (`collection.contact-novelty`: relê no debt, sob o lock do devedor, o tipo de pessoa e o fim
+da novidade — eventos podem chegar fora de ordem — e refaz só a fila dos casos ativos do devedor),
 `PaymentConfirmed`, `PaymentReversed`, `AgreementStatusChanged`, `CaseScoreChanged`, `TenantProvisioned` — consumidores
 `collection.<reacao>` idempotentes (`shared.consumed_event`), com lock consultivo por devedor antes de carregar o caso (os
 comandos de usuário obtêm o mesmo lock), o que evita abertura duplicada e colisões de lock otimista entre consumo e

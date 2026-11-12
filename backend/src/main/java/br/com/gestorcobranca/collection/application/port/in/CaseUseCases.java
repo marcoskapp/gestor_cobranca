@@ -96,7 +96,8 @@ public interface CaseUseCases {
                     List<String> contactableChannels, Instant eligibilityEvaluatedAt, UUID queueId, String ownerType,
                     UUID assigneeUserId, UUID assigneeTeamId, Instant assignedAt, Instant nextActionAt,
                     Instant lastInteractionAt, Instant lastEffectiveContactAt, int interactionCount,
-                    int effectiveContactCount, Integer score, long version) {
+                    int effectiveContactCount, Integer score, long version, Instant newContactUntil,
+                    String debtorPersonType) {
     }
 
     /**
@@ -116,8 +117,14 @@ public interface CaseUseCases {
                       List<ContactInfo> contacts) {
     }
 
+    /** @param receipt recebimento por carga (selo "Novo"; contatos-recebidos.md §4), nulo se nunca veio de carga */
     record ContactInfo(UUID contactId, String type, String maskedValue, String label, boolean whatsapp, String status,
-                       int priority) {
+                       int priority, ContactReceiptInfo receipt) {
+    }
+
+    /** Mesmo formato de {@code DebtorContactUseCases.ContactReceiptView}: só tipo e datas, sem valor. */
+    record ContactReceiptInfo(String novelty, Instant receivedAt, Instant noveltyUntil, Instant confirmedAt,
+                              Instant firstAttemptAt) {
     }
 
     record TitleInfo(UUID titleId, String externalId, Integer installmentNumber, LocalDate dueDate,

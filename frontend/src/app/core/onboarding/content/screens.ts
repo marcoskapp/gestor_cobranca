@@ -106,6 +106,7 @@ export const SCREENS: readonly ScreenGuide[] = [
     tourId: 'scoring.monitoring',
     changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] }],
   },
+  { key: 'scoring.contact', version: 1, path: '/score/contato', tourId: 'scoring.contact' },
   { key: 'scoring.transparency', version: 1, path: '/score/transparencia' },
   { key: 'scoring.settings', version: 1, path: '/score/parametros', tourId: 'scoring.settings' },
   {
@@ -138,10 +139,27 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'admin.roles', version: 1, path: '/admin/perfis', tourId: 'admin.roles' },
   { key: 'admin.teams', version: 1, path: '/admin/equipes', tourId: 'admin.teams' },
   { key: 'admin.units', version: 1, path: '/admin/unidades' },
-  { key: 'debt.debtors', version: 1, path: '/devedores', tourId: 'debt.debtors' },
+  {
+    key: 'debt.debtors',
+    version: 3,
+    path: '/devedores',
+    tourId: 'debt.debtors',
+    changes: [
+      { version: 2, items: ['Empresas mostram o nome fantasia e se são matriz ou filial; "Outras unidades da empresa", na ficha, abre a lista só com as unidades da mesma empresa.'] },
+      {
+        version: 3,
+        items: [
+          'Filtro "Com contato novo": devedores que receberam telefone, e-mail ou endereço numa nova carga e ainda não foram tentados por ele.',
+          'Aberta pelo relatório da importação, a lista mostra os devedores que receberam contato novo naquela carga; "Ver todos os devedores" sai do filtro.',
+        ],
+      },
+    ],
+  },
+  // a configuração vem antes da ficha (":id" casaria "contatos-recebidos")
+  { key: 'debt.contact-novelty', version: 1, path: '/devedores/contatos-recebidos' },
   {
     key: 'debt.debtor-detail',
-    version: 6,
+    version: 10,
     path: '/devedores/:id',
     tourId: 'debt.debtor-detail',
     changes: [
@@ -158,6 +176,23 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
       { version: 5, items: ['Selo de vulnerabilidade no cabeçalho quando o devedor tem marcador ativo (a categoria só aparece para quem pode vê-la).'] },
       { version: 6, items: ['Para quem atende titulares, "Relacionados" mostra as solicitações LGPD do devedor; "Ver todas" abre a fila filtrada pelo titular.'] },
+      {
+        version: 7,
+        items: [
+          'Empresa em recuperação judicial ou falência: registre o processo (com motivo), convole em falência e encerre na própria ficha. Enquanto estiver em curso, a cobrança da empresa fica suspensa em todos os credores e o aviso leva ao caso jurídico.',
+          'Atenção especial: para empresa, só "Outra situação"; superendividamento só aparece quando há dívida em carteira de consumo.',
+        ],
+      },
+      { version: 8, items: ['Aba "Contatos": cartão "Melhor forma de contato" (para quem vê o score), com o canal preferido e os contatos pela taxa de atendimento ou resposta, a confiança e o melhor horário.'] },
+      {
+        version: 9,
+        items: [
+          'Empresas: nome fantasia, matriz ou filial e o atalho "Outras unidades da empresa" (mesma raiz do CNPJ).',
+          'Contatos com a pessoa com quem se fala e o papel dela, por exemplo "A*** (Financeiro) · decide"; o nome completo aparece ao exibir o contato.',
+          'Aba "Representantes" nas empresas: quem pode negociar pela empresa (sócio administrador, procurador), com validade e evidência.',
+        ],
+      },
+      { version: 10, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
     ],
   },
   {
@@ -229,7 +264,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.queue',
-    version: 13,
+    version: 16,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -263,11 +298,14 @@ export const SCREENS: readonly ScreenGuide[] = [
         items: ['Cada caso tem um endereço só: ao abrir um caso na estação, o endereço passa a ser o do caso, que você pode copiar e compartilhar; o menu continua marcando a estação.'],
       },
       { version: 11, items: ['Selo de vulnerabilidade no cabeçalho quando o devedor tem marcador ativo (a categoria só aparece para quem pode vê-la).'] },
-      { version: 12, items: ['Histórico: a interação que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar" (cada avaliador avalia um atendimento uma vez).'] }, { version: 13, items: ['Agendar retorno para outra pessoa: a lista mostra só quem pode trabalhar o caso.'] }],
+      { version: 12, items: ['Histórico: a interação que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar" (cada avaliador avalia um atendimento uma vez).'] }, { version: 13, items: ['Agendar retorno para outra pessoa: a lista mostra só quem pode trabalhar o caso.'] },
+      { version: 14, items: ['Empresa em recuperação judicial ou falência: o caso fica inelegível e a ficha mostra desde quando, o processo e o atalho para o caso jurídico.'] }, { version: 15, items: ['Cartão "Melhor forma de contato" (para quem vê o score): canal preferido e os contatos do devedor pela taxa de atendimento ou resposta, com a explicação, a confiança e o melhor horário de cada um.'] },
+      { version: 16, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
+    ],
   },
   {
     key: 'collection.case',
-    version: 12,
+    version: 15,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -304,6 +342,9 @@ export const SCREENS: readonly ScreenGuide[] = [
         ],
       },
       { version: 11, items: ['Selo de vulnerabilidade no cabeçalho quando o devedor tem marcador ativo (a categoria só aparece para quem pode vê-la).'] },
+      { version: 13, items: ['Empresa em recuperação judicial ou falência: o caso fica inelegível e a ficha mostra desde quando, o processo e o atalho para o caso jurídico.'] },
+      { version: 14, items: ['Cartão "Melhor forma de contato" (para quem vê o score): canal preferido e os contatos do devedor pela taxa de atendimento ou resposta, com a explicação, a confiança e o melhor horário de cada um.'] },
+      { version: 15, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
     ],
   },
   {
@@ -318,12 +359,20 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
   {
     key: 'collection.queues',
-    version: 4,
+    version: 5,
     path: '/cobranca/filas',
     tourId: 'collection.queues',
     changes: [
       { version: 2, items: ['O nome da fila abre a lista de casos dessa fila.'] },
-      { version: 3, items: ['Critério "Só devedores com marcador de vulnerabilidade": crie uma fila de atendimento cuidadoso para esses casos.'] }, { version: 4, items: ['Redistribuir casos: "de" mostra quem tem casos ativos (inclusive quem saiu, marcado como inativo); "para" mostra só quem pode receber.'] }],
+      { version: 3, items: ['Critério "Só devedores com marcador de vulnerabilidade": crie uma fila de atendimento cuidadoso para esses casos.'] }, { version: 4, items: ['Redistribuir casos: "de" mostra quem tem casos ativos (inclusive quem saiu, marcado como inativo); "para" mostra só quem pode receber.'] },
+      {
+        version: 5,
+        items: [
+          'Critério "Só devedores com contato novo": uma fila para trabalhar primeiro os contatos recebidos numa nova carga; o caso sai dela na primeira tentativa pelo contato.',
+          'Critério "Tipo de pessoa": filas só de pessoa física ou só de pessoa jurídica. A coluna Critérios resume também esses filtros.',
+        ],
+      },
+    ],
   },
   {
     key: 'collection.tabulations',
@@ -711,11 +760,17 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   { key: 'campaign.list', version: 1, path: '/campanhas', tourId: 'campaign.list' },
   { key: 'campaign.segments', version: 1, path: '/campanhas/segmentos' },
-  { key: 'campaign.segment-new', version: 1, path: '/campanhas/segmentos/novo', tourId: 'campaign.segment' },
-  { key: 'campaign.segment', version: 1, path: '/campanhas/segmentos/:id', tourId: 'campaign.segment' },
+  { key: 'campaign.segment-new', version: 2, path: '/campanhas/segmentos/novo', tourId: 'campaign.segment', changes: [{ version: 2, items: ['Filtros "Contato novo" (com ou sem contato recebido numa nova carga ainda sem tentativa) e "Tipo de pessoa" (física ou jurídica).'] }] },
+  { key: 'campaign.segment', version: 2, path: '/campanhas/segmentos/:id', tourId: 'campaign.segment', changes: [{ version: 2, items: ['Filtros "Contato novo" (com ou sem contato recebido numa nova carga ainda sem tentativa) e "Tipo de pessoa" (física ou jurídica).'] }] },
   { key: 'campaign.experiments', version: 1, path: '/campanhas/testes' },
   { key: 'campaign.detail', version: 1, path: '/campanhas/:id', tourId: 'campaign.detail' },
-  { key: 'campaign.cadence', version: 1, path: '/campanhas/:id/regua', tourId: 'campaign.cadence' },
+  {
+    key: 'campaign.cadence',
+    version: 2,
+    path: '/campanhas/:id/regua',
+    tourId: 'campaign.cadence',
+    changes: [{ version: 2, items: ['Novas origens de variável: "Nome fantasia da empresa" (nome_fantasia) e "Saudação pelo tipo de pessoa" (saudacao), que usa o primeiro nome da pessoa e o nome da empresa.'] }],
+  },
   {
     key: 'campaign.execution',
     version: 2,
@@ -782,9 +837,12 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'portal.config',
-    version: 2,
+    version: 3,
     path: '/autonegociacao/:id',
-    changes: [{ version: 2, items: ['A prévia da marca deixa claro que é só a prévia das cores (não clicável); para navegar no portal, use "Abrir portal".'] }],
+    changes: [
+      { version: 2, items: ['A prévia da marca deixa claro que é só a prévia das cores (não clicável); para navegar no portal, use "Abrir portal".'] },
+      { version: 3, items: ['Com "Data de nascimento", empresas (CNPJ) confirmam o acesso com os 4 últimos números do contrato; no aceite, informam quem está negociando e, sem representante confirmado, um atendente conclui o acordo.'] },
+    ],
   },
   {
     key: 'ingestion.batches',
@@ -843,13 +901,14 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'ingestion.batch-detail',
-    version: 4,
+    version: 5,
     path: '/importacao/:id',
     tourId: 'ingestion.batch-detail',
     changes: [
       { version: 2, items: ['Importar a prévia ou reprocessar o arquivo passa pela conferência; a leitura aplicada aos valores aparece no recebimento.'] },
       { version: 3, items: ['Com a retenção de arquivos de importação ligada, o lote mostra quando o arquivo original foi descartado; sem ele, não há download nem reprocessamento.'] },
       { version: 4, items: ['"Títulos importados" abre a lista de títulos desta carga (os criados ou atualizados por ela).'] },
+      { version: 5, items: ['Carga concluída mostra quantos devedores que já existiam receberam contato novo; "Ver os devedores" abre a lista filtrada por esta carga.'] },
     ],
   },
   {
@@ -935,7 +994,18 @@ export const SCREENS: readonly ScreenGuide[] = [
     path: '/organizacao/credores/:id',
     changes: [{ version: 3, items: ['Inativar credor passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] }],
   },
-  { key: 'organization.portfolios', version: 1, path: '/organizacao/carteiras', tourId: 'organization.portfolios' },
+  {
+    key: 'organization.portfolios',
+    version: 2,
+    path: '/organizacao/carteiras',
+    tourId: 'organization.portfolios',
+    changes: [
+      {
+        version: 2,
+        items: ['Regime da carteira: consumo (padrão, com as regras do CDC) ou empresarial (dívida entre empresas, sem o alerta de multa acima de 2% na revisão da carga e sem superendividamento). Mudar pede motivo e fica na auditoria.'],
+      },
+    ],
+  },
   { key: 'organization.settings', version: 1, path: '/organizacao/configuracoes' },
   {
     key: 'governance.access-log',

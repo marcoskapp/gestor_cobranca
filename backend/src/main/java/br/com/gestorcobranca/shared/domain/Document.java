@@ -50,6 +50,24 @@ public record Document(DocumentType type, String number) {
         };
     }
 
+    /**
+     * Raiz do CNPJ: os 8 primeiros dígitos, comuns à matriz e às filiais da mesma empresa. Vazio para CPF. O agrupamento
+     * por grupo econômico além da raiz depende de consulta cadastral externa (issue #31).
+     */
+    public java.util.Optional<String> cnpjRoot() {
+        return type == DocumentType.CNPJ ? java.util.Optional.of(number.substring(0, 8)) : java.util.Optional.empty();
+    }
+
+    /** Número do estabelecimento do CNPJ (4 dígitos depois da raiz: {@code 0001} é a matriz). Vazio para CPF. */
+    public java.util.Optional<String> cnpjBranch() {
+        return type == DocumentType.CNPJ ? java.util.Optional.of(number.substring(8, 12)) : java.util.Optional.empty();
+    }
+
+    /** Matriz pelo sufixo do CNPJ ({@code 0001}); falso para CPF. */
+    public boolean isHeadOffice() {
+        return cnpjBranch().map("0001"::equals).orElse(false);
+    }
+
     public String formatted() {
         return switch (type) {
             case CPF -> "%s.%s.%s-%s".formatted(number.substring(0, 3), number.substring(3, 6), number.substring(6, 9), number.substring(9));

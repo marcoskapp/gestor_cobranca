@@ -104,6 +104,13 @@ class DebtTitleService implements DebtTitleUseCases {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UUID> portfolioIdsOfDebtor(UUID debtorId) {
+        debtorVisibility.requireVisible(debtorId);
+        return titles.findPortfolioIdsByDebtorId(debtorId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<TitleView> search(TitleSearch filter, PageQuery page) {
         LocalDate today = DebtViews.today(clock);
         Collection<TitleStatus> statuses = filter.status() == null || filter.status().isBlank() ? null

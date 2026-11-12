@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.legal.domain.model;
 
 import br.com.gestorcobranca.shared.domain.ConflictException;
+import br.com.gestorcobranca.shared.domain.CnjNumber;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.TenantScopedEntity;

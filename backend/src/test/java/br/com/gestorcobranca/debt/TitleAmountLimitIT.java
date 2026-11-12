@@ -130,7 +130,7 @@ class TitleAmountLimitIT extends IntegrationTest {
                     LocalDate.of(2026, 1, 1), null)).id();
         });
         debtor = system(() -> ingestion.upsertDebtor(new DebtorRecord("529.982.247-25", "Devedor Teste",
-                LocalDate.of(1985, 3, 15), List.of())).id());
+                LocalDate.of(1985, 3, 15), List.of(), null)).id());
         Set<Permission> both = EnumSet.of(Permission.DEBTOR_VIEW, Permission.TITLE_AMOUNT_ADJUST,
                 Permission.TITLE_AMOUNT_APPROVE);
         gestor = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "Gestora", both, CreditorScope.ALL);

@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.ingestion.application.service;
 
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
 import br.com.gestorcobranca.shared.paging.ChangePage;
 import br.com.gestorcobranca.shared.paging.ChangeQuery;
 
@@ -86,13 +87,15 @@ class ImportBatchService implements ImportBatchUseCases {
     private final IngestionMetrics metrics;
     private final IngestionProperties properties;
     private final Clock clock;
+    private final DebtIngestionPort debt;
 
     ImportBatchService(ImportBatchRepository batches, ImportRowIssueRepository issues, ImportIssueExport issueExport,
                        IssueReportWriter reportWriter, BatchCreation creation, FileStorage fileStorage, JobQueue jobQueue,
                        IdempotencyService idempotency, JsonCodec json, AccessScope accessScope,
                        CurrentActor currentActor, AuditTrail auditTrail, AccessLogger accessLogger,
                        BusinessEventLogger businessEvents, IngestionMetrics metrics, IngestionProperties properties,
-                       Clock clock) {
+                       Clock clock, DebtIngestionPort debt) {
+        this.debt = debt;
         this.batches = batches;
         this.issues = issues;
         this.issueExport = issueExport;
@@ -238,6 +241,17 @@ class ImportBatchService implements ImportBatchUseCases {
     @Transactional(readOnly = true)
     public ImportBatchView get(UUID batchId) {
         return ImportViews.batch(loadVisible(batchId), json);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ContactReceiptView contactReceipt(UUID batchId) {
+        ImportBatch batch = loadVisible(batchId);
+        if (batch.getMode() != ImportMode.IMPORT) {
+            return new ContactReceiptView(0, 0);
+        }
+        DebtIngestionPort.ContactReceiptCount count = debt.contactReceipt(batchId);
+        return new ContactReceiptView(count.debtorsWithNewContact(), count.newContacts());
     }
 
     @Override

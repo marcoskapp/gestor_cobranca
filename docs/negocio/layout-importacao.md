@@ -24,7 +24,7 @@ Obrigatórias em **negrito**. "Pessoal" indica dado do devedor: no relatório de
 | **documento** | CPF ou CNPJ do devedor (pessoal) | com ou sem máscara; zeros à esquerda perdidos pela planilha são recompostos (aviso `row.document_padded`) | inválido → erro |
 | **nome** | nome/razão social (pessoal) | até 200 caracteres | ausente, longo ou com fórmula → erro |
 | tipo_pessoa | `F`/`PF`/`FISICA` ou `J`/`PJ`/`JURIDICA` | — | não confere com o documento → erro |
-| data_nascimento | (pessoal) | data | inválida/futura → aviso, ignorada |
+| data_nascimento | (pessoal) | data | inválida/futura → aviso, ignorada; em linha de CNPJ → aviso `row.birth_date_company`, ignorada (empresa não tem nascimento) |
 | telefone_1..3 | (pessoal) | qualquer máscara brasileira ou `+55…` | inválido → aviso, contato ignorado |
 | whatsapp_1..3 | telefone correspondente tem WhatsApp | `S`/`N`, `Sim`/`Não`, `1`/`0`, `X` | inválido → aviso, considerado `N` |
 | email_1..2 | (pessoal) | — | inválido → aviso, contato ignorado |
@@ -40,6 +40,25 @@ Obrigatórias em **negrito**. "Pessoal" indica dado do devedor: no relatório de
 | saldo | saldo informado pelo credor (conciliação) | valor ≥ 0 | inválido → aviso, ignorado |
 | data_saldo | data-base do saldo | data; obrigatória com `saldo` | ausente/inválida → aviso, saldo ignorado |
 | situacao | situação do título no credor (§4) | `ATIVO`, `PAGO`, `SUSPENSO`, `CONTESTADO`, `CANCELADO` (aceita `EM ABERTO`, `QUITADO`, `LIQUIDADO`, `EM CONTESTACAO`, `BAIXADO`) | desconhecida → erro |
+
+### 2.0 Cobrança B2B: empresa, pessoa de contato e representantes
+
+Opcionais (`docs/tecnico/desenho/cobranca-b2b.md` §3 a §5). São dados complementares: problema é **aviso** e o dado é
+ignorado (a dívida é carregada). Reimportar não duplica nada.
+
+| Coluna | Conteúdo / formato | Problema → efeito |
+| --- | --- | --- |
+| nome_fantasia | nome fantasia da empresa (pessoal para fins de mascaramento), até 200 caracteres; vazio mantém o atual | em linha de CPF → aviso `row.trade_name_individual`; longo → aviso; fórmula → erro |
+| telefone_1..3_contato, email_1..2_contato | nome da pessoa com quem se fala naquele telefone/e-mail (pessoal), até 120 caracteres | sem o telefone/e-mail da mesma posição → aviso `row.contact_person_without_contact`; longo → aviso; fórmula → erro |
+| telefone_1..3_papel, email_1..2_papel | papel da pessoa: `FINANCEIRO`, `CONTAS_A_PAGAR`, `SOCIO`, `JURIDICO`, `OUTRO` (aceita `PROPRIETARIO`, `CONTAS_PAGAR`) | desconhecido → aviso `row.contact_person_role_invalid`, papel ignorado |
+| representante_1_documento, representante_1_nome, representante_1_papel, representante_1_negocia (e `representante_2_*`) | representante da empresa: CPF e nome (pessoais); papel `SOCIO_ADMINISTRADOR`, `PROCURADOR` ou `OUTRO`; negocia `S`/`N`. Papel ou negocia em branco (ou sem a coluna) = **não informado**: mantém o valor cadastrado; no representante novo vale `OUTRO` e `N` | linha de CPF → aviso `row.representative_individual`; sem CPF ou nome → aviso `row.representative_incomplete`; CPF inválido (ou CNPJ) → aviso `row.representative_document_invalid`; papel desconhecido → aviso; negocia inválido → aviso, considerado `N` |
+
+A pessoa de contato vai com o contato novo; um contato já cadastrado **sem** pessoa recebe a da carga (a pessoa
+registrada à mão nunca é trocada pela carga). O representante é casado pelo CPF entre os vigentes da empresa: o nome é
+atualizado; papel e "negocia" só quando informados na linha (em branco não apaga o papel nem o poder registrados à mão;
+`N` explícito retira o poder); CPF novo vira novo representante (sem papel ou negocia informados: `OUTRO` e `N`);
+validade e evidência ficam com o cadastro manual.
+O representante **não é devedor** (não entra na lista de devedores, filas, campanhas nem score).
 
 ### 2.1 Dados jurídicos do contrato (garantias, coobrigados, natureza do título)
 
@@ -64,7 +83,7 @@ A garantia é casada pelo `garantia_id` ou pelo bem (chassi, RENAVAM ou placa; m
 **Datas:** `dd/mm/aaaa` (dia/mês com 1 ou 2 dígitos), `dd-mm-aaaa` ou `aaaa-mm-dd` (horário descartado); anos 1900–2199; ano com 2 dígitos é recusado (ambíguo).
 **Valores:** vírgula ou ponto decimal, conforme a **coluna** (§7): `1.234,56`, `1234,56`, `1234.56`, `1,234.56`, `1 234,56`, `1234`, com ou sem `R$`, sinal `-` (no início ou no fim) ou parênteses `(1,50)`; até 2 casas decimais (casas a mais só se forem zeros). Recusados: notação científica (`1,23E+11`), outros símbolos de moeda, separadores repetidos ou fora do lugar (`1..5`, `12.34.567`). Célula **numérica** do XLSX e número JSON não têm ambiguidade; números guardados como texto passam pela análise da coluna.
 **Identificadores:** `id_titulo`, `contrato`, `documento` e `garantia_id` em notação científica (`1,23457E+15`) ou numéricos com mais de 15 dígitos no XLSX (a planilha perdeu os últimos) são erro: formate essas colunas como texto.
-**Fórmulas:** texto iniciado por `=` ou `@` em nome, identificadores, produto e endereço é recusado (proteção contra *CSV/XLSX injection*).
+**Fórmulas:** texto iniciado por `=` ou `@` em nome, nome fantasia, pessoa de contato, nome do representante, identificadores, produto e endereço é recusado (proteção contra *CSV/XLSX injection*).
 
 Severidade: **erro** — a linha não é gravada; **aviso** — a linha é gravada e o dado apontado é ignorado ou ajustado. Um título com erro não impede as demais linhas.
 

@@ -15,6 +15,7 @@ import {
   AmountAdjustmentView,
   AmountDivergenceView,
   AddContactRequest,
+  ContactNoveltySettings,
   ContactView,
   DebtorFilter,
   DebtorName,
@@ -26,8 +27,11 @@ import {
   PrescriptionView,
   OwnershipView,
   RegisterDebtorRequest,
+  RepresentativeRequest,
+  RepresentativeView,
   RevealedContact,
   RevealedDocument,
+  RevealedRepresentative,
   TitleBalanceView,
   TitleFilter,
   TitleView,
@@ -68,6 +72,11 @@ export class DebtorsApi {
     return this.http.get<DebtorView>(`${this.base}/${id}`);
   }
 
+  /** Como {@link get}, sem aviso de erro: complemento opcional de outras telas (ex.: variáveis do template). */
+  profile(id: string): Observable<DebtorView> {
+    return this.http.get<DebtorView>(`${this.base}/${id}`, { context: silentErrorContext() });
+  }
+
   summary(id: string): Observable<DebtorSummary> {
     return this.http.get<DebtorSummary>(`${this.base}/${id}/summary`);
   }
@@ -83,6 +92,16 @@ export class DebtorsApi {
 
   update(id: string, request: UpdateDebtorRequest): Observable<DebtorView> {
     return this.http.put<DebtorView>(`${this.base}/${id}`, request);
+  }
+
+  /** Janela de novidade dos contatos recebidos em nova carga (selo "Novo"), por assessoria. */
+  contactNoveltySettings(): Observable<ContactNoveltySettings> {
+    return this.http.get<ContactNoveltySettings>(`${this.base}/contact-novelty-settings`);
+  }
+
+  /** Erros de regra voltam para a tela (sem notificação genérica). */
+  updateContactNoveltySettings(windowDays: number): Observable<ContactNoveltySettings> {
+    return this.http.put<ContactNoveltySettings>(`${this.base}/contact-novelty-settings`, { windowDays }, { context: silentErrorContext() });
   }
 }
 
@@ -117,6 +136,37 @@ export class DebtorContactsApi {
 
   validate(debtorId: string, contactId: string): Observable<ContactView> {
     return this.http.post<ContactView>(`${this.base(debtorId)}/${contactId}/validate`, null);
+  }
+}
+
+/** Representantes da empresa devedora (`CompanyRepresentativeController`, cobrança B2B). */
+@Injectable({ providedIn: 'root' })
+export class CompanyRepresentativesApi {
+  private readonly http = inject(HttpClient);
+
+  private base(debtorId: string): string {
+    return `${API_V1}/debtors/${debtorId}/representatives`;
+  }
+
+  list(debtorId: string): Observable<RepresentativeView[]> {
+    return this.http.get<RepresentativeView[]>(this.base(debtorId));
+  }
+
+  /** Revelação auditada do CPF (`SENSITIVE_DATA_VIEWED`). */
+  reveal(debtorId: string, representativeId: string): Observable<RevealedRepresentative> {
+    return this.http.get<RevealedRepresentative>(`${this.base(debtorId)}/${representativeId}/document`);
+  }
+
+  add(debtorId: string, request: RepresentativeRequest): Observable<RepresentativeView> {
+    return this.http.post<RepresentativeView>(this.base(debtorId), request);
+  }
+
+  update(debtorId: string, representativeId: string, request: RepresentativeRequest): Observable<RepresentativeView> {
+    return this.http.put<RepresentativeView>(`${this.base(debtorId)}/${representativeId}`, request);
+  }
+
+  end(debtorId: string, representativeId: string, reason: string): Observable<RepresentativeView> {
+    return this.http.post<RepresentativeView>(`${this.base(debtorId)}/${representativeId}/end`, { reason });
   }
 }
 

@@ -124,6 +124,8 @@ class ServiceRequestDispatchJob implements JobHandler<ServiceRequestDispatchJob.
             case TALK_TO_AGENT -> "pediu para falar com um atendente";
             case DISPUTE -> "contestou a dívida (a contestação é registrada pelo sistema no caso; confira em Contestações)";
             case CANNOT_AFFORD -> "não encontrou condição que caiba no orçamento";
+            case COMPANY_ACCEPTANCE -> "(empresa) escolheu uma condição, mas o representante não foi confirmado: confira"
+                    + " quem pode negociar pela empresa (ficha do devedor → Representantes) e conclua o acordo";
             case OTHER -> "fez um pedido";
         };
         return "Portal de autonegociação — protocolo " + r.getProtocol() + ": o devedor " + what

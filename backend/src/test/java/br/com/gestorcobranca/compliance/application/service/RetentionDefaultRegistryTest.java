@@ -22,7 +22,7 @@ class RetentionDefaultRegistryTest {
     }
 
     private static final RetentionDefaults SCORING = () -> List.of(new RetentionDefault("SCORING_CASE_FACTS", 1095),
-            new RetentionDefault("SCORING_FEATURE_SNAPSHOTS", 730));
+            new RetentionDefault("SCORING_FEATURE_SNAPSHOTS", 730), new RetentionDefault("SCORING_CONTACT_FACTS", 1095));
 
     @Test
     void collectsTheDefaultOfEachCategoryWithSystemDefault() {
@@ -53,13 +53,13 @@ class RetentionDefaultRegistryTest {
     void ownerModuleRequirementAboveTheCategoryMinimumPreventsStartup() {
         // janela de fatos do score maior que o mínimo da categoria (730 dias): uma assessoria poderia apagar fatos em uso
         RetentionDefaults scoringWithLongLookback = () -> List.of(new RetentionDefault("SCORING_CASE_FACTS", 1095, 731),
-                new RetentionDefault("SCORING_FEATURE_SNAPSHOTS", 730));
+                new RetentionDefault("SCORING_FEATURE_SNAPSHOTS", 730), new RetentionDefault("SCORING_CONTACT_FACTS", 1095));
         assertThatThrownBy(() -> new RetentionDefaultRegistry(List.of(portal(30), scoringWithLongLookback)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("SCORING_CASE_FACTS").hasMessageContaining("731")
                 .hasMessageContaining("app.scoring.fact-lookback-days");
         RetentionDefaults scoringAtTheMinimum = () -> List.of(new RetentionDefault("SCORING_CASE_FACTS", 1095, 730),
-                new RetentionDefault("SCORING_FEATURE_SNAPSHOTS", 730));
+                new RetentionDefault("SCORING_FEATURE_SNAPSHOTS", 730), new RetentionDefault("SCORING_CONTACT_FACTS", 1095));
         assertThat(new RetentionDefaultRegistry(List.of(portal(30), scoringAtTheMinimum))
                 .defaultFor(RetentionCategory.SCORING_CASE_FACTS)).hasValue(1095);
     }

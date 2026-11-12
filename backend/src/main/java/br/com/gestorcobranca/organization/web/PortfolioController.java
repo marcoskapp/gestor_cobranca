@@ -58,7 +58,7 @@ class PortfolioController {
     @PreAuthorize("hasAuthority('PORTFOLIO_MANAGE')")
     PortfolioView create(@Valid @RequestBody CreatePortfolioRequest request) {
         return portfolios.create(new CreatePortfolioCommand(request.creditorId(), request.contractId(), request.code(),
-                request.name(), request.description(), request.receivedOn(), request.validUntil()));
+                request.name(), request.description(), request.receivedOn(), request.validUntil(), request.regime()));
     }
 
     @PutMapping("/{id}")
@@ -74,10 +74,23 @@ class PortfolioController {
         return portfolios.changeStatus(id, request.status(), request.reason(), null);
     }
 
+    /** Regime da carteira (cobrança B2B §6): motivo obrigatório, auditado. */
+    @PostMapping("/{id}/regime")
+    @PreAuthorize("hasAuthority('PORTFOLIO_MANAGE')")
+    PortfolioView changeRegime(@PathVariable UUID id, @Valid @RequestBody ChangeRegimeRequest request) {
+        return portfolios.changeRegime(id, request.regime(), request.reason(), null);
+    }
+
+    /** @param regime CONSUMER (padrão quando ausente) ou BUSINESS */
     record CreatePortfolioRequest(@NotNull UUID creditorId, @NotNull UUID contractId,
                                   @NotBlank @Size(max = 40) @Pattern(regexp = "[A-Za-z0-9_-]+") String code,
                                   @NotBlank @Size(max = 150) String name, @Size(max = 1000) String description,
-                                  @NotNull LocalDate receivedOn, LocalDate validUntil) {
+                                  @NotNull LocalDate receivedOn, LocalDate validUntil,
+                                  @Pattern(regexp = "CONSUMER|BUSINESS") String regime) {
+    }
+
+    record ChangeRegimeRequest(@NotBlank @Pattern(regexp = "CONSUMER|BUSINESS") String regime,
+                               @NotBlank @Size(max = 500) String reason) {
     }
 
     record UpdatePortfolioRequest(@NotBlank @Size(max = 150) String name, @Size(max = 1000) String description,

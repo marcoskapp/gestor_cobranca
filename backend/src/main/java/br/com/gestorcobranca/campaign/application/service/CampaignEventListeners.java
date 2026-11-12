@@ -10,6 +10,7 @@ import br.com.gestorcobranca.shared.events.collection.InteractionRecorded;
 import br.com.gestorcobranca.shared.events.collection.PromiseStatusChanged;
 import br.com.gestorcobranca.shared.events.communication.MessageStatusChanged;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
+import br.com.gestorcobranca.shared.events.debt.DebtorContactNoveltyChanged;
 import br.com.gestorcobranca.shared.events.legal.LegalMatterStageChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.InstallmentStatusChanged;
@@ -161,6 +162,15 @@ class CampaignEventListeners extends TenantEventListener {
         handleOnce(event, "campaign.message-status", () -> {
             reactions.messageStatusChanged(event);
             metrics.eventConsumed("message_status");
+        });
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(DebtorContactNoveltyChanged event) {
+        handleOnce(event, "campaign.contact-novelty", () -> {
+            reactions.contactNoveltyChanged(event);
+            metrics.eventConsumed("contact_novelty");
         });
     }
 }

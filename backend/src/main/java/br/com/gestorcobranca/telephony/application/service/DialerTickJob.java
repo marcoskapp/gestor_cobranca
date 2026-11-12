@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -54,7 +55,8 @@ import java.util.UUID;
  *       operador e os contadores do dia (atendidas por pessoa, abandonadas, discadas);</li>
  *   <li>itens vencidos por prioridade ({@code SKIP LOCKED}): caso encerrado → excluído;
  *       inelegível ou atribuído a um operador (sem {@code includeAssigned}) → adiado/excluído;
- *       sem telefone → excluído; telefone escolhido em rodízio pela prioridade dos contatos;</li>
+ *       sem telefone → excluído; telefone escolhido por {@link #nextPhone}: número novo pendente primeiro,
+ *       depois o seguinte ao último discado na ordem de prioridade dos contatos;</li>
  *   <li>{@code ContactGate#authorizeAndRecord} (origem {@code CAMPAIGN}) para cada item: negação
  *       com próximo instante permitido → adiado sem consumir tentativa; sem fim previsto → excluído;</li>
  *   <li>conta pelo roteamento ({@link AccountRouter}: campanha → carteira → credor → padrão);</li>
@@ -251,7 +253,7 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
             metrics.entry("no_account");
             return Optional.empty();
         }
-        ChannelContact phone = phones.get(entry.getAttempts() % phones.size());
+        ChannelContact phone = nextPhone(phones, lastDialedContactId(entry));
         Optional<ContactFingerprint> fingerprint = debtorContacts.tryFingerprint("PHONE", phone.value());
         Call call = calls.saveAndFlush(Call.outbound(CallOrigin.DIALER, account.get(),
                 new Call.Target(entry.getCreditorId(), entry.getPortfolioId(), entry.getDebtorId(), entry.getCaseId(),
@@ -281,6 +283,36 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
         calls.save(call);
         return Optional.of(new Prepared(route.get(), new Pending(call.getId(), phone.value(), call.isRecordingRequested(),
                 call.isRecordingAnnounced())));
+    }
+
+    /**
+     * Telefone da próxima tentativa (contatos-recebidos.md §4 e §9). Primeiro o número novo recebido na carga ainda sem
+     * tentativa, na ordem de prioridade, sem repetir o último discado; senão, o seguinte ao último discado na ordem de
+     * prioridade (rodízio estável: o fim da novidade não desloca a lista nem pula o número de maior prioridade). Último
+     * discado ausente ou fora da lista (contato invalidado ou removido) → o primeiro da ordem. É só escolha: o porteiro
+     * de contato continua decidindo cada discagem.
+     *
+     * @param phones              telefones utilizáveis do devedor, na ordem de prioridade
+     * @param lastDialedContactId contato da última chamada do item (nulo = nenhuma)
+     */
+    static ChannelContact nextPhone(List<ChannelContact> phones, UUID lastDialedContactId) {
+        for (ChannelContact phone : phones) {
+            if (phone.newPending() && !phone.contactId().equals(lastDialedContactId)) {
+                return phone;
+            }
+        }
+        for (int i = 0; i < phones.size(); i++) {
+            if (phones.get(i).contactId().equals(lastDialedContactId)) {
+                return phones.get((i + 1) % phones.size());
+            }
+        }
+        return phones.getFirst();
+    }
+
+    /** Contato da última chamada do item (nulo = primeira tentativa ou chamada sem contato identificado). */
+    private UUID lastDialedContactId(DialerEntry entry) {
+        return entry.getLastCallId() == null ? null
+                : calls.findById(entry.getLastCallId()).map(Call::getContactId).orElse(null);
     }
 
     // ------------------------------------------------------------------ fase 2: provedor (sem transação)
@@ -412,7 +444,7 @@ class DialerTickJob implements JobHandler<DialerTickJob.Payload> {
     private static List<DialerEntry> sorted(List<DialerEntry> loaded, List<UUID> order) {
         Map<UUID, DialerEntry> byId = new LinkedHashMap<>();
         loaded.forEach(e -> byId.put(e.getId(), e));
-        return order.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
+        return order.stream().map(byId::get).filter(Objects::nonNull).toList();
     }
 
     /** Chamada pedida no preparo. O número em claro vai ao provedor e nunca a log: {@link #toString()} não o inclui. */

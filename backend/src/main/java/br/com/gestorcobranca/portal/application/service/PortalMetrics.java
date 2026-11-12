@@ -59,6 +59,11 @@ class PortalMetrics {
     }
 
     /** {@code outcome}: ISSUED, REUSED, FAILED. */
+    /** Confirmação do representante da empresa: CONFIRMED, UNCONFIRMED ou LOCKED (sem dado pessoal). */
+    void representative(String outcome) {
+        registry.counter("portal.representative", "outcome", outcome).increment();
+    }
+
     void pix(String outcome) {
         registry.counter("portal.pix", "outcome", outcome).increment();
     }

@@ -1,5 +1,7 @@
 /** Contratos dos controllers do módulo collection (`collection.application.port.in`). */
 
+import type { ContactReceiptView } from '../../debt/data/debt.models';
+
 /** Valores monetários (`BigDecimal`) chegam como número JSON. */
 export type Amount = number;
 
@@ -16,6 +18,7 @@ export type EligibilityReason =
   | 'NO_OPEN_TITLES'
   | 'TITLES_DISPUTED'
   | 'DEBTOR_ANONYMIZED'
+  | 'DEBTOR_INSOLVENCY'
   | 'CONTACT_RESTRICTED';
 
 /** `CaseUseCases.CaseView` */
@@ -98,6 +101,8 @@ export interface SheetContact {
   whatsapp: boolean;
   status: 'UNVERIFIED' | 'VALID' | 'INVALID';
   priority: number;
+  /** Recebimento por carga (selo "Novo"); nulo = nunca veio de carga. */
+  receipt?: ContactReceiptView | null;
 }
 
 export interface SheetTitle {
@@ -201,6 +206,10 @@ export interface QueueView {
   version: number;
   /** Só devedores com marcador de vulnerabilidade (fila própria de atendimento cuidadoso). */
   vulnerableOnly?: boolean;
+  /** Só devedores com contato novo recebido em carga, ainda sem tentativa. */
+  newContactOnly?: boolean;
+  /** Tipo de pessoa do devedor (nulo = qualquer). */
+  personType?: 'INDIVIDUAL' | 'COMPANY' | null;
 }
 
 /** `CollectionQueueController.QueueRequest` (`code` só na criação). */
@@ -223,6 +232,10 @@ export interface QueueRequest {
   teamIds: string[];
   /** Só devedores com marcador de vulnerabilidade. */
   vulnerableOnly?: boolean;
+  /** Só devedores com contato novo recebido em carga, ainda sem tentativa. */
+  newContactOnly?: boolean;
+  /** Tipo de pessoa do devedor (nulo = qualquer). */
+  personType?: 'INDIVIDUAL' | 'COMPANY' | null;
 }
 
 /** `QueueUseCases.QueueSummary` */

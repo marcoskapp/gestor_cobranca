@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../../core/http/problem';
@@ -16,7 +17,7 @@ import { FORM_FIELD } from '../../../../shared/forms/field';
 import { DIALOG_DIRECTIVES } from '../../../../shared/dialog/dialog.directives';
 import { DIALOG_DATA, DialogRef } from '../../../../shared/dialog/dialog-ref';
 
-type Field = 'document' | 'name' | 'birthDate' | 'notes';
+type Field = 'document' | 'name' | 'birthDate' | 'notes' | 'tradeName';
 
 /** Cadastro manual (com documento) e edição (sem documento: ele é imutável) do devedor. */
 @Component({
@@ -39,15 +40,22 @@ type Field = 'document' | 'name' | 'birthDate' | 'notes';
               <input appInput formControlName="document" appDocumentMask maxlength="18" />
             </app-field>
           }
-          <app-field [class.app-span-all]="!!debtor" label="Data de nascimento" [error]="form.controls.birthDate.invalid ? (message('birthDate')) : undefined">
-            <div class="input-group">
-              <input appInput ngbDatepicker #birth="ngbDatepicker" formControlName="birthDate" placeholder="dd/mm/aaaa" [maxDate]="today" />
-              <button type="button" class="btn btn-outline-secondary" (click)="birth.toggle()" aria-label="Abrir calendário">
-                <app-icon name="calendar-event" />
-              </button>
-            </div>
-          </app-field>
-          <app-field class="app-span-all" label="Nome ou razão social" [error]="form.controls.name.invalid ? (message('name')) : undefined">
+          @if (company()) {
+            <!-- empresa não tem data de nascimento: o nome fantasia ocupa o lugar -->
+            <app-field [class.app-span-all]="!!debtor" label="Nome fantasia" hint="Como a empresa é conhecida (aparece nas mensagens com a variável nome_fantasia)." [error]="form.controls.tradeName.invalid ? (message('tradeName')) : undefined">
+              <input appInput formControlName="tradeName" maxlength="200" autocomplete="off" />
+            </app-field>
+          } @else {
+            <app-field [class.app-span-all]="!!debtor" label="Data de nascimento" [error]="form.controls.birthDate.invalid ? (message('birthDate')) : undefined">
+              <div class="input-group">
+                <input appInput ngbDatepicker #birth="ngbDatepicker" formControlName="birthDate" placeholder="dd/mm/aaaa" [maxDate]="today" />
+                <button type="button" class="btn btn-outline-secondary" (click)="birth.toggle()" aria-label="Abrir calendário">
+                  <app-icon name="calendar-event" />
+                </button>
+              </div>
+            </app-field>
+          }
+          <app-field class="app-span-all" [label]="company() ? 'Razão social' : 'Nome ou razão social'" [error]="form.controls.name.invalid ? (message('name')) : undefined">
             <input appInput formControlName="name" [maxlength]="limits.legalName" autocomplete="off" />
           </app-field>
           <app-field class="app-span-all" label="Observações" hint="Não registre dados de saúde, religião ou outros dados sensíveis." [error]="form.controls.notes.invalid ? (message('notes')) : undefined">
@@ -80,7 +88,13 @@ export class DebtorForm {
     /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
     birthDate: this.fb.control<string | null>(this.debtor?.birthDate ?? null),
     notes: this.fb.nonNullable.control(this.debtor?.notes ?? '', [Validators.maxLength(2000)]),
+    tradeName: this.fb.nonNullable.control(this.debtor?.tradeName ?? '', [Validators.maxLength(200)]),
   });
+  private readonly documentValue = toSignal(this.form.controls.document.valueChanges, { initialValue: '' });
+  /** Empresa: pelo cadastro na edição; no cadastro novo, pelo documento digitado (CNPJ tem 14 dígitos). */
+  protected readonly company = computed(() =>
+    this.debtor ? this.debtor.personType === 'COMPANY' : (this.documentValue() ?? '').replace(/\D/g, '').length === 14,
+  );
 
   protected message(field: Field): string {
     return errorMessage(this.form.controls[field].errors);
@@ -92,7 +106,13 @@ export class DebtorForm {
       return;
     }
     const v = this.form.getRawValue();
-    const common = { name: v.name.trim(), birthDate: v.birthDate || null, notes: v.notes.trim() || null };
+    const company = this.company();
+    const common = {
+      name: v.name.trim(),
+      birthDate: company ? null : v.birthDate || null,
+      notes: v.notes.trim() || null,
+      tradeName: company ? v.tradeName.trim() || null : null,
+    };
     this.saving.set(true);
     this.generalErrors.set([]);
     (this.debtor ? this.api.update(this.debtor.id, common) : this.api.register({ ...common, document: v.document }))

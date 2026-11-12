@@ -48,6 +48,9 @@
     }
   </ng-template>
   <ng-template appCell="creditor" [appCellOf]="query.rows()" let-p>{{ creditorName(p.creditorId) }}</ng-template>
+  <ng-template appCell="regime" [appCellOf]="query.rows()" let-p>
+    <span tabindex="0" [ngbTooltip]="regimeEffects[p.regime]" [attr.aria-label]="regimeLabels[p.regime] + ': ' + regimeEffects[p.regime]">{{ regimeLabels[p.regime] }}</span>
+  </ng-template>
   <ng-template appCell="receivedOn" [appCellOf]="query.rows()" let-p>{{ p.receivedOn | appDate: 'date' }}</ng-template>
   <ng-template appCell="validUntil" [appCellOf]="query.rows()" let-p>{{ p.validUntil | appDate: 'date' }}</ng-template>
   <ng-template appCell="status" [appCellOf]="query.rows()" let-p>
@@ -72,6 +75,15 @@
         ngbTooltip="Alterar situação"
       >
         <app-icon name="arrow-left-right" />
+      </button>
+      <button class="btn btn-sm btn-outline-secondary border-0"
+        type="button"
+        (click)="changeRegime(p)"
+        [attr.aria-label]="'Alterar regime da carteira ' + p.code"
+        ngbTooltip="Alterar regime (consumo ou empresarial)"
+        data-tour="portfolio-regime"
+      >
+        <app-icon name="briefcase" />
       </button>
     }
   </ng-template>

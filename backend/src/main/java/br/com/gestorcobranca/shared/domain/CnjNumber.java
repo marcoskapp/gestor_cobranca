@@ -1,6 +1,4 @@
-package br.com.gestorcobranca.legal.domain.model;
-
-import br.com.gestorcobranca.shared.domain.BusinessRuleException;
+package br.com.gestorcobranca.shared.domain;
 
 import java.math.BigInteger;
 import java.util.Objects;
@@ -11,6 +9,10 @@ import java.util.Objects;
  * (1), tribunal (2) e unidade de origem (4). O dígito verificador é calculado pelo módulo 97
  * (ISO 7064): {@code DD = 98 − (NNNNNNN AAAA J TR OOOO × 100 mod 97)}, o que equivale a exigir que o
  * número reordenado {@code NNNNNNN AAAA J TR OOOO DD} tenha resto 1 na divisão por 97.
+ * <p>
+ * Compartilhado pelos módulos que registram processo: o jurídico (ações do caso) e o debt (recuperação judicial e
+ * falência do devedor, cobrança B2B §7). Cada um informa o prefixo do código de erro em {@link #parse(String, String)}
+ * ({@code lawsuit.cnj_invalid}, {@code insolvency.cnj_invalid}).
  *
  * @param digits os 20 dígitos, sem máscara
  */
@@ -20,28 +22,31 @@ public record CnjNumber(String digits) {
 
     public CnjNumber {
         Objects.requireNonNull(digits, "digits");
-        if (!digits.matches("\\d{20}")) {
-            throw invalid("Número CNJ deve ter 20 dígitos (NNNNNNN-DD.AAAA.J.TR.OOOO)");
-        }
-        int segment = digits.charAt(13) - '0';
-        if (segment < 1 || segment > 9) {
-            throw invalid("Segmento do Judiciário inválido no número CNJ");
-        }
-        if (!checkDigitsValid(digits)) {
-            throw invalid("Dígito verificador do número CNJ inválido");
+        String problem = problem(digits);
+        if (problem != null) {
+            throw new BusinessRuleException("cnj.invalid", problem);
         }
     }
 
-    /** Aceita o número com ou sem máscara. */
-    public static CnjNumber parse(String raw) {
+    /**
+     * Aceita o número com ou sem máscara.
+     *
+     * @param codePrefix prefixo dos códigos de erro ({@code <prefixo>.cnj_required}, {@code <prefixo>.cnj_invalid})
+     */
+    public static CnjNumber parse(String raw, String codePrefix) {
         if (raw == null || raw.isBlank()) {
-            throw new BusinessRuleException("lawsuit.cnj_required", "Número CNJ obrigatório");
+            throw new BusinessRuleException(codePrefix + ".cnj_required", "Número CNJ obrigatório");
         }
         String trimmed = raw.trim();
         if (!trimmed.matches("[\\d.\\-\\s]+")) {
-            throw invalid("Número CNJ contém caracteres inválidos");
+            throw new BusinessRuleException(codePrefix + ".cnj_invalid", "Número CNJ contém caracteres inválidos");
         }
-        return new CnjNumber(trimmed.replaceAll("\\D", ""));
+        String digits = trimmed.replaceAll("\\D", "");
+        String problem = problem(digits);
+        if (problem != null) {
+            throw new BusinessRuleException(codePrefix + ".cnj_invalid", problem);
+        }
+        return new CnjNumber(digits);
     }
 
     /** Dígito verificador correto para os 18 dígitos restantes (sequencial, ano, segmento, tribunal, origem). */
@@ -51,9 +56,20 @@ public record CnjNumber(String digits) {
         return "%02d".formatted(dd);
     }
 
-    private static boolean checkDigitsValid(String d) {
-        String reordered = d.substring(0, 7) + d.substring(9, 20) + d.substring(7, 9);
-        return new BigInteger(reordered).mod(MOD).intValue() == 1;
+    /** Motivo da invalidade, ou nulo se o número é válido. */
+    private static String problem(String digits) {
+        if (!digits.matches("\\d{20}")) {
+            return "Número CNJ deve ter 20 dígitos (NNNNNNN-DD.AAAA.J.TR.OOOO)";
+        }
+        int segment = digits.charAt(13) - '0';
+        if (segment < 1 || segment > 9) {
+            return "Segmento do Judiciário inválido no número CNJ";
+        }
+        String reordered = digits.substring(0, 7) + digits.substring(9, 20) + digits.substring(7, 9);
+        if (new BigInteger(reordered).mod(MOD).intValue() != 1) {
+            return "Dígito verificador do número CNJ inválido";
+        }
+        return null;
     }
 
     public String sequential() {
@@ -90,9 +106,5 @@ public record CnjNumber(String digits) {
     @Override
     public String toString() {
         return formatted();
-    }
-
-    private static BusinessRuleException invalid(String message) {
-        return new BusinessRuleException("lawsuit.cnj_invalid", message);
     }
 }

@@ -17,6 +17,7 @@ import { QueuesApi } from '../data/collection.api';
 import { ORDERING_LABELS, STRATEGY_LABELS } from '../data/collection.labels';
 import { QueueNames, TeamLookup } from '../data/collection.lookups';
 import { QueueView } from '../data/collection.models';
+import { PERSON_TYPE_LABELS } from '../../debt/data/debt.labels';
 import { DistributeDialog, RedistributeDialog } from './distribution-dialogs';
 import { QueueForm } from './queue-form';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -40,6 +41,9 @@ export function criteriaText(q: QueueView): string {
     rangeText(q.minDaysOverdue, q.maxDaysOverdue, (v) => `${v} dias`),
     rangeText(q.minBalance, q.maxBalance, (v) => formatAmount(v)),
     rangeText(q.minScore, q.maxScore, (v) => `score ${v}`),
+    q.personType ? PERSON_TYPE_LABELS[q.personType] : null,
+    q.newContactOnly ? 'com contato novo' : null,
+    q.vulnerableOnly ? 'com marcador de vulnerabilidade' : null,
   ].filter((p): p is string => !!p);
   return parts.length ? parts.join(' · ') : 'Qualquer atraso, saldo e score';
 }

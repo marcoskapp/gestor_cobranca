@@ -9,7 +9,17 @@ import { statusOptions } from '../../../shared/status/status';
 import { PortfolioLookup } from '../../organization/data/organization.lookups';
 import { CHANNEL_LABELS, OWNER_TYPE_LABELS } from '../data/campaign.labels';
 import { SegmentCriteria } from '../data/campaign.models';
-import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNER_TYPES, activeFilterKeys, clearFilter } from '../data/campaign.rules';
+import {
+  CASE_STATUSES,
+  CONTACT_CHANNELS,
+  CRITERIA_FILTERS,
+  CriteriaFilter,
+  OWNER_TYPES,
+  SEGMENT_PERSON_TYPES,
+  activeFilterKeys,
+  clearFilter,
+} from '../data/campaign.rules';
+import { PERSON_TYPE_LABELS } from '../../debt/data/debt.labels';
 
 /**
  * Construtor de filtros combináveis (todos por E) sobre `SegmentCriteria`. Edita o objeto
@@ -70,6 +80,16 @@ import { CASE_STATUSES, CONTACT_CHANNELS, CRITERIA_FILTERS, CriteriaFilter, OWNE
                       <option [ngValue]="null" disabled>Selecione</option>
                       @for (ch of channels; track ch) {
                         <option [ngValue]="ch">{{ channelLabels[ch] }}</option>
+                      }
+                    </select>
+                  </app-field>
+                }
+                @case ('person-type') {
+                  <app-field label="Tipo">
+                    <select appInput [(ngModel)]="c.personType" (ngModelChange)="changed()" [disabled]="ro">
+                      <option [ngValue]="null" disabled>Selecione</option>
+                      @for (p of personTypes; track p) {
+                        <option [ngValue]="p">{{ personTypeLabels[p] }}</option>
                       }
                     </select>
                   </app-field>
@@ -223,6 +243,8 @@ export class CriteriaEditor {
   protected readonly ownerLabels = OWNER_TYPE_LABELS;
   protected readonly channels = CONTACT_CHANNELS;
   protected readonly channelLabels = CHANNEL_LABELS;
+  protected readonly personTypes = SEGMENT_PERSON_TYPES;
+  protected readonly personTypeLabels = PERSON_TYPE_LABELS;
   protected readonly portfolioSource = inject(PortfolioLookup).source(() => this.creditorId());
   protected readonly portfolios = new FormControl<string[]>([], { nonNullable: true });
 
@@ -297,8 +319,8 @@ export class CriteriaEditor {
   protected add(f: CriteriaFilter): void {
     this.shown.update((s) => new Set([...s, f.key]));
     if (f.kind === 'yes-no') {
-      // sim/não sem escolha não filtra nada: começa pela opção "não" (ex.: sem acordo em vigor)
-      (this.criteria() as unknown as Record<string, unknown>)[f.fields[0]] = false;
+      // sim/não sem escolha não filtra nada: começa pela opção inicial do filtro (padrão "não", ex.: sem acordo em vigor)
+      (this.criteria() as unknown as Record<string, unknown>)[f.fields[0]] = f.initial ?? false;
       this.changed();
     }
   }

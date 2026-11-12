@@ -42,11 +42,14 @@ public interface QueueUseCases {
      * @param teamIds         equipes que atendem a fila (vazio = qualquer operador)
      * @param vulnerableOnly  só casos de devedor com marcador de vulnerabilidade (fila própria de atendimento
      *                        cuidadoso; nulo = não restringe)
+     * @param newContactOnly  só casos de devedor com contato novo recebido na carga ainda sem tentativa
+     *                        (contatos-recebidos.md §4; nulo = não restringe)
+     * @param personType      só casos de devedor deste tipo de pessoa: INDIVIDUAL ou COMPANY (nulo = qualquer)
      */
     record QueueCommand(String code, String name, String description, int priority, UUID creditorId, UUID portfolioId,
                         Integer minDaysOverdue, Integer maxDaysOverdue, BigDecimal minBalance, BigDecimal maxBalance,
                         Integer minScore, Integer maxScore, String ordering, String strategy, Integer maxCasesPerUser,
-                        Set<UUID> teamIds, Boolean vulnerableOnly) {
+                        Set<UUID> teamIds, Boolean vulnerableOnly, Boolean newContactOnly, String personType) {
 
         public QueueCommand {
             teamIds = teamIds == null ? Set.of() : Set.copyOf(teamIds);
@@ -57,7 +60,7 @@ public interface QueueUseCases {
                      UUID creditorId, UUID portfolioId, Integer minDaysOverdue, Integer maxDaysOverdue,
                      BigDecimal minBalance, BigDecimal maxBalance, Integer minScore, Integer maxScore, String ordering,
                      String strategy, Integer maxCasesPerUser, Set<UUID> teamIds, Instant updatedAt, long version,
-                     boolean vulnerableOnly) {
+                     boolean vulnerableOnly, boolean newContactOnly, String personType) {
     }
 
     /**

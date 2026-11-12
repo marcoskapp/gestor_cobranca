@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "e61aa15c63b9f4cc",
+ "contentVersion": "b1db3547c7e1fa51",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -1428,7 +1428,7 @@
    "title": "Lote de importação",
    "objective": "Resultado de um lote: contadores, ocorrências por linha e, quando cabe, importar a prévia ou reprocessar.",
    "purpose": [
-    "Mostra quantas linhas foram lidas, aceitas e recusadas e quantos devedores e títulos foram criados ou atualizados.",
+    "Mostra quantas linhas foram lidas, aceitas e recusadas, quantos devedores e títulos foram criados ou atualizados e quantos devedores que já existiam receberam contato novo (com link para a lista desses devedores).",
     "Baixe o relatório de ocorrências para devolver ao credor as linhas que precisam de correção. \"Títulos importados\" abre a lista de títulos da carga (os que ela criou ou atualizou por último).",
     "Com a retenção de arquivos de importação ligada (Compliance → Retenção), o arquivo original é descartado no prazo: o lote, os contadores e as ocorrências ficam, sem download nem reprocessamento."
    ],
@@ -1457,7 +1457,8 @@
    "terms": [
     "lote-de-importacao",
     "titulo",
-    "devedor"
+    "devedor",
+    "contato-novo"
    ],
    "path": "/importacao/:id",
    "access": {
@@ -1570,7 +1571,7 @@
    "purpose": [
     "Abre um caso escolhido em listas, agenda, propostas, conversas ou ficha do devedor. Quem opera a cobrança trabalha o caso dentro da estação (fila, cronômetro e registro da interação), com o menu marcando a estação; o endereço antigo da estação com o caso continua funcionando.",
     "Quem só consulta (jurídico, gestor, auditoria) vê os mesmos dados e abas sem fila, cronômetro, janela de contato nem registro de interação; as ações do seu perfil (atribuir, mudar a situação, atualizar a posição, simular) ficam em \"Mais ações\".",
-    "No histórico, quem avalia a qualidade tem \"Avaliar\" em cada atendimento de outra pessoa: a monitoria abre com o negociador, o caso e a data preenchidos."
+    "No histórico, quem avalia a qualidade tem \"Avaliar\" em cada atendimento de outra pessoa: a monitoria abre com o negociador, o caso e a data preenchidos. Empresa em recuperação judicial ou falência: o aviso mostra desde quando, o processo e o atalho para o caso jurídico; o caso fica inelegível."
    ],
    "profiles": [
     "OPERADOR",
@@ -1598,7 +1599,8 @@
     "caso",
     "elegibilidade",
     "tabulacao",
-    "contestacao"
+    "contestacao",
+    "recuperacao-judicial"
    ],
    "path": "/cobranca/casos/:id",
    "access": {
@@ -1693,7 +1695,7 @@
    "title": "Filas e distribuição",
    "objective": "Defina os critérios e a prioridade das filas e distribua os casos entre os operadores.",
    "purpose": [
-    "Cada fila tem critérios (credor, carteira, atraso, saldo, score), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz.",
+    "Cada fila tem critérios (credor, carteira, atraso, saldo, score, tipo de pessoa, contato novo e vulnerabilidade), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz; o de contato novo sai da fila quando todos os contatos novos do devedor forem tentados ou, vencido o prazo, na revisão diária da madrugada.",
     "Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou.",
     "O nome da fila abre a lista de casos dessa fila."
    ],
@@ -1726,7 +1728,8 @@
     "fila",
     "proximo-caso",
     "faixa-de-score",
-    "equipe"
+    "equipe",
+    "contato-novo"
    ],
    "path": "/cobranca/filas",
    "access": {
@@ -1976,7 +1979,8 @@
    "objective": "Encontre um devedor por nome ou documento e abra a ficha com títulos, contatos e histórico.",
    "purpose": [
     "Mostra pessoas e empresas com títulos nos credores que você atende. O documento é enviado de forma protegida, fora do endereço da página.",
-    "De qualquer tela, a busca rápida (Ctrl + K) também encontra devedor e caso: nome (3 letras ou mais), CPF/CNPJ ou telefone completos, ou o código do título no credor. Mostra no máximo 10 devedores e o caso de cada um; busca por CPF/CNPJ ou telefone fica registrada no log de acesso, e nada do que você digita vai para o endereço da página. Os \"Recentes\" ficam só enquanto a sessão estiver aberta."
+    "De qualquer tela, a busca rápida (Ctrl + K) também encontra devedor e caso: nome (3 letras ou mais), CPF/CNPJ ou telefone completos, ou o código do título no credor. Mostra no máximo 10 devedores e o caso de cada um; busca por CPF/CNPJ ou telefone fica registrada no log de acesso, e nada do que você digita vai para o endereço da página. Os \"Recentes\" ficam só enquanto a sessão estiver aberta.",
+    "Empresas mostram abaixo da razão social o nome fantasia e se são a matriz ou uma filial. Aberta pelo atalho \"Outras unidades da empresa\" da ficha, a lista traz só as unidades com a mesma raiz do CNPJ (os 8 primeiros números) nos credores que você atende; o endereço leva só o identificador da ficha, nunca o CNPJ. \"Com contato novo\" mostra quem recebeu telefone, e-mail ou endereço numa nova carga e ainda não foi tentado por ele. Aberta pelo relatório da importação, a lista mostra os devedores que receberam contato novo naquela carga."
    ],
    "profiles": [
     "OPERADOR",
@@ -2000,11 +2004,16 @@
     {
      "screen": "collection.cases",
      "why": "Casos de cobrança do devedor."
+    },
+    {
+     "screen": "ingestion.batch-detail",
+     "why": "Quantos devedores receberam contato novo em cada carga."
     }
    ],
    "terms": [
     "devedor",
-    "escopo-de-credores"
+    "escopo-de-credores",
+    "contato-novo"
    ],
    "path": "/devedores",
    "access": {
@@ -2015,14 +2024,60 @@
    }
   },
   {
+   "id": "debt.contact-novelty",
+   "module": "cobranca",
+   "title": "Contatos recebidos",
+   "objective": "Defina por quantos dias o contato recebido numa nova carga aparece como \"Novo\" para a operação.",
+   "purpose": [
+    "Quando o credor manda um telefone, e-mail ou endereço que o devedor ainda não tinha, o contato ganha o selo \"Novo\" na ficha e no caso, entra no filtro da lista de devedores e pode formar fila e segmento próprios.",
+    "O selo vale até a primeira tentativa por esse contato; depois, mostra se atendeu ou não até o fim do prazo. Contatos da carga que criou o devedor nunca são novos. O padrão do sistema é de 30 dias, de 1 a 180."
+   ],
+   "profiles": [
+    "GESTOR",
+    "ANALISTA_CARTEIRA",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Contatos recebidos pelas importações de carteira."
+   ],
+   "outputs": [
+    "Prazo do selo \"Novo\" usado na ficha, no caso, nas filas, nos segmentos e no discador."
+   ],
+   "related": [
+    {
+     "screen": "debt.debtors",
+     "why": "Filtrar os devedores com contato novo."
+    },
+    {
+     "screen": "collection.queues",
+     "why": "Fila só de devedores com contato novo."
+    },
+    {
+     "screen": "ingestion.batch-detail",
+     "why": "Quantos devedores receberam contato novo na carga."
+    }
+   ],
+   "terms": [
+    "contato-novo",
+    "lote-de-importacao"
+   ],
+   "path": "/devedores/contatos-recebidos",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DEBTOR_MANAGE"
+    ]
+   }
+  },
+  {
    "id": "debt.debtor-detail",
    "module": "cobranca",
    "title": "Ficha do devedor",
    "objective": "Tudo sobre o devedor: posição da dívida, dados, títulos, contatos, interações, razão, titularidade e restrições.",
    "purpose": [
-    "Contatos podem ser confirmados ou marcados como inválidos. Ver o documento completo exige permissão e fica registrado. Em \"Mais ações\" você envia o link do portal de autonegociação e baixa o dossiê de contato.",
-    "\"Abrir caso\" leva ao caso em cobrança (com mais de um, você escolhe o credor e a carteira) e \"Simular\" abre o simulador já com o credor, o devedor e o caso. Aberta pela estação (painel lateral), a ficha não mostra os dois: você continua no caso atual.",
-    "A aba Interações reúne os 50 contatos mais recentes de todos os casos do devedor (os anteriores ficam em cada caso); o cartão \"Relacionados\" lista casos, acordos, pagamentos, contestações, casos jurídicos e conversas — só o que o seu perfil pode abrir."
+    "Contatos podem ser confirmados ou marcados como inválidos (o recebido numa nova carga mostra o selo \"Novo\" até a primeira tentativa, e a dica diz quando o credor o confirmou) e trazer a pessoa com quem se fala, o papel dela (financeiro, contas a pagar, sócio, jurídico ou outro) e se ela decide pelo devedor — também para pessoa física, como um recado com um parente. O nome aparece mascarado, como o número, e completo ao exibir o contato; ver o documento ou o contato completo exige permissão e fica registrado. Em \"Mais ações\" você envia o link do portal de autonegociação e baixa o dossiê de contato.",
+    "\"Abrir caso\" leva ao caso em cobrança (com mais de um, você escolhe o credor e a carteira) e \"Simular\" abre o simulador já com o credor, o devedor e o caso; aberta pela estação (painel lateral), a ficha não mostra os dois. A aba Interações reúne os 50 contatos mais recentes de todos os casos e o cartão \"Relacionados\" lista casos, acordos, pagamentos, contestações, casos jurídicos e conversas — só o que o seu perfil pode abrir.",
+    "Empresas mostram o nome fantasia (usado nas mensagens com a variável nome_fantasia), se é a matriz ou uma filial, o atalho \"Outras unidades da empresa\" e a aba \"Representantes\": quem pode negociar pela empresa (sócio administrador, procurador ou outro), com validade e evidência. O representante não é devedor (não entra em listas, filas, campanhas nem no score); no portal, o acordo da empresa só fecha sozinho com um representante com poder e dentro da validade — sem ele, um atendente conclui. O CPF aparece mascarado; incluir, editar e encerrar exigem permissão de cadastro. Empresa em recuperação judicial ou falência: quem edita devedores registra o processo (número no padrão do CNJ e a origem da informação), convola em falência e encerra; enquanto ele estiver em curso, a cobrança da empresa fica suspensa em todos os credores."
    ],
    "profiles": [
     "OPERADOR",
@@ -2056,7 +2111,9 @@
     "devedor",
     "titulo",
     "razao-do-titulo",
-    "restricao-de-contato"
+    "restricao-de-contato",
+    "recuperacao-judicial",
+    "contato-novo"
    ],
    "path": "/devedores/:id",
    "access": {
@@ -2516,7 +2573,8 @@
    "objective": "Etapas em sequência: espera, janela de horário, condição, ação e o que a resposta do devedor faz.",
    "purpose": [
     "Cada etapa espera um tempo, respeita uma janela de horário, verifica uma condição e executa uma ação. A resposta padrão vale para as etapas sem regra própria.",
-    "Em cada variável do template, escolha a origem do valor: dados do devedor e da dívida, valor e vencimento da próxima parcela do acordo, ou o link de acesso ao portal com a validade em horas."
+    "Em cada variável do template, escolha a origem do valor: dados do devedor e da dívida, valor e vencimento da próxima parcela do acordo, ou o link de acesso ao portal com a validade em horas.",
+    "Para empresas: \"Nome fantasia da empresa\" (variável nome_fantasia; sem nome fantasia, vai a razão social; para pessoa física a etapa é pulada) e \"Saudação pelo tipo de pessoa\" (variável saudacao: o primeiro nome da pessoa física ou o nome da empresa), para um mesmo modelo servir às duas. Em carteira de empresas, ajuste a janela de horário da política de contato ao horário comercial."
    ],
    "profiles": [
     "ESTRATEGIA",
@@ -2713,7 +2771,8 @@
    "objective": "Monte um público com filtros combinados e veja a contagem prévia antes de salvar.",
    "purpose": [
     "Todos os filtros precisam ser atendidos ao mesmo tempo. Casos inelegíveis ficam fora por padrão.",
-    "Para lembrete de parcela, use \"Parcela do acordo vence em (dias)\": entram só os casos com acordo em vigor cuja próxima parcela em aberto vence nesse intervalo."
+    "Para lembrete de parcela, use \"Parcela do acordo vence em (dias)\": entram só os casos com acordo em vigor cuja próxima parcela em aberto vence nesse intervalo.",
+    "\"Contato novo\" separa quem recebeu telefone, e-mail ou endereço numa nova carga e ainda não foi tentado por ele; \"Tipo de pessoa\" separa pessoa física de jurídica."
    ],
    "profiles": [
     "ESTRATEGIA",
@@ -2734,7 +2793,8 @@
    "terms": [
     "segmento",
     "elegibilidade",
-    "faixa-de-score"
+    "faixa-de-score",
+    "contato-novo"
    ],
    "path": "/campanhas/segmentos/novo",
    "access": {
@@ -3748,7 +3808,8 @@
    "title": "Configuração do portal",
    "objective": "Configure o portal de um credor: endereço, marca, carteiras habilitadas, canais do código e aviso de privacidade.",
    "purpose": [
-    "O devedor só vê as carteiras habilitadas e só recebe condições do perfil de alçada do portal. A tela mostra o funil dos últimos 30 dias e as sessões, que podem ser encerradas."
+    "O devedor só vê as carteiras habilitadas e só recebe condições do perfil de alçada do portal. A tela mostra o funil dos últimos 30 dias e as sessões, que podem ser encerradas.",
+    "Empresas (CNPJ) não têm data de nascimento: com a confirmação \"Data de nascimento\", elas informam os 4 últimos números do contrato. No aceite, a empresa informa o nome e o CPF de quem está negociando; a tela é a mesma quando o CPF confere e quando não confere. Se o CPF for de um representante com poder para negociar (ficha do devedor → Representantes), o acordo fecha e o termo registra quem aceitou; senão, vira um pedido de atendimento com a condição escolhida e um atendente conclui. Tentativas erradas contam por empresa e por endereço de rede, mesmo em sessões novas."
    ],
    "profiles": [
     "GESTOR"
@@ -5368,6 +5429,50 @@
    }
   },
   {
+   "id": "scoring.contact",
+   "module": "score",
+   "title": "Inteligência de contato",
+   "objective": "Quando e por onde o contato com o devedor funciona, e quantas tentativas levam a um acordo cumprido.",
+   "purpose": [
+    "Mapa de calor por dia e horário, tentativas até o primeiro atendimento, taxa por canal e contatos até o acordo cumprido, com o corte pessoa física e jurídica. Faixa com poucas tentativas não mostra taxa.",
+    "No caso e na ficha do devedor, o cartão \"Melhor forma de contato\" mostra o canal preferido e os contatos pela taxa, com o melhor horário. Só orienta: não bloqueia contato nem muda a política."
+   ],
+   "profiles": [
+    "ESTRATEGIA",
+    "GESTOR",
+    "SUPERVISOR"
+   ],
+   "inputs": [
+    "Ligações e mensagens registradas com o contato usado e as respostas do devedor.",
+    "Acordos fechados, cumpridos e quebrados."
+   ],
+   "outputs": [
+    "Horários e canais para filas, campanhas e régua de cobrança."
+   ],
+   "related": [
+    {
+     "screen": "collection.case",
+     "why": "Cartão \"Melhor forma de contato\" do devedor."
+    },
+    {
+     "screen": "scoring.monitoring",
+     "why": "Desempenho do score."
+    }
+   ],
+   "terms": [
+    "contato-efetivo",
+    "canal",
+    "acordo"
+   ],
+   "path": "/score/contato",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "SCORING_AREA_VIEW"
+    ]
+   }
+  },
+  {
    "id": "scoring.transparency",
    "module": "score",
    "title": "Decisões e variáveis do score",
@@ -6484,7 +6589,8 @@
    "title": "Carteiras",
    "objective": "Lotes de títulos recebidos dos credores, com vigência e ciclo de vida.",
    "purpose": [
-    "Carteiras em preparação ainda não estão em cobrança; ativas estão em operação; suspensas ou devolvidas não geram contatos."
+    "Carteiras em preparação ainda não estão em cobrança; ativas estão em operação; suspensas ou devolvidas não geram contatos.",
+    "O regime diz quais regras valem: consumo (padrão) segue o Código de Defesa do Consumidor; empresarial é dívida entre empresas, sem o alerta de multa acima de 2% na revisão da carga e sem superendividamento. Mudar o regime pede motivo e fica na auditoria; contratos e política não mudam. Na carteira empresarial, prefira modelos de mensagem em tom comercial e janela de contato em horário comercial."
    ],
    "profiles": [
     "ADMIN",
@@ -6502,10 +6608,15 @@
     {
      "screen": "ingestion.batches",
      "why": "Importar títulos na carteira."
+    },
+    {
+     "screen": "negotiation.policies",
+     "why": "Encargos da política conforme o regime."
     }
    ],
    "terms": [
-    "carteira"
+    "carteira",
+    "regime-da-carteira"
    ],
    "path": "/organizacao/carteiras",
    "access": {
@@ -7199,7 +7310,17 @@
   {
    "id": "elegibilidade",
    "term": "Elegibilidade",
-   "definition": "Se o caso pode ser cobrado agora. Contestação, carteira suspensa, jurídico ou restrição em todos os canais tornam o caso inelegível, com o motivo."
+   "definition": "Se o caso pode ser cobrado agora. Contestação, carteira suspensa, jurídico, restrição em todos os canais ou empresa em recuperação judicial tornam o caso inelegível, com o motivo."
+  },
+  {
+   "id": "regime-da-carteira",
+   "term": "Regime da carteira",
+   "definition": "Consumo (padrão, Código de Defesa do Consumidor) ou empresarial (dívida entre empresas, regida pelo contrato). Define o alerta de multa na revisão da carga e se cabe superendividamento."
+  },
+  {
+   "id": "recuperacao-judicial",
+   "term": "Recuperação judicial e falência",
+   "definition": "Processo da empresa devedora na Justiça. Enquanto está em curso, a cobrança da empresa fica suspensa e o crédito é tratado pelo jurídico; acordos em vigor não são cancelados automaticamente."
   },
   {
    "id": "fila",
@@ -7215,6 +7336,11 @@
    "id": "tabulacao",
    "term": "Tabulação",
    "definition": "Resultado do contato escolhido ao registrar a interação. Define o que é exigido (observação, promessa, retorno), se houve contato efetivo e, em algumas, uma ação automática (abrir contestação, bloquear o contato por falecimento, invalidar o contato usado)."
+  },
+  {
+   "id": "contato-novo",
+   "term": "Contato novo",
+   "definition": "Telefone, e-mail ou endereço que chega numa nova carga para um devedor que já existia. Fica com o selo \"Novo\" até a primeira tentativa por ele ou até o fim da janela de novidade da assessoria (padrão de 30 dias)."
   },
   {
    "id": "contato-efetivo",
@@ -8634,6 +8760,122 @@
    "use": "A partir do mínimo ({{scoring.minAuc}}) o modelo vira desafiante; abaixo, é reprovado e nunca pode ser promovido.",
    "screens": [
     "scoring.run"
+   ]
+  },
+  {
+   "id": "scoring.contact.preferred",
+   "module": "score",
+   "title": "Melhor forma de contato",
+   "what": "Canal e contatos do devedor que mais resultaram em atendimento ou resposta, com o melhor horário de cada contato.",
+   "how": "Conta as ligações atendidas e as mensagens respondidas ou iniciadas pelo devedor em cada contato. A taxa ajustada puxa para a média quem tem poucas tentativas, para não exagerar um acerto isolado.",
+   "use": "Comece pelo primeiro contato da lista, no horário indicado. É orientação: a política de contato e o horário permitido continuam valendo, e nada é bloqueado pelo perfil.",
+   "screens": [
+    "scoring.contact",
+    "collection.case",
+    "collection.queue",
+    "debt.debtor-detail"
+   ]
+  },
+  {
+   "id": "scoring.contact.confidence",
+   "module": "score",
+   "title": "Confiança do perfil de contato",
+   "what": "Quanto o histórico de tentativas de um contato sustenta a taxa mostrada: baixa, média ou alta.",
+   "how": "Depende do número de tentativas registradas no contato. Com confiança baixa o cartão mostra dados insuficientes em vez de afirmar a taxa.",
+   "use": "Com confiança baixa, trate a taxa como pista e continue tentando os outros contatos; com alta, priorize o contato e o horário indicados.",
+   "screens": [
+    "scoring.contact",
+    "collection.case",
+    "collection.queue",
+    "debt.debtor-detail"
+   ]
+  },
+  {
+   "id": "scoring.contact.success-rate",
+   "module": "score",
+   "title": "Taxa de atendimento ou resposta",
+   "what": "Fração das tentativas de contato no período que tiveram sucesso: ligação atendida ou mensagem respondida.",
+   "how": "Tentativas com sucesso divididas pelo total de tentativas no período, credor, carteira e tipo de pessoa escolhidos. Faixa com poucas tentativas não mostra taxa.",
+   "use": "Compare canais, dias e horários. Quando cai, revise o horário das filas e campanhas e a qualidade dos contatos importados.",
+   "screens": [
+    "scoring.contact"
+   ]
+  },
+  {
+   "id": "scoring.contact.attempts",
+   "module": "score",
+   "title": "Tentativas de contato",
+   "what": "Ligações e mensagens enviadas a contatos do devedor no período, com quantas conversas o próprio devedor iniciou.",
+   "how": "Soma das tentativas registradas no período, por qualquer canal. Mensagem iniciada pelo devedor conta como sucesso do contato.",
+   "use": "É a base das taxas da tela. Com poucas tentativas, amplie o período antes de tirar conclusões.",
+   "screens": [
+    "scoring.contact"
+   ]
+  },
+  {
+   "id": "scoring.contact.agreements",
+   "module": "score",
+   "title": "Acordos após contato",
+   "what": "Acordos fechados no período com devedores que tiveram tentativas de contato, separados em cumpridos e quebrados.",
+   "how": "Acordos fechados no período, ligados às tentativas de contato anteriores ao fechamento. Acordos em vigor e cancelados aparecem no total, mas não nas taxas.",
+   "use": "Mostra se o esforço de contato vira acordo. Leia junto com a taxa de cumprimento: fechar muito e cumprir pouco não é sucesso.",
+   "screens": [
+    "scoring.contact"
+   ]
+  },
+  {
+   "id": "scoring.contact.fulfillment",
+   "module": "score",
+   "title": "Taxa de cumprimento",
+   "what": "Fração dos acordos já encerrados que o devedor cumpriu até o fim.",
+   "how": "Acordos cumpridos divididos pela soma de cumpridos e quebrados. Acordos ainda em vigor e cancelados ficam fora da conta.",
+   "use": "É o critério de sucesso da negociação. Se cai, revise as condições oferecidas e a quantidade de contatos antes do acordo.",
+   "screens": [
+    "scoring.contact"
+   ]
+  },
+  {
+   "id": "scoring.contact.heatmap",
+   "module": "score",
+   "title": "Dia da semana × faixa horária",
+   "what": "Taxa de atendimento ou resposta em cada dia da semana e faixa de três horas, no horário de Brasília.",
+   "how": "Para cada dia e faixa, tentativas com sucesso divididas pelo total de tentativas. Com menos tentativas que o mínimo a célula mostra um traço.",
+   "use": "Concentre ligações e envios nas faixas mais fortes, sempre dentro do horário permitido pela política de contato.",
+   "screens": [
+    "scoring.contact"
+   ]
+  },
+  {
+   "id": "scoring.contact.first-success",
+   "module": "score",
+   "title": "Tentativas até o 1º atendimento",
+   "what": "Quantos contatos tiveram o primeiro atendimento ou resposta na primeira, segunda, terceira tentativa e assim por diante.",
+   "how": "Para cada contato com sucesso no período, conta as tentativas até o primeiro sucesso, contadas a partir do início do período. A última coluna junta 11 tentativas ou mais; o acumulado aparece na tabela.",
+   "use": "Mostra quando insistir deixa de compensar. Muitos contatos sem sucesso pedem atualização cadastral em vez de mais tentativas.",
+   "screens": [
+    "scoring.contact"
+   ]
+  },
+  {
+   "id": "scoring.contact.channel-rate",
+   "module": "score",
+   "title": "Taxa por canal",
+   "what": "Taxa de atendimento ou resposta de cada canal: ligação, WhatsApp, SMS, e-mail e outros.",
+   "how": "Tentativas com sucesso divididas pelo total de tentativas do canal no período. Canal com poucas tentativas não mostra taxa.",
+   "use": "Use para escolher o canal das campanhas e da régua, lembrando que cada canal tem custo e público diferentes.",
+   "screens": [
+    "scoring.contact"
+   ]
+  },
+  {
+   "id": "scoring.contact.agreements-by-attempts",
+   "module": "score",
+   "title": "Contatos até o acordo",
+   "what": "Acordos cumpridos e quebrados conforme o número de tentativas de contato antes do fechamento.",
+   "how": "Cada acordo do período entra na faixa das tentativas feitas antes dele. A taxa de cumprimento da faixa considera só cumpridos e quebrados.",
+   "use": "Se acordos fechados após muita insistência quebram mais, prefira qualidade de contato a volume de tentativas.",
+   "screens": [
+    "scoring.contact"
    ]
   },
   {

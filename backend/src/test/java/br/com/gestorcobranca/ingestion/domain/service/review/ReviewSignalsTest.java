@@ -19,19 +19,33 @@ class ReviewSignalsTest {
     void balanceAboveWhatChargesJustify() {
         // 6 meses de atraso: teto = 1.000 × (1 + 0,02 + 0,10 × 6) = 1.620,00
         LocalDate due = TODAY.minusMonths(6);
-        assertThat(signals.balance(2, new BigDecimal("1000"), new BigDecimal("1620.00"), due, TODAY)).isEmpty();
-        AlertFinding f = signals.balance(2, new BigDecimal("1000"), new BigDecimal("1700.00"), due, TODAY).orElseThrow();
+        assertThat(signals.balance(2, new BigDecimal("1000"), new BigDecimal("1620.00"), due, TODAY, true)).isEmpty();
+        AlertFinding f = signals.balance(2, new BigDecimal("1000"), new BigDecimal("1700.00"), due, TODAY, true).orElseThrow();
         assertThat(f.type()).isEqualTo(AlertType.BALANCE_ABOVE_PRINCIPAL);
         assertThat(f.expectedHigh()).isEqualByComparingTo("1620.00");
         assertThat(f.suggestedExponent()).isNull();
         // saldo 100× o principal: destaque de separador
-        AlertFinding scale = signals.balance(2, new BigDecimal("10.00"), new BigDecimal("1000.00"), TODAY.plusDays(5), TODAY)
+        AlertFinding scale = signals.balance(2, new BigDecimal("10.00"), new BigDecimal("1000.00"), TODAY.plusDays(5), TODAY, true)
                 .orElseThrow();
         assertThat(scale.suggestedExponent()).isEqualTo(-2);
         assertThat(scale.priority()).isGreaterThan(f.priority());
         assertThat(scale.detail()).contains("separador decimal");
         // saldo menor que o principal (pagamento parcial) não é alerta
-        assertThat(signals.balance(2, new BigDecimal("1000"), new BigDecimal("10"), due, TODAY)).isEmpty();
+        assertThat(signals.balance(2, new BigDecimal("1000"), new BigDecimal("10"), due, TODAY, true)).isEmpty();
+    }
+
+    @Test
+    void businessPortfolioKeepsOnlyTheScaleSignalOfTheBalance() {
+        LocalDate due = TODAY.minusMonths(6);
+        // encargos acima do teto do consumidor: em carteira empresarial a multa segue o contrato, sem alerta
+        assertThat(signals.balance(2, new BigDecimal("1000"), new BigDecimal("1700.00"), due, TODAY, false)).isEmpty();
+        assertThat(signals.balance(2, new BigDecimal("1000"), new BigDecimal("1050.00"), TODAY.plusDays(5), TODAY, false))
+                .isEmpty();
+        // saldo 100× o principal continua alertado (separador decimal é erro de arquivo, não regra do CDC)
+        AlertFinding scale = signals.balance(2, new BigDecimal("10.00"), new BigDecimal("1000.00"), TODAY.plusDays(5),
+                TODAY, false).orElseThrow();
+        assertThat(scale.type()).isEqualTo(AlertType.BALANCE_ABOVE_PRINCIPAL);
+        assertThat(scale.suggestedExponent()).isEqualTo(-2);
     }
 
     @Test

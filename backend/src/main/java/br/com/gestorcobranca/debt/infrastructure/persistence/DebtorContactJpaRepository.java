@@ -7,8 +7,10 @@ import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 interface DebtorContactJpaRepository extends JpaRepository<DebtorContact, UUID>, DebtorContactRepository {
@@ -21,6 +23,9 @@ interface DebtorContactJpaRepository extends JpaRepository<DebtorContact, UUID>,
 
     @Override
     boolean existsByDebtorIdAndTypeAndValueHash(UUID debtorId, ContactType type, String valueHash);
+
+    @Override
+    Optional<DebtorContact> findByDebtorIdAndTypeAndValueHash(UUID debtorId, ContactType type, String valueHash);
 
     @Override
     default List<UUID> findDebtorIdsByTypeAndValueHash(ContactType type, String valueHash,
@@ -51,4 +56,38 @@ interface DebtorContactJpaRepository extends JpaRepository<DebtorContact, UUID>,
             """)
     List<UUID> debtorIdsByTypeAndValueHashInCreditors(ContactType type, String valueHash, Collection<UUID> creditorIds,
                                                       Limit limit);
+
+    @Override
+    List<DebtorContact> findByDebtorIdAndNoveltyUntilIsNotNull(UUID debtorId);
+
+    @Override
+    List<DebtorContact> findByDebtorIdInAndNoveltyUntilIsNotNull(Collection<UUID> debtorIds);
+
+    @Override
+    default List<UUID> findDebtorIdsWithNoveltyExpired(Instant from, Instant to, UUID afterId, int limit) {
+        return debtorIdsWithNoveltyExpired(from, to, afterId == null ? new UUID(0L, 0L) : afterId, Limit.of(limit));
+    }
+
+    /** Usa {@code ix_debtor_contact_novelty_due} (só contatos novos ainda sem tentativa, pela data de fim da janela). */
+    @Query("""
+            select distinct c.debtorId from DebtorContact c
+             where c.noveltyUntil is not null and c.noveltyUntil > :from and c.noveltyUntil <= :to
+               and c.firstAttemptAt is null and c.debtorId > :afterId
+             order by c.debtorId
+            """)
+    List<UUID> debtorIdsWithNoveltyExpired(Instant from, Instant to, UUID afterId, Limit limit);
+
+    @Override
+    @Query("""
+            select count(distinct c.debtorId) from DebtorContact c
+             where c.firstImportBatchId = :importBatchId and c.receivedAfterRegistration = true
+            """)
+    long countDebtorsReceivedNewIn(UUID importBatchId);
+
+    @Override
+    @Query("""
+            select count(c) from DebtorContact c
+             where c.firstImportBatchId = :importBatchId and c.receivedAfterRegistration = true
+            """)
+    long countReceivedNewIn(UUID importBatchId);
 }

@@ -18,6 +18,8 @@ export type TaskType = 'CALLBACK' | 'FOLLOW_UP';
 export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 export type VariableSource =
   | 'DEBTOR_FIRST_NAME'
+  | 'DEBTOR_TRADE_NAME'
+  | 'DEBTOR_GREETING'
   | 'OPEN_BALANCE'
   | 'ELIGIBLE_BALANCE'
   | 'OLDEST_DUE_DATE'
@@ -60,6 +62,10 @@ export interface SegmentCriteria {
   minDaysToInstallment: number | null;
   /** Idem, vence em até N dias (lembrete de parcela). */
   maxDaysToInstallment: number | null;
+  /** Com (`true`) ou sem (`false`) contato novo recebido em carga ainda sem tentativa. */
+  hasNewContact: boolean | null;
+  /** Tipo de pessoa do devedor. */
+  personType: 'INDIVIDUAL' | 'COMPANY' | null;
 }
 
 export interface SegmentView {

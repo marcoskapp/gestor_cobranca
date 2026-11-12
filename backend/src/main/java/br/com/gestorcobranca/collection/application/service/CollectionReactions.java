@@ -8,6 +8,8 @@ import br.com.gestorcobranca.collection.domain.repository.CollectionCaseReposito
 import br.com.gestorcobranca.shared.events.compliance.ContactPolicyPublished;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
 import br.com.gestorcobranca.shared.events.compliance.VulnerabilityMarkerChanged;
+import br.com.gestorcobranca.shared.events.debt.DebtorContactNoveltyChanged;
+import br.com.gestorcobranca.shared.events.debt.DebtorInsolvencyChanged;
 import br.com.gestorcobranca.shared.events.debt.PortfolioLoaded;
 import br.com.gestorcobranca.shared.events.debt.TitleStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
@@ -117,6 +119,31 @@ class CollectionReactions {
         boolean vulnerable = synchronizer.debtorIsVulnerable(e.debtorId());
         cases.findActiveByDebtorId(e.debtorId())
                 .forEach(c -> synchronizer.applyVulnerability(c, vulnerable, "vulnerability_marker"));
+    }
+
+    /**
+     * Processo de insolvência registrado, convolado ou encerrado: reavalia os casos ativos do devedor em todos os
+     * credores (motivo {@code DEBTOR_INSOLVENCY}). A elegibilidade relê o estado atual no debt sob o lock do devedor —
+     * o booleano do evento não é a fonte. Acordo em vigor e histórico não são tocados.
+     */
+    void debtorInsolvencyChanged(DebtorInsolvencyChanged e) {
+        metrics.eventConsumed("debtor_insolvency");
+        access.lockDebtor(e.debtorId());
+        List<UUID> ids = cases.findActiveIdsByDebtor(e.debtorId(), null);
+        CaseSynchronizer.Context ctx = synchronizer.context();
+        cases.findAllByIdIn(ids).forEach(c -> synchronizer.reevaluate(c, "debtor_insolvency", ctx));
+    }
+
+    /**
+     * Fim da novidade dos contatos do devedor mudou (debt, contatos-recebidos.md §4): valor e fila dos casos ativos do
+     * devedor (todos os credores). Como no marcador de vulnerabilidade, o estado é relido no debt sob o lock do devedor
+     * (eventos podem chegar fora de ordem); devedor fora do alcance não muda nada.
+     */
+    void contactNoveltyChanged(DebtorContactNoveltyChanged e) {
+        metrics.eventConsumed("contact_novelty");
+        access.lockDebtor(e.debtorId());
+        synchronizer.debtorSegmentation(e.debtorId()).ifPresent(current -> cases.findActiveByDebtorId(e.debtorId())
+                .forEach(c -> synchronizer.applyNewContact(c, current, "contact_novelty")));
     }
 
     /** Nova política de contato: reavalia os casos do credor (ou de todos) a partir do início da vigência. */

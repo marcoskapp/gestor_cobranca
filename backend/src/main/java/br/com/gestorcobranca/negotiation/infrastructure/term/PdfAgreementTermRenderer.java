@@ -51,6 +51,10 @@ class PdfAgreementTermRenderer implements AgreementTermRenderer {
         }
         lines.add(Line.text("Credor: " + d.creditorName()));
         lines.add(Line.text("Devedor(a): " + d.debtorName() + (d.debtorDocument() == null ? "" : " - " + d.debtorDocument())));
+        if (d.representative() != null) {
+            lines.add(Line.text("Aceito por: " + d.representative().name() + " - CPF " + d.representative().maskedDocument()
+                    + " - " + d.representative().role() + ", em nome da empresa devedora"));
+        }
         lines.add(Line.text("Canal do aceite: " + (d.channel() == null ? "-" : d.channel())
                 + "    Política de negociação: versão " + d.policyVersion()));
         lines.add(Line.blank());

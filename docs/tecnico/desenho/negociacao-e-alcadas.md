@@ -20,6 +20,11 @@ Requisito transversal: **humanos e o assistente de IA passam exatamente pela mes
 | Escada de concessões | níveis ordenados (ver §3) |
 | Quebra de acordo | parcelas em atraso / dias de tolerância que caracterizam quebra (RB05) |
 
+O modelo de mercado (`StandardPolicyTerms.marketDefault`: juros 1% a.m., multa 2%) é o ponto de partida para carteira
+de **consumo**. Carteira **empresarial** ([cobranca-b2b.md](cobranca-b2b.md) §6) não tem o teto de multa do CDC: a
+operação configura os encargos do contrato (a tela da política diz isso na dica da multa). O regime não muda a política
+nem os acordos existentes.
+
 ## 2. Cálculo (domínio, puro e testável)
 
 `DebtCalculator`: (títulos + versão da política + data de referência) → `DebtComposition` por título e total (principal, juros, multa, encargos, honorários, pagamentos, saldo) com **memória de cálculo** persistida.

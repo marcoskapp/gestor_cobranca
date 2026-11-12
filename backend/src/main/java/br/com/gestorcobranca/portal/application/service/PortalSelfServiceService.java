@@ -105,6 +105,7 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
     private final ServiceRequestRepository serviceRequests;
     private final ServiceRequestDisputeRepository requestDisputes;
     private final JobQueue jobs;
+    private final RepresentativeConfirmation representativeConfirmation;
     private final BusinessEventLogger businessEvents;
     private final PortalMetrics metrics;
     private final TransactionTemplate transaction;
@@ -114,7 +115,8 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                        ProposalUseCases proposals, AgreementUseCases agreements, PaymentInstructionUseCases instructions,
                        PortfolioUseCases portfolios, PortalAgreementLedger ledger, PortalSessionRepository sessions,
                        ServiceRequestRepository serviceRequests, ServiceRequestDisputeRepository requestDisputes,
-                       JobQueue jobs, BusinessEventLogger businessEvents,
+                       JobQueue jobs, RepresentativeConfirmation representativeConfirmation,
+                       BusinessEventLogger businessEvents,
                        PortalMetrics metrics, PlatformTransactionManager transactionManager, Clock clock) {
         this.context = context;
         this.debts = debts;
@@ -128,6 +130,7 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
         this.serviceRequests = serviceRequests;
         this.requestDisputes = requestDisputes;
         this.jobs = jobs;
+        this.representativeConfirmation = representativeConfirmation;
         this.businessEvents = businessEvents;
         this.metrics = metrics;
         this.transaction = new TransactionTemplate(transactionManager);
@@ -259,7 +262,8 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
 
     // ------------------------------------------------------------------ aceite e formalização
 
-    private record Formalized(AgreementView agreement, OfferView offer) {
+    /** @param handoff pedido de atendimento criado no lugar do acordo (empresa sem representante confirmado) */
+    private record Formalized(AgreementView agreement, OfferView offer, ServiceRequestView handoff) {
     }
 
     @Override
@@ -271,12 +275,18 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                 "Para fechar o acordo, confirme que leu e aceita os termos");
         Formalized formalized = transaction.execute(status -> formalize(c, command));
         Objects.requireNonNull(formalized);
+        if (formalized.handoff() != null) {
+            return new AcceptanceResult(null, null, null, formalized.handoff());
+        }
         AgreementView agreement = formalized.agreement();
         IssuedPix pix = issuePixSafely(c, agreement, firstOpenInstallment(agreement).orElse(null));
         return new AcceptanceResult(detail(agreement), pix.view(), pix.error());
     }
 
-    /** Proposta + aceite (termo PDF, evidência PORTAL/IP/agente/instante/hash) + formalização, numa transação. */
+    /**
+     * Proposta + aceite (termo PDF, evidência PORTAL/IP/agente/instante/hash) + formalização, numa transação. Devedor
+     * pessoa jurídica sem representante confirmado (ou que perdeu o poder): pedido de atendimento com a condição.
+     */
     private Formalized formalize(Current c, AcceptCommand command) {
         SimulationResult sim = simulations.get(command.simulationId()).result();
         if (!sim.creditorId().equals(c.config().getCreditorId()) || !c.config().coversPortfolio(sim.portfolioId())) {
@@ -290,6 +300,23 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                         && (command.firstDueDate() == null || o.schedule().getFirst().dueDate().equals(command.firstDueDate())))
                 .findFirst()
                 .orElseThrow(() -> refused("not_offered"));
+        RepresentativeAcceptance representative = null;
+        if (isCompany(c)) {
+            PortalSession session = reload(c);
+            if (!session.representativeDeclared()) {
+                throw new ConflictException("portal.representative_required",
+                        "Informe quem está negociando pela empresa antes de fechar o acordo");
+            }
+            Guard.require(command.preferredChannel() != null && !command.preferredChannel().isBlank(),
+                    "portal.channel_required", "Escolha por onde podemos falar com a empresa");
+            PortalChannel channel = PortalAccessService.channel(command.preferredChannel());
+            var confirmed = representativeConfirmation.confirmed(session);
+            if (confirmed.isEmpty()) {
+                return new Formalized(null, offer, view(createRequest(c, ServiceRequestReason.COMPANY_ACCEPTANCE, channel,
+                        sim.portfolioId(), acceptanceNote(session, offer), null), null));
+            }
+            representative = new RepresentativeAcceptance(confirmed.get().id(), confirmed.get().role());
+        }
         ProposalView proposal;
         try {
             proposal = proposals.create(new CreateProposalCommand(command.simulationId(), command.level(), null,
@@ -308,11 +335,12 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
         Instant now = Instant.now(clock);
         String reference = "portal-session:" + c.session().getId();
         proposals.accept(proposal.id(), new ProposalUseCases.AcceptCommand(CHANNEL, reference, MDC.get(MdcKeys.CLIENT_IP),
-                MDC.get(MdcKeys.USER_AGENT)));
+                MDC.get(MdcKeys.USER_AGENT), representative == null ? null : representative.id()));
         AgreementView agreement = proposals.formalize(proposal.id());
         ledger.record(new PortalAgreementLedger.Entry(agreement.id(), c.session().getId(), c.config().getId(),
                 c.config().getCreditorId(), agreement.portfolioId(), c.session().getDebtorId(), proposal.id(),
-                agreement.installments().size(), agreement.totalAmount(), now, null));
+                agreement.installments().size(), agreement.totalAmount(), now, null,
+                representative == null ? null : representative.id(), representative == null ? null : representative.role()));
         PortalSession session = reload(c);
         if (session.markAccepted(now)) {
             sessions.save(session);
@@ -325,9 +353,65 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                 .channel(CHANNEL).amount(agreement.totalAmount())
                 .attr("installments", agreement.installments().size()).attr("concessionLevel", agreement.concessionLevel())
                 .attr("discountAmount", agreement.discountAmount()).attr("origin", agreement.origin())
-                .attr("method", c.session().getMethod().name())
+                .attr("method", c.session().getMethod().name()).attr("byRepresentative", representative != null)
                 .durationMs(Duration.between(c.session().getCreatedAt(), now).toMillis()));
-        return new Formalized(agreement, offer);
+        return new Formalized(agreement, offer, null);
+    }
+
+    private record RepresentativeAcceptance(UUID id, String role) {
+    }
+
+    private boolean isCompany(Current c) {
+        return "COMPANY".equals(debts.debtor(c.session().getDebtorId()).personType());
+    }
+
+    /**
+     * Mensagem do pedido de atendimento do aceite da empresa: a condição escolhida e quem disse estar negociando (nome
+     * declarado e CPF mascarado). Fica criptografada no pedido e só aparece no detalhe, com registro de acesso.
+     */
+    private static String acceptanceNote(PortalSession session, OfferView offer) {
+        String text = "Condição escolhida no portal: " + offer.installments() + " pagamento(s), total R$ "
+                + offer.total().setScale(2, RoundingMode.HALF_EVEN).toPlainString().replace('.', ',')
+                + ", 1º vencimento " + offer.schedule().getFirst().dueDate().format(BR_DATE)
+                + ". Quem está negociando: " + session.getRepresentativeName()
+                + (session.getRepresentativeDocumentMasked() == null ? "" : " (CPF " + session.getRepresentativeDocumentMasked() + ")")
+                + ".";
+        return text.length() > 500 ? text.substring(0, 500) : text;
+    }
+
+    private static final java.time.format.DateTimeFormatter BR_DATE = java.time.format.DateTimeFormatter.ofPattern("dd/MM/uuuu");
+
+    // ------------------------------------------------------------------ representante da empresa (B4)
+
+    @Override
+    @Transactional(readOnly = true)
+    public RepresentativeView representative() {
+        Current c = context.require();
+        return representativeView(c, reload(c));
+    }
+
+    @Override
+    @Transactional
+    public RepresentativeView declareRepresentative(DeclareRepresentativeCommand command) {
+        Current c = context.require();
+        Guard.require(command != null, "portal.request_required", "Informe quem está negociando");
+        if (!isCompany(c)) {
+            throw new BusinessRuleException("portal.representative_not_applicable",
+                    "Só empresas informam quem está negociando");
+        }
+        PortalSession session = reload(c);
+        representativeConfirmation.declare(c, session, command.cpf(), command.name(), MDC.get(MdcKeys.CLIENT_IP));
+        return representativeView(c, session);
+    }
+
+    private RepresentativeView representativeView(Current c, PortalSession session) {
+        if (!isCompany(c)) {
+            return new RepresentativeView(false, false, null, false);
+        }
+        String declared = session.getRepresentativeName() == null ? null
+                : PortalSessionService.firstName(session.getRepresentativeName());
+        return new RepresentativeView(true, session.representativeDeclared(), declared,
+                !representativeConfirmation.hasNegotiators(session.getDebtorId()));
     }
 
     private BusinessRuleException refused(String reason) {
@@ -447,9 +531,23 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
         Current c = context.require();
         Guard.require(command != null, "portal.request_required", "Diga como podemos ajudar");
         ServiceRequestReason reason = parse(ServiceRequestReason.class, command.reason(), "portal.request_reason_invalid");
+        // o aceite da empresa sem representante confirmado é criado pelo próprio portal, nunca escolhido
+        if (reason == ServiceRequestReason.COMPANY_ACCEPTANCE) {
+            throw new BusinessRuleException("portal.request_reason_invalid", "Valor inválido: " + command.reason());
+        }
         PortalChannel channel = PortalAccessService.channel(command.preferredChannel());
-        if (command.portfolioId() != null && !c.config().coversPortfolio(command.portfolioId())) {
-            throw new ResourceNotFoundException("portfolio", command.portfolioId());
+        ServiceRequest request = createRequest(c, reason, channel, command.portfolioId(), command.note(),
+                command.disputeType());
+        ServiceRequestDispute disputeIntake = reason == ServiceRequestReason.DISPUTE
+                ? requestDisputes.findByRequestIdIn(List.of(request.getId())).stream().findFirst().orElse(null) : null;
+        return view(request, disputeIntake == null ? null : disputeIntake.getStatus());
+    }
+
+    /** Pedido à fila humana (limite diário por devedor), com o job de encaminhamento e, se contestação, o registro. */
+    private ServiceRequest createRequest(Current c, ServiceRequestReason reason, PortalChannel channel, UUID portfolioId,
+                                         String note, String disputeType) {
+        if (portfolioId != null && !c.config().coversPortfolio(portfolioId)) {
+            throw new ResourceNotFoundException("portfolio", portfolioId);
         }
         Instant since = Instant.now(clock).minus(Duration.ofDays(1));
         long recent = serviceRequests.findByDebtorIdAndCreditorIdOrderByCreatedAtDesc(c.session().getDebtorId(),
@@ -461,19 +559,17 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
             protocol = AccessSecrets.newProtocol();
         }
         ServiceRequest created = new ServiceRequest(c.config().getId(), c.session().getId(),
-                c.config().getCreditorId(), command.portfolioId(), c.session().getDebtorId(), protocol, reason, channel,
-                command.note());
+                c.config().getCreditorId(), portfolioId, c.session().getDebtorId(), protocol, reason, channel, note);
         if (reason == ServiceRequestReason.DISPUTE) {
-            created.disputeOf(command.disputeType() == null || command.disputeType().isBlank() ? null
-                    : command.disputeType().trim().toUpperCase(java.util.Locale.ROOT));
+            created.disputeOf(disputeType == null || disputeType.isBlank() ? null
+                    : disputeType.trim().toUpperCase(java.util.Locale.ROOT));
         }
         ServiceRequest request = serviceRequests.save(created);
         jobs.enqueue(ServiceRequestDispatchJob.TYPE, new ServiceRequestDispatchJob.Payload(request.getId()), null,
                 "portal-request:" + request.getId());
-        ServiceRequestDispute disputeIntake = null;
         if (reason == ServiceRequestReason.DISPUTE) {
             // o prazo do CDC conta daqui: o job registra a contestação no collection com este instante
-            disputeIntake = requestDisputes.save(new ServiceRequestDispute(request.getId()));
+            requestDisputes.save(new ServiceRequestDispute(request.getId()));
             jobs.enqueue(PortalDisputeIntakeJob.TYPE, new PortalDisputeIntakeJob.Payload(request.getId()), null,
                     "portal-dispute:" + request.getId());
         }
@@ -483,7 +579,7 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                 .attr("reason", reason.name()).attr("preferredChannel", channel.name())
                 .attr("withNote", request.getNote() != null));
         metrics.serviceRequest(reason.name(), "CREATED");
-        return view(request, disputeIntake == null ? null : disputeIntake.getStatus());
+        return request;
     }
 
     @Override

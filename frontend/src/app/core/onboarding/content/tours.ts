@@ -132,6 +132,21 @@ export const TOURS: readonly TourDefinition[] = [
   },
 
   {
+    id: 'scoring.contact',
+    version: 1,
+    title: 'Inteligência de contato',
+    summary: 'Quando e por onde o contato funciona, e quantas tentativas levam a um acordo cumprido.',
+    steps: [
+      { anchor: 'filters', title: 'Filtros', body: 'Período de até 400 dias, credor, carteira e tipo de pessoa. Os filtros ficam no endereço da página.' },
+      { anchor: 'contact-kpis', title: 'Resumo', body: 'Taxa de atendimento ou resposta, tentativas, acordos e a taxa de cumprimento, que é o critério de sucesso.' },
+      { anchor: 'contact-heatmap', title: 'Dia × horário', body: 'Taxa por dia da semana e faixa de três horas. Traço indica poucas tentativas, sem taxa.' },
+      { anchor: 'contact-first-success', title: 'Quando insistir', body: 'Em quantas tentativas os contatos foram atendidos pela primeira vez.' },
+      { anchor: 'contact-agreements', title: 'Contatos até o acordo', body: 'Acordos cumpridos e quebrados pelo número de tentativas antes do fechamento.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar.' },
+    ],
+  },
+
+  {
     id: 'scoring.settings',
     version: 1,
     title: 'Parâmetros do score',
@@ -248,7 +263,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'debt.debtors',
-    version: 1,
+    version: 2,
     title: 'Devedores',
     summary: 'Busca por nome ou documento e acesso à ficha do devedor.',
     steps: [
@@ -263,6 +278,11 @@ export const TOURS: readonly TourDefinition[] = [
         body: 'Digite parte do nome ou o CPF/CNPJ completo. O documento é enviado de forma protegida, fora do endereço da página.',
       },
       {
+        anchor: 'debtor-new-contact-filter',
+        title: 'Com contato novo',
+        body: 'Mostra quem recebeu telefone, e-mail ou endereço numa nova carga e ainda não foi tentado por ele.',
+      },
+      {
         anchor: 'data-table',
         title: 'Abra a ficha',
         body: 'Documentos aparecem mascarados. Na ficha ficam títulos, contatos, razão, titularidade e restrições.',
@@ -272,7 +292,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'debt.debtor-detail',
-    version: 2,
+    version: 3,
     title: 'Ficha do devedor',
     summary: 'Posição, dados, títulos, contatos, interações e vínculos em um só lugar.',
     steps: [
@@ -299,7 +319,7 @@ export const TOURS: readonly TourDefinition[] = [
       {
         anchor: 'debtor-tabs',
         title: 'Títulos, contatos e histórico',
-        body: 'Contatos podem ser confirmados ou marcados como inválidos. Interações reúne os contatos de todos os casos. Razão e titularidade mostram cada lançamento e cada carteira.',
+        body: 'Contatos mostram com quem falar, o selo "Novo" de quem chegou numa nova carga e podem ser confirmados ou invalidados. Empresas têm a aba Representantes.',
         placement: 'above',
       },
       {
@@ -657,7 +677,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'organization.portfolios',
-    version: 1,
+    version: 2,
     title: 'Carteiras',
     summary: 'Lotes de títulos recebidos dos credores e seu ciclo de vida.',
     steps: [
@@ -676,6 +696,11 @@ export const TOURS: readonly TourDefinition[] = [
         title: 'Mudança de situação',
         body: 'Suspender ou devolver pede motivo e fica na trilha de auditoria. Encerrar é definitivo.',
         placement: 'above',
+      },
+      {
+        anchor: 'portfolio-regime',
+        title: 'Regime da carteira',
+        body: 'Consumo segue o CDC; empresarial é dívida entre empresas, sem alerta de multa de 2% e sem superendividamento. Mudar pede motivo.',
       },
     ],
   },
@@ -1165,14 +1190,14 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'ingestion.batch-detail',
-    version: 1,
+    version: 2,
     title: 'Lote de importação',
     summary: 'Contadores, ocorrências por linha e reprocessamento.',
     steps: [
       {
         anchor: 'batch-counters',
         title: 'Contadores',
-        body: 'Linhas lidas, válidas e com erro, devedores e títulos criados ou atualizados.',
+        body: 'Linhas lidas, válidas e com erro, devedores e títulos criados ou atualizados. Abaixo, quantos devedores receberam contato novo.',
       },
       {
         anchor: 'batch-issues',
@@ -1198,12 +1223,12 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'campaign.segment',
-    version: 1,
+    version: 2,
     title: 'Construtor de segmento',
     summary: 'Filtros combinados com contagem prévia do público.',
     steps: [
       { anchor: 'segment-filters', title: 'Filtros combinados', body: 'Todos os filtros precisam ser atendidos. Casos inelegíveis ficam fora por padrão.' },
-      { anchor: 'segment-add-filter', title: 'Adicionar filtro', body: 'Atraso, saldo, contato, promessa, acordo, score e dono do atendimento.' },
+      { anchor: 'segment-add-filter', title: 'Adicionar filtro', body: 'Atraso, saldo, tipo de pessoa, contato e contato novo, promessa, acordo, score e dono do atendimento.' },
       { anchor: 'segment-preview', title: 'Prévia', body: 'Devedores, casos e saldo atualizam a cada alteração válida, antes de salvar.', placement: 'start' },
       { anchor: 'page-actions', title: 'Salvar e duplicar', body: 'Duplique para criar variações sem mexer no segmento usado por campanhas ativas.' },
     ],

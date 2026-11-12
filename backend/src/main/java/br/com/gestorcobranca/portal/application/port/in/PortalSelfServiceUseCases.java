@@ -27,7 +27,25 @@ public interface PortalSelfServiceUseCases {
     /** Simulação com forma de pagamento escolhida pelo devedor. */
     OffersView simulate(UUID portfolioId, SimulateCommand command);
 
+    /**
+     * Aceite. Devedor pessoa jurídica (B4): exige quem está negociando informado na sessão
+     * ({@code portal.representative_required}, 409); representante confirmado e ainda com poder → acordo formalizado
+     * com o representante no termo; senão → pedido de atendimento ({@code COMPANY_ACCEPTANCE}) com a condição escolhida,
+     * para um atendente concluir. A resposta não diz o motivo (CPF que não confere, sem representante ou bloqueio).
+     */
     AcceptanceResult accept(AcceptCommand command);
+
+    /** Quem negocia pela empresa: situação da sessão (devedor pessoa física → {@code required = false}). */
+    RepresentativeView representative();
+
+    /**
+     * Devedor pessoa jurídica informa CPF e nome de quem está negociando (B4). Confere com os representantes com poder
+     * para negociar e vigentes pelo blind index do CPF; a resposta é a mesma quando confere e quando não confere
+     * (anti-enumeração). Falhas contam por devedor e por IP no bloqueio progressivo persistido; bloqueado, a
+     * declaração é registrada sem conferir (o aceite vira atendimento). CPF malformado → 422
+     * {@code portal.representative_cpf_invalid}; devedor pessoa física → 422 {@code portal.representative_not_applicable}.
+     */
+    RepresentativeView declareRepresentative(DeclareRepresentativeCommand command);
 
     List<AgreementSummary> agreements();
 
@@ -92,16 +110,47 @@ public interface PortalSelfServiceUseCases {
     record ScheduleItem(int number, LocalDate dueDate, BigDecimal amount) {
     }
 
-    /** @param termsAccepted o devedor marcou "Li e aceito" (obrigatório) */
+    /**
+     * @param termsAccepted    o devedor marcou "Li e aceito" (obrigatório)
+     * @param preferredChannel WHATSAPP, SMS ou EMAIL: por onde o atendente fala com a empresa se precisar concluir o
+     *                         acordo (obrigatório para pessoa jurídica; ignorado para pessoa física)
+     */
     record AcceptCommand(UUID simulationId, int level, int installments, BigDecimal downPayment, LocalDate firstDueDate,
-                         boolean termsAccepted) {
+                         boolean termsAccepted, String preferredChannel) {
+
+        public AcceptCommand(UUID simulationId, int level, int installments, BigDecimal downPayment,
+                             LocalDate firstDueDate, boolean termsAccepted) {
+            this(simulationId, level, installments, downPayment, firstDueDate, termsAccepted, null);
+        }
     }
 
     /**
-     * @param pix       Pix da 1ª parcela/à vista (nulo se não foi possível gerar agora; {@code pixError} explica)
-     * @param pixError  código estável quando o Pix não foi gerado (o devedor pode pedir a 2ª via)
+     * @param agreement      acordo formalizado (nulo quando o aceite virou atendimento)
+     * @param pix            Pix da 1ª parcela/à vista (nulo se não foi possível gerar agora; {@code pixError} explica)
+     * @param pixError       código estável quando o Pix não foi gerado (o devedor pode pedir a 2ª via)
+     * @param serviceRequest pedido de atendimento criado no lugar do acordo (empresa sem representante confirmado)
      */
-    record AcceptanceResult(AgreementDetail agreement, PixView pix, String pixError) {
+    record AcceptanceResult(AgreementDetail agreement, PixView pix, String pixError, ServiceRequestView serviceRequest) {
+
+        public AcceptanceResult(AgreementDetail agreement, PixView pix, String pixError) {
+            this(agreement, pix, pixError, null);
+        }
+    }
+
+    // ------------------------------------------------------------------ representante da empresa (B4)
+
+    /** @param cpf CPF de quem está negociando (com ou sem máscara); nunca registrado em log, evento ou métrica */
+    record DeclareRepresentativeCommand(String cpf, String name) {
+    }
+
+    /**
+     * @param required        devedor pessoa jurídica: informar quem negocia antes do aceite
+     * @param declared        já informado nesta sessão
+     * @param declaredName    primeiro nome informado (eco do que a pessoa digitou)
+     * @param humanCompletion a empresa não tem representante com poder para negociar: o aceite é sempre concluído por
+     *                        um atendente (independe do CPF informado)
+     */
+    record RepresentativeView(boolean required, boolean declared, String declaredName, boolean humanCompletion) {
     }
 
     // ------------------------------------------------------------------ acordos e pagamento

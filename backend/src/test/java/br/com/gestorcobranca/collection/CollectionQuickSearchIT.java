@@ -176,7 +176,7 @@ class CollectionQuickSearchIT extends CollectionTestSupport {
         UUID outside = debtor(digits);
         load(creditorA, portfolioA, outside, "50.00");
         UUID visible = system(() -> ingestion.upsertDebtor(new DebtorRecord(cpf(300_000_000), "Devedor Visível",
-                LocalDate.of(1990, 1, 1), List.of(new ContactRecord("PHONE", digits, "MOBILE", true)))).id());
+                LocalDate.of(1990, 1, 1), List.of(new ContactRecord("PHONE", digits, "MOBILE", true)), null)).id());
         load(creditorB, portfolioB, visible, "60.00");
 
         QuickSearchView view = asOperator(operatorZ, () -> quickSearch.search(digits));

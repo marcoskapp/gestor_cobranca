@@ -94,10 +94,10 @@
       <div class="form-check"><input class="form-check-input" type="checkbox" id="portal-email" formControlName="email"  /><label class="form-check-label" for="portal-email">E-mail</label></div>
     </fieldset>
     <div class="app-form-grid row-gap-3">
-      <app-field label="Confirmação adicional">
+      <app-field label="Confirmação adicional" hint="Empresas (CNPJ) não têm data de nascimento: com essa opção, elas informam os 4 últimos números do contrato.">
         <select appInput formControlName="knowledgeChallenge">
           <option value="NONE">Nenhuma (só o código ou o link)</option>
-          <option value="BIRTH_DATE">Data de nascimento</option>
+          <option value="BIRTH_DATE">Data de nascimento (empresas: 4 últimos números do contrato)</option>
           <option value="CONTRACT_SUFFIX">4 últimos números do contrato</option>
         </select>
       </app-field>

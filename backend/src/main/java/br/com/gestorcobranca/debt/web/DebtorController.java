@@ -3,6 +3,7 @@ package br.com.gestorcobranca.debt.web;
 import br.com.gestorcobranca.debt.application.port.in.DebtorSheetQueries;
 import br.com.gestorcobranca.debt.application.port.in.DebtorSheetQueries.DebtorSummary;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
+import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorFilter;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorName;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorView;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.RegisterDebtorCommand;
@@ -54,10 +55,18 @@ class DebtorController {
     PageResponse<DebtorView> search(@RequestParam(required = false) String q,
                                     @RequestParam(required = false) UUID creditorId,
                                     @RequestParam(required = false) UUID portfolioId,
+                                    @RequestParam(required = false) UUID sameCompanyAs,
+                                    @RequestParam(required = false) boolean newContact,
+                                    @RequestParam(required = false) UUID newContactBatchId,
                                     @RequestParam(required = false) Integer page,
                                     @RequestParam(required = false) Integer size,
                                     @RequestParam(required = false) String sort) {
-        return debtors.search(q, creditorId, portfolioId, PageQuery.of(page, size, sort));
+        // "Outras unidades da empresa": o filtro leva o id do devedor de referência, nunca o CNPJ
+        if (sameCompanyAs != null) {
+            return debtors.otherUnits(sameCompanyAs, PageQuery.of(page, size, sort));
+        }
+        return debtors.search(new DebtorFilter(q, creditorId, portfolioId, newContact, newContactBatchId),
+                PageQuery.of(page, size, sort));
     }
 
     @PostMapping("/lookup")
@@ -103,23 +112,25 @@ class DebtorController {
     @PreAuthorize("hasAuthority('DEBTOR_MANAGE')")
     DebtorView register(@Valid @RequestBody RegisterDebtorRequest request) {
         return debtors.register(new RegisterDebtorCommand(request.document(), request.name(), request.birthDate(),
-                request.notes()));
+                request.notes(), request.tradeName()));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('DEBTOR_MANAGE')")
     DebtorView update(@PathVariable UUID id, @Valid @RequestBody UpdateDebtorRequest request) {
-        return debtors.update(id, new UpdateDebtorCommand(request.name(), request.birthDate(), request.notes()));
+        return debtors.update(id, new UpdateDebtorCommand(request.name(), request.birthDate(), request.notes(),
+                request.tradeName()));
     }
 
     record DocumentLookupRequest(@NotBlank @Size(max = 20) String document) {
     }
 
     record RegisterDebtorRequest(@NotBlank @Size(max = 20) String document, @NotBlank @Size(max = 200) String name,
-                                 @Past LocalDate birthDate, @Size(max = 2000) String notes) {
+                                 @Past LocalDate birthDate, @Size(max = 2000) String notes,
+                                 @Size(max = 200) String tradeName) {
     }
 
     record UpdateDebtorRequest(@NotBlank @Size(max = 200) String name, @Past LocalDate birthDate,
-                               @Size(max = 2000) String notes) {
+                               @Size(max = 2000) String notes, @Size(max = 200) String tradeName) {
     }
 }
