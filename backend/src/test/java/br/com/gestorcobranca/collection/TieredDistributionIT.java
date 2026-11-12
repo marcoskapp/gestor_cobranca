@@ -108,12 +108,9 @@ class TieredDistributionIT extends CollectionTestSupport {
         assertThat(preview.members()).extracting(MemberPreview::userId, MemberPreview::tier, MemberPreview::capacity,
                 MemberPreview::planned).containsExactly(org.assertj.core.groups.Tuple.tuple(operatorX, "A", 12, 4),
                 org.assertj.core.groups.Tuple.tuple(operatorY, "D", 8, 2));
-        // sem visão de desempenho: só quantidades (sem nível nem capacidade efetiva por pessoa)
+        // sem visão de desempenho: nenhuma pessoa (carga e casos planejados revelariam o nível), só totais por faixa
         DistributionPreview blind = asAssignerWithoutPerformanceView(() -> work.previewDistribution(queue.id(), 100));
-        assertThat(blind.members()).allSatisfy(m -> {
-            assertThat(m.tier()).isNull();
-            assertThat(m.capacity()).isNull();
-        });
+        assertThat(blind.members()).isEmpty();
         // ... e sem quantidades por nível: só os totais por faixa (nível nulo)
         assertThat(blind.byTier()).isEmpty();
         assertThat(blind.byTierBand()).containsExactlyInAnyOrder(new TierBandCount(null, "HIGH", 2),
@@ -123,8 +120,7 @@ class TieredDistributionIT extends CollectionTestSupport {
                 () -> work.previewDistribution(queue.id(), 100));
         assertThat(partial.members()).filteredOn(m -> m.userId().equals(operatorX)).extracting(MemberPreview::tier)
                 .containsExactly("A");
-        assertThat(partial.members()).filteredOn(m -> m.userId().equals(operatorY)).extracting(MemberPreview::tier)
-                .containsOnlyNulls();
+        assertThat(partial.members()).extracting(MemberPreview::userId).containsExactly(operatorX);
         assertThat(partial.byTier()).isEmpty();
         assertThat(partial.byTierBand()).extracting(TierBandCount::tier).containsOnlyNulls();
         assertThat(preview.byTier()).isNotEmpty();
@@ -134,6 +130,7 @@ class TieredDistributionIT extends CollectionTestSupport {
 
         DistributionResult result = asSupervisor(() -> work.distribute(queue.id(), 100));
         assertThat(result.assigned()).isEqualTo(6);
+        assertThat(result.assignments()).hasSize(6);
         assertThat(assignmentOf(cases.get("600.00"))).containsExactly(operatorX.toString(), "A", "HIGH");
         assertThat(assignmentOf(cases.get("400.00"))).containsExactly(operatorX.toString(), "A", "MEDIUM");
         assertThat(assignmentOf(cases.get("100.00"))).containsExactly(operatorY.toString(), "D", "LOW");
@@ -314,5 +311,17 @@ class TieredDistributionIT extends CollectionTestSupport {
     private void moveClockTo(LocalDate date, int hour) {
         Instant target = ZonedDateTime.of(date.atTime(hour, 0), ZONE).toInstant();
         clock.advance(Duration.between(Instant.now(), target));
+    }
+
+    @Test
+    void distributeResultListsOnlyPeopleWhoseTierTheActorSees() {
+        publishTiers();
+        withoutDevelopment();
+        QueueView queue = tieredQueue();
+        loadCases("300.00", "200.00", "100.00");
+        // sem visão de desempenho: os totais vêm completos, a lista por caso não (a contagem por pessoa revelaria o nível)
+        DistributionResult blind = asAssignerWithoutPerformanceView(() -> work.distribute(queue.id(), 100));
+        assertThat(blind.assigned()).isEqualTo(3);
+        assertThat(blind.assignments()).isEmpty();
     }
 }

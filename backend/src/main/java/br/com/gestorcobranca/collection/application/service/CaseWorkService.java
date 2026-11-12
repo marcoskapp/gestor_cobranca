@@ -306,7 +306,8 @@ class CaseWorkService implements CaseWorkUseCases {
     public DistributionResult distribute(UUID queueId, int limit) {
         requireLimit(limit);
         // fila bloqueada até o fim da transação: um "Distribuir" por vez por fila (também contra a rodada automática)
-        return distribution.run(distributableQueue(queueId, true), limit, QueueDistribution.Trigger.MANUAL);
+        CollectionQueue queue = distributableQueue(queueId, true);
+        return distribution.forActor(queue, distribution.run(queue, limit, QueueDistribution.Trigger.MANUAL));
     }
 
     @Override

@@ -147,6 +147,19 @@ class QueueDistribution {
      * nível somada ao "planejado" de cada um revelaria o nível de quem ele não pode ver. Sem essa visão, só totais por
      * faixa (nível nulo) e nenhum {@code byTier}.
      */
+    /**
+     * Resultado devolvido a quem disparou o "Distribuir": em fila por nível, a lista por caso só traz as pessoas cujo
+     * nível o ator pode ver (a contagem por pessoa revelaria o nível); os totais continuam completos.
+     */
+    DistributionResult forActor(CollectionQueue queue, DistributionResult result) {
+        if (queue.getStrategy() != DistributionStrategy.TIERED) {
+            return result;
+        }
+        Predicate<UUID> visible = tierVisibility.visibleUsers();
+        return new DistributionResult(result.assigned(), result.unassigned(),
+                result.assignments().stream().filter(a -> visible.test(a.userId())).toList());
+    }
+
     DistributionPreview preview(CollectionQueue queue, int limit) {
         Planned planned = plan(queue, limit, false);
         CaseDistributor.Plan plan = planned.plan();
@@ -164,9 +177,12 @@ class QueueDistribution {
                 int[] totals = tierTotals.computeIfAbsent(tier, t -> new int[2]);
                 totals[0]++;
                 totals[1] += count;
-                boolean show = visible.test(m.userId());
-                members.add(new MemberPreview(m.userId(), show ? tier.name() : null, m.load(),
-                        show ? planned.policy().effectiveCapacity(m.capacity(), tier) : null, count));
+                // em fila por nível, a carga e os casos planejados de uma pessoa revelam o nível dela (capacidade por
+                // nível e faixas): só aparecem as pessoas cujo nível o ator pode ver; as demais ficam nos totais por faixa
+                if (visible.test(m.userId())) {
+                    members.add(new MemberPreview(m.userId(), tier.name(), m.load(),
+                            planned.policy().effectiveCapacity(m.capacity(), tier), count));
+                }
             } else {
                 members.add(new MemberPreview(m.userId(), null, m.load(), m.capacity(), count));
             }

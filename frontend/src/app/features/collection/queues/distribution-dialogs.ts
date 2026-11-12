@@ -150,7 +150,7 @@ export function distributionText(result: DistributionResult): string {
                   </tbody>
                 </table>
               </div>
-              <p class="app-muted small">Prévia por faixa: a divisão por nível de desempenho aparece só para quem vê o desempenho de todas as pessoas da fila.</p>
+              <p class="app-muted small">Prévia por faixa: a divisão por nível de desempenho e os casos de cada pessoa aparecem só para quem você vê no desempenho.</p>
             }
             @if (p.members.length) {
               <ul class="dd-loads" aria-label="Casos por operador na prévia">

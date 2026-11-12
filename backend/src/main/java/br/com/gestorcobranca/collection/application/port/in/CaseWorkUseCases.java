@@ -92,7 +92,10 @@ public interface CaseWorkUseCases {
         }
     }
 
-    /** @param unassigned casos sem operador possível (escopo ou capacidade) */
+    /**
+     * @param unassigned  casos sem operador possível (escopo ou capacidade)
+     * @param assignments em fila por nível, só os casos de pessoas cujo nível o ator pode ver (os totais são completos)
+     */
     record DistributionResult(int assigned, int unassigned, List<Assignment> assignments) {
     }
 
@@ -128,8 +131,11 @@ public interface CaseWorkUseCases {
     }
 
     /**
-     * @param tier     nível efetivo (nulo sem permissão para ver, ou fora do {@code TIERED})
-     * @param capacity capacidade efetiva (nulo = ilimitada ou sem permissão para ver o nível)
+     * Pessoa na prévia. Em fila por nível, só as pessoas cujo nível o ator pode ver (o planejado revelaria o nível); as
+     * demais entram apenas nos totais por faixa.
+     *
+     * @param tier     nível efetivo (nulo fora do {@code TIERED})
+     * @param capacity capacidade efetiva (nulo = ilimitada)
      */
     record MemberPreview(UUID userId, String tier, int activeCases, Integer capacity, int planned) {
     }

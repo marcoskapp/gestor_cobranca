@@ -143,7 +143,9 @@ entregar casos a quem está ausente; a carga que já existe conta para a capacid
 * `TIER_REVIEW` (nova): revisar e publicar a classificação no seu escopo de pessoas — SUPERVISOR (equipe), GESTOR
   (todos).
 * Configurar a fila e a rotina: `QUEUE_MANAGE` (já existe). O nível de cada pessoa só aparece para quem tem
-  `PERFORMANCE_VIEW_TEAM/ALL` no escopo; na prévia do "Distribuir" sem essa permissão, só as quantidades por nível.
+  `PERFORMANCE_VIEW_TEAM/ALL` no escopo; na prévia e no resultado do "Distribuir" de fila por nível, a lista por
+  pessoa traz só quem o ator pode ver, e as quantidades por nível só aparecem com visão de todos os membros
+  (sem ela, totais por faixa) — decisões 1287, 1295 e 1296.
 
 ## 7. Privacidade e trabalho
 

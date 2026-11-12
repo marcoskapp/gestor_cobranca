@@ -166,7 +166,9 @@ class TierService implements TierUseCases, TierScheduling {
         Guard.requireState(tiers.openRound().isEmpty(), "tier_round.open_exists",
                 "Já há uma rodada em revisão: publique-a ou aguarde o prazo antes de apurar de novo");
         TierRound round = propose(TierRound.Trigger.MANUAL, access.actor().id());
-        return summary(round, tiers.assignments(round.id()));
+        // mesmo escopo da consulta: quem apura sem ver todas as pessoas recebe só as do seu escopo (nenhuma, sem visão de
+        // desempenho — apurar exige só TIER_MANAGE)
+        return summary(round, inScope(tiers.assignments(round.id()), access.visibleUsersOrNone()));
     }
 
     @Override
