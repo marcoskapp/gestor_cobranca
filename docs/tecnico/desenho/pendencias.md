@@ -39,6 +39,7 @@ Pedido do responsável: *"apresentar ao usuário logado o que ele pode fazer (it
 | `incentive.statement_approval` | `COMMISSION_STATEMENT_APPROVE` | extrato `CALCULATED/ADJUSTED`; não é o beneficiário, não fechou o período, não ajustou nem resolveu contestação; sem contestação aberta nem ajuste pendente | idade | `/remuneracao/extratos` |
 | `incentive.statement_disputes` | `COMMISSION_STATEMENT_MANAGE` | contestação `OPEN` aberta por outra pessoa | idade | `…?situacao=DISPUTED` |
 | `incentive.adjustment_approval` | `COMMISSION_STATEMENT_MANAGE` | ajuste pendente pedido por outra pessoa, fora do próprio extrato | idade | extratos |
+| `incentive.tier_review` | `TIER_REVIEW` | rodada da classificação de desempenho `PROPOSED` (no máximo uma); vence no prazo de revisão (dias úteis) | prazo de revisão | `/remuneracao/classificacao?rodada=<id>` |
 | `compliance.data_subject_requests` | `DATA_SUBJECT_REQUEST_MANAGE` + todos os credores | solicitação aberta com prazo legal até o fim da janela | prazo legal (`due_at`) | `/compliance/solicitacoes-titulares[?vencidas=true]` |
 | `compliance.vulnerability_suggestions` | `VULNERABILITY_REGISTER` ou `VULNERABILITY_MANAGE` (credor da sugestão no escopo) | sugestão de marcador do assistente pendente | — (sem prazo; idade pela mais antiga) | `/compliance/vulnerabilidade?aba=sugestoes` |
 | `complaint.mine_due` | `COMPLAINT_MANAGE` | reclamação do próprio responsável aguardando resposta, com o aviso do canal iniciado ou vencida | prazo da reclamação | `/compliance/reclamacoes?responsavel=me&prazo=soon` |

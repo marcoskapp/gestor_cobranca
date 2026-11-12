@@ -2,6 +2,7 @@ package br.com.gestorcobranca.incentive.application.service;
 
 import br.com.gestorcobranca.incentive.application.IncentiveProperties;
 import br.com.gestorcobranca.incentive.application.port.in.IncentiveProvisioning;
+import br.com.gestorcobranca.incentive.application.port.in.TierScheduling;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.tenancy.TenantDirectory;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
@@ -32,13 +33,15 @@ class IncentiveJobs {
     private final CommissionPostingService posting;
     private final LoggedTimeSync loggedTime;
     private final IncentiveProvisioning provisioning;
+    private final TierScheduling tiers;
     private final IncentiveMetrics metrics;
     private final IncentiveProperties properties;
     private final Clock clock;
 
     IncentiveJobs(TenantDirectory tenants, TenantExecution tenantExecution, ClearingService clearing,
                   PeriodClosingService closing, CommissionPostingService posting, LoggedTimeSync loggedTime,
-                  IncentiveProvisioning provisioning, IncentiveMetrics metrics, IncentiveProperties properties, Clock clock) {
+                  IncentiveProvisioning provisioning, TierScheduling tiers, IncentiveMetrics metrics,
+                  IncentiveProperties properties, Clock clock) {
         this.tenants = tenants;
         this.tenantExecution = tenantExecution;
         this.clearing = clearing;
@@ -46,6 +49,7 @@ class IncentiveJobs {
         this.posting = posting;
         this.loggedTime = loggedTime;
         this.provisioning = provisioning;
+        this.tiers = tiers;
         this.metrics = metrics;
         this.properties = properties;
         this.clock = clock;
@@ -60,6 +64,24 @@ class IncentiveJobs {
         if (properties.autoClose()) {
             forEachTenant("incentive.period_close", closing::closeDuePeriods);
         }
+    }
+
+    /**
+     * Classificação de desempenho (distribuicao-por-desempenho.md §3.3): expira a rodada sem publicação no prazo e
+     * abre a rodada devida no período (mensal a partir do 1º dia útil; semanal a partir da segunda), de manhã no fuso
+     * de operação. As duas etapas rodam em transações separadas: a expiração vale mesmo se a abertura falhar.
+     */
+    @Scheduled(cron = "${app.incentive.tier-cron:0 40 5 * * *}", zone = TimeConfig.BUSINESS_ZONE_ID)
+    @SchedulerLock(name = "incentive.tier-rounds", lockAtMostFor = "PT1H", lockAtLeastFor = "PT1M")
+    void tierRounds() {
+        forEachTenant("incentive.tier_rounds", () -> {
+            tiers.expireOverdueRound();
+            return null;
+        });
+        forEachTenant("incentive.tier_rounds", () -> {
+            tiers.openScheduledRound();
+            return null;
+        });
     }
 
     @Scheduled(fixedDelayString = "${app.incentive.logged-time-sync-interval:PT1H}", initialDelayString = "PT5M")

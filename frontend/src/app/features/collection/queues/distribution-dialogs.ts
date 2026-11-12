@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize } from 'rxjs';
+import { debounceTime, finalize, map } from 'rxjs';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
@@ -10,20 +10,50 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { AppValidators, Limits } from '../../../shared/validation/validators';
 import { CaseWorkApi, QueuesApi } from '../data/collection.api';
 import { CollectionAssignees } from '../data/collection-assignees';
-import { STRATEGY_LABELS } from '../data/collection.labels';
+import { POTENTIAL_BAND_LABELS, STRATEGY_LABELS } from '../data/collection.labels';
 import { UserNames } from '../data/collection.lookups';
-import { DistributionResult, QueueView } from '../data/collection.models';
+import { DistributionPreview, DistributionResult, PerformanceTier, PotentialBand, QueueView } from '../data/collection.models';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+
+const TIERS: PerformanceTier[] = ['A', 'B', 'C', 'D'];
+const BANDS: PotentialBand[] = ['HIGH', 'MEDIUM', 'LOW', 'DEVELOPMENT'];
+
+/** Linhas da prévia por nível (só níveis com membros ou casos), com a quantidade por faixa de potencial. */
+export function tierRows(preview: DistributionPreview): { tier: PerformanceTier; members: number; cases: number; bands: number[] }[] {
+  return TIERS.map((tier) => {
+    const total = preview.byTier.find((t) => t.tier === tier);
+    return {
+      tier,
+      members: total?.members ?? 0,
+      cases: total?.cases ?? 0,
+      bands: BANDS.map((band) => preview.byTierBand.find((c) => c.tier === tier && c.band === band)?.cases ?? 0),
+    };
+  }).filter((row) => row.members > 0 || row.cases > 0);
+}
+
+/**
+ * Prévia só por faixa (sem nível): quem não vê o nível de todas as pessoas da fila recebe os totais por faixa com
+ * nível nulo, para que a contagem por nível não revele o nível de ninguém.
+ */
+export function bandRows(preview: DistributionPreview): { band: PotentialBand; cases: number }[] {
+  return BANDS.map((band) => ({
+    band,
+    cases: preview.byTierBand.filter((c) => c.tier === null && c.band === band).reduce((sum, c) => sum + c.cases, 0),
+  })).filter((row) => row.cases > 0);
+}
 
 export function distributionText(result: DistributionResult): string {
   const base = result.assigned === 1 ? '1 caso distribuído' : `${result.assigned} casos distribuídos`;
   return result.unassigned ? `${base}; ${result.unassigned} sem operador possível (escopo ou capacidade) continuam na fila.` : `${base}.`;
 }
 
-/** Situação da fila (disponíveis, aguardando, carga por operador) e distribuição em lote. */
+/**
+ * Situação da fila (disponíveis, aguardando, carga por operador), prévia da distribuição (por nível de desempenho e
+ * faixa de potencial nas filas por nível; quantos casos cada operador receberia) e distribuição em lote.
+ */
 @Component({
   selector: 'app-distribute-dialog',
   imports: [ReactiveFormsModule, Skeleton, Icon, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
@@ -60,13 +90,88 @@ export function distributionText(result: DistributionResult): string {
           <input appInput type="number" min="1" max="1000" formControlName="limit" required />
         </app-field>
       </form>
+      @if (!result()) {
+        <section aria-labelledby="dd-preview-title" data-tour="distribute-preview">
+          <h3 class="app-section-title" id="dd-preview-title">Prévia (nada é gravado)</h3>
+          @if (preview.isLoading() && !previewValue()) {
+            <app-skeleton variant="lines" [rows]="3" />
+          } @else if (preview.status() === 'error') {
+            <p class="app-field-error" role="alert">Não foi possível calcular a prévia. <button class="btn btn-link p-0 align-baseline" type="button" (click)="preview.reload()">Tentar novamente</button></p>
+          } @else if (previewValue(); as p) {
+            <p class="mb-2">
+              {{ p.assigned }} de {{ p.considered }} caso(s) iriam a um operador{{ p.unassigned ? '; ' + p.unassigned + ' ficariam na fila (escopo ou capacidade)' : '' }}.
+            </p>
+            @if (p.strategy === 'TIERED' && tiers().length) {
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-2">
+                  <caption class="visually-hidden">Casos por nível de desempenho e faixa de potencial</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Nível</th>
+                      <th scope="col" class="text-end">Pessoas</th>
+                      @for (band of bands; track band) {
+                        <th scope="col" class="text-end">{{ bandLabels[band] }}</th>
+                      }
+                      <th scope="col" class="text-end">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of tiers(); track row.tier) {
+                      <tr>
+                        <th scope="row">{{ row.tier }}</th>
+                        <td class="text-end app-numeric">{{ row.members }}</td>
+                        @for (n of row.bands; track $index) {
+                          <td class="text-end app-numeric">{{ n }}</td>
+                        }
+                        <td class="text-end app-numeric">{{ row.cases }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <p class="app-muted small">Alto potencial vai primeiro aos níveis A e B, médio a B e C, baixo a C e D; "desenvolvimento" é a parte dos casos de alto potencial em rodízio entre todos.</p>
+            } @else if (p.strategy === 'TIERED' && bandTotals().length) {
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-2">
+                  <caption class="visually-hidden">Casos por faixa de potencial</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Faixa de potencial</th>
+                      <th scope="col" class="text-end">Casos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of bandTotals(); track row.band) {
+                      <tr>
+                        <th scope="row">{{ bandLabels[row.band] }}</th>
+                        <td class="text-end app-numeric">{{ row.cases }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <p class="app-muted small">Prévia por faixa: a divisão por nível de desempenho aparece só para quem vê o desempenho de todas as pessoas da fila.</p>
+            }
+            @if (p.members.length) {
+              <ul class="dd-loads" aria-label="Casos por operador na prévia">
+                @for (m of p.members; track m.userId) {
+                  <li>
+                    <span>{{ previewUsers.name(m.userId) }}{{ m.tier ? ' · nível ' + m.tier : '' }}</span>
+                    <span class="app-numeric">+{{ m.planned }} <span class="app-muted">({{ m.activeCases }} ativos{{ m.capacity ? ' de ' + m.capacity : '' }})</span></span>
+                  </li>
+                }
+              </ul>
+            }
+          }
+        </section>
+      }
       @if (result(); as r) {
         <div class="alert alert-success d-flex gap-2 align-items-start" role="status"><app-icon name="check-circle" /><span>{{ text(r) }}</span></div>
       }
     </div>
     <div class="modal-footer">
       <button class="btn btn-link" type="button" [appDialogClose]="result()">Fechar</button>
-      <button class="btn btn-primary" type="submit" form="distribute-form" [disabled]="running() || !(summary()?.available)">Distribuir</button>
+      <button class="btn btn-primary" type="submit" form="distribute-form" [disabled]="running() || !(summary()?.available) || !previewValue()?.assigned">Distribuir</button>
     </div>
   `,
   styles: `
@@ -90,6 +195,8 @@ export class DistributeDialog {
   private readonly workApi = inject(CaseWorkApi);
   private readonly notifications = inject(NotificationService);
   protected readonly strategies = STRATEGY_LABELS;
+  protected readonly bandLabels = POTENTIAL_BAND_LABELS;
+  protected readonly bands = BANDS;
   protected readonly text = distributionText;
 
   private readonly summaryResource = rxResource({ stream: () => this.queuesApi.summary(this.data.id) });
@@ -102,6 +209,28 @@ export class DistributeDialog {
   protected readonly form = this.fb.group({
     limit: this.fb.control<number>(100, [Validators.required, Validators.min(1), Validators.max(1000)]),
   });
+  /** Limite válido usado na prévia (recalculada ao mudar a quantidade). */
+  private readonly previewLimit = toSignal(
+    this.form.controls.limit.valueChanges.pipe(
+      debounceTime(400),
+      map((v) => (this.form.controls.limit.valid ? Number(v) : null)),
+    ),
+    { initialValue: 100 as number | null },
+  );
+  protected readonly preview = rxResource({
+    params: () => this.previewLimit() ?? undefined,
+    stream: ({ params }) => this.workApi.previewDistribution(this.data.id, params),
+  });
+  protected readonly previewValue = valueOr(this.preview, undefined);
+  protected readonly tiers = computed(() => {
+    const p = this.previewValue();
+    return p ? tierRows(p) : [];
+  });
+  protected readonly bandTotals = computed(() => {
+    const p = this.previewValue();
+    return p ? bandRows(p) : [];
+  });
+  protected readonly previewUsers = nameMap(inject(UserNames), () => this.previewValue()?.members.map((m) => m.userId) ?? []);
 
   protected run(): void {
     if (this.form.invalid || this.running()) {
@@ -116,6 +245,7 @@ export class DistributeDialog {
         this.result.set(r);
         this.notifications.success(distributionText(r));
         this.summaryResource.reload();
+        this.preview.reload();
       });
   }
 }

@@ -6,6 +6,8 @@ import br.com.gestorcobranca.collection.domain.model.CaseStatus;
 import br.com.gestorcobranca.collection.domain.model.CollectionCase;
 import br.com.gestorcobranca.collection.domain.model.EligibilityReason;
 import br.com.gestorcobranca.collection.domain.model.OwnerType;
+import br.com.gestorcobranca.collection.domain.model.PerformanceTier;
+import br.com.gestorcobranca.collection.domain.model.PotentialBand;
 import br.com.gestorcobranca.collection.domain.repository.CaseAssignmentRepository;
 import br.com.gestorcobranca.collection.domain.repository.CollectionCaseRepository;
 import br.com.gestorcobranca.collection.domain.service.OperationBands;
@@ -117,6 +119,21 @@ class CaseRecorder {
      * @param trigger   o que provocou a alteração (evento de negócio), ex.: {@code title_status}, {@code manual}
      */
     CollectionCase commit(CollectionCase c, Snapshot before, AssignmentMode ownerMode, String reason, String trigger) {
+        return commit(c, before, ownerMode, reason, trigger, null);
+    }
+
+    /**
+     * Motivo da distribuição por nível de desempenho, gravado no período de atribuição aberto (histórico explicável).
+     *
+     * @param tier nível de quem recebeu o caso
+     * @param band faixa de potencial do caso ou {@code DEVELOPMENT}
+     */
+    record TierMotive(PerformanceTier tier, PotentialBand band) {
+    }
+
+    /** @param motive nível e faixa da distribuição por nível (nulo nas demais mudanças de dono) */
+    CollectionCase commit(CollectionCase c, Snapshot before, AssignmentMode ownerMode, String reason, String trigger,
+                          TierMotive motive) {
         CollectionCase saved = cases.save(c);
         Instant now = Instant.now(clock);
         LocalDate today = CollectionViews.today(clock);
@@ -135,7 +152,8 @@ class CaseRecorder {
                 || !Objects.equals(before.teamId(), saved.getAssigneeTeamId())
                 || !Objects.equals(before.queueId(), saved.getQueueId());
         boolean assignmentPublished = ownerChanged
-                && ownerEffects(saved, before, ownerMode == null ? AssignmentMode.ROUTING : ownerMode, reason, now, today);
+                && ownerEffects(saved, before, ownerMode == null ? AssignmentMode.ROUTING : ownerMode, reason, motive, now,
+                today);
         if (statusChanged || eligibilityChanged) {
             publishStatus(saved, before.status(), now);
         } else if (!assignmentPublished && !before.assignableBalance().equals(saved.assignableBalance())) {
@@ -201,15 +219,16 @@ class CaseRecorder {
     }
 
     /** @return true se publicou {@link CaseAssignmentChanged} (responsável humano ou equipe mudou) */
-    private boolean ownerEffects(CollectionCase c, Snapshot before, AssignmentMode mode, String reason, Instant now,
-                                 LocalDate today) {
+    private boolean ownerEffects(CollectionCase c, Snapshot before, AssignmentMode mode, String reason,
+                                 TierMotive motive, Instant now, LocalDate today) {
         CaseAssignment previous = assignments.findCurrentByCaseId(c.getId()).orElse(null);
         if (previous != null) {
             previous.close(now);
             // o fim de vigência precisa chegar ao banco antes do novo período (índice de período vigente único)
             assignments.saveAndFlush(previous);
         }
-        CaseAssignment opened = new CaseAssignment(c, mode, previous, reason, now);
+        CaseAssignment opened = new CaseAssignment(c, mode, previous, reason, motive == null ? null : motive.tier(),
+                motive == null ? null : motive.band(), now);
         if (!c.getStatus().isActive()) {
             // encerramento: período de registro, sem duração (o caso fica sem dono vigente)
             opened.close(now);
@@ -236,6 +255,9 @@ class CaseRecorder {
                 .attr("previousAssigneeId", before.userId())
                 .attr("teamId", c.getAssigneeTeamId())
                 .attr("queueId", c.getQueueId())
+                // DEVELOPMENT revelaria o nível (C/D) de quem recebeu no "Próximo caso": no log, vira HIGH
+                .attr("potentialBand", motive == null || motive.band() == null ? null
+                        : motive.band().withoutDevelopmentMark())
                 .attr("eligible", c.isEligible()));
         events.publishEvent(new CaseAssignmentChanged(Ids.newId(), currentActor.tenantId(), now, c.getId(),
                 c.getDebtorId(), c.getCreditorId(), c.getPortfolioId(), before.userId(), c.getAssigneeUserId(),

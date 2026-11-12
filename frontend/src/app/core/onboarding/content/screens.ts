@@ -363,7 +363,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
   {
     key: 'collection.queues',
-    version: 5,
+    version: 6,
     path: '/cobranca/filas',
     tourId: 'collection.queues',
     changes: [
@@ -376,6 +376,14 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Critério "Tipo de pessoa": filas só de pessoa física ou só de pessoa jurídica. A coluna Critérios resume também esses filtros.',
         ],
       },
+      {
+        version: 6,
+        items: [
+          'Estratégia "Por nível de desempenho": os casos de maior valor esperado vão primeiro aos negociadores de nível mais alto, que também recebem mais casos; parte dos casos de alto potencial vai em rodízio a todos. O "Próximo caso" segue a mesma lógica.',
+          'Distribuição automática: a fila distribui sozinha nos horários escolhidos, em dias úteis, até o limite de casos por rodada.',
+          '"Distribuir" mostra antes a prévia: quantos casos iriam a cada operador e, nas filas por nível, a cada nível e faixa de potencial (por nível só para quem vê o desempenho de todas as pessoas da fila; os demais veem os totais por faixa).',
+        ],
+      },
     ],
   },
   {
@@ -384,7 +392,17 @@ export const SCREENS: readonly ScreenGuide[] = [
     path: '/cobranca/tabulacoes',
     changes: [{ version: 2, items: ['Ação automática por tabulação: abrir contestação, registrar falecimento (bloqueia o contato) ou invalidar o contato usado.'] }],
   },
-  { key: 'collection.settings', version: 1, path: '/cobranca/parametros' },
+  {
+    key: 'collection.settings',
+    version: 2,
+    path: '/cobranca/parametros',
+    changes: [
+      {
+        version: 2,
+        items: ['Distribuição por nível de desempenho: capacidade de cada nível, fatia de desenvolvimento e nível de quem ainda não foi classificado.'],
+      },
+    ],
+  },
   {
     key: 'collection.disputes',
     version: 5,
@@ -625,15 +643,17 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'settlement.transfers', version: 1, path: '/prestacao-de-contas/repasses', tourId: 'settlement.transfers' },
   {
     key: 'incentive.performance',
-    version: 4,
+    version: 5,
     path: '/remuneracao/desempenho',
     tourId: 'incentive.performance',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
       { version: 3, items: ['Para o negociador, "Meu desempenho" reúne os atalhos para a produtividade, os extratos e lançamentos de comissão, a monitoria e as ocorrências, que saíram do menu.'] },
       { version: 4, items: ['Agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês, e "Avaliar chamadas" abre as chamadas atendidas por ela no mesmo período.'] },
+      { version: 5, items: ['Cartão "Seu nível de distribuição": o seu nível de desempenho (A a D), os quartis de qualidade e de eficiência e o que falta de amostra, sem a posição nem os colegas.'] },
     ],
   },
+  { key: 'incentive.tiers', version: 1, path: '/remuneracao/classificacao', tourId: 'incentive.tiers' },
   { key: 'incentive.statements', version: 1, path: '/remuneracao/extratos', tourId: 'incentive.statements' },
   { key: 'incentive.preview', version: 1, path: '/remuneracao/extratos/previa' },
   { key: 'incentive.statement', version: 1, path: '/remuneracao/extratos/:id', tourId: 'incentive.statement' },

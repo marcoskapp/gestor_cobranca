@@ -48,6 +48,16 @@ export function criteriaText(q: QueueView): string {
   return parts.length ? parts.join(' · ') : 'Qualquer atraso, saldo e score';
 }
 
+/** Resumo da distribuição automática ("Automática às 08:00 e 13:00 (até 200 casos)"). */
+export function autoDistributionText(q: QueueView): string | null {
+  const auto = q.autoDistribution;
+  if (!auto?.enabled || !auto.times.length) {
+    return null;
+  }
+  const times = auto.times.length === 1 ? auto.times[0] : `${auto.times.slice(0, -1).join(', ')} e ${auto.times[auto.times.length - 1]}`;
+  return `Automática às ${times}${auto.limit ? ` (até ${auto.limit} casos)` : ''}`;
+}
+
 /**
  * Filas de cobrança (F07): o caso pertence à primeira fila ativa, por prioridade, cujos critérios
  * satisfaz. Supervisores distribuem em lote e redistribuem casos de um operador.
@@ -105,6 +115,9 @@ export function criteriaText(q: QueueView): string {
       <ng-template appCell="delivery" [appCellOf]="rows()" let-q>
         {{ orderings[q.ordering] }}
         <div class="app-muted">{{ strategies[q.strategy] }}{{ q.maxCasesPerUser ? ' · até ' + q.maxCasesPerUser + ' por operador' : '' }}</div>
+        @if (q.autoDistribution?.enabled) {
+          <div class="app-muted">{{ autoText(q) }}</div>
+        }
       </ng-template>
       <ng-template appCell="teams" [appCellOf]="rows()" let-q>{{ q.teamIds.length ? teamNames(q) : 'Qualquer operador' }}</ng-template>
       <ng-template appCell="active" [appCellOf]="rows()" let-q><app-status-chip domain="active" [status]="q.active" /></ng-template>
@@ -138,6 +151,7 @@ export class QueueList {
   protected readonly orderings = ORDERING_LABELS;
   protected readonly strategies = STRATEGY_LABELS;
   protected readonly criteria = criteriaText;
+  protected readonly autoText = autoDistributionText;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.QUEUE_MANAGE));
   protected readonly canAssign = computed(() => this.auth.hasPermission(Permission.CASE_ASSIGN));
   /** A lista de casos exige `CASE_VIEW` (como a rota): sem ela o nome da fila não vira link. */

@@ -156,6 +156,10 @@ export interface AssignmentView {
   validFrom: string;
   validTo: string | null;
   createdBy: string | null;
+  /** Nível de quem recebeu na distribuição por nível (nulo fora dela ou sem permissão para ver). */
+  tier?: PerformanceTier | null;
+  /** Faixa de potencial do caso na distribuição por nível. */
+  potentialBand?: PotentialBand | null;
 }
 
 /** `CaseWorkUseCases.DistributionResult` */
@@ -163,6 +167,26 @@ export interface DistributionResult {
   assigned: number;
   unassigned: number;
   assignments: { caseId: string; userId: string }[];
+}
+
+/** Nível de desempenho publicado pelo módulo de incentivo (A = melhor). */
+export type PerformanceTier = 'A' | 'B' | 'C' | 'D';
+/** Faixa de potencial do caso (tercis do valor esperado); DEVELOPMENT = fatia de desenvolvimento. */
+export type PotentialBand = 'HIGH' | 'MEDIUM' | 'LOW' | 'DEVELOPMENT';
+
+/** `CaseWorkUseCases.DistributionPreview` — prévia do "Distribuir", sem gravar. */
+export interface DistributionPreview {
+  queueId: string;
+  strategy: QueueStrategy;
+  considered: number;
+  assigned: number;
+  unassigned: number;
+  /** Com `tier` nulo quando quem vê não enxerga o nível de todas as pessoas da fila: só o total por faixa. */
+  byTierBand: { tier: PerformanceTier | null; band: PotentialBand; cases: number }[];
+  /** Vazio quando quem vê não enxerga o nível de todas as pessoas da fila. */
+  byTier: { tier: PerformanceTier; members: number; cases: number }[];
+  /** Nível e capacidade só para quem pode ver o nível da pessoa. */
+  members: { userId: string; tier: PerformanceTier | null; activeCases: number; capacity: number | null; planned: number }[];
 }
 
 export interface AssignRequest {
@@ -180,7 +204,16 @@ export interface RedistributeRequest {
 // --------------------------------------------------------------------- filas
 
 export type QueueOrdering = 'OLDEST_OVERDUE' | 'HIGHEST_BALANCE' | 'LOWEST_BALANCE' | 'LEAST_RECENTLY_WORKED' | 'HIGHEST_SCORE';
-export type QueueStrategy = 'PULL' | 'ROUND_ROBIN' | 'LEAST_LOADED';
+export type QueueStrategy = 'PULL' | 'ROUND_ROBIN' | 'LEAST_LOADED' | 'TIERED';
+
+/** Distribuição automática da fila (horários HH:mm no fuso de operação, dias úteis). */
+export interface AutoDistribution {
+  enabled: boolean;
+  times: string[];
+  limit: number | null;
+  /** Última rodada automática (ou última mudança da configuração). */
+  lastRunAt?: string | null;
+}
 
 /** `QueueUseCases.QueueView` */
 export interface QueueView {
@@ -210,6 +243,7 @@ export interface QueueView {
   newContactOnly?: boolean;
   /** Tipo de pessoa do devedor (nulo = qualquer). */
   personType?: 'INDIVIDUAL' | 'COMPANY' | null;
+  autoDistribution?: AutoDistribution;
 }
 
 /** `CollectionQueueController.QueueRequest` (`code` só na criação). */
@@ -236,6 +270,7 @@ export interface QueueRequest {
   newContactOnly?: boolean;
   /** Tipo de pessoa do devedor (nulo = qualquer). */
   personType?: 'INDIVIDUAL' | 'COMPANY' | null;
+  autoDistribution?: Omit<AutoDistribution, 'lastRunAt'>;
 }
 
 /** `QueueUseCases.QueueSummary` */
@@ -846,6 +881,19 @@ export interface SettingsView {
   customized: boolean;
   updatedAt: string | null;
 }
+
+/** `CollectionSettingsUseCases.TierSettingsView` — distribuição por nível de desempenho. */
+export interface TierSettingsView {
+  /** Multiplicador de capacidade por nível, em % (50–200). */
+  capacityPercent: Record<PerformanceTier, number>;
+  /** % dos casos de alto potencial entregues por rodízio a todos os níveis (0–50). */
+  developmentShare: number;
+  defaultTier: PerformanceTier;
+  customized: boolean;
+  updatedAt: string | null;
+}
+
+export type TierSettingsRequest = Pick<TierSettingsView, 'capacityPercent' | 'developmentShare' | 'defaultTier'>;
 
 export interface SettingsRequest {
   promiseToleranceDays: number;

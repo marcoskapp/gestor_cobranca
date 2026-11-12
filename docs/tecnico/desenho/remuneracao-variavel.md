@@ -242,12 +242,14 @@ A comissão integra a remuneração (CLT, art. 457) e o estorno de comissão já
 | `COMMISSION_STATEMENT_MANAGE` | fechar período, resolver contestações, ajustar |
 | `COMMISSION_STATEMENT_APPROVE` | aprovação financeira (segregada de quem fecha) |
 | `QUALITY_EVALUATE` | registrar monitoria |
+| `TIER_REVIEW` | revisar e ajustar a classificação de desempenho no escopo; publicar com `PERFORMANCE_VIEW_ALL` ([distribuicao-por-desempenho.md](distribuicao-por-desempenho.md) §12) |
+| `TIER_MANAGE` | parâmetros da classificação e "Apurar agora" |
 
 Remuneração é dado pessoal sensível do ponto de vista trabalhista: nunca aparece em logs técnicos; eventos de negócio levam ids e faixas, nunca o valor individual da comissão; toda consulta a extrato de terceiro gera log de acesso. Ajustes, publicações de plano e aprovações vão para a trilha de auditoria.
 
 ## 8. Eventos de negócio
 
-`attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `quality.evaluated`.
+`attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `quality.evaluated`, `tier.round_proposed`, `tier.round_published`, `tier.round_expired`.
 
 Insumos de inteligência: custo de comissão por real recuperado, por credor e por origem (humano × assistente), elasticidade do resultado ao plano (antes/depois de cada versão), correlação entre uso do envelope e quebra.
 
@@ -435,3 +437,8 @@ Regras de tela (o servidor continua decidindo):
 
 Testes: `data/incentive.rules.spec.ts`, `data/plan-rules.spec.ts`, `statements/statements.spec.ts`, `plans/plans.spec.ts`, `incentive-pages.spec.ts` (períodos, exportação, metas, ocorrências, monitoria, desempenho, atribuição), `goals/goal-dialog.spec.ts` (unidade da meta), `quality/evaluation-dialog.spec.ts` (formulário de monitoria); `data/incentive-assignees.spec.ts` e `quality/evaluable-user-source.spec.ts` (seletores de pessoa); backend `PlanDraftAndGoalRemovalIT`, `GoalUnitIT`, `IncentiveAssigneeIT` e `IncentiveAssigneesTest` (lista = gravação).
 
+## 12. Classificação de desempenho (12/11/2026)
+
+Nível A–D do negociador (qualidade × eficiência, revisão humana e publicação), migration `V1892`, evento
+`NegotiatorTierChanged` e tela `/remuneracao/classificacao`: desenho e implementação em
+[distribuicao-por-desempenho.md](distribuicao-por-desempenho.md) (§3, §11 e §12).

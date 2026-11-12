@@ -183,6 +183,7 @@ export const NAVIGATION: readonly NavSection[] = [
         permissions: [...OTHERS_PERFORMANCE, ...COMMISSION_WORK],
         openedFrom: FROM_MY_PERFORMANCE,
       },
+      { label: 'Classificação de desempenho', icon: 'award', route: '/remuneracao/classificacao', permissions: [P.TIER_REVIEW, P.TIER_MANAGE] },
       { label: 'Planos de remuneração', icon: 'list-task', route: '/remuneracao/planos', permissions: [P.COMMISSION_PLAN_MANAGE] },
       { label: 'Metas por período', icon: 'record-circle', route: '/remuneracao/metas', permissions: [P.COMMISSION_PLAN_MANAGE] },
       { label: 'Períodos de apuração', icon: 'calendar-check', route: '/remuneracao/periodos', permissions: [P.COMMISSION_STATEMENT_MANAGE] },

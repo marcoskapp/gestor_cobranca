@@ -31,7 +31,7 @@ class CollectionScoreOrderingIT extends CollectionTestSupport {
     @Test
     void nextCaseFollowsScoreWhenQueueIsOrderedByScore() {
         QueueView queue = asManager(() -> queues.create(new QueueCommand("POR_SCORE", "Por score", null, 10, creditorA,
-                null, null, null, null, null, null, null, "HIGHEST_SCORE", "PULL", null, Set.of(team), null, null, null)));
+                null, null, null, null, null, null, null, "HIGHEST_SCORE", "PULL", null, Set.of(team), null, null, null, null)));
         CaseView low = loadCase("083.016.613-05", "500.00");
         CaseView high = loadCase("186.091.390-34", "500.00");
         CaseView middle = loadCase("526.018.159-06", "500.00");
@@ -58,7 +58,7 @@ class CollectionScoreOrderingIT extends CollectionTestSupport {
     @Test
     void scoreBandCriterionReroutesTheCase() {
         QueueView priority = asManager(() -> queues.create(new QueueCommand("ALTA_PROPENSAO", "Alta propensão", null, 1,
-                creditorA, null, null, null, null, null, 400, null, "HIGHEST_SCORE", "PULL", null, Set.of(team), null, null, null)));
+                creditorA, null, null, null, null, null, 400, null, "HIGHEST_SCORE", "PULL", null, Set.of(team), null, null, null, null)));
         QueueView general = asManager(() -> queues.create(queue("GERAL_A", 50, creditorA, "PULL", null, Set.of(team))));
         CaseView c = loadCase("083.016.613-05", "800.00");
         // sem score o critério de faixa não é atendido: fila geral

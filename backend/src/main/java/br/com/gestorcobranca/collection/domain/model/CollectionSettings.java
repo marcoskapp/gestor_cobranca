@@ -5,8 +5,13 @@ import br.com.gestorcobranca.shared.domain.TenantScopedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Duration;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Parâmetros da operação de cobrança por assessoria. Enquanto a assessoria não grava os seus,
@@ -30,11 +35,23 @@ public class CollectionSettings extends TenantScopedEntity {
     @Column(name = "dispute_response_days", nullable = false)
     private int disputeResponseDays;
 
+    /** Multiplicador de capacidade por nível de desempenho, em % ({@code {"A":120,"B":110,"C":100,"D":80}}). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "tier_capacity", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Integer> tierCapacity;
+
+    @Column(name = "tier_development_share", nullable = false)
+    private int tierDevelopmentShare;
+
+    @Column(name = "tier_default", nullable = false, length = 1, columnDefinition = "varchar(1)")
+    private String tierDefault;
+
     protected CollectionSettings() {
     }
 
     public CollectionSettings(Values values) {
         define(values);
+        defineTierPolicy(TierPolicy.DEFAULT);
     }
 
     /**
@@ -68,6 +85,22 @@ public class CollectionSettings extends TenantScopedEntity {
         this.promiseMaxDays = values.promiseMaxDays();
         this.callbackToleranceMinutes = values.callbackToleranceMinutes();
         this.disputeResponseDays = values.disputeResponseDays();
+    }
+
+    /** Parâmetros da distribuição por nível de desempenho (distribuicao-por-desempenho.md §11.3). */
+    public void defineTierPolicy(TierPolicy policy) {
+        Guard.require(policy != null, "settings.required", "Parâmetros obrigatórios");
+        Map<String, Integer> capacity = new HashMap<>();
+        policy.capacityPercent().forEach((tier, percent) -> capacity.put(tier.name(), percent));
+        this.tierCapacity = capacity;
+        this.tierDevelopmentShare = policy.developmentShare();
+        this.tierDefault = policy.defaultTier().name();
+    }
+
+    public TierPolicy tierPolicy() {
+        Map<PerformanceTier, Integer> capacity = new EnumMap<>(PerformanceTier.class);
+        tierCapacity.forEach((tier, percent) -> capacity.put(PerformanceTier.valueOf(tier), percent));
+        return new TierPolicy(capacity, tierDevelopmentShare, PerformanceTier.valueOf(tierDefault));
     }
 
     public Values values() {

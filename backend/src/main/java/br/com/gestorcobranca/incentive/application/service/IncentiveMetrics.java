@@ -62,6 +62,11 @@ class IncentiveMetrics {
         Counter.builder("incentive.exports").tag("format", format).register(registry).increment();
     }
 
+    /** Rodada de classificação de desempenho: proposta (origem), publicada ou expirada. Nunca nível ou nota. */
+    void tierRound(String outcome) {
+        Counter.builder("incentive.tier.rounds").tag("outcome", outcome).register(registry).increment();
+    }
+
     void jobFailure(String job) {
         Counter.builder("incentive.jobs.failures").tag("job", job).register(registry).increment();
     }

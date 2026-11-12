@@ -3,6 +3,17 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 31,
+    date: '2026-11-12',
+    title: 'Distribuição por desempenho',
+    items: [
+      { text: 'Nova tela "Classificação de desempenho": nível A a D de cada negociador pela qualidade (monitoria) e pela eficiência (recuperado × esperado), com a matriz parametrizável, revisão e ajuste com motivo pela supervisão e publicação pela gestão.', route: '/remuneracao/classificacao' },
+      { text: 'No "Meu desempenho", o cartão "Seu nível de distribuição" mostra o seu nível e o que o compõe (quartis e base), sem a posição nem os colegas.', route: '/remuneracao/desempenho' },
+      { text: 'Filas com estratégia "Por nível de desempenho": níveis altos recebem primeiro os casos de maior valor esperado e mais casos; 15% em rodízio.', route: '/cobranca/filas' },
+      { text: 'Distribuição automática por horário em cada fila.', route: '/cobranca/filas' },
+    ],
+  },
+  {
     version: 30,
     date: '2026-11-12',
     title: 'Margem por carteira e credor',

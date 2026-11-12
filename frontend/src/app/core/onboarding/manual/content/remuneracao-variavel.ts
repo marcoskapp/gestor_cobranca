@@ -23,6 +23,7 @@ export const MANUAL: ModuleManual = {
     'Quem fecha o período, ajusta ou resolve contestação não aprova o extrato. Extrato aprovado não muda.',
     'Planos são publicados a partir do dia 1º do mês e simulados antes sobre um mês encerrado.',
     'Estorno de comissão já paga só por plano configurado e validado com o jurídico e o RH.',
+    'O nível de desempenho só vale depois da revisão humana e da publicação; o negociador vê o próprio nível e o que o compõe, nunca a posição nem os colegas.',
   ],
   screens: [
     {
@@ -32,6 +33,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Escolha mês, agrupamento, faixa de atraso e credor. Recuperado conta só pagamento confirmado, com o peso de crédito de cada acordo.',
         'Agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês, e "Avaliar chamadas" abre as chamadas atendidas por ela no período, onde "Avaliar" registra a monitoria.',
+        'No "Meu desempenho", o negociador vê o cartão "Seu nível de distribuição": o nível publicado, os quartis de qualidade e de eficiência, o que falta de amostra e a matriz com a própria célula destacada.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'FINANCEIRO'],
       inputs: ['Fatos de cobrança, negociação, telefonia e pagamento atribuídos a cada pessoa.'],
@@ -139,6 +141,24 @@ export const MANUAL: ModuleManual = {
       outputs: ['Rascunho pronto para simular e publicar.'],
       related: [{ screen: 'incentive.plan', why: 'Simular e publicar.' }],
       terms: ['plano-de-remuneracao', 'atribuicao-de-credito', 'monitoria'],
+    },
+    {
+      id: 'incentive.tiers',
+      title: 'Classificação de desempenho',
+      objective: 'Nível A a D de cada negociador pela qualidade e pela eficiência, revisto por pessoas antes de valer na distribuição de casos.',
+      purpose: [
+        'A rotina apura uma rodada por período na periodicidade escolhida (mensal a partir do 1º dia útil; semanal a partir da segunda-feira; se a rotina não rodar no dia, ela abre a rodada no dia seguinte do mesmo período) com a janela até ontem; "Apurar agora" abre uma rodada fora da rotina. Qualidade é a nota média da monitoria e eficiência é o recuperado × esperado pelo score, ambas em quartis de toda a assessoria. Falha crítica ou média abaixo do portão limitam a qualidade a Q2; quem não tem o mínimo de avaliações ou de casos fica no nível padrão.',
+        'O supervisor vê e ajusta, com motivo, só as pessoas das equipes que supervisiona; ninguém ajusta o próprio nível. A gestão, com visão de todos, publica a rodada inteira até o prazo de revisão: os níveis passam a valer no dia e a distribuição recebe só o nível. Sem publicação no prazo, a rodada expira e continua valendo a anterior.',
+        'Na aba "Parâmetros" ficam a janela, os mínimos de amostra, o portão de qualidade, o nível padrão, a periodicidade, o prazo de revisão e a matriz 4 × 4; cada rodada guarda os parâmetros com que foi apurada. A aba "Rodadas" aparece para quem vê o desempenho da equipe ou de todos; quem só mantém os parâmetros abre direto em "Parâmetros".',
+      ],
+      profiles: ['SUPERVISOR', 'GESTOR', 'ADMIN'],
+      inputs: ['Avaliações de monitoria e safras de recuperado × esperado de cada negociador na janela.'],
+      outputs: ['Nível publicado de cada negociador, usado pelas filas com estratégia "Por nível de desempenho".'],
+      related: [
+        { screen: 'incentive.evaluations', why: 'Avaliações que formam a qualidade.' },
+        { screen: 'incentive.performance', why: 'Recuperado × esperado e o nível de cada pessoa.' },
+      ],
+      terms: ['nivel-de-desempenho', 'quartil', 'monitoria'],
     },
     {
       id: 'incentive.goals',

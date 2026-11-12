@@ -7,6 +7,7 @@ import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseVie
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases.AssignCommand;
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases.AssignmentView;
+import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases.DistributionPreview;
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases.DistributionResult;
 import br.com.gestorcobranca.collection.application.port.in.CaseWorkUseCases.RedistributeCommand;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
@@ -172,6 +173,13 @@ class CollectionCaseController {
     @PreAuthorize("hasAuthority('CASE_ASSIGN')")
     DistributionResult distribute(@PathVariable UUID queueId, @Valid @RequestBody DistributeRequest request) {
         return work.distribute(queueId, request.limit());
+    }
+
+    /** Prévia do "Distribuir" (sem gravar): quantidades por nível × faixa e por operador. */
+    @PostMapping("/queues/{queueId}/distribute/preview")
+    @PreAuthorize("hasAuthority('CASE_ASSIGN')")
+    DistributionPreview previewDistribution(@PathVariable UUID queueId, @Valid @RequestBody DistributeRequest request) {
+        return work.previewDistribution(queueId, request.limit());
     }
 
     @PostMapping("/redistributions")

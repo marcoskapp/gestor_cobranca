@@ -7,6 +7,7 @@ import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.Disp
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.EvidenceView;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.InteractionView;
 import br.com.gestorcobranca.collection.application.port.in.PromiseUseCases.PromiseView;
+import br.com.gestorcobranca.collection.application.port.in.QueueUseCases;
 import br.com.gestorcobranca.collection.application.port.in.QueueUseCases.QueueView;
 import br.com.gestorcobranca.collection.application.port.in.TabulationUseCases.TabulationView;
 import br.com.gestorcobranca.collection.application.port.in.TaskUseCases.TaskView;
@@ -19,6 +20,7 @@ import br.com.gestorcobranca.collection.domain.model.DisputeEvidence;
 import br.com.gestorcobranca.collection.domain.model.Eligibility;
 import br.com.gestorcobranca.collection.domain.model.Interaction;
 import br.com.gestorcobranca.collection.domain.model.PaymentPromise;
+import br.com.gestorcobranca.collection.domain.model.PotentialBand;
 import br.com.gestorcobranca.collection.domain.model.Tabulation;
 import br.com.gestorcobranca.collection.domain.model.TaskStatus;
 import br.com.gestorcobranca.shared.config.TimeConfig;
@@ -56,10 +58,19 @@ final class CollectionViews {
                 version(c.getVersion()), c.getNewContactUntil(), c.getDebtorPersonType());
     }
 
-    static AssignmentView assignment(CaseAssignment a) {
+    /**
+     * @param tierVisible o ator pode ver o nível de quem recebeu (dado pessoal do empregado); sem visão, o nível fica
+     *                    nulo e a faixa {@code DEVELOPMENT} aparece como {@code HIGH} (a vez de desenvolvimento do
+     *                    "Próximo caso" só acontece para C e D e revelaria o nível)
+     */
+    static AssignmentView assignment(CaseAssignment a, boolean tierVisible) {
+        PotentialBand band = a.getPotentialBand() == null ? null
+                : tierVisible ? a.getPotentialBand() : a.getPotentialBand().withoutDevelopmentMark();
         return new AssignmentView(a.getId(), a.getCaseId(), a.getMode().name(), a.getOwnerType().name(), a.getUserId(),
                 a.getTeamId(), a.getQueueId(), a.getPreviousOwnerType().name(), a.getPreviousUserId(), a.getReason(),
-                a.getValidFrom(), a.getValidTo(), a.getCreatedBy());
+                a.getValidFrom(), a.getValidTo(), a.getCreatedBy(),
+                tierVisible && a.getTier() != null ? a.getTier().name() : null,
+                band == null ? null : band.name());
     }
 
     static QueueView queue(CollectionQueue q) {
@@ -67,7 +78,15 @@ final class CollectionViews {
                 q.getCreditorId(), q.getPortfolioId(), q.getMinDaysOverdue(), q.getMaxDaysOverdue(),
                 amount(q.getMinBalance()), amount(q.getMaxBalance()), q.getMinScore(), q.getMaxScore(),
                 q.getOrdering().name(), q.getStrategy().name(), q.getMaxCasesPerUser(), q.getTeamIds(), q.getUpdatedAt(),
-                version(q.getVersion()), q.isVulnerableOnly(), q.isNewContactOnly(), q.getPersonType());
+                version(q.getVersion()), q.isVulnerableOnly(), q.isNewContactOnly(), q.getPersonType(),
+                autoDistribution(q));
+    }
+
+    private static QueueUseCases.AutoDistributionView autoDistribution(CollectionQueue q) {
+        CollectionQueue.AutoDistribution auto = q.autoDistribution();
+        return new QueueUseCases.AutoDistributionView(auto.enabled(),
+                auto.times().stream().map(t -> t.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))).toList(),
+                auto.limit(), q.getAutoDistributionLastRunAt());
     }
 
     static TabulationView tabulation(Tabulation t) {

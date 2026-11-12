@@ -78,7 +78,7 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/assistente', ASSISTANT_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(69);
+    expect(items.length).toBe(70);
     for (const item of items) {
       expect([...routePermissionsOf(item)].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
@@ -169,6 +169,15 @@ describe('conteúdo do onboarding', () => {
     expect(RELEASE_NOTES.find((n) => n.version === 12)?.title).toContain('número');
     // v4: drill-down nos indicadores da operação (frente F)
     expect(findScreen('/')?.version).toBe(4);
+  });
+
+  it('classificação de desempenho registrada com tour e nota de versão (com a distribuição por nível nas filas)', () => {
+    expect(findScreen('/remuneracao/classificacao?rodada=r-1')?.tourId).toBe('incentive.tiers');
+    expect(findScreen('/remuneracao/desempenho')?.version).toBe(5);
+    const note = RELEASE_NOTES.find((n) => n.version === 31)!;
+    expect(note.title).toBe('Distribuição por desempenho');
+    expect(note.date).toBe('2026-11-12');
+    expect(note.items.map((i) => i.route)).toEqual(['/remuneracao/classificacao', '/remuneracao/desempenho', '/cobranca/filas', '/cobranca/filas']);
   });
 
   it('margem por carteira e custos operacionais registrados com tour e nota de versão', () => {

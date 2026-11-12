@@ -84,6 +84,7 @@ export type StatusDomain =
   | 'settlementTransfer'
   | 'commissionPlan'
   | 'commissionPeriod'
+  | 'tierRound'
   | 'commissionStatement'
   | 'commissionOutcome'
   | 'commissionDispute'
@@ -588,6 +589,12 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   commissionPeriod: {
     OPEN: { label: 'Aberto', tone: 'info' },
     CLOSED: { label: 'Fechado', tone: 'success' },
+  },
+  /** Rodada da classificação de desempenho (`TierRoundStatus`). */
+  tierRound: {
+    PROPOSED: { label: 'Em revisão', tone: 'warning' },
+    PUBLISHED: { label: 'Publicada', tone: 'success' },
+    EXPIRED: { label: 'Expirada', tone: 'neutral' },
   },
   /** Extrato de comissão (`StatementStatus`). */
   commissionStatement: {

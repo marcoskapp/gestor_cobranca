@@ -60,6 +60,8 @@ class QueueService implements QueueUseCases {
         if (queues.existsByCode(queue.getCode())) {
             throw new ConflictException("queue.code_taken", "Já existe fila com o código " + queue.getCode());
         }
+        // horários do dia já passados não disparam ao criar a fila
+        queue.autoDistributionHandled(Instant.now(clock));
         CollectionQueue saved = queues.save(queue);
         auditTrail.record(AuditEntry.of("collection_queue.created", "collection_queue", saved.getId())
                 .creditor(saved.getCreditorId())
@@ -68,7 +70,8 @@ class QueueService implements QueueUseCases {
                 .created("priority", saved.getPriority())
                 .created("criteria", criteria(saved))
                 .created("strategy", saved.getStrategy())
-                .created("ordering", saved.getOrdering()));
+                .created("ordering", saved.getOrdering())
+                .created("autoDistribution", autoText(saved)));
         sweep.enqueue(null, null, "reroute", null);
         return CollectionViews.queue(saved);
     }
@@ -82,13 +85,19 @@ class QueueService implements QueueUseCases {
         String beforeCriteria = criteria(queue);
         int beforePriority = queue.getPriority();
         DistributionStrategy beforeStrategy = queue.getStrategy();
+        String beforeAuto = autoText(queue);
         queue.define(definition);
+        if (!beforeAuto.equals(autoText(queue))) {
+            // mudou a distribuição automática: só os horários seguintes disparam (nada retroativo no dia)
+            queue.autoDistributionHandled(Instant.now(clock));
+        }
         CollectionQueue saved = queues.save(queue);
         auditTrail.record(AuditEntry.of("collection_queue.updated", "collection_queue", saved.getId())
                 .creditor(saved.getCreditorId())
                 .change("criteria", beforeCriteria, criteria(saved))
                 .change("priority", beforePriority, saved.getPriority())
-                .change("strategy", beforeStrategy, saved.getStrategy()));
+                .change("strategy", beforeStrategy, saved.getStrategy())
+                .change("autoDistribution", beforeAuto, autoText(saved)));
         sweep.enqueue(null, null, "reroute", null);
         return CollectionViews.queue(saved);
     }
@@ -170,7 +179,21 @@ class QueueService implements QueueUseCases {
                 CollectionEnums.parseOptional(DistributionStrategy.class, c.strategy(), "queue.strategy_invalid",
                         "Estratégia de distribuição"),
                 c.maxCasesPerUser(), c.teamIds(), Boolean.TRUE.equals(c.vulnerableOnly()),
-                Boolean.TRUE.equals(c.newContactOnly()), c.personType());
+                Boolean.TRUE.equals(c.newContactOnly()), c.personType(), autoDistribution(c.autoDistribution()));
+    }
+
+    private static CollectionQueue.AutoDistribution autoDistribution(AutoDistributionInput input) {
+        if (input == null) {
+            return CollectionQueue.AutoDistribution.OFF;
+        }
+        return new CollectionQueue.AutoDistribution(Boolean.TRUE.equals(input.enabled()),
+                CollectionQueue.parseTimes(input.times()), input.limit());
+    }
+
+    /** Configuração automática legível na auditoria, ex.: {@code on;08:00,13:00;200}. */
+    private static String autoText(CollectionQueue q) {
+        CollectionQueue.AutoDistribution auto = q.autoDistribution();
+        return "%s;%s;%s".formatted(auto.enabled() ? "on" : "off", auto.times(), auto.limit());
     }
 
     /** Fila de credor exige o credor no escopo; fila sem credor alcança todos e exige acesso total. */

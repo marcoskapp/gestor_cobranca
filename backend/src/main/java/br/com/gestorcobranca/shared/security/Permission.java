@@ -106,6 +106,8 @@ public enum Permission {
     COMMISSION_STATEMENT_MANAGE("Fechar período, resolver contestações e ajustar extratos"),
     COMMISSION_STATEMENT_APPROVE("Aprovar e exportar extratos de comissão (financeiro)"),
     QUALITY_EVALUATE("Registrar monitorias de qualidade e ocorrências de conduta"),
+    TIER_MANAGE("Definir os parâmetros da classificação de desempenho e apurar uma rodada"),
+    TIER_REVIEW("Revisar e ajustar a classificação de desempenho no seu escopo e publicá-la (com visão de todos)"),
 
     // Comunicação
     MESSAGE_SEND("Enviar mensagens"),

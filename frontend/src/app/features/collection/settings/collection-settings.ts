@@ -13,6 +13,7 @@ import { CollectionSettingsApi } from '../data/collection.api';
 import { SettingsRequest } from '../data/collection.models';
 import { Icon } from '../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../shared/forms/field';
+import { TierSettings } from './tier-settings';
 
 /** Limites de `CollectionSettingsController.SettingsRequest`. */
 export const SETTINGS_LIMITS = {
@@ -24,12 +25,15 @@ export const SETTINGS_LIMITS = {
 
 const range = (key: keyof typeof SETTINGS_LIMITS) => [Validators.required, Validators.min(SETTINGS_LIMITS[key].min), Validators.max(SETTINGS_LIMITS[key].max)];
 
-/** Parâmetros da operação (tolerâncias e prazos). Valem para registros criados depois da alteração. */
+/**
+ * Parâmetros da operação (tolerâncias e prazos), que valem para registros criados depois da alteração, e os da
+ * distribuição por nível de desempenho (`TierSettings`).
+ */
 @Component({
   selector: 'app-collection-settings',
-  imports: [ReactiveFormsModule, EmptyState, PageHeader, Skeleton, AppDatePipe, Icon, ...FORM_FIELD],
+  imports: [ReactiveFormsModule, EmptyState, PageHeader, Skeleton, AppDatePipe, Icon, TierSettings, ...FORM_FIELD],
   template: `
-    <app-page-header title="Parâmetros da operação" subtitle="Tolerâncias de promessas e retornos e prazo de resposta das contestações." />
+    <app-page-header title="Parâmetros da operação" subtitle="Tolerâncias de promessas e retornos, prazo de resposta das contestações e distribuição por nível de desempenho." />
     @if (settings.isLoading() && !current()) {
       <app-skeleton variant="card" [rows]="4" />
     } @else if (settings.status() === 'error') {
@@ -66,6 +70,7 @@ const range = (key: keyof typeof SETTINGS_LIMITS) => [Validators.required, Valid
         </div>
       </form>
     }
+    <app-tier-settings />
   `,
 })
 export class CollectionSettingsPage {

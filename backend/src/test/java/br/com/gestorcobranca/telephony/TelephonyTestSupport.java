@@ -204,7 +204,7 @@ public abstract class TelephonyTestSupport extends IntegrationTest {
     /** Fila do credor A (criada antes dos casos, que são roteados na abertura). */
     protected UUID queueA(String code) {
         UUID id = asManager(() -> queues.create(new QueueCommand(code, "Fila " + code, null, 10, creditorA, null, null,
-                null, null, null, null, null, "OLDEST_OVERDUE", "PULL", null, Set.of(), null, null, null)).id());
+                null, null, null, null, null, "OLDEST_OVERDUE", "PULL", null, Set.of(), null, null, null, null)).id());
         JobDrain.drain(applicationContext, jdbcTemplate, "collection.");
         return id;
     }

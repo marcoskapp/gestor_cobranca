@@ -66,6 +66,8 @@ public final class BusinessEventTypes {
     // Operação
     public static final String CASE_OPENED = "case.opened";
     public static final String CASE_ASSIGNED = "case.assigned";
+    /** Rodada de distribuição em lote de uma fila (manual ou automática), com agregados por faixa e nível. */
+    public static final String QUEUE_DISTRIBUTED = "queue.distributed";
     public static final String CASE_CLOSED = "case.closed";
     public static final String INTERACTION_RECORDED = "interaction.recorded";
     public static final String CONTACT_EFFECTIVE = "contact.effective";
@@ -157,6 +159,9 @@ public final class BusinessEventTypes {
     public static final String COMMISSION_STATEMENT_EXPORTED = "commission.statement_exported";
     public static final String COMMISSION_PLAN_PUBLISHED = "commission.plan_published";
     public static final String QUALITY_EVALUATED = "quality.evaluated";
+    public static final String TIER_ROUND_PROPOSED = "tier.round_proposed";
+    public static final String TIER_ROUND_PUBLISHED = "tier.round_published";
+    public static final String TIER_ROUND_EXPIRED = "tier.round_expired";
 
     // Comunicação e campanhas
     public static final String MESSAGE_SENT = "message.sent";

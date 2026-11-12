@@ -59,6 +59,16 @@ public class CaseAssignment extends TenantScopedEntity {
     @Column(name = "reason", length = REASON_MAX, updatable = false)
     private String reason;
 
+    /** Nível de desempenho de quem recebeu o caso na distribuição por nível ({@code TIERED}); nulo nas demais. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tier", length = 1, columnDefinition = "varchar(1)", updatable = false)
+    private PerformanceTier tier;
+
+    /** Faixa de potencial do caso na distribuição por nível ({@code TIERED}); nulo nas demais. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "potential_band", length = 20, updatable = false)
+    private PotentialBand potentialBand;
+
     @Column(name = "valid_from", nullable = false, updatable = false)
     private Instant validFrom;
 
@@ -75,6 +85,17 @@ public class CaseAssignment extends TenantScopedEntity {
      */
     public CaseAssignment(CollectionCase c, AssignmentMode mode, CaseAssignment previous, String reason,
                           Instant validFrom) {
+        this(c, mode, previous, reason, null, null, validFrom);
+    }
+
+    /**
+     * Abre o período com o motivo da distribuição por nível de desempenho (explicável e auditável).
+     *
+     * @param tier          nível de quem recebeu (nulo fora da distribuição por nível)
+     * @param potentialBand faixa de potencial do caso ou {@code DEVELOPMENT} (nulo fora da distribuição por nível)
+     */
+    public CaseAssignment(CollectionCase c, AssignmentMode mode, CaseAssignment previous, String reason,
+                          PerformanceTier tier, PotentialBand potentialBand, Instant validFrom) {
         Guard.require(mode != null, "assignment.mode_required", "Origem da atribuição obrigatória");
         Guard.require(validFrom != null, "assignment.start_required", "Início da vigência obrigatório");
         this.caseId = c.getId();
@@ -88,6 +109,8 @@ public class CaseAssignment extends TenantScopedEntity {
         this.queueId = c.getQueueId();
         String clean = reason == null || reason.isBlank() ? null : reason.trim();
         this.reason = clean != null && clean.length() > REASON_MAX ? clean.substring(0, REASON_MAX) : clean;
+        this.tier = tier;
+        this.potentialBand = potentialBand;
         this.validFrom = validFrom;
     }
 
@@ -157,6 +180,14 @@ public class CaseAssignment extends TenantScopedEntity {
 
     public String getReason() {
         return reason;
+    }
+
+    public PerformanceTier getTier() {
+        return tier;
+    }
+
+    public PotentialBand getPotentialBand() {
+        return potentialBand;
     }
 
     public Instant getValidFrom() {

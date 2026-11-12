@@ -38,6 +38,7 @@ import {
   DisputeView,
   PoolMemberView,
   RedistributionResult,
+  DistributionPreview,
   DistributionResult,
   EvidenceView,
   InteractionRequest,
@@ -53,6 +54,8 @@ import {
   ScheduleTaskRequest,
   SettingsRequest,
   SettingsView,
+  TierSettingsRequest,
+  TierSettingsView,
   TabulationRequest,
   TabulationView,
   TaskView,
@@ -148,6 +151,11 @@ export class CaseWorkApi {
 
   distribute(queueId: string, limit: number): Observable<DistributionResult> {
     return this.http.post<DistributionResult>(`${BASE}/queues/${queueId}/distribute`, { limit });
+  }
+
+  /** Prévia do "Distribuir" (não grava): quantidades por nível × faixa e por operador. */
+  previewDistribution(queueId: string, limit: number): Observable<DistributionPreview> {
+    return this.http.post<DistributionPreview>(`${BASE}/queues/${queueId}/distribute/preview`, { limit });
   }
 
   redistribute(request: RedistributeRequest): Observable<DistributionResult> {
@@ -489,5 +497,14 @@ export class CollectionSettingsApi {
 
   update(request: SettingsRequest): Observable<SettingsView> {
     return this.http.put<SettingsView>(`${BASE}/settings`, request);
+  }
+
+  /** Distribuição por nível de desempenho: capacidade por nível, fatia de desenvolvimento e nível padrão. */
+  tierSettings(): Observable<TierSettingsView> {
+    return this.http.get<TierSettingsView>(`${BASE}/settings/tier-distribution`);
+  }
+
+  updateTierSettings(request: TierSettingsRequest): Observable<TierSettingsView> {
+    return this.http.put<TierSettingsView>(`${BASE}/settings/tier-distribution`, request);
   }
 }

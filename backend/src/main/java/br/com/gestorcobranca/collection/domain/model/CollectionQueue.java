@@ -15,11 +15,20 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Fila de cobrança (F07): critérios que selecionam casos (credor, carteira, faixa de atraso,
@@ -27,6 +36,10 @@ import java.util.UUID;
  * tipo de pessoa do devedor), ordem de entrega, estratégia de distribuição e
  * equipes que a atendem. Um caso pertence à primeira fila ativa (menor {@code priority}) cujos
  * critérios ele satisfaz. Critério nulo não restringe.
+ * <p>
+ * Distribuição automática (distribuicao-por-desempenho.md §4.3): filas com estratégia de distribuição em lote podem
+ * disparar o "Distribuir" sozinhas nos horários configurados (fuso de operação, dias úteis), uma vez por horário por
+ * dia, até o limite por rodada.
  */
 @Entity
 @Table(name = "queue", schema = "collection")
@@ -94,6 +107,25 @@ public class CollectionQueue extends TenantScopedEntity {
     @Column(name = "person_type", length = 20)
     private String personType;
 
+    /** Distribuição automática ligada (só em estratégias de distribuição em lote). */
+    @Column(name = "auto_distribution", nullable = false)
+    private boolean autoDistribution;
+
+    /** Horários da distribuição automática, {@code HH:mm} separados por vírgula, em ordem. */
+    @Column(name = "auto_distribution_times", length = 60)
+    private String autoDistributionTimes;
+
+    /** Máximo de casos por rodada automática (1–1000). */
+    @Column(name = "auto_distribution_limit")
+    private Integer autoDistributionLimit;
+
+    /**
+     * Instante até o qual os horários já foram tratados: a última rodada automática ou a última mudança da
+     * configuração automática (horários do dia anteriores à mudança não disparam).
+     */
+    @Column(name = "auto_distribution_last_run_at")
+    private Instant autoDistributionLastRunAt;
+
     /** Último operador que recebeu caso no rodízio. */
     @Column(name = "round_robin_cursor")
     private UUID roundRobinCursor;
@@ -127,8 +159,31 @@ public class CollectionQueue extends TenantScopedEntity {
                                   Integer minDaysOverdue, Integer maxDaysOverdue, Money minBalance, Money maxBalance,
                                   Integer minScore, Integer maxScore, CaseOrdering ordering,
                                   DistributionStrategy strategy, Integer maxCasesPerUser, Set<UUID> teamIds,
-                                  boolean vulnerableOnly, boolean newContactOnly, String personType) {
+                                  boolean vulnerableOnly, boolean newContactOnly, String personType,
+                                  AutoDistribution autoDistribution) {
     }
+
+    /**
+     * Distribuição automática da fila.
+     *
+     * @param enabled ligada
+     * @param times   horários do dia (fuso de operação), de 1 a {@value #MAX_AUTO_TIMES} quando ligada
+     * @param limit   máximo de casos por rodada (1–{@value #MAX_AUTO_LIMIT}), obrigatório quando ligada
+     */
+    public record AutoDistribution(boolean enabled, List<LocalTime> times, Integer limit) {
+
+        public static final AutoDistribution OFF = new AutoDistribution(false, List.of(), null);
+
+        public AutoDistribution {
+            times = times == null ? List.of()
+                    : List.copyOf(new TreeSet<>(times.stream().filter(java.util.Objects::nonNull)
+                    .map(t -> t.withSecond(0).withNano(0)).toList()));
+        }
+    }
+
+    public static final int MAX_AUTO_TIMES = 6;
+    public static final int MAX_AUTO_LIMIT = 1000;
+    private static final DateTimeFormatter HH_MM = DateTimeFormatter.ofPattern("HH:mm");
 
     public void define(QueueDefinition d) {
         Guard.require(d.name() != null && !d.name().isBlank() && d.name().trim().length() <= 120, "queue.name_invalid",
@@ -149,6 +204,23 @@ public class CollectionQueue extends TenantScopedEntity {
                 "Score mínimo maior que o máximo");
         Guard.require(d.maxCasesPerUser() == null || d.maxCasesPerUser() > 0, "queue.capacity_invalid",
                 "Capacidade por operador deve ser positiva");
+        Guard.require(d.strategy() != DistributionStrategy.TIERED || d.maxCasesPerUser() != null,
+                "queue.tiered_capacity_required",
+                "Distribuição por nível de desempenho exige a capacidade por operador (base do multiplicador por nível)");
+        AutoDistribution auto = d.autoDistribution() == null ? AutoDistribution.OFF : d.autoDistribution();
+        Guard.require(auto.limit() == null || (auto.limit() >= 1 && auto.limit() <= MAX_AUTO_LIMIT),
+                "queue.auto_distribution_limit_invalid", "Limite por rodada entre 1 e " + MAX_AUTO_LIMIT + " casos");
+        Guard.require(auto.times().size() <= MAX_AUTO_TIMES, "queue.auto_distribution_times_invalid",
+                "Até " + MAX_AUTO_TIMES + " horários de distribuição automática");
+        if (auto.enabled()) {
+            DistributionStrategy strategy = d.strategy() == null ? DistributionStrategy.PULL : d.strategy();
+            Guard.require(strategy != DistributionStrategy.PULL, "queue.auto_distribution_pull",
+                    "Fila sob demanda não tem distribuição automática: escolha rodízio, menor carga ou por nível");
+            Guard.require(!auto.times().isEmpty(), "queue.auto_distribution_times_invalid",
+                    "Informe ao menos um horário de distribuição automática");
+            Guard.require(auto.limit() != null, "queue.auto_distribution_limit_invalid",
+                    "Informe o limite de casos por rodada automática");
+        }
         Guard.require(d.description() == null || d.description().length() <= 500, "queue.description_invalid",
                 "Descrição até 500 caracteres");
         String person = d.personType() == null || d.personType().isBlank() ? null
@@ -172,7 +244,61 @@ public class CollectionQueue extends TenantScopedEntity {
         this.vulnerableOnly = d.vulnerableOnly();
         this.newContactOnly = d.newContactOnly();
         this.personType = person;
+        this.autoDistribution = auto.enabled();
+        this.autoDistributionTimes = auto.times().isEmpty() ? null
+                : auto.times().stream().map(HH_MM::format).collect(Collectors.joining(","));
+        this.autoDistributionLimit = auto.limit();
         replaceTeams(d.teamIds());
+    }
+
+    /** Converte {@code HH:mm} da API; inválido → 422 {@code queue.auto_distribution_times_invalid}. */
+    public static List<LocalTime> parseTimes(Collection<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        try {
+            return values.stream().filter(v -> v != null && !v.isBlank())
+                    .map(v -> LocalTime.parse(v.trim(), HH_MM)).toList();
+        } catch (DateTimeParseException e) {
+            throw new br.com.gestorcobranca.shared.domain.BusinessRuleException("queue.auto_distribution_times_invalid",
+                    "Horário inválido: use HH:mm (ex.: 08:00)");
+        }
+    }
+
+    public AutoDistribution autoDistribution() {
+        List<LocalTime> times = autoDistributionTimes == null ? List.of()
+                : Arrays.stream(autoDistributionTimes.split(",")).map(t -> LocalTime.parse(t, HH_MM)).toList();
+        return new AutoDistribution(autoDistribution, times, autoDistributionLimit);
+    }
+
+    /**
+     * Horário de distribuição automática vencido e ainda não tratado: o último horário do dia já alcançado, se a
+     * última rodada (ou mudança de configuração) foi antes dele. Vários horários perdidos (instância parada) geram uma
+     * única rodada.
+     *
+     * @param now instante corrente no fuso de operação
+     */
+    public Optional<LocalTime> dueAutoDistribution(ZonedDateTime now) {
+        if (!active || !autoDistribution || strategy == DistributionStrategy.PULL) {
+            return Optional.empty();
+        }
+        LocalTime current = now.toLocalTime();
+        Optional<LocalTime> slot = autoDistribution().times().stream().filter(t -> !t.isAfter(current))
+                .reduce((a, b) -> b);
+        if (slot.isEmpty()) {
+            return Optional.empty();
+        }
+        Instant slotAt = now.toLocalDate().atTime(slot.get()).atZone(now.getZone()).toInstant();
+        return autoDistributionLastRunAt != null && !autoDistributionLastRunAt.isBefore(slotAt) ? Optional.empty() : slot;
+    }
+
+    /** Registra a rodada automática (ou a mudança da configuração automática) no instante informado. */
+    public void autoDistributionHandled(Instant at) {
+        this.autoDistributionLastRunAt = at;
+    }
+
+    public Instant getAutoDistributionLastRunAt() {
+        return autoDistributionLastRunAt;
     }
 
     private void replaceTeams(Collection<UUID> teams) {

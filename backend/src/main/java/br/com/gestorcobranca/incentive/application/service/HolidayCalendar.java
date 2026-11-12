@@ -22,6 +22,17 @@ class HolidayCalendar {
         return BusinessDays.plus(start, businessDays, holidaysBetween(start, BusinessDays.horizon(start, businessDays)));
     }
 
+    /** Primeiro dia útil do mês da data. */
+    LocalDate firstBusinessDayOfMonth(LocalDate date) {
+        LocalDate first = date.withDayOfMonth(1);
+        Set<LocalDate> holidays = holidaysBetween(first, first.plusDays(15));
+        LocalDate day = first;
+        while (!BusinessDays.isBusinessDay(day, holidays)) {
+            day = day.plusDays(1);
+        }
+        return day;
+    }
+
     private Set<LocalDate> holidaysBetween(LocalDate from, LocalDate to) {
         return holidays.list(from, to).stream().map(HolidayUseCases.HolidayView::date).collect(Collectors.toSet());
     }

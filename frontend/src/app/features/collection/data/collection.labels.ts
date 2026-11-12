@@ -8,6 +8,7 @@ import {
   InteractionChannel,
   InteractionDirection,
   OwnerType,
+  PotentialBand,
   QueueOrdering,
   QueueStrategy,
   TabulationFollowUp,
@@ -77,6 +78,15 @@ export const STRATEGY_LABELS: Record<QueueStrategy, string> = {
   PULL: 'Sob demanda ("próximo caso")',
   ROUND_ROBIN: 'Rodízio entre operadores',
   LEAST_LOADED: 'Menor carga primeiro',
+  TIERED: 'Por nível de desempenho',
+};
+
+/** Faixa de potencial do caso na distribuição por nível. */
+export const POTENTIAL_BAND_LABELS: Record<PotentialBand, string> = {
+  HIGH: 'Alto potencial',
+  MEDIUM: 'Médio potencial',
+  LOW: 'Baixo potencial',
+  DEVELOPMENT: 'Alto potencial (desenvolvimento)',
 };
 
 export const ASSIGNMENT_MODE_LABELS: Record<AssignmentMode, string> = {

@@ -11,6 +11,7 @@ import br.com.gestorcobranca.shared.events.debt.DebtorInsolvencyChanged;
 import br.com.gestorcobranca.shared.events.debt.PortfolioLoaded;
 import br.com.gestorcobranca.shared.events.debt.TitleStatusChanged;
 import br.com.gestorcobranca.shared.events.identity.TenantProvisioned;
+import br.com.gestorcobranca.shared.events.incentive.NegotiatorTierChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
 import br.com.gestorcobranca.shared.events.organization.PortfolioStatusChanged;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
@@ -33,10 +34,12 @@ class CollectionEventListeners extends TenantEventListener {
 
     private final CollectionReactions reactions;
     private final PromiseService promises;
+    private final NegotiatorTierProjection tiers;
 
-    CollectionEventListeners(CollectionReactions reactions, PromiseService promises) {
+    CollectionEventListeners(CollectionReactions reactions, PromiseService promises, NegotiatorTierProjection tiers) {
         this.reactions = reactions;
         this.promises = promises;
+        this.tiers = tiers;
     }
 
     /**
@@ -125,6 +128,13 @@ class CollectionEventListeners extends TenantEventListener {
     @TransactionalEventListener
     void on(CaseScoreChanged event) {
         handleOnce(event, "collection.case-score", () -> reactions.caseScoreChanged(event));
+    }
+
+    /** Nível de desempenho publicado (incentive): projeção usada na distribuição por nível. */
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(NegotiatorTierChanged event) {
+        handleOnce(event, "collection.negotiator-tier", () -> tiers.record(event));
     }
 
     /** Catálogo padrão de tabulações na nova assessoria. */

@@ -1,13 +1,16 @@
 package br.com.gestorcobranca.collection.web;
 
 import br.com.gestorcobranca.collection.application.port.in.QueueUseCases;
+import br.com.gestorcobranca.collection.application.port.in.QueueUseCases.AutoDistributionInput;
 import br.com.gestorcobranca.collection.application.port.in.QueueUseCases.QueueCommand;
 import br.com.gestorcobranca.collection.application.port.in.QueueUseCases.QueueSummary;
 import br.com.gestorcobranca.collection.application.port.in.QueueUseCases.QueueView;
 import br.com.gestorcobranca.shared.web.ApiPaths;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -107,12 +110,24 @@ class CollectionQueueController {
                         @Size(max = 50) Set<UUID> teamIds,
                         Boolean vulnerableOnly,
                         Boolean newContactOnly,
-                        @Size(max = 20) String personType) {
+                        @Size(max = 20) String personType,
+                        @Valid AutoDistributionRequest autoDistribution) {
 
         QueueCommand toCommand() {
             return new QueueCommand(code, name, description, priority, creditorId, portfolioId, minDaysOverdue,
                     maxDaysOverdue, minBalance, maxBalance, minScore, maxScore, ordering, strategy, maxCasesPerUser,
-                    teamIds, vulnerableOnly, newContactOnly, personType);
+                    teamIds, vulnerableOnly, newContactOnly, personType,
+                    autoDistribution == null ? null : autoDistribution.toInput());
+        }
+    }
+
+    /** Distribuição automática: horários {@code HH:mm} (fuso de operação, dias úteis) e limite por rodada. */
+    record AutoDistributionRequest(Boolean enabled,
+                                   @Size(max = 6) List<@Pattern(regexp = "([01][0-9]|2[0-3]):[0-5][0-9]") String> times,
+                                   @Min(1) @Max(1000) Integer limit) {
+
+        AutoDistributionInput toInput() {
+            return new AutoDistributionInput(enabled, times, limit);
         }
     }
 }

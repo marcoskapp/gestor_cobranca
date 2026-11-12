@@ -30,6 +30,7 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Icon } from '../../../shared/components/icon/icon';
 import { IconName } from '../../../shared/components/icon/icon-names';
 import { RouterLink } from '@angular/router';
+import { MyTierCard } from '../tiers/my-tier-card';
 
 export type PerformanceScope = 'OWN' | 'TEAM' | 'ALL';
 
@@ -60,7 +61,7 @@ export function monthRange(month: string, today: string): { from: string; to: st
  */
 @Component({
   selector: 'app-incentive-performance-panel',
-  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, Amount, BarChart, EmptyState, EntityPicker, Icon, KpiCard, PageHeader, Skeleton, InfoHint],
+  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, Amount, BarChart, EmptyState, EntityPicker, Icon, KpiCard, MyTierCard, PageHeader, Skeleton, InfoHint],
   template: `
     <app-page-header [title]="title()" subtitle="Indicadores dos negociadores humanos a partir dos fatos de cobrança, negociação e pagamento, com as bases sempre visíveis." />
     @if (scope() === 'OWN') {
@@ -77,6 +78,9 @@ export function monthRange(month: string, today: string): { from: string; to: st
           }
         </ul>
       </nav>
+      @if (classified()) {
+        <app-my-tier-card />
+      }
     }
     <form class="app-filters" data-tour="filters" [formGroup]="form" role="search" aria-label="Filtrar indicadores">
       <app-field label="Mês">
@@ -225,6 +229,13 @@ export class PerformancePanel {
   protected readonly scoreText = score;
   protected readonly scope = computed(() => performanceScope((p) => this.auth.hasPermission(p)));
   protected readonly canUsers = computed(() => this.auth.hasPermission(Permission.USER_VIEW));
+  /**
+   * Negociador que vê o próprio desempenho: o nível de distribuição (distribuicao-por-desempenho.md §10-Q4). Exige
+   * `CASE_WORK` (é classificado) e `PERFORMANCE_VIEW_OWN` (o `/incentive/tiers/me` exige no servidor).
+   */
+  protected readonly classified = computed(
+    () => this.auth.hasPermission(Permission.CASE_WORK) && this.auth.hasPermission(Permission.PERFORMANCE_VIEW_OWN),
+  );
   protected readonly groups = computed(() => groupOptions(this.scope()));
   protected readonly title = computed(() => ({ OWN: 'Meu desempenho', TEAM: 'Desempenho da equipe', ALL: 'Desempenho dos negociadores' })[this.scope()]);
   /** Telas do próprio desempenho que não ficam no menu do negociador (`NavItem.openedFrom`). */

@@ -1557,6 +1557,18 @@ export const TOURS: readonly TourDefinition[] = [
   },
 
   {
+    id: 'incentive.tiers',
+    version: 1,
+    title: 'Classificação de desempenho',
+    summary: 'Nível A a D de cada negociador, revisto por pessoas antes de valer na distribuição de casos.',
+    steps: [
+      { anchor: 'tiers-round', title: 'Rodada', body: 'Cada rodada guarda a janela e os parâmetros da apuração. Em revisão, publicada ou expirada.' },
+      { anchor: 'tiers-people', title: 'Pessoas', body: 'Quartis de qualidade e de eficiência, a base de cada um e o nível proposto pela matriz.', placement: 'above' },
+      { anchor: 'tiers-summary', title: 'Prazo e publicação', body: 'Ajuste com motivo até o prazo. A gestão publica a rodada inteira; sem publicação, vale a anterior.' },
+      { anchor: 'tiers-tabs', title: 'Parâmetros', body: 'Janela, mínimos de amostra, portão de qualidade, nível padrão, periodicidade e a matriz 4 × 4.' },
+    ],
+  },
+  {
     id: 'incentive.statements',
     version: 1,
     title: 'Extratos de comissão',

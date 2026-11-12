@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { STANDARD_MATRIX } from './tiers/tier.rules';
 import { of } from 'rxjs';
 import { attribution, indicatorRow, period } from '../../../testing/incentive-fixtures';
 import { button, page, render, setup, text, tick } from '../../../testing/component-harness';
@@ -135,6 +136,29 @@ describe('Telas do incentive', () => {
     expect(text(fixture)).toContain('Meu desempenho');
     expect(text(fixture)).toContain('Sem atividade no período.');
     expect(text(fixture)).not.toContain('Por negociador');
+  });
+
+  it('meu desempenho: cartão "Seu nível" só para quem trabalha casos e vê o próprio desempenho', async () => {
+    const myTier = {
+      status: 'NONE', tier: 'B', defaultTier: 'B', validFrom: null, periodFrom: null, periodTo: null, qualityQuartile: null, efficiencyQuartile: null,
+      qualityGateFailed: false, missingQuality: false, missingEfficiency: false, evaluations: 0, cases: 0, minEvaluations: 5, minCases: 30,
+      qualityGate: 7, adjusted: false, matrix: STANDARD_MATRIX,
+    };
+    const respond = (url: string) =>
+      url.endsWith('/incentive/performance') ? { from: '', to: '', groupBy: 'NONE', rows: [], unavailableMetrics: [] } : url.endsWith('/incentive/tiers/me') ? myTier : undefined;
+    const { http } = setup(PerformancePanel, ['PERFORMANCE_VIEW_OWN', 'CASE_WORK']);
+    const fixture = await render(PerformancePanel, http, respond);
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-my-tier-card')).toBeTruthy();
+
+    TestBed.resetTestingModule();
+    const other = setup(PerformancePanel, ['PERFORMANCE_VIEW_OWN']);
+    const requested: string[] = [];
+    const withoutWork = await render(PerformancePanel, other.http, (url) => {
+      requested.push(url);
+      return respond(url);
+    });
+    expect((withoutWork.nativeElement as HTMLElement).querySelector('app-my-tier-card')).toBeNull();
+    expect(requested.some((u) => u.endsWith('/incentive/tiers/me'))).toBe(false);
   });
 
   it('atribuição do acordo: créditos, participantes e o estado sem registro', async () => {

@@ -5,8 +5,8 @@ Toda assessoria nasce com um perfil para cada tipo de usuário do sistema. Eles 
 | Perfil (código) | Para quem | O que faz | MFA |
 | --- | --- | --- | --- |
 | Administrador (`ADMIN`) | Responsável pela assessoria na plataforma | Acesso total à assessoria (todas as permissões, exceto o provisionamento de assessorias, que é da plataforma) | Obrigatório |
-| Gestor (`GESTOR`) | Gestão da operação | Credores, contratos, carteiras, políticas e alçadas, correção manual do valor do título e aprovação das correções de outra pessoa (correcao-de-valor.md), importação, estratégias, templates, score, portal, jurídico, telefonia, assistente, prestação de contas (aprovação), tokens, consumo e faturamento da API pública, painel de margem por carteira | Obrigatório |
-| Supervisor (`SUPERVISOR`) | Coordenação de equipes | Tudo do operador, mais distribuição e redistribuição, filas, gestão das contestações (atribuir, redistribuir, prazos, distribuição, modelos e a quarentena dos e-mails do credor), aprovações de proposta, caixa de entrada, monitoria, gravações e revisão do assistente | — |
+| Gestor (`GESTOR`) | Gestão da operação | Credores, contratos, carteiras, políticas e alçadas, correção manual do valor do título e aprovação das correções de outra pessoa (correcao-de-valor.md), importação, estratégias, templates, score, portal, jurídico, telefonia, assistente, prestação de contas (aprovação), tokens, consumo e faturamento da API pública, painel de margem por carteira, parâmetros, apuração e publicação da classificação de desempenho | Obrigatório |
+| Supervisor (`SUPERVISOR`) | Coordenação de equipes | Tudo do operador, mais distribuição e redistribuição, filas, gestão das contestações (atribuir, redistribuir, prazos, distribuição, modelos e a quarentena dos e-mails do credor), aprovações de proposta, caixa de entrada, monitoria, gravações, revisão do assistente e revisão (com ajuste) da classificação de desempenho das suas equipes | — |
 | Operador (`OPERADOR`) | Negociador | Estação de cobrança: casos, interações, retornos, simulação, propostas, formalização dentro da alçada, Pix, mensagens, telefone; contestações atribuídas a si e as sem responsável que assumir, inclusive confirmar as respostas do credor por e-mail (`DISPUTE_WORK`, contestacoes.md §2 e §4) | — |
 | Financeiro (`FINANCEIRO`) | Tesouraria e repasses | Pagamentos, aprovação de pagamento externo, correção manual do valor do título e aprovação das correções de outra pessoa, estornos, conciliação, comissão, fechamento e repasse ao credor, consumo e extratos da API pública, custos operacionais (faixas de custo, tarifas, câmbio, custos fixos) e margem por carteira | Obrigatório |
 | Auditor (`AUDITOR`) | Auditoria interna/externa | Somente leitura de cadastros, operação, finanças, logs de acesso, trilha de auditoria, tokens e consumo da API pública e margem por carteira | Obrigatório |
@@ -34,6 +34,17 @@ A lista exata de permissões de cada perfil está em `backend/src/main/java/br/c
 
 O selo de atenção especial aparece a quem vê o devedor; a categoria, só a quem tem `VULNERABILITY_SENSITIVE_VIEW`. Detalhes em
 [conformidade.md](../tecnico/desenho/conformidade.md).
+
+## Classificação de desempenho
+
+| Permissão | O que libera | Perfis padrão |
+| --- | --- | --- |
+| `TIER_REVIEW` | tela "Classificação de desempenho": rodadas, pessoas no seu escopo de desempenho (equipes que supervisiona ou todos), ajuste do nível com motivo e a pendência da rodada em revisão; **publicar** exige também `PERFORMANCE_VIEW_ALL` (a publicação é da rodada inteira) | Supervisor, Gestor, Administrador |
+| `TIER_MANAGE` | parâmetros da classificação (janela, mínimos, portão, matriz, nível padrão, periodicidade, prazo) e "Apurar agora" | Gestor, Administrador |
+
+Ninguém ajusta o próprio nível. O negociador vê o próprio nível e o que o compõe (quartis e base) no "Meu desempenho",
+com `PERFORMANCE_VIEW_OWN`, sem a posição nem os colegas. Detalhes em
+[distribuicao-por-desempenho.md](../tecnico/desenho/distribuicao-por-desempenho.md).
 
 ## Custos operacionais e margem por carteira
 

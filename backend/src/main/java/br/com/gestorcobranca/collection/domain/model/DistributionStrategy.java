@@ -11,5 +11,10 @@ public enum DistributionStrategy {
     /** Distribuição em rodízio entre os membros da fila. */
     ROUND_ROBIN,
     /** Distribuição para o membro com menos casos ativos na fila. */
-    LEAST_LOADED
+    LEAST_LOADED,
+    /**
+     * Por nível de desempenho: casos de maior valor esperado primeiro aos níveis mais altos, capacidade por nível e
+     * fatia de desenvolvimento (distribuicao-por-desempenho.md §4.2). Exige capacidade por operador na fila.
+     */
+    TIERED
 }

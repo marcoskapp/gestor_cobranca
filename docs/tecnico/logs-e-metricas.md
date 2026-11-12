@@ -29,11 +29,11 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Estrutura | `creditor.created`, `portfolio.created` (`regime`), `portfolio.status_changed`, `portfolio.regime_changed` (`from`, `to` — consumo × empresarial, cobrança B2B §6), `policy.published` |
 | Ingestão | `import.started`, `import.completed`, `import.failed`, `import.cancelled`, `import.format_confirmed`, `import.totals_matched`, `import.totals_mismatch`, `import.alerts_detected`, `import.outliers_reviewed`, `import.review_committed`, `import.review_approved`, `import.review_rejected`, `pdf_import.received`, `pdf_import.map_proposed`, `pdf_import.map_reused`, `pdf_import.map_edited`, `pdf_import.map_approved`, `pdf_import.imported`, `pdf_import.discarded`, `pdf_import.mapping_failed` |
 | Dívida | `debtor.consolidated`, `debtor.insolvency_registered`, `debtor.insolvency_converted`, `debtor.insolvency_ended` (§3.2), `contact.received_new`, `contact.first_attempt` (§3.2b), `title.status_changed`, `collateral.registered`, `collateral.status_changed`, `collateral.appraised`, `obligation_party.registered`, `title.prescription_interrupted`, `title.prescription_approaching`, `title.amount_adjustment_requested`, `title.amount_adjusted`, `title.amount_adjustment_rejected`, `title.amount_divergence_detected`, `title.amount_divergence_resolved` |
-| Operação | `case.opened`, `case.assigned`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `interaction.follow_up`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
+| Operação | `case.opened`, `case.assigned`, `queue.distributed`, `case.status_changed`, `case.eligibility_changed`, `case.closed`, `interaction.recorded`, `interaction.follow_up`, `contact.effective`, `callback.scheduled`, `callback.kept`, `callback.missed`, `promise.registered`, `promise.kept`, `promise.broken`, `dispute.opened`, `dispute.resolved` |
 | Negociação | `negotiation.simulated`, `proposal.created`, `proposal.approval_requested`, `proposal.handoff_requested`, `proposal.approved`, `proposal.rejected`, `proposal.accepted`, `proposal.expired`, `agreement.formalized`, `agreement.settled`, `agreement.broken`, `agreement.renegotiated`, `agreement.cancelled`, `agreement.break_suspended`, `agreement.break_suspension_ended`, `installment.overdue`, `installment.paid` |
 | Pagamentos | `payment_instruction.created`, `payment.informed`, `payment.confirmed`, `payment.rejected`, `payment.reconciled`, `payment.reallocated`, `payment.divergence`, `payment.reversed` |
 | Prestação de contas (settlement) | `commission.accrued`, `commission.reversed`, `commission.rules_published`, `settlement.receipt_pending_rules`, `settlement.calculated`, `settlement.adjusted`, `settlement.closed`, `settlement.exported`, `settlement.sent`, `settlement.acknowledged`, `settlement.contested`, `settlement.transfer_recorded` |
-| Remuneração variável (incentive) | `attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `commission.plan_published`, `quality.evaluated` |
+| Remuneração variável (incentive) | `attribution.recorded`, `commission.forecast`, `commission.entry_posted`, `commission.entry_cleared`, `commission.entry_reversed`, `commission.period_closed`, `commission.statement_disputed`, `commission.statement_adjusted`, `commission.statement_approved`, `commission.statement_exported`, `commission.plan_published`, `quality.evaluated`, `tier.round_proposed`, `tier.round_published`, `tier.round_expired` |
 | Comunicação | `message.sent`, `message.delivered`, `message.read`, `message.failed`, `message.replied`, `message.received`, `message.blocked`, `conversation.started`, `conversation.handoff`, `conversation.closed`, `template.published` |
 | Campanhas | `campaign.activated`, `campaign.paused`, `campaign.finished`, `campaign.step_executed`, `campaign.step_skipped`, `campaign.replied`, `campaign.cadence_exhausted`, `experiment.variant_assigned` |
 | Compliance | `contact.opt_out`, `contact.restricted`, `contact.restriction_revoked`, `contact.denied`, `data_subject_request.opened`, `data_subject_request.completed`, `retention.run_completed`, `vulnerability.registered`, `vulnerability.retired`, `vulnerability.capacity_changed`, `vulnerability.suggested`, `vulnerability.suggestion_resolved` (§3.1a) |
@@ -165,6 +165,9 @@ Remuneração individual **nunca** aparece em log (técnico ou de negócio): os 
 | `commission.statement_exported` | exportação para a folha | `period`, `format`, `statements`, `totalBand` |
 | `commission.plan_published` | versão de plano publicada (elasticidade antes/depois) | `code`, `version`, `effectiveFrom`, `tierMode`, `hasGoal`, `hasPool`, `hasFixedPerAgreement`, `graceBusinessDays`, `clawbackEnabled`, `creditModel` |
 | `quality.evaluated` | monitoria registrada | `userId`, `formId`, `score`, `criticalFailure`, `referenceType` |
+| `tier.round_proposed` | rodada da classificação de desempenho apurada (rotina ou "Apurar agora") | `origin`, `people`, `missingSample`, `windowDays` (só contagens; nunca nota, quartil ou nível por pessoa) |
+| `tier.round_published` | rodada publicada: os níveis passam a valer | `people`, `cleared` (voltaram ao padrão), `adjusted`, `tierA`…`tierD` (contagens por nível) |
+| `tier.round_expired` | rodada sem publicação no prazo; vale a anterior | — (só a referência da rodada) |
 
 ### 3.3 Atributos dos eventos de negociação (parte 1)
 
@@ -205,7 +208,8 @@ descrições e pareceres nunca entram no log (ficam criptografados no banco).
 | Evento | Quando | Atributos |
 | --- | --- | --- |
 | `case.opened` | caso aberto por carga ou mudança de título | `trigger`, `openTitles`, `eligible`, `ineligibleReasons`, `queueId`; `amount` = saldo em aberto |
-| `case.assigned` | responsável humano ou equipe mudou | `mode` (NEXT_CASE, DISTRIBUTION, MANUAL, REDISTRIBUTION, RELEASE, INTERACTION, TAKE_OVER, ASSISTANT_HANDOFF…), `ownerType`, `assigneeId`, `previousAssigneeId`, `teamId`, `queueId`, `eligible`; `amount` = saldo elegível atribuído |
+| `case.assigned` | responsável humano ou equipe mudou | `mode` (NEXT_CASE, DISTRIBUTION, MANUAL, REDISTRIBUTION, RELEASE, INTERACTION, TAKE_OVER, ASSISTANT_HANDOFF…), `ownerType`, `assigneeId`, `previousAssigneeId`, `teamId`, `queueId`, `eligible`, `potentialBand` (HIGH, MEDIUM ou LOW, só em fila por nível de desempenho; o caso da vez de desenvolvimento sai como HIGH, porque no "Próximo caso" a marca DEVELOPMENT revelaria o nível C/D de quem recebeu — a marca fica só no histórico de atribuição; o nível da pessoa não vai ao log); `amount` = saldo elegível atribuído |
+| `queue.distributed` | rodada de distribuição em lote de uma fila (botão "Distribuir" ou distribuição automática) | `reference` = fila; `creditorId` da fila; `strategy`, `trigger` (MANUAL, AUTOMATIC), `considered`, `assigned`, `unassigned`, `members`; em fila por nível, quantidades agregadas `bandHIGH`, `bandMEDIUM`, `bandLOW`, `bandDEVELOPMENT` e `tierA`…`tierD` (nunca o nível de uma pessoa); `durationMs` |
 | `case.status_changed` | mudança de status (exceto encerramento) | `from`, `to`, `trigger`, `assigneeId` |
 | `case.eligibility_changed` | caso passou a elegível ou inelegível | `eligible`, `reasons`, `previousReasons`, `trigger`; `amount` = saldo elegível |
 | `case.closed` | encerramento | `reason`, `from`, `trigger`, `durationDays`, `interactions`, `effectiveContacts`, `assigneeId`; `durationMs` desde a abertura |
@@ -620,6 +624,9 @@ fields @timestamp, tenantId, callId, instance, process
 | `collection.cases.opened{trigger}`, `collection.cases.closed{reason}`, `collection.cases.transitions{from,to}` | ciclo de vida dos casos |
 | `collection.eligibility.evaluations{outcome,changed}`, `collection.eligibility.reasons{reason}` | elegibilidade (RB02) e motivos de inelegibilidade |
 | `collection.assignments{mode,owner}`, `collection.distribution.cases{strategy,outcome}` | mudanças de dono e distribuição em lote (casos sem destino = `unassigned`) |
+| `collection.distribution.runs{trigger,strategy}`, `collection.distribution.tiered{tier,band}` | rodadas de distribuição em lote (`MANUAL`, `AUTOMATIC`) e casos atribuídos na distribuição por nível, por nível de quem recebeu × faixa de potencial (agregado, sem pessoa) |
+| `collection.next_case.tiered{band,development}` | "próximo caso" em fila por nível: faixa entregue e se foi vez de desenvolvimento |
+| `collection.auto_distribution{outcome}` | distribuição automática por fila: `executed`, `failed` (a falha também conta em `collection.jobs.failures{job=collection.auto_distribution}`) |
 | `collection.next_case{outcome}`, `collection.next_case.duration{outcome}` (p50/p95/p99) | "próximo caso": `own_callback`, `queue`, `empty`, `capacity` |
 | `collection.interactions{channel,direction,effective,source}` | volume de interações e contatos efetivos |
 | `collection.tabulation_follow_ups{action,outcome}` | ações automáticas das tabulações (contestação, falecimento, contato inválido) |
@@ -638,7 +645,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `collection.disputes.evidence_link{outcome}` | downloads do link de evidências (`served`, `expired`, `exhausted`, `unknown`, `malformed`, `rate_limited`) — recusas em alta podem indicar varredura |
 | `integration.calls{provider=smtp,operation=dispute_mail,outcome}` | chamadas ao SMTP dos e-mails de contestação |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |
-| `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos (inclui `case_score`, do scoring, `debtor_insolvency` e `contact_novelty`, do debt) e falhas dos agendamentos (alarme) |
+| `collection.events.consumed{type}`, `collection.jobs.failures{job}` | consumo de eventos (inclui `case_score`, do scoring, `debtor_insolvency` e `contact_novelty`, do debt, e `negotiator_tier`/`negotiator_tier_invalid`, do incentive) e falhas dos agendamentos (alarme) |
 | `ingestion.batches.received{source,mode}`, `ingestion.batches.finished{source,mode,status}`, `ingestion.batch.duration{source,mode,status}` | volume e duração dos lotes de importação |
 | `ingestion.files.rejected{reason}` | envios recusados no recebimento (tamanho, tipo pelo conteúdo, duplicidade, chave de idempotência…) |
 | `ingestion.rows{mode,outcome}`, `ingestion.titles{outcome}`, `ingestion.issues{severity}`, `ingestion.issues.stored` | linhas válidas/rejeitadas, títulos criados/atualizados/inalterados/não gravados/suspensos, ocorrências |
@@ -661,6 +668,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `incentive.payments.awaiting_attribution` | pagamento recebido antes da atribuição do acordo (crescimento contínuo = produtor sem `AgreementAttributionRecorded`) |
 | `incentive.period.close.duration{trigger}`, `incentive.statements.calculated{trigger}`, `incentive.statements.transitions{status}` | fechamento de período e ciclo dos extratos |
 | `incentive.exports{format}`, `incentive.jobs.failures{job}` | exportações para a folha e falhas dos agendamentos (alarme) |
+| `incentive.tier.rounds{outcome}` | rodadas da classificação de desempenho: `proposed_scheduled`, `proposed_manual`, `published`, `expired` (sem nível, nota ou pessoa) |
 | `negotiation.simulations{actorType,outcome}`, `negotiation.simulation.offers{actorType}`, `negotiation.simulation.duration{actorType}` | simulações (OFFERED × NO_VALID_OFFER), ofertas geradas e latência do motor |
 | `negotiation.guard.decisions{actorType,outcome}`, `negotiation.guard.violations{rule}` | validações de condições (WITHIN_AUTHORITY, REQUIRES_APPROVAL, REJECTED) e regras violadas |
 | `negotiation.concession.escalations{actorType,level,reason}` | pedidos de subida na escada de concessões |

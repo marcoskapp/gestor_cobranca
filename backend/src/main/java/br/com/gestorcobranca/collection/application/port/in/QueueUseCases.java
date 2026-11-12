@@ -37,30 +37,55 @@ public interface QueueUseCases {
     /**
      * @param code            identificador estável (somente na criação; ignorado na alteração)
      * @param ordering        OLDEST_OVERDUE, HIGHEST_BALANCE, LOWEST_BALANCE, LEAST_RECENTLY_WORKED ou HIGHEST_SCORE
-     * @param strategy        PULL, ROUND_ROBIN ou LEAST_LOADED
-     * @param maxCasesPerUser capacidade de casos ativos por operador na fila (nulo = ilimitada)
+     * @param strategy        PULL, ROUND_ROBIN, LEAST_LOADED ou TIERED (por nível de desempenho; exige
+     *                        {@code maxCasesPerUser})
+     * @param maxCasesPerUser capacidade de casos ativos por operador na fila (nulo = ilimitada); em TIERED, a base
+     *                        multiplicada pelo nível de cada operador
      * @param teamIds         equipes que atendem a fila (vazio = qualquer operador)
      * @param vulnerableOnly  só casos de devedor com marcador de vulnerabilidade (fila própria de atendimento
      *                        cuidadoso; nulo = não restringe)
      * @param newContactOnly  só casos de devedor com contato novo recebido na carga ainda sem tentativa
      *                        (contatos-recebidos.md §4; nulo = não restringe)
      * @param personType      só casos de devedor deste tipo de pessoa: INDIVIDUAL ou COMPANY (nulo = qualquer)
+     * @param autoDistribution distribuição automática por horário (nulo = desligada)
      */
     record QueueCommand(String code, String name, String description, int priority, UUID creditorId, UUID portfolioId,
                         Integer minDaysOverdue, Integer maxDaysOverdue, BigDecimal minBalance, BigDecimal maxBalance,
                         Integer minScore, Integer maxScore, String ordering, String strategy, Integer maxCasesPerUser,
-                        Set<UUID> teamIds, Boolean vulnerableOnly, Boolean newContactOnly, String personType) {
+                        Set<UUID> teamIds, Boolean vulnerableOnly, Boolean newContactOnly, String personType,
+                        AutoDistributionInput autoDistribution) {
 
         public QueueCommand {
             teamIds = teamIds == null ? Set.of() : Set.copyOf(teamIds);
         }
     }
 
+    /**
+     * Distribuição automática da fila (distribuicao-por-desempenho.md §4.3): nos horários informados (fuso de
+     * operação, dias úteis), uma rodada por horário por dia, com a mesma regra do "Distribuir". Fila sob demanda
+     * ({@code PULL}) não aceita.
+     *
+     * @param enabled ligada
+     * @param times   horários {@code HH:mm} (1 a 6 quando ligada)
+     * @param limit   máximo de casos por rodada (1 a 1000; obrigatório quando ligada)
+     */
+    record AutoDistributionInput(Boolean enabled, List<String> times, Integer limit) {
+
+        public AutoDistributionInput {
+            times = times == null ? List.of() : List.copyOf(times);
+        }
+    }
+
+    /** @param lastRunAt última rodada automática (ou última mudança da configuração automática) */
+    record AutoDistributionView(boolean enabled, List<String> times, Integer limit, Instant lastRunAt) {
+    }
+
     record QueueView(UUID id, String code, String name, String description, boolean active, int priority,
                      UUID creditorId, UUID portfolioId, Integer minDaysOverdue, Integer maxDaysOverdue,
                      BigDecimal minBalance, BigDecimal maxBalance, Integer minScore, Integer maxScore, String ordering,
                      String strategy, Integer maxCasesPerUser, Set<UUID> teamIds, Instant updatedAt, long version,
-                     boolean vulnerableOnly, boolean newContactOnly, String personType) {
+                     boolean vulnerableOnly, boolean newContactOnly, String personType,
+                     AutoDistributionView autoDistribution) {
     }
 
     /**

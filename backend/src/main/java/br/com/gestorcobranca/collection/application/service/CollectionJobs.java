@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -26,13 +27,57 @@ class CollectionJobs {
     private final TenantExecution tenantExecution;
     private final CollectionMaintenance maintenance;
     private final CollectionMetrics metrics;
+    private final AutoDistribution autoDistribution;
 
     CollectionJobs(TenantDirectory tenantDirectory, TenantExecution tenantExecution, CollectionMaintenance maintenance,
-                   CollectionMetrics metrics) {
+                   CollectionMetrics metrics, AutoDistribution autoDistribution) {
         this.tenantDirectory = tenantDirectory;
         this.tenantExecution = tenantExecution;
         this.maintenance = maintenance;
         this.metrics = metrics;
+        this.autoDistribution = autoDistribution;
+    }
+
+    /**
+     * Distribuição automática por fila (distribuicao-por-desempenho.md §4.3): a cada minuto, as filas com horário
+     * vencido no fuso de operação, em dias úteis; cada fila numa transação própria — a falha numa fila não impede as
+     * demais nem as outras assessorias.
+     */
+    @Scheduled(cron = "${app.collection.auto-distribution-cron:0 * * * * *}", zone = TimeConfig.BUSINESS_ZONE_ID)
+    @SchedulerLock(name = "collection.auto-distribution", lockAtMostFor = "PT10M", lockAtLeastFor = "PT20S")
+    void autoDistribution() {
+        for (UUID tenantId : tenantDirectory.activeTenantIds()) {
+            runAutoDistribution(tenantId);
+        }
+    }
+
+    /** Rodadas automáticas vencidas de uma assessoria; devolve quantas filas foram distribuídas. */
+    int runAutoDistribution(UUID tenantId) {
+        String job = "collection.auto_distribution";
+        List<UUID> due;
+        try {
+            due = tenantExecution.callInTenant(tenantId, job, autoDistribution::dueQueues);
+        } catch (RuntimeException e) {
+            metrics.jobFailure(job);
+            LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("job", job).setCause(e)
+                    .log("Falha ao listar as filas com distribuição automática vencida");
+            return 0;
+        }
+        int executed = 0;
+        for (UUID queueId : due) {
+            try {
+                if (tenantExecution.callInTenant(tenantId, job, () -> autoDistribution.run(queueId)).isPresent()) {
+                    executed++;
+                    metrics.autoDistribution("executed");
+                }
+            } catch (RuntimeException e) {
+                metrics.jobFailure(job);
+                metrics.autoDistribution("failed");
+                LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("queueId", queueId).addKeyValue("job", job)
+                        .setCause(e).log("Falha na distribuição automática da fila");
+            }
+        }
+        return executed;
     }
 
     /** Retornos que passaram da tolerância (no fuso de operação, pelos instantes gravados em UTC). */

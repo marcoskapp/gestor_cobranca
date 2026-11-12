@@ -2,6 +2,7 @@ package br.com.gestorcobranca.collection.application.service;
 
 import br.com.gestorcobranca.collection.application.CollectionProperties;
 import br.com.gestorcobranca.collection.domain.model.CollectionSettings;
+import br.com.gestorcobranca.collection.domain.model.TierPolicy;
 import br.com.gestorcobranca.collection.domain.repository.CollectionSettingsRepository;
 import org.springframework.stereotype.Component;
 
@@ -20,5 +21,10 @@ class SettingsProvider {
     CollectionSettings.Values current() {
         return settings.findFirstByOrderByCreatedAtAsc().map(CollectionSettings::values)
                 .orElseGet(() -> properties.defaults().values());
+    }
+
+    /** Parâmetros da distribuição por nível de desempenho: os gravados ou o padrão aprovado ({@link TierPolicy#DEFAULT}). */
+    TierPolicy tierPolicy() {
+        return settings.findFirstByOrderByCreatedAtAsc().map(CollectionSettings::tierPolicy).orElse(TierPolicy.DEFAULT);
     }
 }

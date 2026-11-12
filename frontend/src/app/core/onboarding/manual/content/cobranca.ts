@@ -108,9 +108,9 @@ export const MANUAL: ModuleManual = {
       title: 'Filas e distribuição',
       objective: 'Defina os critérios e a prioridade das filas e distribua os casos entre os operadores.',
       purpose: [
-        'Cada fila tem critérios (credor, carteira, atraso, saldo, score, tipo de pessoa, contato novo e vulnerabilidade), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz; o de contato novo sai da fila quando todos os contatos novos do devedor forem tentados ou, vencido o prazo, na revisão diária da madrugada.',
-        'Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou.',
-        'O nome da fila abre a lista de casos dessa fila.',
+        'Cada fila tem critérios (credor, carteira, atraso, saldo, score, tipo de pessoa, contato novo e vulnerabilidade), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz; o de contato novo sai da fila quando todos os contatos novos do devedor forem tentados ou, vencido o prazo, na revisão diária da madrugada. O nome da fila abre a lista de casos dessa fila.',
+        'Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou. Antes de confirmar, o "Distribuir" mostra a prévia: quantos casos iriam a cada operador, sem gravar nada. Na distribuição automática você escolhe os horários (até seis) e o limite de casos por rodada; em dias úteis, fora dos feriados do calendário, a fila distribui sozinha uma vez em cada horário, com a mesma regra do "Distribuir" (não existe para filas sob demanda).',
+        'Na estratégia "Por nível de desempenho", cada caso tem um valor esperado (chance de pagamento pelo score × saldo) e cai numa faixa de potencial (alto, médio ou baixo, em terços dos casos disponíveis). O alto vai primeiro aos níveis A e B, o médio a B e C e o baixo a C e D; esgotada a capacidade de um nível, o caso vai ao nível seguinte. Cada operador recebe até os casos por operador da fila multiplicados pelo seu nível, e parte dos casos de alto potencial (fatia de desenvolvimento) vai em rodízio a todos. O "Próximo caso" entrega primeiro a faixa do seu nível. Quem vê o desempenho de todas as pessoas da fila vê a prévia por nível e faixa; os demais veem só os totais por faixa de potencial e o nível apenas de quem podem ver (o próprio ou a equipe que supervisionam).',
       ],
       profiles: ['SUPERVISOR', 'GESTOR'],
       inputs: ['Casos elegíveis e equipes cadastradas.', 'Faixa de score, quando há modelo em uso.'],
@@ -142,16 +142,20 @@ export const MANUAL: ModuleManual = {
     {
       id: 'collection.settings',
       title: 'Parâmetros da operação',
-      objective: 'Tolerâncias de promessas e retornos e o prazo padrão de resposta das contestações da assessoria.',
-      purpose: ['Esses prazos definem quando uma promessa é quebrada, quando um retorno fica atrasado e quando uma contestação vence.'],
+      objective: 'Tolerâncias de promessas e retornos, prazo padrão de resposta das contestações e distribuição por nível de desempenho da assessoria.',
+      purpose: [
+        'Esses prazos definem quando uma promessa é quebrada, quando um retorno fica atrasado e quando uma contestação vence.',
+        'A distribuição por nível de desempenho vale nas filas com essa estratégia: capacidade de cada nível em percentual dos casos por operador da fila (50% a 200%; padrão A 120%, B 110%, C 100% e D 80%), fatia de desenvolvimento (0% a 50%; padrão 15%) e o nível de quem ainda não foi classificado (padrão B), que deve ser igual ao nível padrão da Classificação de desempenho (quem gerencia a classificação tem o atalho para ela). Vale a partir da próxima distribuição.',
+      ],
       profiles: ['GESTOR', 'ADMIN'],
       inputs: ['Decisão da gestão da operação.'],
       outputs: ['Prazos aplicados a novas promessas, retornos e contestações.'],
       related: [
         { screen: 'collection.disputes', why: 'Contestações e seus prazos.' },
         { screen: 'collection.agenda', why: 'Retornos e atrasos.' },
+        { screen: 'collection.queues', why: 'Filas com a estratégia por nível de desempenho.' },
       ],
-      terms: ['promessa', 'retorno', 'contestacao'],
+      terms: ['promessa', 'retorno', 'contestacao', 'fila'],
     },
     {
       id: 'collection.disputes',

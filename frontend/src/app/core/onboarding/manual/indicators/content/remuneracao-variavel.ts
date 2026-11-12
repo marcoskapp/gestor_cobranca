@@ -89,6 +89,31 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     screens: ['incentive.performance'],
   },
   // --------------------------------------------------------------------------------- extratos
+  // ------------------------------------------------------------------------------ classificação de desempenho
+  {
+    id: 'incentive.tiers.quality-quartile',
+    title: 'Quartil de qualidade',
+    what: 'Faixa da nota média de monitoria da pessoa entre os negociadores da assessoria na janela da rodada: Q4 são os 25% melhores.',
+    how: 'Média das avaliações na janela, só de quem tem o mínimo de avaliações; posição percentil, com empatados na mesma faixa. Falha crítica ou média abaixo do portão limitam a Q2.',
+    use: 'Conduta pesa tanto quanto resultado: quem converte muito com qualidade baixa não chega ao topo. Sem o mínimo de avaliações, programe monitorias antes de revisar.',
+    screens: ['incentive.tiers', 'incentive.performance'],
+  },
+  {
+    id: 'incentive.tiers.efficiency-quartile',
+    title: 'Quartil de eficiência',
+    what: 'Faixa do recuperado × esperado da pessoa entre os negociadores da assessoria, nas safras de score da janela: Q4 são os 25% melhores.',
+    how: 'Soma do recuperado dividida pela soma do esperado pelo score das safras encerradas na janela, só de quem tem o mínimo de casos; posição percentil, com empatados na mesma faixa.',
+    use: 'Desconta a dificuldade da carteira recebida, por isso é a comparação mais justa. Pouca safra encerrada (pessoa nova, janela curta) deixa a pessoa no nível padrão.',
+    screens: ['incentive.tiers', 'incentive.performance'],
+  },
+  {
+    id: 'incentive.tiers.level',
+    title: 'Nível de desempenho',
+    what: 'Nível A a D da pessoa na distribuição de casos: A recebe primeiro os casos de maior valor esperado e mais casos.',
+    how: 'Célula da matriz qualidade × eficiência (parametrizável); sem amostra suficiente, o nível padrão. Vale só depois da revisão humana e da publicação, a partir da data publicada.',
+    use: 'Ajuste com motivo quando a janela não representa a pessoa (férias, licença, troca de carteira). Acompanhe se o recuperado × esperado de A supera o de B, C e D sem piorar a quebra.',
+    screens: ['incentive.tiers', 'incentive.performance'],
+  },
   {
     id: 'incentive.statement.credited',
     title: 'Recuperado creditado',

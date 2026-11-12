@@ -58,6 +58,27 @@ class CollectionMetrics {
                 .increment(unassigned);
     }
 
+    /** Rodada de distribuição em lote: {@code trigger} MANUAL ou AUTOMATIC. */
+    void distributionRun(String trigger, String strategy) {
+        registry.counter("collection.distribution.runs", "trigger", trigger, "strategy", strategy).increment();
+    }
+
+    /** Caso atribuído na distribuição por nível: nível de quem recebeu × faixa de potencial (agregado, sem pessoa). */
+    void tieredAssignment(String tier, String band) {
+        registry.counter("collection.distribution.tiered", "tier", tier, "band", band).increment();
+    }
+
+    /** "Próximo caso" numa fila por nível: faixa entregue e se foi vez de desenvolvimento. */
+    void tieredNextCase(String band, boolean development) {
+        registry.counter("collection.next_case.tiered", "band", band, "development", String.valueOf(development))
+                .increment();
+    }
+
+    /** Verificação da distribuição automática por fila: {@code executed}, {@code failed}. */
+    void autoDistribution(String outcome) {
+        registry.counter("collection.auto_distribution", "outcome", outcome).increment();
+    }
+
     void interaction(String channel, String direction, boolean effective, String source) {
         registry.counter("collection.interactions", "channel", channel, "direction", direction,
                 "effective", Boolean.toString(effective), "source", source).increment();

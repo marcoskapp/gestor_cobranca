@@ -24,7 +24,9 @@ public interface CaseWorkUseCases {
      * Entrega ao operador corrente o próximo caso: primeiro um caso dele com retorno vencido;
      * senão o primeiro caso disponível da fila informada (ou, sem fila, das filas atendidas pelas
      * suas equipes, em ordem de prioridade), bloqueado com {@code FOR UPDATE SKIP LOCKED}.
-     * Respeita o escopo de credores e a capacidade por operador da fila.
+     * Respeita o escopo de credores e a capacidade por operador da fila. Em fila por nível de desempenho
+     * ({@code TIERED}), entrega primeiro a faixa de potencial do nível do operador e respeita a capacidade
+     * multiplicada pelo nível (distribuicao-por-desempenho.md §4.2).
      *
      * @return vazio quando não há caso disponível
      */
@@ -52,12 +54,21 @@ public interface CaseWorkUseCases {
     CaseView handToAssistant(UUID caseId, String reason);
 
     /**
-     * Distribui os casos disponíveis da fila entre os membros (estratégia da fila: rodízio ou
-     * menor carga), até a capacidade de cada um e respeitando o escopo de credores.
+     * Distribui os casos disponíveis da fila entre os membros (estratégia da fila: rodízio, menor
+     * carga ou por nível de desempenho), até a capacidade de cada um e respeitando o escopo de credores.
      *
      * @param limit máximo de casos nesta execução (1 a 1000)
      */
     DistributionResult distribute(UUID queueId, int limit);
+
+    /**
+     * Prévia da distribuição, sem gravar nem bloquear casos: o mesmo plano do {@link #distribute} com os casos e as
+     * cargas de agora. O nível de cada pessoa só vem para quem pode vê-lo ({@code PERFORMANCE_VIEW_TEAM/ALL} no
+     * escopo, ou o próprio); sem isso, só as quantidades por nível e faixa.
+     *
+     * @param limit máximo de casos considerados (1 a 1000)
+     */
+    DistributionPreview previewDistribution(UUID queueId, int limit);
 
     /**
      * Redistribui os casos ativos de um operador (ausência, desligamento): entre os operadores
@@ -89,14 +100,52 @@ public interface CaseWorkUseCases {
     }
 
     /**
+     * @param strategy    estratégia da fila
+     * @param considered  casos disponíveis considerados (até o limite)
+     * @param assigned    casos que iriam a um operador
+     * @param unassigned  casos sem operador possível (escopo ou capacidade)
+     * @param byTierBand  por nível × faixa de potencial (só {@code TIERED}; faixa {@code DEVELOPMENT} = fatia de
+     *                    desenvolvimento). Com o nível só se o ator vê o nível de <b>todos</b> os membros da fila;
+     *                    senão, só totais por faixa ({@code tier} nulo) — a contagem por nível somada ao planejado de
+     *                    cada pessoa revelaria o nível de quem ele não vê
+     * @param byTier      membros e casos planejados por nível (só {@code TIERED} e só com visão do nível de todos os
+     *                    membros; senão vazio)
+     * @param members     por operador: só id e quantidades; o nível e a capacidade efetiva (que revela o nível) só
+     *                    para quem pode ver o nível da pessoa
+     */
+    record DistributionPreview(UUID queueId, String strategy, int considered, int assigned, int unassigned,
+                               List<TierBandCount> byTierBand, List<TierCount> byTier, List<MemberPreview> members) {
+    }
+
+    /**
+     * @param tier nível (A–D) ou nulo quando a prévia mostra só o total por faixa (ator sem visão do nível de todos)
+     * @param band HIGH, MEDIUM, LOW ou DEVELOPMENT
+     */
+    record TierBandCount(String tier, String band, int cases) {
+    }
+
+    record TierCount(String tier, int members, int cases) {
+    }
+
+    /**
+     * @param tier     nível efetivo (nulo sem permissão para ver, ou fora do {@code TIERED})
+     * @param capacity capacidade efetiva (nulo = ilimitada ou sem permissão para ver o nível)
+     */
+    record MemberPreview(UUID userId, String tier, int activeCases, Integer capacity, int planned) {
+    }
+
+    /**
      * Período de dono do atendimento.
      *
      * @param mode   OPENED, ROUTING, NEXT_CASE, MANUAL, DISTRIBUTION, REDISTRIBUTION, RELEASE,
      *               INTERACTION, ASSISTANT_HANDOFF, TAKE_OVER ou CLOSED
      * @param validTo nulo no período vigente
+     * @param tier    nível de quem recebeu na distribuição por nível (nulo fora dela ou sem permissão para ver o
+     *                nível da pessoa)
+     * @param potentialBand faixa de potencial do caso na distribuição por nível: HIGH, MEDIUM, LOW ou DEVELOPMENT
      */
     record AssignmentView(UUID id, UUID caseId, String mode, String ownerType, UUID userId, UUID teamId, UUID queueId,
                           String previousOwnerType, UUID previousUserId, String reason, Instant validFrom,
-                          Instant validTo, UUID createdBy) {
+                          Instant validTo, UUID createdBy, String tier, String potentialBand) {
     }
 }

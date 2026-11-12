@@ -16,6 +16,8 @@ export const INCENTIVE_PERMISSIONS = {
   qualityForms: [Permission.PERFORMANCE_VIEW_TEAM, Permission.PERFORMANCE_VIEW_ALL, Permission.QUALITY_EVALUATE],
   performance: PERFORMANCE,
   attribution: [...PERFORMANCE, Permission.AGREEMENT_VIEW],
+  // classificação de desempenho: quem revê (equipe ou todos) e quem parametriza
+  tiers: [Permission.TIER_REVIEW, Permission.TIER_MANAGE],
 } as const;
 
 /** `/remuneracao`: remuneração variável dos negociadores (rotas fixas antes de `:id`). */
@@ -27,6 +29,13 @@ export const INCENTIVE_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: INCENTIVE_PERMISSIONS.performance },
     loadComponent: () => import('./performance/performance-panel').then((m) => m.PerformancePanel),
+  },
+  {
+    path: 'classificacao',
+    title: 'Classificação de desempenho',
+    canActivate: [permissionGuard],
+    data: { permissions: INCENTIVE_PERMISSIONS.tiers },
+    loadComponent: () => import('./tiers/tier-page').then((m) => m.TierPage),
   },
   {
     path: 'extratos',

@@ -5,7 +5,7 @@
  * <p>
  * Outros módulos usam somente {@code application.port.in}. Reações a outros módulos acontecem
  * por eventos de integração ({@code shared.events.debt}, {@code .compliance},
- * {@code .organization}, {@code .negotiation}, {@code .payment}). Ver
+ * {@code .organization}, {@code .negotiation}, {@code .payment}, {@code .incentive}). Ver
  * {@code docs/tecnico/desenho/collection.md}.
  */
 @ApplicationModule(displayName = "Collection",

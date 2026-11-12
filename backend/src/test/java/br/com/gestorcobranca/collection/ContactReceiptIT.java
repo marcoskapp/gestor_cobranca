@@ -83,7 +83,7 @@ class ContactReceiptIT extends CollectionTestSupport {
 
         QueueView general = asManager(() -> queues.create(queue("GERAL", 10, creditorA, "PULL", null, Set.of())));
         QueueView fresh = asManager(() -> queues.create(new QueueCommand("NOVOS", "Contato novo", null, 1, creditorA,
-                null, null, null, null, null, null, null, "OLDEST_OVERDUE", "PULL", null, Set.of(), null, true, null)));
+                null, null, null, null, null, null, null, "OLDEST_OVERDUE", "PULL", null, Set.of(), null, true, null, null)));
         assertThat(fresh.newContactOnly()).isTrue();
         drainJobs();
         assertThat(count("select count(*) from collection.collection_case where id = ? and queue_id = ?", caseId,

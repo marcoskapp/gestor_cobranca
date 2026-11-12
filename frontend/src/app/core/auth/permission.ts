@@ -128,6 +128,8 @@ export const Permission = {
   COMMISSION_STATEMENT_MANAGE: 'COMMISSION_STATEMENT_MANAGE',
   COMMISSION_STATEMENT_APPROVE: 'COMMISSION_STATEMENT_APPROVE',
   QUALITY_EVALUATE: 'QUALITY_EVALUATE',
+  TIER_MANAGE: 'TIER_MANAGE',
+  TIER_REVIEW: 'TIER_REVIEW',
 
   DASHBOARD_VIEW: 'DASHBOARD_VIEW',
   REPORT_VIEW: 'REPORT_VIEW',
@@ -170,7 +172,7 @@ export const PERMISSION_GROUPS: readonly { label: string; prefixes: readonly str
   { label: 'Jurídico', prefixes: ['LEGAL_'] },
   {
     label: 'Desempenho dos negociadores',
-    prefixes: ['PERFORMANCE_', 'COMMISSION_PLAN_', 'COMMISSION_STATEMENT_', 'QUALITY_'],
+    prefixes: ['PERFORMANCE_', 'COMMISSION_PLAN_', 'COMMISSION_STATEMENT_', 'QUALITY_', 'TIER_'],
   },
   { label: 'Gestão e relatórios', prefixes: ['DASHBOARD_', 'REPORT_'] },
   { label: 'Custos e margem', prefixes: ['COST_'] },

@@ -9,16 +9,18 @@ import br.com.gestorcobranca.collection.domain.model.CollectionCase;
 import br.com.gestorcobranca.collection.domain.model.CollectionQueue;
 import br.com.gestorcobranca.collection.domain.model.DistributionStrategy;
 import br.com.gestorcobranca.collection.domain.model.OwnerType;
+import br.com.gestorcobranca.collection.domain.model.PerformanceTier;
+import br.com.gestorcobranca.collection.domain.model.PotentialBand;
+import br.com.gestorcobranca.collection.domain.model.TierPolicy;
 import br.com.gestorcobranca.collection.domain.repository.CaseAssignmentRepository;
 import br.com.gestorcobranca.collection.domain.repository.CaseSearchCriteria;
 import br.com.gestorcobranca.collection.domain.repository.CollectionCaseRepository;
 import br.com.gestorcobranca.collection.domain.repository.CollectionQueueRepository;
+import br.com.gestorcobranca.collection.domain.repository.NegotiatorTierRepository;
 import br.com.gestorcobranca.collection.domain.service.CaseDistributor;
 import br.com.gestorcobranca.identity.application.port.in.TeamUseCases;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory.UserSummary;
-import br.com.gestorcobranca.shared.audit.AuditEntry;
-import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Guard;
@@ -29,8 +31,6 @@ import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,12 +49,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 @Service
 @Transactional
 class CaseWorkService implements CaseWorkUseCases {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CaseWorkService.class);
     private static final int REASON_MAX = 500;
     private static final int MAX_DISTRIBUTION = 1000;
     private static final int MAX_REDISTRIBUTION = 2000;
@@ -68,14 +68,20 @@ class CaseWorkService implements CaseWorkUseCases {
     private final UserDirectory users;
     private final TeamUseCases teams;
     private final AccessScope accessScope;
-    private final AuditTrail auditTrail;
     private final CollectionMetrics metrics;
+    private final QueueDistribution distribution;
+    private final NegotiatorTierRepository tiers;
+    private final SettingsProvider settings;
+    private final TierVisibility tierVisibility;
     private final Clock clock;
+    private final DevelopmentRoll developmentRoll;
 
     CaseWorkService(CollectionCaseRepository cases, CollectionQueueRepository queues,
                     CaseAssignmentRepository assignments, CaseSelector selector, CaseAccess access,
                     CaseRecorder recorder, UserDirectory users, TeamUseCases teams, AccessScope accessScope,
-                    AuditTrail auditTrail, CollectionMetrics metrics, Clock clock) {
+                    CollectionMetrics metrics, QueueDistribution distribution,
+                    NegotiatorTierRepository tiers, SettingsProvider settings, TierVisibility tierVisibility,
+                    DevelopmentRoll developmentRoll, Clock clock) {
         this.cases = cases;
         this.queues = queues;
         this.assignments = assignments;
@@ -85,8 +91,12 @@ class CaseWorkService implements CaseWorkUseCases {
         this.users = users;
         this.teams = teams;
         this.accessScope = accessScope;
-        this.auditTrail = auditTrail;
         this.metrics = metrics;
+        this.distribution = distribution;
+        this.tiers = tiers;
+        this.settings = settings;
+        this.tierVisibility = tierVisibility;
+        this.developmentRoll = developmentRoll;
         this.clock = clock;
     }
 
@@ -109,21 +119,45 @@ class CaseWorkService implements CaseWorkUseCases {
 
         Set<UUID> userTeams = users.teamsOf(actor.id());
         boolean capacityReached = false;
+        TieredContext tiered = null;
         for (CollectionQueue queue : candidateQueues(queueId, userTeams)) {
-            Integer capacity = queue.getMaxCasesPerUser();
+            boolean byTier = queue.getStrategy() == DistributionStrategy.TIERED;
+            if (byTier && tiered == null) {
+                tiered = tieredContext(actor.id(), today);
+            }
+            Integer capacity = byTier ? tiered.policy().effectiveCapacity(queue.getMaxCasesPerUser(), tiered.tier())
+                    : queue.getMaxCasesPerUser();
             if (capacity != null && cases.countActiveAssigned(queue.getId(), actor.id()) >= capacity) {
                 capacityReached = true;
                 continue;
             }
-            Optional<UUID> next = selector.lockNextAvailable(queue.getId(), queue.getOrdering(),
-                    restrictToQueue(allowed, queue), now);
-            if (next.isEmpty()) {
-                continue;
+            UUID nextId;
+            CaseRecorder.TierMotive motive = null;
+            if (byTier) {
+                boolean development = CaseDistributor.developmentTurn(tiered.tier(), tiered.policy().developmentShare(),
+                        developmentRoll.next());
+                Optional<CaseSelector.RankedCandidate> next = selector.lockNextByPotential(queue.getId(),
+                        CaseDistributor.nextCaseBands(tiered.tier(), development), restrictToQueue(allowed, queue), now);
+                if (next.isEmpty()) {
+                    continue;
+                }
+                nextId = next.get().caseId();
+                PotentialBand band = development && next.get().band() == PotentialBand.HIGH
+                        ? PotentialBand.DEVELOPMENT : next.get().band();
+                motive = new CaseRecorder.TierMotive(tiered.tier(), band);
+                metrics.tieredNextCase(band.name(), development);
+            } else {
+                Optional<UUID> next = selector.lockNextAvailable(queue.getId(), queue.getOrdering(),
+                        restrictToQueue(allowed, queue), now);
+                if (next.isEmpty()) {
+                    continue;
+                }
+                nextId = next.get();
             }
-            CollectionCase c = load(next.get());
+            CollectionCase c = load(nextId);
             CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);
             c.assignToUser(actor.id(), teamFor(queue, userTeams), now);
-            CollectionCase saved = recorder.commit(c, before, AssignmentMode.NEXT_CASE, null, "next_case");
+            CollectionCase saved = recorder.commit(c, before, AssignmentMode.NEXT_CASE, null, "next_case", motive);
             metrics.nextCase("queue", elapsed(started));
             return Optional.of(CollectionViews.caseView(saved, today));
         }
@@ -134,6 +168,15 @@ class CaseWorkService implements CaseWorkUseCases {
         }
         metrics.nextCase(capacityReached ? "capacity" : "empty", elapsed(started));
         return Optional.empty();
+    }
+
+    /** Nível efetivo do operador (o publicado ou o padrão) e os parâmetros da distribuição por nível. */
+    private record TieredContext(PerformanceTier tier, TierPolicy policy) {
+    }
+
+    private TieredContext tieredContext(UUID userId, LocalDate today) {
+        TierPolicy policy = settings.tierPolicy();
+        return new TieredContext(policy.effective(tiers.currentTiers(Set.of(userId), today).get(userId)), policy);
     }
 
     /** Fila informada (ativa e atendida pelo operador) ou as filas atendidas pelas equipes do operador. */
@@ -168,7 +211,7 @@ class CaseWorkService implements CaseWorkUseCases {
     }
 
     /** Equipe do operador que atende a fila; sem equipe na fila, a única equipe do operador (se houver só uma). */
-    private static UUID teamFor(CollectionQueue queue, Set<UUID> userTeams) {
+    static UUID teamFor(CollectionQueue queue, Set<UUID> userTeams) {
         Optional<UUID> serving = new TreeSet<>(userTeams).stream().filter(queue.getTeamIds()::contains).findFirst();
         if (serving.isPresent()) {
             return serving.get();
@@ -261,9 +304,30 @@ class CaseWorkService implements CaseWorkUseCases {
 
     @Override
     public DistributionResult distribute(UUID queueId, int limit) {
+        requireLimit(limit);
+        // fila bloqueada até o fim da transação: um "Distribuir" por vez por fila (também contra a rodada automática)
+        return distribution.run(distributableQueue(queueId, true), limit, QueueDistribution.Trigger.MANUAL);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DistributionPreview previewDistribution(UUID queueId, int limit) {
+        requireLimit(limit);
+        return distribution.preview(distributableQueue(queueId, false), limit);
+    }
+
+    private static void requireLimit(int limit) {
         Guard.require(limit >= 1 && limit <= MAX_DISTRIBUTION, "queue.distribution_limit_invalid",
                 "Quantidade de casos entre 1 e %d".formatted(MAX_DISTRIBUTION));
-        CollectionQueue queue = queues.findById(queueId)
+    }
+
+    /**
+     * Fila ativa, de distribuição em lote, no escopo de quem distribui (credor da fila ou todos os credores).
+     *
+     * @param lock bloqueia a fila ({@code for update}) até o fim da transação — só para gravar, nunca na prévia
+     */
+    private CollectionQueue distributableQueue(UUID queueId, boolean lock) {
+        CollectionQueue queue = (lock ? queues.findByIdForUpdate(queueId) : queues.findById(queueId))
                 .orElseThrow(() -> ResourceNotFoundException.of("collection_queue", queueId));
         if (queue.getCreditorId() != null) {
             accessScope.requireVisible("collection_queue", queueId, queue.getCreditorId());
@@ -275,31 +339,7 @@ class CaseWorkService implements CaseWorkUseCases {
         if (queue.getStrategy() == DistributionStrategy.PULL) {
             throw new ConflictException("queue.pull_only", "A fila é atendida sob demanda (próximo caso), sem distribuição");
         }
-        Map<UUID, UserSummary> members = queueMembers(queue);
-        Map<UUID, Long> loads = cases.countActiveAssignedByUser(queue.getId());
-        List<CaseDistributor.Member> plannerMembers = members.values().stream()
-                .map(u -> new CaseDistributor.Member(u.id(), loads.getOrDefault(u.id(), 0L).intValue(),
-                        queue.getMaxCasesPerUser(), u.allCreditors(), u.creditorIds()))
-                .toList();
-        Instant now = Instant.now(clock);
-        List<CaseDistributor.Candidate> candidates = selector.lockAvailable(queue.getId(), queue.getOrdering(), now, limit)
-                .stream().map(k -> new CaseDistributor.Candidate(k.caseId(), k.creditorId())).toList();
-        CaseDistributor.Plan plan = CaseDistributor.plan(candidates, plannerMembers, queue.getStrategy(),
-                queue.getRoundRobinCursor());
-        List<Assignment> done = apply(plan, members, queue, AssignmentMode.DISTRIBUTION, null, "distribution");
-        queue.advanceRoundRobin(plan.cursor());
-        queues.save(queue);
-        auditTrail.record(AuditEntry.of("collection_queue.distributed", "collection_queue", queue.getId())
-                .creditor(queue.getCreditorId())
-                .meta("strategy", queue.getStrategy())
-                .meta("assigned", done.size())
-                .meta("unassigned", plan.unassigned().size())
-                .meta("members", members.size()));
-        metrics.distribution(queue.getStrategy().name(), done.size(), plan.unassigned().size());
-        LOG.atInfo().addKeyValue("queueId", queue.getId()).addKeyValue("strategy", queue.getStrategy().name())
-                .addKeyValue("assigned", done.size()).addKeyValue("unassigned", plan.unassigned().size())
-                .log("Distribuição de casos da fila concluída");
-        return new DistributionResult(done.size(), plan.unassigned().size(), done);
+        return queue;
     }
 
     @Override
@@ -341,7 +381,7 @@ class CaseWorkService implements CaseWorkUseCases {
         List<CaseDistributor.Candidate> candidates = owned.stream()
                 .map(c -> new CaseDistributor.Candidate(c.getId(), c.getCreditorId())).toList();
         CaseDistributor.Plan plan = CaseDistributor.plan(candidates, plannerMembers, DistributionStrategy.LEAST_LOADED, null);
-        List<Assignment> done = apply(plan, members, null, AssignmentMode.REDISTRIBUTION, reason, "redistribution");
+        List<Assignment> done = apply(plan, members, reason);
         // casos sem destino possível (escopo do destino) voltam à fila em vez de ficarem com quem saiu
         for (UUID caseId : plan.unassigned()) {
             CollectionCase c = load(caseId);
@@ -353,8 +393,8 @@ class CaseWorkService implements CaseWorkUseCases {
         return new DistributionResult(done.size(), plan.unassigned().size(), done);
     }
 
-    private List<Assignment> apply(CaseDistributor.Plan plan, Map<UUID, UserSummary> members, CollectionQueue queue,
-                                   AssignmentMode mode, String reason, String trigger) {
+    /** Atribuições da redistribuição: a equipe é a do operador que atende a fila do caso. */
+    private List<Assignment> apply(CaseDistributor.Plan plan, Map<UUID, UserSummary> members, String reason) {
         Instant now = Instant.now(clock);
         List<Assignment> done = new ArrayList<>();
         Map<UUID, Set<UUID>> teamsByUser = new LinkedHashMap<>();
@@ -362,28 +402,14 @@ class CaseWorkService implements CaseWorkUseCases {
             CollectionCase c = load(a.caseId());
             CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);
             Set<UUID> userTeams = teamsByUser.computeIfAbsent(a.userId(), id -> members.get(id).teamIds());
-            CollectionQueue caseQueue = queue != null ? queue
-                    : c.getQueueId() == null ? null : queues.findById(c.getQueueId()).orElse(null);
+            CollectionQueue caseQueue = c.getQueueId() == null ? null : queues.findById(c.getQueueId()).orElse(null);
             UUID team = caseQueue == null ? (userTeams.size() == 1 ? userTeams.iterator().next() : null)
                     : teamFor(caseQueue, userTeams);
             c.assignToUser(a.userId(), team, now);
-            recorder.commit(c, before, mode, reason, trigger);
+            recorder.commit(c, before, AssignmentMode.REDISTRIBUTION, reason, "redistribution");
             done.add(new Assignment(c.getId(), a.userId()));
         }
         return done;
-    }
-
-    /** Operadores ativos com {@code CASE_WORK}: das equipes da fila, ou de toda a assessoria se a fila não tiver equipes. */
-    private Map<UUID, UserSummary> queueMembers(CollectionQueue queue) {
-        Map<UUID, UserSummary> members = new LinkedHashMap<>();
-        List<UserSummary> candidates = queue.getTeamIds().isEmpty()
-                ? users.activeUsersWithPermission(Permission.CASE_WORK.name())
-                : new TreeSet<>(queue.getTeamIds()).stream().flatMap(t -> users.activeTeamMembers(t).stream()).toList();
-        candidates.stream()
-                .filter(u -> u.active() && u.permissions().contains(Permission.CASE_WORK.name()))
-                .sorted(Comparator.comparing(UserSummary::id))
-                .forEach(u -> members.putIfAbsent(u.id(), u));
-        return members;
     }
 
     // ------------------------------------------------------------------ histórico
@@ -392,8 +418,9 @@ class CaseWorkService implements CaseWorkUseCases {
     @Transactional(readOnly = true)
     public PageResponse<AssignmentView> assignmentHistory(UUID caseId, PageQuery page) {
         CollectionCase c = access.visible(caseId);
+        Predicate<UUID> tierVisible = tierVisibility.visibleUsers();
         return PageResponse.of(assignments.findByCaseIdOrderByValidFromDesc(c.getId(), page.toPageable()),
-                CollectionViews::assignment);
+                a -> CollectionViews.assignment(a, a.getUserId() != null && tierVisible.test(a.getUserId())));
     }
 
     // ------------------------------------------------------------------ apoio

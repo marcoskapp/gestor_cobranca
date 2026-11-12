@@ -20,6 +20,7 @@ export const APP_ICONS = [
   'arrow-right',
   'arrow-up',
   'asterisk',
+  'award',
   'bank',
   'bank2',
   'bar-chart',

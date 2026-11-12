@@ -30,7 +30,7 @@ class QueueRoutingTest {
                                  String minBalance) {
         return new CollectionQueue(code, new QueueDefinition("Fila " + code, null, priority, creditor, null, minOverdue,
                 maxOverdue, minBalance == null ? null : Money.of(minBalance), null, null, null, CaseOrdering.OLDEST_OVERDUE,
-                DistributionStrategy.PULL, null, Set.of(), false, false, null));
+                DistributionStrategy.PULL, null, Set.of(), false, false, null, null));
     }
 
     static CollectionCase caseOf(UUID creditor, int daysOverdue, String balance) {
@@ -60,7 +60,7 @@ class QueueRoutingTest {
         closed.close(CloseReason.MANUAL, "x", Instant.now());
         assertThat(QueueRouter.route(closed, List.of(queue("ALL", 1, null, null, null, null)), TODAY, NOW)).isEmpty();
         CollectionQueue scored = new CollectionQueue("SCORE", new QueueDefinition("Score", null, 1, null, null, null, null,
-                null, null, 500, null, null, null, null, Set.of(), false, false, null));
+                null, null, 500, null, null, null, null, Set.of(), false, false, null, null));
         assertThat(scored.matches(caseOf(CREDITOR, 1, "1.00"), TODAY, NOW)).isFalse();
     }
 
@@ -68,7 +68,7 @@ class QueueRoutingTest {
     @Test
     void newContactCriterionFollowsTheNoveltyWindow() {
         CollectionQueue newContact = new CollectionQueue("NEW", new QueueDefinition("Contato novo", null, 1, null, null,
-                null, null, null, null, null, null, null, null, null, Set.of(), false, true, null));
+                null, null, null, null, null, null, null, null, null, Set.of(), false, true, null, null));
         CollectionQueue fallback = queue("ALL", 100, null, null, null, null);
         CollectionCase c = caseOf(CREDITOR, 10, "100.00");
         assertThat(QueueRouter.route(c, List.of(newContact, fallback), TODAY, NOW)).contains(fallback);
@@ -84,7 +84,7 @@ class QueueRoutingTest {
     @Test
     void personTypeCriterion() {
         CollectionQueue companies = new CollectionQueue("PJ", new QueueDefinition("Empresas", null, 1, null, null,
-                null, null, null, null, null, null, null, null, null, Set.of(), false, false, "company"));
+                null, null, null, null, null, null, null, null, null, Set.of(), false, false, "company", null));
         assertThat(companies.getPersonType()).isEqualTo("COMPANY");
         CollectionCase unknown = caseOf(CREDITOR, 10, "100.00");
         assertThat(companies.matches(unknown, TODAY, NOW)).isFalse();
@@ -95,7 +95,7 @@ class QueueRoutingTest {
         individual.identifyDebtorPersonType("INDIVIDUAL");
         assertThat(companies.matches(individual, TODAY, NOW)).isFalse();
         assertThatThrownBy(() -> new CollectionQueue("X", new QueueDefinition("x", null, 1, null, null, null, null, null,
-                null, null, null, null, null, null, Set.of(), false, false, "OUTRO")))
+                null, null, null, null, null, null, Set.of(), false, false, "OUTRO", null)))
                 .isInstanceOf(BusinessRuleException.class);
     }
 
@@ -103,7 +103,7 @@ class QueueRoutingTest {
     void definitionIsValidated() {
         assertThatThrownBy(() -> queue("BAD", 1, null, 30, 10, null)).isInstanceOf(BusinessRuleException.class);
         assertThatThrownBy(() -> new CollectionQueue("P", new QueueDefinition("x", null, 1, null, UUID.randomUUID(), null,
-                null, null, null, null, null, null, null, null, Set.of(), false, false, null))).isInstanceOf(BusinessRuleException.class);
+                null, null, null, null, null, null, null, null, Set.of(), false, false, null, null))).isInstanceOf(BusinessRuleException.class);
         CollectionQueue q = queue("served", 1, null, null, null, null);
         assertThat(q.getCode()).isEqualTo("SERVED");
         assertThat(q.isServedBy(Set.of())).isTrue();

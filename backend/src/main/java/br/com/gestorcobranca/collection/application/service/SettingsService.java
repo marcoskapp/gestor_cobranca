@@ -3,17 +3,23 @@ package br.com.gestorcobranca.collection.application.service;
 import br.com.gestorcobranca.collection.application.port.in.CollectionSettingsUseCases;
 import br.com.gestorcobranca.collection.domain.model.CollectionSettings;
 import br.com.gestorcobranca.collection.domain.model.DefaultTabulations;
+import br.com.gestorcobranca.collection.domain.model.PerformanceTier;
+import br.com.gestorcobranca.collection.domain.model.TierPolicy;
 import br.com.gestorcobranca.collection.domain.model.Tabulation;
 import br.com.gestorcobranca.collection.domain.repository.CollectionSettingsRepository;
 import br.com.gestorcobranca.collection.domain.repository.TabulationRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
+import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -82,6 +88,57 @@ class SettingsService implements CollectionSettingsUseCases {
             LOG.atInfo().addKeyValue("created", created).log("Catálogo padrão de tabulações semeado na assessoria");
         }
         return created;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TierSettingsView tierSettings() {
+        Optional<CollectionSettings> stored = settings.findFirstByOrderByCreatedAtAsc();
+        TierPolicy policy = provider.tierPolicy();
+        boolean customized = stored.isPresent() && !policy.equals(TierPolicy.DEFAULT);
+        return tierView(policy, customized, stored.map(CollectionSettings::getUpdatedAt).orElse(null));
+    }
+
+    @Override
+    public TierSettingsView updateTierSettings(TierSettingsCommand command) {
+        accessScope.requireAllCreditors("collection_settings");
+        Guard.require(command != null && command.capacityPercent() != null, "settings.tier_capacity_invalid",
+                "Capacidade por nível obrigatória");
+        Map<PerformanceTier, Integer> capacity = new EnumMap<>(PerformanceTier.class);
+        command.capacityPercent().forEach((tier, percent) -> capacity.put(CollectionEnums.parse(PerformanceTier.class,
+                tier, "settings.tier_capacity_invalid", "Nível"), percent));
+        TierPolicy policy = new TierPolicy(capacity, command.developmentShare(),
+                CollectionEnums.parse(PerformanceTier.class, command.defaultTier(), "settings.tier_default_invalid",
+                        "Nível padrão"));
+        TierPolicy before = provider.tierPolicy();
+        CollectionSettings entity = settings.findFirstByOrderByCreatedAtAsc().orElse(null);
+        if (entity == null) {
+            entity = new CollectionSettings(provider.current());
+        }
+        entity.defineTierPolicy(policy);
+        CollectionSettings saved = settings.save(entity);
+        auditTrail.record(AuditEntry.of("collection_settings.tier_updated", "collection_settings", saved.getId())
+                .change("tierCapacity", capacityText(before), capacityText(policy))
+                .change("tierDevelopmentShare", before.developmentShare(), policy.developmentShare())
+                .change("tierDefault", before.defaultTier(), policy.defaultTier()));
+        return tierView(policy, !policy.equals(TierPolicy.DEFAULT), saved.getUpdatedAt());
+    }
+
+    private static TierSettingsView tierView(TierPolicy policy, boolean customized, java.time.Instant updatedAt) {
+        return new TierSettingsView(capacityMap(policy), policy.developmentShare(), policy.defaultTier().name(),
+                customized, updatedAt);
+    }
+
+    private static Map<String, Integer> capacityMap(TierPolicy policy) {
+        Map<String, Integer> map = new LinkedHashMap<>();
+        for (PerformanceTier tier : PerformanceTier.values()) {
+            map.put(tier.name(), policy.capacityPercent().get(tier));
+        }
+        return map;
+    }
+
+    private static String capacityText(TierPolicy policy) {
+        return capacityMap(policy).toString();
     }
 
     private static SettingsView view(CollectionSettings.Values v, boolean customized, java.time.Instant updatedAt) {

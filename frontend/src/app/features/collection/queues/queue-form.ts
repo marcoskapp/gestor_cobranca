@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { toApiError } from '../../../core/http/problem';
@@ -15,6 +16,8 @@ import { QueueOrdering, QueueRequest, QueueStrategy, QueueView } from '../data/c
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
+import { Icon } from '../../../shared/components/icon/icon';
+import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 
 /** Faixas mínimo ≤ máximo nos critérios da fila. */
 export function rangeValidator(min: string, max: string) {
@@ -27,15 +30,60 @@ export function rangeValidator(min: string, max: string) {
 
 const num = (v: number | null | string) => (v === null || v === '' || v === undefined ? null : Number(v));
 
+/** Máximo de horários da distribuição automática (`CollectionQueue.MAX_AUTO_TIMES`). */
+export const MAX_AUTO_TIMES = 6;
+
+/** Explicação de cada estratégia, mostrada abaixo do campo. */
+export const STRATEGY_HINTS: Record<QueueStrategy, string> = {
+  PULL: 'O operador pede o próximo caso; não há distribuição em lote.',
+  ROUND_ROBIN: 'O "Distribuir" entrega um caso a cada operador, em rodízio.',
+  LEAST_LOADED: 'O "Distribuir" entrega cada caso a quem tem menos casos ativos na fila.',
+  TIERED:
+    'Os casos de maior valor esperado (chance de pagamento pelo score × saldo) vão primeiro aos negociadores de nível mais alto, que também recebem mais casos (capacidade por nível). Parte dos casos de alto potencial vai em rodízio a todos. O "Próximo caso" segue a mesma lógica.',
+};
+
+/**
+ * Distribuição automática ligada exige ao menos um horário e o limite por rodada; fila sob demanda não tem
+ * distribuição automática; a estratégia por nível exige a capacidade por operador (base do multiplicador).
+ */
+export function distributionValidator(group: AbstractControl): ValidationErrors | null {
+  const strategy = group.get('strategy')?.value as QueueStrategy;
+  const errors: ValidationErrors = {};
+  if (strategy === 'TIERED' && num(group.get('maxCasesPerUser')?.value) === null) {
+    errors['tieredCapacity'] = true;
+  }
+  if (group.get('autoEnabled')?.value) {
+    const times = ((group.get('autoTimes')?.value as string[]) ?? []).filter((t) => !!t);
+    if (strategy === 'PULL') {
+      errors['autoPull'] = true;
+    }
+    if (!times.length) {
+      errors['autoTimes'] = true;
+    }
+    if (num(group.get('autoLimit')?.value) === null) {
+      errors['autoLimit'] = true;
+    }
+  }
+  return Object.keys(errors).length ? errors : null;
+}
+
 /**
  * Cadastro de fila: critérios opcionais (credor, carteira, faixas de atraso, saldo e score),
- * prioridade, ordem de entrega, estratégia de distribuição, capacidade e equipes. Salvar reprocessa
- * o roteamento dos casos ativos em segundo plano.
+ * prioridade, ordem de entrega, estratégia de distribuição (inclusive por nível de desempenho), capacidade, equipes e
+ * distribuição automática por horário. Salvar reprocessa o roteamento dos casos ativos em segundo plano.
  */
 @Component({
   selector: 'app-queue-form',
-  imports: [ReactiveFormsModule, EntityPicker, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  imports: [ReactiveFormsModule, EntityPicker, Icon, AppDatePipe, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
   host: { class: 'd-flex flex-column overflow-hidden' },
+  styles: `
+    .qf-time {
+      width: auto;
+      input {
+        width: 8rem;
+      }
+    }
+  `,
   template: `
     <div class="modal-header">
       <h2 appDialogTitle class="h5 mb-0">{{ data ? 'Editar fila' : 'Nova fila' }}</h2>
@@ -120,19 +168,68 @@ const num = (v: number | null | string) => (v === null || v === '' || v === unde
               }
             </select>
           </app-field>
-          <app-field label="Estratégia">
-            <select appInput formControlName="strategy">
+          <app-field label="Estratégia" [hint]="strategyHint()">
+            <select appInput formControlName="strategy" data-tour="queue-strategy">
               @for (s of strategies; track s.value) {
                 <option [ngValue]="s.value">{{ s.label }}</option>
               }
             </select>
           </app-field>
-          <app-field label="Casos por operador" hint="Vazio = sem limite.">
-            <input appInput type="number" min="1" formControlName="maxCasesPerUser" />
+          <app-field label="Casos por operador" [hint]="strategy() === 'TIERED' ? 'Obrigatório nesta estratégia: é multiplicado pelo nível de cada negociador.' : 'Vazio = sem limite.'">
+            <input appInput type="number" min="1" formControlName="maxCasesPerUser" [required]="strategy() === 'TIERED'" />
           </app-field>
+          @if (form.errors?.['tieredCapacity'] && (form.touched || form.dirty)) {
+            <p class="app-field-error app-span-all" role="alert">Informe os casos por operador: a distribuição por nível multiplica esse número pelo nível de cada negociador.</p>
+          }
           <div class="app-span-all">
             <app-entity-picker [control]="form.controls.teams" [source]="teams" label="Equipes que atendem" hint="Vazio = qualquer operador." />
           </div>
+
+          <h3 class="app-section-title app-span-all" id="queue-auto-title">Distribuição automática</h3>
+          <div class="app-span-all" data-tour="queue-auto-distribution" role="group" aria-labelledby="queue-auto-title">
+            @if (strategy() === 'PULL') {
+              <p class="app-muted mb-0">Disponível nas estratégias de distribuição em lote (rodízio, menor carga ou por nível de desempenho).</p>
+            } @else {
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="queue-auto" formControlName="autoEnabled" aria-describedby="queue-auto-hint" />
+                <label class="form-check-label" for="queue-auto">Distribuir sozinha nos horários abaixo</label>
+                <div class="form-text" id="queue-auto-hint">Em dias úteis (segunda a sexta, fora dos feriados do calendário), no horário de Brasília, uma vez por horário, com a mesma regra do botão "Distribuir". A carga atual de cada operador conta para a capacidade.</div>
+              </div>
+            }
+          </div>
+          @if (strategy() !== 'PULL' && form.controls.autoEnabled.value) {
+            <div class="app-span-all">
+              <span class="form-label d-block" id="queue-auto-times">Horários</span>
+              <div class="d-flex flex-wrap gap-2 align-items-center" role="group" aria-labelledby="queue-auto-times">
+                @for (control of form.controls.autoTimes.controls; track $index; let i = $index) {
+                  <div class="input-group qf-time">
+                    <input class="form-control" type="time" step="60" [formControl]="control" [attr.aria-label]="'Horário ' + (i + 1)" />
+                    <button class="btn btn-outline-secondary" type="button" (click)="removeTime(i)" [attr.aria-label]="'Remover horário ' + (i + 1)">
+                      <app-icon name="x-lg" />
+                    </button>
+                  </div>
+                }
+                @if (form.controls.autoTimes.length < maxTimes) {
+                  <button class="btn btn-outline-secondary btn-sm" type="button" (click)="addTime()">
+                    <app-icon name="plus-lg" />
+                    Adicionar horário
+                  </button>
+                }
+              </div>
+              @if (form.errors?.['autoTimes'] && (form.touched || form.dirty)) {
+                <p class="app-field-error" role="alert">Informe ao menos um horário.</p>
+              }
+            </div>
+            <app-field label="Casos por rodada" hint="Máximo de casos distribuídos em cada horário (1 a 1.000).">
+              <input appInput type="number" min="1" max="1000" formControlName="autoLimit" />
+            </app-field>
+            @if (form.errors?.['autoLimit'] && (form.touched || form.dirty)) {
+              <p class="app-field-error app-span-all" role="alert">Informe quantos casos distribuir em cada horário.</p>
+            }
+          }
+          @if (lastRun(); as at) {
+            <p class="app-muted app-span-all mb-0">Última rodada automática ou mudança da configuração: {{ at | appDate }}.</p>
+          }
         </div>
       </div>
       <div class="modal-footer">
@@ -177,15 +274,35 @@ export class QueueForm {
       vulnerableOnly: this.fb.control<boolean>(this.data?.vulnerableOnly ?? false),
       newContactOnly: this.fb.control<boolean>(this.data?.newContactOnly ?? false),
       personType: this.fb.control<'' | 'INDIVIDUAL' | 'COMPANY'>(this.data?.personType ?? ''),
+      autoEnabled: this.fb.control<boolean>(this.data?.autoDistribution?.enabled ?? false),
+      autoTimes: this.fb.array((this.data?.autoDistribution?.times ?? []).map((t) => this.fb.control<string>(t))),
+      autoLimit: this.fb.control<number | null>(this.data?.autoDistribution?.limit ?? 200, [Validators.min(1), Validators.max(1000)]),
     },
     {
       validators: [
         rangeValidator('minDaysOverdue', 'maxDaysOverdue'),
         rangeValidator('minBalance', 'maxBalance'),
         rangeValidator('minScore', 'maxScore'),
+        distributionValidator,
       ],
     },
   );
+  protected readonly maxTimes = MAX_AUTO_TIMES;
+  protected readonly strategy = toSignal(this.form.controls.strategy.valueChanges, { initialValue: this.form.controls.strategy.value });
+  protected readonly strategyHint = computed(() => STRATEGY_HINTS[this.strategy()]);
+  protected readonly lastRun = signal(this.data?.autoDistribution?.lastRunAt ?? null);
+
+  protected addTime(): void {
+    if (this.form.controls.autoTimes.length < MAX_AUTO_TIMES) {
+      this.form.controls.autoTimes.push(this.fb.control<string>(this.form.controls.autoTimes.length ? '' : '08:00'));
+      this.form.markAsDirty();
+    }
+  }
+
+  protected removeTime(index: number): void {
+    this.form.controls.autoTimes.removeAt(index);
+    this.form.markAsDirty();
+  }
   protected readonly portfolios = inject(PortfolioLookup).source(() => this.form.controls.creditor.value[0] ?? null);
 
   protected message(field: 'name'): string {
@@ -218,6 +335,12 @@ export class QueueForm {
       vulnerableOnly: v.vulnerableOnly,
       newContactOnly: v.newContactOnly,
       personType: v.personType || null,
+      autoDistribution: {
+        // fila sob demanda não tem distribuição automática: o envio desliga
+        enabled: v.strategy !== 'PULL' && v.autoEnabled,
+        times: [...new Set(v.autoTimes.filter((t) => !!t).map((t) => t.slice(0, 5)))].sort(),
+        limit: num(v.autoLimit),
+      },
     };
     this.saving.set(true);
     this.errors.set([]);

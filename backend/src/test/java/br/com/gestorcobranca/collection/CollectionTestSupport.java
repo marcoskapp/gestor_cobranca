@@ -13,6 +13,7 @@ import br.com.gestorcobranca.collection.application.port.in.QueueUseCases;
 import br.com.gestorcobranca.collection.application.port.in.QueueUseCases.QueueCommand;
 import br.com.gestorcobranca.collection.application.port.in.TabulationUseCases;
 import br.com.gestorcobranca.collection.application.port.in.TaskUseCases;
+import br.com.gestorcobranca.collection.application.service.CollectionTestHooks;
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContactRecord;
@@ -76,7 +77,7 @@ import static org.assertj.core.api.Assertions.fail;
  * carteiras, operadores X e Y numa equipe, supervisor S, operador Z restrito ao credor B. Os casos
  * nascem como em produção: carga de títulos → {@code PortfolioLoaded} → job de sincronização.
  */
-@Import(CollectionTestSupport.ClockConfig.class)
+@Import({CollectionTestSupport.ClockConfig.class, CollectionTestHooks.DevelopmentRollConfig.class})
 abstract class CollectionTestSupport extends IntegrationTest {
 
     static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
@@ -286,7 +287,7 @@ abstract class CollectionTestSupport extends IntegrationTest {
 
     QueueCommand queue(String code, int priority, UUID creditorId, String strategy, Integer capacity, Set<UUID> teamIds) {
         return new QueueCommand(code, "Fila " + code, null, priority, creditorId, null, null, null, null, null, null, null,
-                "OLDEST_OVERDUE", strategy, capacity, teamIds, null, null, null);
+                "OLDEST_OVERDUE", strategy, capacity, teamIds, null, null, null, null);
     }
 
     RecordInteractionCommand interaction(String tabulation, InteractionUseCases.PromiseInput promise,

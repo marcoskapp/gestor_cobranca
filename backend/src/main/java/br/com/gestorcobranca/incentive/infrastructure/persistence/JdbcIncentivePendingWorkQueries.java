@@ -7,6 +7,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.sql.Types;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /** Índices parciais de V1890 ({@code ix_commission_statement_pending}, {@code ix_statement_dispute_open}, {@code ix_statement_adjustment_pending}). */
@@ -57,5 +59,18 @@ class JdbcIncentivePendingWorkQueries implements IncentivePendingWorkQueries {
                  where a.status = 'PENDING_SECOND_APPROVAL' and a.requested_by <> :me and s.beneficiary_id <> :me
                    and s.status not in ('APPROVED', 'EXPORTED')
                 """, new MapSqlParameterSource("me", userId), PendingWorkRows.COUNT);
+    }
+
+    /** Índice parcial {@code ux_tier_round_proposed} (V1892). */
+    @Override
+    public PendingWorkCount tierRoundAwaitingReview(LocalDate today) {
+        return jdbc.queryForObject("""
+                select count(*) as total, count(*) filter (where r.review_deadline < :today) as overdue,
+                       count(*) filter (where r.review_deadline = :today) as due_today, min(r.created_at) as oldest_at,
+                       min(r.review_deadline) as next_due,
+                       case when count(*) = 1 then (array_agg(r.id))[1] end as single_id
+                  from incentive.tier_round r
+                 where r.status = 'PROPOSED'
+                """, new MapSqlParameterSource().addValue("today", today, Types.DATE), PendingWorkRows.COUNT);
     }
 }

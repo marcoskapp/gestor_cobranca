@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "2572e737d661e5d5",
+ "contentVersion": "9ad852b578b26823",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -641,7 +641,8 @@
     "O negociador vê só o próprio desempenho; o supervisor, o da equipe; a gestão, o de todos.",
     "Quem fecha o período, ajusta ou resolve contestação não aprova o extrato. Extrato aprovado não muda.",
     "Planos são publicados a partir do dia 1º do mês e simulados antes sobre um mês encerrado.",
-    "Estorno de comissão já paga só por plano configurado e validado com o jurídico e o RH."
+    "Estorno de comissão já paga só por plano configurado e validado com o jurídico e o RH.",
+    "O nível de desempenho só vale depois da revisão humana e da publicação; o negociador vê o próprio nível e o que o compõe, nunca a posição nem os colegas."
    ],
    "terms": [
     "comissao-do-negociador",
@@ -1698,9 +1699,9 @@
    "title": "Filas e distribuição",
    "objective": "Defina os critérios e a prioridade das filas e distribua os casos entre os operadores.",
    "purpose": [
-    "Cada fila tem critérios (credor, carteira, atraso, saldo, score, tipo de pessoa, contato novo e vulnerabilidade), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz; o de contato novo sai da fila quando todos os contatos novos do devedor forem tentados ou, vencido o prazo, na revisão diária da madrugada.",
-    "Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou.",
-    "O nome da fila abre a lista de casos dessa fila."
+    "Cada fila tem critérios (credor, carteira, atraso, saldo, score, tipo de pessoa, contato novo e vulnerabilidade), prioridade, ordem de entrega e equipes que a atendem. O caso fica na primeira fila ativa cujos critérios satisfaz; o de contato novo sai da fila quando todos os contatos novos do devedor forem tentados ou, vencido o prazo, na revisão diária da madrugada. O nome da fila abre a lista de casos dessa fila.",
+    "Distribua em lote respeitando a capacidade de cada operador e redistribua os casos de quem se ausentou. Antes de confirmar, o \"Distribuir\" mostra a prévia: quantos casos iriam a cada operador, sem gravar nada. Na distribuição automática você escolhe os horários (até seis) e o limite de casos por rodada; em dias úteis, fora dos feriados do calendário, a fila distribui sozinha uma vez em cada horário, com a mesma regra do \"Distribuir\" (não existe para filas sob demanda).",
+    "Na estratégia \"Por nível de desempenho\", cada caso tem um valor esperado (chance de pagamento pelo score × saldo) e cai numa faixa de potencial (alto, médio ou baixo, em terços dos casos disponíveis). O alto vai primeiro aos níveis A e B, o médio a B e C e o baixo a C e D; esgotada a capacidade de um nível, o caso vai ao nível seguinte. Cada operador recebe até os casos por operador da fila multiplicados pelo seu nível, e parte dos casos de alto potencial (fatia de desenvolvimento) vai em rodízio a todos. O \"Próximo caso\" entrega primeiro a faixa do seu nível. Quem vê o desempenho de todas as pessoas da fila vê a prévia por nível e faixa; os demais veem só os totais por faixa de potencial e o nível apenas de quem podem ver (o próprio ou a equipe que supervisionam)."
    ],
    "profiles": [
     "SUPERVISOR",
@@ -1791,9 +1792,10 @@
    "id": "collection.settings",
    "module": "cobranca",
    "title": "Parâmetros da operação",
-   "objective": "Tolerâncias de promessas e retornos e o prazo padrão de resposta das contestações da assessoria.",
+   "objective": "Tolerâncias de promessas e retornos, prazo padrão de resposta das contestações e distribuição por nível de desempenho da assessoria.",
    "purpose": [
-    "Esses prazos definem quando uma promessa é quebrada, quando um retorno fica atrasado e quando uma contestação vence."
+    "Esses prazos definem quando uma promessa é quebrada, quando um retorno fica atrasado e quando uma contestação vence.",
+    "A distribuição por nível de desempenho vale nas filas com essa estratégia: capacidade de cada nível em percentual dos casos por operador da fila (50% a 200%; padrão A 120%, B 110%, C 100% e D 80%), fatia de desenvolvimento (0% a 50%; padrão 15%) e o nível de quem ainda não foi classificado (padrão B), que deve ser igual ao nível padrão da Classificação de desempenho (quem gerencia a classificação tem o atalho para ela). Vale a partir da próxima distribuição."
    ],
    "profiles": [
     "GESTOR",
@@ -1813,12 +1815,17 @@
     {
      "screen": "collection.agenda",
      "why": "Retornos e atrasos."
+    },
+    {
+     "screen": "collection.queues",
+     "why": "Filas com a estratégia por nível de desempenho."
     }
    ],
    "terms": [
     "promessa",
     "retorno",
-    "contestacao"
+    "contestacao",
+    "fila"
    ],
    "path": "/cobranca/parametros",
    "access": {
@@ -4649,7 +4656,8 @@
    "objective": "Indicadores do negociador, da equipe ou de todos, conforme o seu perfil, sempre com a base de cálculo.",
    "purpose": [
     "Escolha mês, agrupamento, faixa de atraso e credor. Recuperado conta só pagamento confirmado, com o peso de crédito de cada acordo.",
-    "Agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês, e \"Avaliar chamadas\" abre as chamadas atendidas por ela no período, onde \"Avaliar\" registra a monitoria."
+    "Agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês, e \"Avaliar chamadas\" abre as chamadas atendidas por ela no período, onde \"Avaliar\" registra a monitoria.",
+    "No \"Meu desempenho\", o negociador vê o cartão \"Seu nível de distribuição\": o nível publicado, os quartis de qualidade e de eficiência, o que falta de amostra e a matriz com a própria célula destacada."
    ],
    "profiles": [
     "OPERADOR",
@@ -5003,6 +5011,51 @@
     "kind": "CONTEXT",
     "permissions": [
      "COMMISSION_PLAN_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "incentive.tiers",
+   "module": "remuneracao-variavel",
+   "title": "Classificação de desempenho",
+   "objective": "Nível A a D de cada negociador pela qualidade e pela eficiência, revisto por pessoas antes de valer na distribuição de casos.",
+   "purpose": [
+    "A rotina apura uma rodada por período na periodicidade escolhida (mensal a partir do 1º dia útil; semanal a partir da segunda-feira; se a rotina não rodar no dia, ela abre a rodada no dia seguinte do mesmo período) com a janela até ontem; \"Apurar agora\" abre uma rodada fora da rotina. Qualidade é a nota média da monitoria e eficiência é o recuperado × esperado pelo score, ambas em quartis de toda a assessoria. Falha crítica ou média abaixo do portão limitam a qualidade a Q2; quem não tem o mínimo de avaliações ou de casos fica no nível padrão.",
+    "O supervisor vê e ajusta, com motivo, só as pessoas das equipes que supervisiona; ninguém ajusta o próprio nível. A gestão, com visão de todos, publica a rodada inteira até o prazo de revisão: os níveis passam a valer no dia e a distribuição recebe só o nível. Sem publicação no prazo, a rodada expira e continua valendo a anterior.",
+    "Na aba \"Parâmetros\" ficam a janela, os mínimos de amostra, o portão de qualidade, o nível padrão, a periodicidade, o prazo de revisão e a matriz 4 × 4; cada rodada guarda os parâmetros com que foi apurada. A aba \"Rodadas\" aparece para quem vê o desempenho da equipe ou de todos; quem só mantém os parâmetros abre direto em \"Parâmetros\"."
+   ],
+   "profiles": [
+    "SUPERVISOR",
+    "GESTOR",
+    "ADMIN"
+   ],
+   "inputs": [
+    "Avaliações de monitoria e safras de recuperado × esperado de cada negociador na janela."
+   ],
+   "outputs": [
+    "Nível publicado de cada negociador, usado pelas filas com estratégia \"Por nível de desempenho\"."
+   ],
+   "related": [
+    {
+     "screen": "incentive.evaluations",
+     "why": "Avaliações que formam a qualidade."
+    },
+    {
+     "screen": "incentive.performance",
+     "why": "Recuperado × esperado e o nível de cada pessoa."
+    }
+   ],
+   "terms": [
+    "nivel-de-desempenho",
+    "quartil",
+    "monitoria"
+   ],
+   "path": "/remuneracao/classificacao",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "TIER_REVIEW",
+     "TIER_MANAGE"
     ]
    }
   },
@@ -7695,6 +7748,16 @@
    "definition": "Avaliação de atendimentos com nota de 0 a 10. Nota abaixo do mínimo do plano pode suspender o variável."
   },
   {
+   "id": "nivel-de-desempenho",
+   "term": "Nível de desempenho",
+   "definition": "Nível A a D do negociador pela matriz qualidade × eficiência, publicado depois da revisão humana. Define quem recebe primeiro os casos de maior valor esperado; só o nível sai do desempenho."
+  },
+  {
+   "id": "quartil",
+   "term": "Quartil",
+   "definition": "Uma de quatro faixas iguais de um ranking: Q4 são os 25% melhores e Q1 os 25% com menor resultado. Empatados ficam na mesma faixa."
+  },
+  {
    "id": "memoria-de-calculo",
    "term": "Memória de cálculo",
    "definition": "Detalhe linha a linha de como um valor foi obtido, para conferir e explicar."
@@ -9328,6 +9391,42 @@
    "how": "Tempo de conversação das chamadas atendidas dividido pela quantidade de chamadas atendidas.",
    "use": "Muito alto reduz a quantidade de atendimentos; muito baixo pode indicar conversa sem negociação. Avalie com a nota de monitoria.",
    "screens": [
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.tiers.quality-quartile",
+   "module": "remuneracao-variavel",
+   "title": "Quartil de qualidade",
+   "what": "Faixa da nota média de monitoria da pessoa entre os negociadores da assessoria na janela da rodada: Q4 são os 25% melhores.",
+   "how": "Média das avaliações na janela, só de quem tem o mínimo de avaliações; posição percentil, com empatados na mesma faixa. Falha crítica ou média abaixo do portão limitam a Q2.",
+   "use": "Conduta pesa tanto quanto resultado: quem converte muito com qualidade baixa não chega ao topo. Sem o mínimo de avaliações, programe monitorias antes de revisar.",
+   "screens": [
+    "incentive.tiers",
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.tiers.efficiency-quartile",
+   "module": "remuneracao-variavel",
+   "title": "Quartil de eficiência",
+   "what": "Faixa do recuperado × esperado da pessoa entre os negociadores da assessoria, nas safras de score da janela: Q4 são os 25% melhores.",
+   "how": "Soma do recuperado dividida pela soma do esperado pelo score das safras encerradas na janela, só de quem tem o mínimo de casos; posição percentil, com empatados na mesma faixa.",
+   "use": "Desconta a dificuldade da carteira recebida, por isso é a comparação mais justa. Pouca safra encerrada (pessoa nova, janela curta) deixa a pessoa no nível padrão.",
+   "screens": [
+    "incentive.tiers",
+    "incentive.performance"
+   ]
+  },
+  {
+   "id": "incentive.tiers.level",
+   "module": "remuneracao-variavel",
+   "title": "Nível de desempenho",
+   "what": "Nível A a D da pessoa na distribuição de casos: A recebe primeiro os casos de maior valor esperado e mais casos.",
+   "how": "Célula da matriz qualidade × eficiência (parametrizável); sem amostra suficiente, o nível padrão. Vale só depois da revisão humana e da publicação, a partir da data publicada.",
+   "use": "Ajuste com motivo quando a janela não representa a pessoa (férias, licença, troca de carteira). Acompanhe se o recuperado × esperado de A supera o de B, C e D sem piorar a quebra.",
+   "screens": [
+    "incentive.tiers",
     "incentive.performance"
    ]
   },

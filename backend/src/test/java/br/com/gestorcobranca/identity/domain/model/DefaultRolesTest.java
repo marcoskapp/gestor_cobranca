@@ -87,4 +87,21 @@ class DefaultRolesTest {
             }
         });
     }
+
+    @Test
+    void classificacaoDeDesempenhoRevistaPelaSupervisaoEParametrizadaPelaGestao() {
+        for (String code : Set.of(DefaultRoles.SUPERVISOR, DefaultRoles.GESTOR, DefaultRoles.ADMIN)) {
+            assertThat(roles.get(code)).as(code).contains(TIER_REVIEW);
+        }
+        for (String code : Set.of(DefaultRoles.GESTOR, DefaultRoles.ADMIN)) {
+            assertThat(roles.get(code)).as(code).contains(TIER_MANAGE, PERFORMANCE_VIEW_ALL);
+        }
+        // o supervisor não publica: publicar exige também a visão de todos
+        assertThat(roles.get(DefaultRoles.SUPERVISOR)).doesNotContain(TIER_MANAGE, PERFORMANCE_VIEW_ALL);
+        roles.forEach((code, permissions) -> {
+            if (!Set.of(DefaultRoles.SUPERVISOR, DefaultRoles.GESTOR, DefaultRoles.ADMIN).contains(code)) {
+                assertThat(permissions).as(code).doesNotContain(TIER_REVIEW, TIER_MANAGE);
+            }
+        });
+    }
 }

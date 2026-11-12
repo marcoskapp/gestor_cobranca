@@ -75,6 +75,8 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
   { id: 'carencia', term: 'Carência', definition: 'Dias de espera após a confirmação do pagamento antes de a comissão ser liberada, para absorver estornos.' },
   { id: 'extrato-de-comissao', term: 'Extrato de comissão', definition: 'Resultado da apuração do mês por negociador, com memória de cálculo, contestação e aprovação.' },
   { id: 'monitoria', term: 'Monitoria de qualidade', definition: 'Avaliação de atendimentos com nota de 0 a 10. Nota abaixo do mínimo do plano pode suspender o variável.' },
+  { id: 'nivel-de-desempenho', term: 'Nível de desempenho', definition: 'Nível A a D do negociador pela matriz qualidade × eficiência, publicado depois da revisão humana. Define quem recebe primeiro os casos de maior valor esperado; só o nível sai do desempenho.' },
+  { id: 'quartil', term: 'Quartil', definition: 'Uma de quatro faixas iguais de um ranking: Q4 são os 25% melhores e Q1 os 25% com menor resultado. Empatados ficam na mesma faixa.' },
   { id: 'memoria-de-calculo', term: 'Memória de cálculo', definition: 'Detalhe linha a linha de como um valor foi obtido, para conferir e explicar.' },
   { id: 'score', term: 'Score de propensão', definition: 'Chance estimada de o devedor pagar nos próximos dias. Muda a ordem de atendimento, nunca o direito ao atendimento nem as condições.' },
   { id: 'faixa-de-score', term: 'Faixa de score', definition: 'Agrupamento do score de A (maior chance) a E (menor), usado em filas e segmentos.' },

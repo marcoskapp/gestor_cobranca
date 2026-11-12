@@ -106,8 +106,9 @@ contato novo** recebido na carga ainda sem tentativa — `new_contact_only`, [co
 §4 —, **tipo de pessoa** do devedor — `person_type` `INDIVIDUAL`/`COMPANY`, [cobranca-b2b.md](cobranca-b2b.md) §9),
 prioridade,
 ordem de entrega (`OLDEST_OVERDUE`, `HIGHEST_BALANCE`, `LOWEST_BALANCE`, `LEAST_RECENTLY_WORKED`, `HIGHEST_SCORE`),
-estratégia (`PULL`, `ROUND_ROBIN`, `LEAST_LOADED`), capacidade por operador e equipes que a atendem (vazio = qualquer
-operador). O caso pertence à **primeira fila ativa por prioridade** (empate pelo código) cujos critérios satisfaz
+estratégia (`PULL`, `ROUND_ROBIN`, `LEAST_LOADED`, `TIERED` — por nível de desempenho, §3.3.2), capacidade por
+operador (obrigatória em `TIERED`), equipes que a atendem (vazio = qualquer operador) e distribuição automática por
+horário (§3.3.3). O caso pertence à **primeira fila ativa por prioridade** (empate pelo código) cujos critérios satisfaz
 (`QueueRouter`). Criar/alterar/ativar/desativar fila reprocessa o roteamento dos casos ativos (`collection.case_sweep`).
 
 O caso guarda os atributos do devedor usados nesses critérios (`V0610`): `debtor_person_type` (lido na abertura por
@@ -126,13 +127,28 @@ debt republicar a novidade. Tipo de pessoa exigido só seleciona casos com o tip
    com o assistente) e sem próxima ação futura; retornos da fila já vencidos vêm antes da ordem da fila;
 3. seleção com `SELECT … FOR UPDATE SKIP LOCKED` (`JdbcCaseSelector`): pedidos simultâneos nunca recebem o mesmo caso
    e não esperam uns pelos outros; a capacidade por operador da fila é respeitada (`queue.capacity_reached` com fila
-   informada).
+   informada);
+4. em fila `TIERED`, a ordem passa a ser a das faixas de potencial do nível do operador e a capacidade é a da fila ×
+   o multiplicador do nível (§3.3.2).
 
 ### 3.3 Distribuição, redistribuição e atribuição manual
 
 * `POST /queues/{id}/distribute` (`CASE_ASSIGN`): bloqueia até `limit` casos disponíveis (mesma seleção) e planeja com
-  `CaseDistributor` — rodízio que continua após o último contemplado (`round_robin_cursor`) ou menor carga —, respeitando
-  o escopo de credores e a capacidade de cada membro (operadores ativos com `CASE_WORK` das equipes da fila).
+  `CaseDistributor` — rodízio que continua após o último contemplado (`round_robin_cursor`), menor carga ou por nível de
+  desempenho (§3.3.2) —, respeitando o escopo de credores e a capacidade de cada membro (operadores ativos com
+  `CASE_WORK` das equipes da fila). O "Distribuir" manual, a rodada automática (§3.3.3) e a prévia usam o mesmo
+  `QueueDistribution`; cada rodada registra `collection_queue.distributed` (auditoria, com `trigger` `MANUAL|AUTOMATIC`
+  e, em `TIERED`, as quantidades por faixa e por nível) e o evento de negócio `queue.distributed`. O "Distribuir" e a
+  rodada automática leem a fila com bloqueio pessimista (`CollectionQueueRepository#findByIdForUpdate`, `for update`)
+  até o fim da transação: duas rodadas da mesma fila não planejam sobre as mesmas cargas e o mesmo cursor; a prévia não
+  bloqueia.
+* `POST /queues/{id}/distribute/preview` (`CASE_ASSIGN`, mesmo corpo `{limit}`): o mesmo plano sem bloquear nem gravar
+  (transação somente leitura) — `considered`, `assigned`, `unassigned`, quantidades por nível × faixa (`byTierBand`) e
+  por nível (`byTier`) e, por operador, só `userId`, carga atual e casos planejados. As quantidades por nível só vêm se
+  quem pede vê o nível de **todos** os membros da fila; senão `byTier` vem vazio e `byTierBand` traz só o total por
+  faixa (`tier` nulo) — com poucas pessoas, a contagem por nível e o planejado de cada um revelariam o nível. O nível e a capacidade efetiva da
+  pessoa (que revela o nível) só vêm para quem pode ver o nível dela (`TierVisibility`: `PERFORMANCE_VIEW_ALL` todos;
+  `PERFORMANCE_VIEW_TEAM` os membros das equipes que supervisiona e o próprio; `PERFORMANCE_VIEW_OWN` o próprio).
 * `POST /redistributions` (`CASE_ASSIGN`): casos ativos de um operador (no escopo de quem executa) para outros operadores
   por menor carga, ou de volta às filas; casos sem destino possível voltam à fila. Destino aceito: ativo, com
   `CASE_WORK`, diferente da origem e com acesso a ao menos um credor do escopo de quem redistribui
@@ -140,6 +156,55 @@ debt republicar a novidade. Tipo de pessoa exigido só seleciona casos com o tip
   (inclusive inativo — carteira de quem saiu); só os casos no escopo de quem executa são movidos.
 * `POST /cases/{id}/assign` (`CASE_ASSIGN`): a operador ativo com `CASE_WORK` e acesso ao credor
   (`CaseWorkers#canWork`, a mesma regra de `CaseAssigneeUseCases#isCaseWorker`), ou a uma equipe.
+
+### 3.3.2 Distribuição por nível de desempenho (`TIERED`)
+
+Desenho e decisões do responsável em [distribuicao-por-desempenho.md](distribuicao-por-desempenho.md) (§4, §10, §13).
+O nível (A–D) vem do `incentive` pelo evento `NegotiatorTierChanged` e fica na projeção `collection.negotiator_tier`
+(só o nível; nunca nota, quartil ou valor); sem nível, vale o nível padrão da assessoria.
+
+* **Valor esperado do caso** = probabilidade × saldo elegível; probabilidade = `score ÷ 1000` (o score do scoring é a
+  probabilidade × 1000); sem score, a probabilidade média dos casos disponíveis da fila com score; nenhum com score → 1
+  (o valor esperado vira o saldo).
+* **Faixas de potencial** `HIGH|MEDIUM|LOW`: tercis (`ntile(3)`) dos casos disponíveis da fila inteira pelo valor esperado
+  (`JdbcCaseSelector`; a mesma regra em `CaseDistributor#tercile` para planos sem faixa calculada).
+* **Distribuir**: casos em ordem de valor esperado; alta → A, B, C, D; média → B, C, A, D; baixa → C, D, B, A (o
+  preferido e, esgotada a capacidade, o próximo nível com capacidade — o caso nunca fica sem dono por causa do nível,
+  só por escopo ou capacidade); dentro do nível, o de menor carga. Capacidade efetiva = `max_cases_per_user` × o
+  multiplicador do nível (arredondada para baixo, mínimo 1). **Fatia de desenvolvimento**: `round(altos × X%)` casos
+  altos, espalhados de forma uniforme pela faixa, vão por rodízio (o mesmo `round_robin_cursor`) a todos os membros
+  (faixa `DEVELOPMENT`).
+* **Próximo caso**: A e B pegam a faixa alta primeiro, C a média, D a baixa; depois as demais da mais próxima à mais
+  distante (C: média, baixa, alta; D: baixa, média, alta); dentro da faixa, retornos da fila vencidos e depois o maior
+  valor esperado; `SKIP LOCKED`. Fatia de desenvolvimento: em X% das chamadas (sorteio uniforme 0–99 por chamada) o
+  operador C ou D recebe primeiro a faixa alta (registrada como `DEVELOPMENT`). O sorteio é o componente
+  `DevelopmentRoll` (`ThreadLocalRandom`, 0–99), trocado nos testes de integração por um bean `@Primary` de valor fixo.
+* **Histórico**: `case_assignment.tier` e `potential_band` gravados na inserção (`DISTRIBUTION` e `NEXT_CASE` em fila
+  `TIERED`); o gatilho `case_assignment_close_only` e o privilégio de coluna continuam permitindo só o fim de vigência.
+  `GET /cases/{id}/assignments` devolve `potentialBand` a quem vê o caso e `tier` só a quem pode ver o nível da pessoa;
+  sem essa visão, `DEVELOPMENT` aparece como `HIGH` (no "Próximo caso" a vez de desenvolvimento só acontece para C e D
+  e revelaria o nível). O banco guarda `DEVELOPMENT`; o log de negócio `case.assigned` leva sempre `HIGH`.
+  Os checks de `tier` e `potential_band` entraram `not valid` na V0612 (sem varredura da tabela no deploy); o
+  `validate constraint` fica para uma migration posterior, fora do pico.
+* **Parâmetros** (`collection.settings`): `tier_capacity` (jsonb, 50–200% por nível, padrão `{A:120,B:110,C:100,D:80}`),
+  `tier_development_share` (0–50, padrão 15) e `tier_default` (padrão `B`). `GET /settings/tier-distribution`
+  (`CASE_ASSIGN` ou `QUEUE_MANAGE`), `PUT` (`QUEUE_MANAGE` e todos os credores; auditoria
+  `collection_settings.tier_updated`). Tela: Cobrança › Parâmetros da operação. O `tier_default` deve coincidir com o
+  nível padrão da classificação (`incentive.tier_settings.default_tier`, usado para quem fica sem amostra na apuração):
+  são dois parâmetros, e a tela avisa na dica com atalho para a classificação (`TIER_MANAGE`).
+
+### 3.3.3 Distribuição automática por horário
+
+Fila com estratégia de lote (`ROUND_ROBIN`, `LEAST_LOADED` ou `TIERED`; `PULL` recusa com `queue.auto_distribution_pull`)
+pode ligar `auto_distribution` com até 6 horários `HH:mm` (`auto_distribution_times`) e o limite por rodada (1–1000,
+`auto_distribution_limit`). O job `collection.auto-distribution` (ShedLock, cron `app.collection.auto-distribution-cron`,
+padrão a cada minuto, fuso de operação) percorre as assessorias; em dia útil (segunda a sexta, fora dos feriados do
+calendário do compliance — `HolidayUseCases`), cada fila ativa cujo último horário alcançado ainda não foi tratado roda
+uma rodada (como ator de sistema, com a regra do "Distribuir"), numa transação própria por fila; a falha numa fila não
+para as demais (`collection.jobs.failures{job=collection.auto_distribution}`). `auto_distribution_last_run_at` guarda o
+instante tratado: uma rodada por horário por dia; vários horários perdidos geram uma só rodada; criar a fila ou mudar a
+configuração automática marca o instante, então horários do dia já passados não disparam retroativamente. A carga que
+já existe conta para a capacidade. Disponibilidade do operador (sessão ou telefonia) fica para a fase 2.
 
 ### 3.3.1 Usuários atribuíveis (lista = gravação)
 
@@ -578,7 +643,9 @@ evento (pendência registrada lá).
 `VulnerabilityMarkerChanged` (indicador `collection_case.vulnerable` e nova fila dos casos ativos do devedor),
 `DebtorContactNoveltyChanged` (`collection.contact-novelty`: relê no debt, sob o lock do devedor, o tipo de pessoa e o fim
 da novidade — eventos podem chegar fora de ordem — e refaz só a fila dos casos ativos do devedor),
-`PaymentConfirmed`, `PaymentReversed`, `AgreementStatusChanged`, `CaseScoreChanged`, `TenantProvisioned` — consumidores
+`PaymentConfirmed`, `PaymentReversed`, `AgreementStatusChanged`, `CaseScoreChanged`, `NegotiatorTierChanged` (incentive;
+`collection.negotiator-tier`: projeção `collection.negotiator_tier`, uma linha por pessoa e publicação, idempotente pela
+`publicationId`; nível fora de A–D é ignorado com log técnico), `TenantProvisioned` — consumidores
 `collection.<reacao>` idempotentes (`shared.consumed_event`), com lock consultivo por devedor antes de carregar o caso (os
 comandos de usuário obtêm o mesmo lock), o que evita abertura duplicada e colisões de lock otimista entre consumo e
 comando.
@@ -620,7 +687,7 @@ descrições só no banco, criptografadas).
 | `/my-day` | `GET` (`CASE_WORK` ou `CASE_ASSIGN`; §8.3) |
 | `/quick-search` | `POST` (`DEBTOR_VIEW`; termo no corpo; §8.4) |
 | `/debtors/{debtorId}/interactions` | `GET` (`CASE_VIEW`, paginado; §8.5) |
-| `/queues` · `/queues/{id}` · `/queues/{id}/summary` · `/queues/{id}/activate|deactivate` · `/queues/reroute` · `/queues/{id}/distribute` | CRUD + ações |
+| `/queues` · `/queues/{id}` · `/queues/{id}/summary` · `/queues/{id}/activate|deactivate` · `/queues/reroute` · `/queues/{id}/distribute` · `/queues/{id}/distribute/preview` | CRUD + ações (fila com `autoDistribution`; prévia sem gravar, §3.3) |
 | `/redistributions` | `POST` |
 | `/assignable-users?purpose=…[&caseId][&creditorId][&fromUserId][&q][&ids]` | `GET` (`CASE_ASSIGN` ou `DISPUTE_MANAGE`, conforme o campo; §3.3.1) |
 | `/tabulations` · `/tabulations/{id}` · `/activate|deactivate` | CRUD + ações (com `followUp` e `disputeType`, §4.1) |
@@ -634,7 +701,7 @@ descrições só no banco, criptografadas).
 | `/disputes/{id}/debtor-notice-draft` · `/debtor-notices` · `/adjustment/dismiss` | `GET`, `POST` (§7.4, §7.5) |
 | `/dispute-config/settings` · `/deadline-rules[/{id}]` · `/deadline-preview` · `/pool[/{id}]` · `/templates[/{kind}/{key}[/history|/restore-default]]` | `GET`, `PUT`, `POST`, `DELETE` (`DISPUTE_MANAGE`; leitura também `DISPUTE_WORK`) |
 | `/api/v1/dispute-files/{token}` (público, fora de `/collection`) | `GET` — ZIP das evidências do pedido ao credor |
-| `/settings` | `GET`, `PUT` |
+| `/settings` · `/settings/tier-distribution` | `GET`, `PUT` (§3.3.2) |
 
 ## 14. Decisões
 
