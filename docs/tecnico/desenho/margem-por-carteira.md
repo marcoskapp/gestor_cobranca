@@ -5,7 +5,8 @@ assessoria depois do custo operacional da recuperação — pessoas, IA, telefon
 com um painel operacional e um relatório de análise fina.
 
 Status: **fase 1 aprovada** pelo responsável em 12/11/2026, com as respostas do §9 (faixa por cargo, ociosidade à
-parte, rateio por horas). Decisões 1233 em diante. Backend da fase 1 implementado — ver §11.
+parte, rateio por horas). Decisões 1233 em diante. Backend da fase 1 implementado — ver §11. Fase 2, conciliação do
+custo de canal com a fatura real, implementada — ver §13 (decisões 1300–1314).
 
 ## 1. O que já existe e o que falta
 
@@ -80,10 +81,13 @@ rateio** ❓ (§9, Q3):
 * por casos trabalhados;
 * direto a um credor (ex.: equipe dedicada).
 
-### 3.5 Ajuste pela fatura real (fase 2)
+### 3.5 Ajuste pela fatura real (fase 2 — implementado, §13)
 
-O custo de canal é **estimado** pelo uso × tarifa. Na fase 2, a gestão informa a fatura do mês por provedor; a
-diferença é distribuída na proporção do uso estimado e o painel passa a mostrar "conciliado com a fatura".
+O custo de canal é **estimado** pelo uso × tarifa. Na fase 2, a gestão informa a fatura do mês **por item** de custo
+de canal (telefonia, WhatsApp, SMS, e-mail e IA — em R$; a de IA convertida pela gestão); a diferença entre a fatura e
+a estimativa do item no mês é distribuída **na proporção do custo estimado do item** em cada dia × credor × carteira
+(sem estimativa, pela quantidade de uso; sem uso, fica sem credor) e o painel passa a mostrar a base "conciliado com a
+fatura". O ajuste é um fato à parte: a estimativa continua guardada e o painel mostra as duas bases.
 
 ## 4. Apuração (job diário, `costing.refresh`, ShedLock; reprocessa os últimos 35 dias)
 
@@ -102,6 +106,28 @@ diferença é distribuída na proporção do uso estimado e o painel passa a mos
 | `OVERHEAD` | Custos fixos rateados pela regra do item |
 
 Sem dado pessoal nos fatos: nem usuário, nem devedor. A ligação com a pessoa fica só no cálculo, em memória.
+
+### 4.1 Atendimentos simultâneos: a mesma hora não é cobrada duas vezes (fase 2, decisões 1297–1299)
+
+Um operador pode atender vários devedores ao mesmo tempo — conversas de credores diferentes, chat em paralelo com
+ligação —, se a distribuição das filas permitir. Somar as durações de cada atendimento contaria a mesma hora várias vezes
+(três conversas paralelas de 20 min virariam 60 min de custo) e ainda esconderia a ociosidade (logado − direto ficaria
+menor que o real). Por isso o tempo direto é apurado por **linha do tempo da pessoa** (`WorkTimeline`):
+
+* cada atendimento vira um **trecho com início e fim**: interação com duração (`started_at` + `duration_seconds`),
+  pós-atendimento da chamada (`ended_at` + `wrap_up_seconds`) e **resposta escrita no chat** (mensagem enviada pela
+  pessoa: do evento anterior da conversa — mensagem do devedor, do assistente ou da própria pessoa — até o registro do
+  envio, limitado a **3 minutos**, `app.costing.chat-reply-window`); a resposta do assistente não é tempo de pessoa;
+* em cada instante, o tempo da pessoa é **dividido em partes iguais** entre os atendimentos abertos naquele instante;
+  cada credor/carteira recebe a sua fração. O total da pessoa no dia é a **união** dos trechos — nunca passa do relógio;
+* trechos que atravessam a meia-noite (fuso de operação) ficam em cada dia; a leitura vai até 2 dias antes do período;
+* a ociosidade continua `max(0, logado − direto)`, agora com o direto sem duplicidade.
+
+Exemplo: ligação do credor A das 9h às 10h e, no meio dela, respostas no chat do credor B que somam 5 min → A recebe
+57,5 min, B 2,5 min, total 1 h (antes: 65 min). Teste: `CostRulesTest` e `CostingMarginIT.atendimentosSimultaneos…`.
+A mudança sobe `RULES_VERSION` para 2. Com a versão do estado menor que a das regras, o job diário refaz **uma vez** os
+6 meses da janela da tendência (gatilho `rules_upgrade`; a versão gravada só sobe quando a apuração cobre essa janela),
+para a série do painel não misturar regras (decisão 1328). Meses anteriores mudam só com "Reapurar o período".
 
 ## 5. Indicadores (catálogo de informação contextual, ux.md §8.6)
 
@@ -157,8 +183,10 @@ Atalho `app-config-link` a partir do painel.
 
 ## 8. Fases
 
-1. **Fase 1 (MVP):** cadastros, apuração diária estimada, painel e exportação XLSX/CSV.
-2. **Fase 2:** fatura real e conciliação, relatório em PDF, custo por campanha e por régua, PTAX automática (issue).
+1. **Fase 1 (MVP):** cadastros, apuração diária estimada, painel e exportação XLSX/CSV. A tendência de 6 meses por
+   credor e o mapa de dispersão do §6.1, adiados na primeira entrega (decisão 1253), foram feitos depois — ver §14.
+2. **Fase 2:** fatura real e conciliação (**feito**, §13), atendimentos simultâneos e tempo de chat no custo de pessoas
+   (**feito**, §4.1), relatório em PDF, custo por campanha e por régua, PTAX automática (issue).
 3. **Fase 3:** simulação "e se" (ex.: preço do contrato, troca de canal, mais automação) e alerta de carteira com
    margem negativa por dois meses.
 
@@ -199,6 +227,7 @@ Sem câmbio do mês, o custo de IA usa o último câmbio informado e o painel av
 | `/user-bands` | `GET` (usuário → faixa vigente), `PUT /{userId}` (faixa a partir de uma data) | `COST_RATE_MANAGE` |
 | `/tariffs` · `/fx-rates` · `/overheads` | `GET`, `POST`, `POST /{id}/end` (tarifa) ou `DELETE /{id}?reason=` (custo fixo de qualquer mês; refaz o rateio do mês na hora; motivo opcional, até 500 caracteres, na auditoria — decisão 1247) | `GET`: `COST_VIEW`; escrita: `COST_MANAGE` |
 | `/margin` | `GET ?from=&to=&creditorId=&portfolioId=` → totais, por credor (com carteiras), por mês e avisos (até 200 credores e 500 carteiras por pedido; acima, 400) | `COST_VIEW` + escopo por credor |
+| `/margin/trend` | `GET ?from=&to=&creditorId=&portfolioId=` → série dos 6 meses até o mês de `to`, por credor e carteira (§14.1) | `COST_VIEW` + escopo por credor |
 | `/margin/export` | `GET ?format=xlsx|csv&…` | `COST_VIEW` + `REPORT_EXPORT` (registra `DATA_EXPORTED`) |
 | `/refresh` | `POST ?from=&to=` (reapura o período: até ontem, no máximo 93 dias; auditoria `costing.refreshed`). Com outra apuração da assessoria em andamento, **409 `costing.refresh_running`** na hora (não espera) | `COST_MANAGE` ou `COST_RATE_MANAGE` + todos os credores |
 
@@ -245,9 +274,10 @@ migrations em `db/migration/costing/` (faixa V2500–V2599).
   custo fixo recusado não é gravado (a transação é desfeita).
 * Regras no domínio (`HumanCost`, `UsageCost`, `WhatsAppConversations`, `OverheadAllocator`, `RateBook`,
   `MarginCalculator`), com testes em `CostRulesTest` e `MarginCalculatorTest`; o SQL só lê e agrega:
-  * **HUMAN_DIRECT**: interações de pessoa (`actor_type = USER`, com operador e duração), no dia de início, +
-    pós-atendimento das chamadas com credor, no dia do fim da chamada, × valor-hora da faixa da pessoa no dia. Sem
-    faixa: custo zero e aviso `HOURS_WITHOUT_BAND` no credor/carteira.
+  * **HUMAN_DIRECT**: trechos de trabalho da pessoa — interações de pessoa (`actor_type = USER`, com operador e
+    duração), pós-atendimento das chamadas com credor e respostas escritas no chat (`costing.src_chat_message`) — pela
+    linha do tempo da pessoa (§4.1: tempo simultâneo dividido, sem contar duas vezes; cortado por dia) × valor-hora
+    da faixa da pessoa no dia. Sem faixa: custo zero e aviso `HOURS_WITHOUT_BAND` no credor/carteira.
   * **HUMAN_IDLE**: `max(0, logado − direto)` da pessoa no dia, rateado pelo tempo direto dela no dia; sem tempo direto
     no dia, tudo vai para a linha **sem credor**.
   * **AI**: assistente (`started_at`) + Importação PDF (`created_at`) em dólar × câmbio do mês; sem câmbio do mês, o
@@ -324,8 +354,7 @@ custos fixos do mês anterior (por horas e direto ao 1º credor) e a apuração 
 
 ### 11.6 Pendências da fase 1
 
-* Tempo de conversa no chat (§4, HUMAN_DIRECT) só entra quando vira interação de pessoa com duração; não há leitura
-  própria do tempo de atendimento das conversas.
+* ~~Tempo de conversa no chat~~: entra na fase 2 pelas respostas escritas no chat (§4.1).
 * Tarifa por tentativa de chamada não atendida (§3.2) não foi implementada (não está no contrato §10.1).
 * Custo do chat de suporte interno (helpdesk) não entra: sem credor, fica para um custo fixo informado pela gestão.
 * Mudança de cadastro (faixa, tarifa, câmbio) só vale para dias já apurados depois de uma reapuração (`POST /refresh`)
@@ -438,3 +467,192 @@ glossário (`margem-de-contribuicao`, `margem-liquida`, `faixa-de-custo`, `ratei
 
 Fora desta entrega (fase 1 do desenho, a fazer): tendência dos últimos 6 meses por credor (a resposta não traz meses por
 credor) e o mapa de dispersão carteira × margem × volume.
+
+## 13. Fase 2 — conciliação com a fatura
+
+Implementação do §3.5 (decisões 1300–1314). O custo de canal continua estimado pela apuração diária; a fatura entra
+como **ajuste** separado, rateado pela estimativa, e o painel escolhe a base.
+
+### 13.1 Banco (`V2501__costing_channel_invoice.sql`)
+
+* `costing.cost_daily.item` (`TELEPHONY`, `WHATSAPP`, `SMS`, `EMAIL`, `AI`): item de custo de canal faturado. A
+  apuração grava `MESSAGING` com uma linha por item (WhatsApp, SMS, e-mail); `TELEPHONY` e `AI` têm o item da própria
+  categoria; as demais categorias ficam sem item. Um `check` amarra item e categoria. Fatos antigos: `TELEPHONY` e
+  `AI` recebem o item na migration; `MESSAGING` fica com item nulo até a próxima apuração do dia (o job refaz 35 dias;
+  meses mais antigos pedem "Reapurar o período" antes da fatura de mensagens — 409
+  `costing.invoice_month_not_itemized`).
+* `costing.cost_daily.basis` ganha `INVOICE_ADJUSTMENT`: o ajuste pela fatura (só nas categorias de canal, sempre com
+  item, valor em R$, quantidade zero, unidade `BRL`). A chave única passa a incluir item e base. A estimativa
+  (`ESTIMATED`) nunca é alterada pela fatura: `replaceFacts` só substitui a base estimada e as bases do rateio de fixos
+  e da margem estimada filtram `basis = 'ESTIMATED'`.
+* `costing.channel_invoice` (id, month — primeiro dia, item, amount `numeric(19,2)` ≥ 0, supplier até 120 opcional,
+  note até 500 opcional, metadados de criação e alteração da `BaseEntity`), **única por mês × item**, RLS
+  (`shared.enable_tenant_rls`), `check` no item, no mês e no valor.
+* Aviso novo `INVOICE_WITHOUT_USAGE` em `cost_warning_daily` (fatura de item sem uso no mês).
+
+### 13.2 Regra (`InvoiceReconciler`, domínio)
+
+Para cada fatura do mês: **ajuste = fatura − estimativa do item no mês** (assessoria inteira, inclusive as linhas sem
+credor). O ajuste é rateado na proporção do **custo estimado** do item em cada dia × credor × carteira do mês — a linha
+sem credor (ex.: chamada sem credor) recebe a parte dela. Estimativa zero no mês (ex.: sem tarifa): rateio pela
+**quantidade de uso** do item (minutos, conversas/mensagens, dólares de IA). Sem uso nenhum: o valor inteiro fica
+**sem credor** no primeiro dia do mês, com aviso `INVOICE_WITHOUT_USAGE`. Partes com 6 casas e a diferença de
+arredondamento na maior base (como o rateio de fixos): estimativa + ajuste = fatura, exatamente. Fatura igual à
+estimativa não gera fato. Testes em `InvoiceReconcilerTest`.
+
+* O ajuste é refeito **por mês inteiro**: na apuração (job diário e `POST /refresh`), em cada mês tocado, depois da
+  estimativa e do rateio dos fixos; e ao informar, substituir ou excluir uma fatura
+  (`CostRefreshService.reconcileInvoices`), com o mesmo `tryLockForRefresh` das rotas HTTP — com outra apuração em
+  andamento, **409 `costing.refresh_running`** e a gravação é desfeita.
+* O rateio dos custos fixos por horas, recuperado ou casos **não muda** (as bases não leem o ajuste).
+* Sem dado pessoal nos fatos nem na fatura (fornecedor e observação são texto da assessoria).
+
+### 13.3 REST (`/api/v1/costing`)
+
+| Recurso | Métodos | Permissão |
+| --- | --- | --- |
+| `/invoices` | `GET ?from=&to=` (meses `AAAA-MM`; sem os dois = últimos 24 meses; até 36 meses) → `[{ id, month, item, amount, supplier, note, estimated, adjustment, updatedAt }]` (`estimated` = estimativa do item no mês na assessoria inteira; `adjustment` = fatura − estimativa) | `COST_VIEW` ou `COST_MANAGE` + **todos os credores** |
+| `/invoices/estimates` | `GET ?from=&to=` → um item por mês × canal: `{ month, item, estimated, quantity, unit (MINUTES/UNITS/USD), invoiceId, invoiced }` — a estimativa para comparar ao informar | idem |
+| `/invoices` | `POST { month, item, amount, supplier?, note? }` → cria ou **substitui** a fatura do mês × item (200, a view acima); mês futuro → 422 `costing.invoice_future_month`; refaz o ajuste do mês na hora | `COST_MANAGE` + todos os credores |
+| `/invoices/{id}` | `DELETE ?reason=` (até 500, na auditoria) → 204; refaz o ajuste do mês | idem |
+
+Auditoria (`AuditEntry`, entidade `channel_invoice`): `costing.invoice_created` (mês, item, valor, fornecedor,
+observação), `costing.invoice_changed` (antes e depois de valor, fornecedor e observação; mês e item em metadados) e
+`costing.invoice_deleted` (com o motivo).
+
+`GET /margin` e `/margin/export` aceitam **`basis=ESTIMATED|RECONCILED`** (padrão `ESTIMATED`, compatível com a fase
+1; valor inválido → 400). Em `RECONCILED`, `Line.costs.TELEPHONY|MESSAGING|AI` (e os totais, margens e taxas
+derivados) incluem o ajuste, e `basis` na resposta vem `RECONCILED`. A resposta ganha, nas duas bases:
+
+```
+reconciliation: {
+  status: ESTIMATED | PARTIAL | RECONCILED,          // do período (todos os meses conciliados = RECONCILED)
+  months: [ { month: "AAAA-MM", status, invoiced: [item], pending: [item] } ],
+  adjustments: { TELEPHONY, MESSAGING, AI },          // ajuste no recorte visível (já nos custos em RECONCILED)
+  invoices: [ { month, item, estimated, invoiced, adjustment } ] | null
+}
+```
+
+* Situação do mês: `ESTIMATED` = nenhuma fatura; `RECONCILED` = todos os itens com uso estimado (valor ou quantidade)
+  têm fatura (ou o mês não tem uso e tem fatura); `PARTIAL` = os demais. `pending` = itens com uso sem fatura.
+* **Escopo** (regra do §10.2/§11.3): `adjustments` soma o mesmo recorte das linhas visíveis — quem tem escopo restrito
+  vê só o ajuste rateado aos próprios credores, nunca a linha sem credor; `invoices` (valores da fatura, que são da
+  assessoria) só vem para quem vê todos os credores **e** sem filtro de credor ou carteira (o mesmo critério de
+  `unallocated`); nos demais casos, `null`. A situação dos meses (sem valores) vem para todos.
+* Aviso `INVOICE_WITHOUT_USAGE` (faturas) só em `RECONCILED` e só para quem vê a linha sem credor.
+* Exportação: a aba **Resumo** traz a base ("Estimada" ou "Conciliada com a fatura — situação") e, em `RECONCILED`, o
+  ajuste por categoria; a aba **Premissas** lista as faturas dos meses do período (com estimativa e ajuste) só para
+  escopo total. CSV: linhas `base;<basis>;<rótulo>;situacao_conciliacao;<situação>`,
+  `ajuste_fatura;<categoria>;<rótulo>;ajuste;<valor>` e
+  `premissas_faturas;<AAAA-MM>/<item>;<rótulo>;fatura|estimativa;<valor>`. O log `DATA_EXPORTED` ganha `basis`.
+
+### 13.4 Telas
+
+* **Custos operacionais → aba "Faturas"** (`?aba=faturas&mes=AAAA-MM-01`; mês padrão = último mês fechado; lista de
+  24 meses sem mês futuro): visível com `COST_MANAGE` ou `COST_VIEW` **e todos os credores** (sem escopo total, a aba
+  não existe nem pela URL); escrita só com `COST_MANAGE`. Tabela dos cinco canais do mês: uso na unidade cobrada,
+  estimativa, fatura, diferença com sinal e ações (informar, corrigir, excluir com motivo opcional). Diálogo com mês,
+  canal, valor (`appMoney`, zero vale), fornecedor e observação, mostrando ao lado a estimativa do mês do canal e a
+  diferença que será rateada (ou o aviso de que, sem uso, o valor fica em "Sem credor"); mês × canal já faturado avisa
+  que salvar substitui. Atalho "Ver a margem conciliada do mês" (só com `COST_VIEW`).
+* **Painel de margem**: seletor "Estimado | Conciliado com a fatura" (grupo de rádio acessível), guardado na URL
+  (`base=conciliado`; ausente = estimado). O selo vira "Conciliado" ou "Parcialmente conciliado" conforme
+  `reconciliation.status` (sem fatura no período, segue "Estimado" com a explicação). Na base conciliada: quadro "Ajuste
+  pela fatura" com "Telefonia: estimado R$ x, com a fatura R$ y (ajuste ±R$ z)" por categoria, canais com uso ainda sem
+  fatura por mês (com atalho `app-config-link` para a aba Faturas, só com `COST_MANAGE` e escopo total) e, na visão da
+  assessoria inteira, a tabela das faturas ao lado da estimativa; o cartão "Custo total" e a cascata citam o ajuste. Na
+  base estimada, com faturas no período, a tela sugere a base conciliada. A exportação usa a base escolhida.
+* Indicadores novos no catálogo: `analytics.margin.reconciled` e `analytics.margin.invoice-adjustment`; termo
+  `custo-conciliado` no glossário; manual rápido de `analytics.margin` e `organization.costs` atualizado; tour
+  `organization.costs` com o texto da aba nova (sem passo novo nem versão nova).
+
+### 13.5 Sandbox e pendências
+
+* `CostingSeeder` informa faturas fictícias de telefonia (R$ 180) e WhatsApp (R$ 95) do mês anterior, depois da
+  apuração: a base conciliada do mês anterior abre como "Parcialmente conciliado".
+* Pendências: versão das telas em `content/screens.ts`, nota de versão e base do chat (`npm run knowledge`) ficam para
+  a integração; a apuração antiga de mensagens sem item (antes da V2501) só concilia depois de reapurada; a fatura em
+  dólar da IA não é convertida pelo sistema (a gestão informa em reais; a PTAX automática segue como issue).
+
+## 14. Fase 2 — tendência e mapa de dispersão
+
+Itens do §6.1 que ficaram fora da primeira entrega (decisão 1253). Decisões 1315 a 1327.
+
+### 14.1 Tendência dos últimos 6 meses (backend)
+
+* **Rota própria** `GET /api/v1/costing/margin/trend` (`CostingController.marginTrend`, `MarginQueries.trend`), com os
+  mesmos parâmetros de `/margin` (`MarginParams`: `from`, `to`, `creditorId` e `portfolioId` repetidos, `basis`, mesmos
+  limites e a mesma validação de período) e `COST_VIEW`. Na base conciliada, soma o ajuste pela fatura como o painel
+  (decisão 1327). A tela pede em paralelo à margem, para não pesar a resposta principal
+  nem a exportação (decisão 1315).
+* **Janela**: os 6 meses que terminam no mês de `to` (o `from` não muda a janela; sem os dois, o mês anterior
+  fechado, como em `/margin`). Regra no domínio, `MarginTrendSeries` (teste `MarginTrendSeriesTest`).
+* **Escopo**: o recorte é o de `/margin` (`MarginQueryService.resolve`): quem não vê todos os credores recebe só os
+  próprios credores, com a ociosidade e os custos fixos já rateados a eles; pedido fora do escopo = lista vazia. A
+  linha sem credor não entra (a tendência é por credor).
+* **Desempenho**: as duas leituras agrupadas do painel (`MarginReader.costs` e `activity`, por credor × carteira × mês
+  sobre `cost_daily` e `activity_daily`) com a janela de 6 meses — sem SQL novo e sem consulta por credor (até 200
+  credores e 500 carteiras). Métrica técnica `costing.margin.trend.duration{outcome}`.
+* **Resposta**:
+
+  ```
+  { period: {from, to},
+    months: [ {month: "AAAA-MM", status: "COMPLETE" | "PARTIAL" | "NOT_REFRESHED"} ×6 ],
+    computedUntil: "AAAA-MM-DD" | null,
+    creditors: [ { creditorId, points: [Point ×6],
+                   portfolios: [ {portfolioId | null, points: [Point ×6]} ] } ] }
+  Point = { month, recovered, revenue, netMargin, netMarginRate }
+  ```
+
+  Credores ordenados pelo id (a tela junta pela chave com `/margin`); só os que têm algum fato na janela.
+* **Situação do mês** (pelo último dia apurado): nenhum dia do mês apurado = `NOT_REFRESHED`; apurado até antes do
+  último dia = `PARTIAL` (o mês corrente, normalmente); senão `COMPLETE`.
+* **Ponto vazio, nunca zero**: mês `NOT_REFRESHED` ou sem nenhum fato do corte → todos os valores `null`. Mês só com
+  custo → receita zero, margem em R$ (negativa) e `netMarginRate` nulo (as fórmulas do §5, `MarginCalculator`).
+* Testes: `CostingMarginIT.tendenciaDeSeisMesesPorCredorComMesSemDadoEEscopo` (série de 6 meses com setembro só com
+  receita e outubro só com custo, meses sem fato vazios, outubro igual ao painel, mês não apurado, escopo restrito,
+  filtro de carteira, permissão, contrato JSON e 403 por HTTP).
+
+### 14.2 Telas (frontend)
+
+* **Coluna "Tendência"** na tabela por credor e carteira (`components/trend-sparkline.ts`, regras em
+  `data/margin-trend.rules.ts`): minigráfico SVG de 72 × 22 px da **margem líquida em % da receita** dos 6 meses —
+  linha interrompida no mês sem receita ou não apurado, ponto em cada mês com base, ponto final maior, linha do zero
+  tracejada quando a série fica negativa e pontos negativos em vermelho. Texto acessível (`role="img"`) com a frase da
+  tendência: "Margem líquida de mai. a out.: subiu de 8,0% para 12,0% da receita. 1 mês sem receita." (compara o
+  primeiro e o último mês com receita; menos de 1 ponto percentual = "estável"; negativo com "(negativa)"; mês não
+  apurado e parcial citados). Dica no ponteiro e no foco com o valor de cada mês (posição fixa, sem ser cortada pela
+  rolagem da tabela). Estados: "Carregando…", "Indisponível" (falha só da tendência; o painel segue) e "sem base".
+  A coluna é estreita: a tabela padrão continua sem rolagem lateral. "i": `analytics.margin.trend`.
+* **Mapa de dispersão** "Carteiras: margem × volume recuperado" (`components/margin-scatter.ts`, regras em
+  `data/margin-scatter.rules.ts`), cartão entre os gráficos e a tabela (`data-tour="margin-scatter"`):
+  * cada carteira do período é um ponto: x = recuperado (**escala logarítmica**, marcas em potências de 10), y =
+    margem líquida % da receita (piso de −100%: abaixo fica na borda, com aviso na legenda), área pela receita;
+  * **cortes** (escritos na tela e no "i" `analytics.margin.scatter`): volume = mediana do recuperado das carteiras do
+    mapa; margem = margem líquida % do conjunto do mapa (soma das margens ÷ soma das receitas), ou zero quando ela é
+    negativa. Volume ≥ corte = alto; margem ≥ corte **e** positiva = alta. Quadrantes: **Rende e escala** (margem e
+    volume altos), **Rende pouco** (margem alta, volume baixo), **Consome** (volume alto, margem baixa) e **Revisar
+    contrato** (volume e margem baixos);
+  * fora do mapa, com a contagem "N carteiras sem base": carteira sem receita (taxa nula) ou sem valor recuperado; a
+    linha "Sem carteira (custos do credor)" não é carteira e não conta;
+  * margem negativa em vermelho **e** losango, com "(negativa)" no rótulo, na dica e na tabela;
+  * pontos focáveis (`role="link"`) com rótulo completo (carteira, credor, recuperado, receita, margem e quadrante) e
+    dica no ponteiro e no foco; clique ou Enter abre o painel filtrado pelo credor e pela carteira do ponto, mantendo
+    período e ordem, como **passo novo do histórico** (`marginUrlState().open`, sem `replaceUrl`) — o "voltar" retorna
+    ao mapa;
+  * "Ver tabela": carteira (link para o mesmo filtro), credor, recuperado, receita, margem e quadrante, ordenada por
+    quadrante.
+* Textos: indicadores `analytics.margin.trend` e `analytics.margin.scatter` (`paineis-margem.ts`), manual rápido
+  (`paineis.ts`) e tour `analytics.margin` (passo "Margem × volume" no lugar de "Custos incompletos" — decisão 1324).
+  A `version` da tela, a nota de versão e a base do chat (`npm run knowledge`) ficam para a integração.
+* Testes: `margin-trend.rules.spec.ts` (frase, lacunas, parcial, não apurado, geometria), `margin-scatter.rules.spec.ts`
+  (mediana, cortes, quadrantes, sem base, escala) e `margin-panel.spec.ts` (coluna com a frase por credor e carteira,
+  falha só da tendência, mapa com cortes, contagem, losango, Enter → filtro com histórico novo e tabela com links).
+
+### 14.3 Pendências
+
+* ~~Base da tendência~~: feito na integração — `/margin/trend` aceita `basis` e a tela envia a base do seletor
+  (decisão 1327).
+* A situação do mês só conhece o último dia apurado: meses anteriores ao início da apuração aparecem como completos e
+  vazios (decisão 1317).
+* "Evolução mensal do mix de custo" (§6.1) continua fora: o gráfico mensal mostra só a margem líquida.

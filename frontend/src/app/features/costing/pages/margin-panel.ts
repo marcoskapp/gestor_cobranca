@@ -22,26 +22,34 @@ import { AnalyticsFilter } from '../../analytics/data/analytics.models';
 import { DrillTarget, drillAccess, ledgerTarget } from '../../analytics/data/drill-down';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
+import { MarginScatter } from '../components/margin-scatter';
+import { TrendSparkline } from '../components/trend-sparkline';
 import { WaterfallChart } from '../components/waterfall-chart';
 import { MarginApi } from '../data/costing.api';
-import { CATEGORY_LABELS, CATEGORY_SHORT_LABELS, COST_SETTINGS_ROUTE } from '../data/costing.labels';
-import { COST_CATEGORIES, CostCategory, CreditorMargin, MarginFilter, MarginLine, PortfolioMargin } from '../data/costing.models';
+import { CATEGORY_LABELS, CATEGORY_SHORT_LABELS, CHANNEL_ITEM_LABELS, COST_SETTINGS_ROUTE } from '../data/costing.labels';
+import { COST_CATEGORIES, CostCategory, CreditorMargin, MarginBasis, MarginFilter, MarginLine, PortfolioMargin, TrendPoint } from '../data/costing.models';
+import { ScatterPoint, scatterModel, scatterSummary } from '../data/margin-scatter.rules';
 import { marginUrlState } from '../data/margin-url-state';
 import {
   MarginSort,
   MarginSortKey,
   WaterfallStep,
+  adjustmentViews,
   asAnalyticsFilter,
+  basisBadge,
   countText,
   fromAnalyticsFilter,
   hoursText,
   isNegative,
+  marginFilterParams,
   marginShort,
   marginText,
   monthLabel,
   num,
+  pendingInvoices,
   rateText,
   refreshPeriod,
+  signedAmount,
   sortMarginRows,
   warningViews,
   waterfallSteps,
@@ -87,6 +95,8 @@ const CATEGORY_INFO: Readonly<Record<CostCategory, string>> = {
     NgTemplateOutlet,
     PageHeader,
     Skeleton,
+    MarginScatter,
+    TrendSparkline,
     WaterfallChart,
   ],
   templateUrl: './margin-panel.html',
@@ -99,8 +109,20 @@ export class MarginPanel {
 
   protected readonly state = marginUrlState();
   protected readonly analyticsFilter = computed(() => asAnalyticsFilter(this.state.filter()));
-  protected readonly data = rxResource({ params: () => this.state.filter(), stream: ({ params }) => this.api.margin(params) });
+  protected readonly data = rxResource({
+    params: () => ({ filter: this.state.filter(), basis: this.state.basis() }),
+    stream: ({ params }) => this.api.margin(params.filter, params.basis),
+  });
   protected readonly report = valueOr(this.data, undefined);
+  /**
+   * Tendência de 6 meses por credor e carteira (§14.1): pedido à parte, com os mesmos filtros, para não pesar a
+   * resposta principal; falha ou demora só afetam a coluna "Tendência".
+   */
+  protected readonly trendData = rxResource({
+    params: () => ({ filter: this.state.filter(), basis: this.state.basis() }),
+    stream: ({ params }) => this.api.trend(params.filter, params.basis),
+  });
+  protected readonly trend = valueOr(this.trendData, undefined);
 
   protected readonly categories = COST_CATEGORIES;
   protected readonly categoryLabels = CATEGORY_LABELS;
@@ -124,6 +146,33 @@ export class MarginPanel {
   protected readonly canRefresh = computed(
     () => !this.partialScope() && (this.auth.hasPermission(Permission.COST_MANAGE) || this.auth.hasPermission(Permission.COST_RATE_MANAGE)),
   );
+  // ------------------------------------------------------------ base dos custos: estimada ou conciliada com a fatura (§13)
+  protected readonly basisOptions: readonly { value: MarginBasis; label: string }[] = [
+    { value: 'ESTIMATED', label: 'Estimado' },
+    { value: 'RECONCILED', label: 'Conciliado com a fatura' },
+  ];
+  protected readonly reconciled = computed(() => this.state.basis() === 'RECONCILED');
+  protected readonly badge = computed(() => basisBadge(this.state.basis(), this.report()?.reconciliation));
+  /** Na base estimada, avisa que há faturas para ver a base conciliada. */
+  protected readonly invoicesAvailable = computed(
+    () => !this.reconciled() && !!this.report()?.reconciliation && this.report()!.reconciliation!.status !== 'ESTIMATED',
+  );
+  protected readonly adjustments = computed(() => adjustmentViews(this.report()?.totals, this.state.basis(), this.report()?.reconciliation));
+  protected readonly adjustmentTotal = computed(() => this.adjustments().reduce((sum, a) => sum + a.adjustment, 0));
+  protected readonly pending = computed(() => pendingInvoices(this.report()?.reconciliation));
+  /** Faturas ao lado da estimativa: só na visão da assessoria inteira (o servidor manda nulo nos demais casos). */
+  protected readonly invoiceLines = computed(() => this.report()?.reconciliation?.invoices ?? []);
+  protected readonly itemLabels = CHANNEL_ITEM_LABELS;
+  protected readonly signed = signedAmount;
+  /** Atalho para a aba Faturas: quem pode informar (a aba exige todos os credores). */
+  protected readonly invoicePermissions = [Permission.COST_MANAGE];
+  protected readonly invoiceTab = { aba: 'faturas' };
+  protected readonly invoiceLink = computed(() => !this.partialScope());
+
+  protected setBasis(basis: MarginBasis): void {
+    this.state.setBasis(basis);
+  }
+
   protected readonly exporting = signal(false);
   protected readonly refreshing = signal(false);
   /** Colunas por categoria de custo (tabela larga) só quando pedidas. */
@@ -167,7 +216,7 @@ export class MarginPanel {
     { key: 'netMargin', label: 'Margem líquida', info: 'analytics.margin.net' },
     { key: 'roi', label: 'ROI', info: 'analytics.margin.roi' },
   ];
-  protected readonly columnCount = computed(() => 1 + this.sortColumns.length + (this.showCategories() ? this.categories.length : 0) + this.resultColumns.length);
+  protected readonly columnCount = computed(() => 2 + this.sortColumns.length + (this.showCategories() ? this.categories.length : 0) + this.resultColumns.length);
 
   protected readonly creditorRows = computed(() => {
     const sort = this.state.sort();
@@ -203,6 +252,52 @@ export class MarginPanel {
 
   protected cost(line: MarginLine, category: CostCategory): string {
     return formatAmount(line.costs?.[category] ?? 0);
+  }
+
+  // ------------------------------------------------------------ tendência de 6 meses (coluna da tabela)
+  /** Pontos por credor (`creditorId`) e por carteira (`creditorId|portfolioId`; `-` = sem carteira). */
+  private readonly trendIndex = computed(() => {
+    const index = new Map<string, TrendPoint[]>();
+    for (const c of this.trend()?.creditors ?? []) {
+      index.set(c.creditorId, c.points);
+      for (const p of c.portfolios ?? []) {
+        index.set(`${c.creditorId}|${p.portfolioId ?? '-'}`, p.points);
+      }
+    }
+    return index;
+  });
+  protected readonly trendMonths = computed(() => this.trend()?.months ?? []);
+
+  /** Série da linha: `loading`/`error` enquanto a tendência não chega; sem fato nos 6 meses = todos os pontos vazios. */
+  protected trendOf(creditorId: string, portfolioId?: string | null): TrendPoint[] | 'loading' | 'error' {
+    if (this.trendData.error()) {
+      return 'error';
+    }
+    if (!this.trend()) {
+      return 'loading';
+    }
+    const key = portfolioId === undefined ? creditorId : `${creditorId}|${portfolioId ?? '-'}`;
+    return this.trendIndex().get(key) ?? this.trendMonths().map((m) => ({ month: m.month, recovered: null, revenue: null, netMargin: null, netMarginRate: null }));
+  }
+
+  // ------------------------------------------------------------ mapa de dispersão (carteiras do período)
+  protected readonly scatter = computed(() =>
+    scatterModel(
+      this.report()?.creditors ?? [],
+      (c) => this.creditorName(c),
+      (_, portfolioId) => (this.canPortfolios() ? this.portfolioNames.name(portfolioId) : 'Carteira'),
+    ),
+  );
+  protected readonly scatterSummary = computed(() => scatterSummary(this.scatter()));
+  /** Filtro da carteira: mesmo período, o credor e a carteira do ponto. */
+  private scatterFilter(p: ScatterPoint): MarginFilter {
+    return { ...this.state.filter(), creditorIds: [p.creditorId], portfolioIds: [p.portfolioId] };
+  }
+  protected readonly scatterParams = (p: ScatterPoint) => marginFilterParams(this.scatterFilter(p));
+
+  /** Clique ou Enter num ponto: o painel abre filtrado pela carteira, como um passo novo do histórico ("voltar"). */
+  protected openPortfolio(p: ScatterPoint): void {
+    this.state.open(this.scatterFilter(p));
   }
 
   // ------------------------------------------------------------ drill-down: recuperado e receita → razão de comissão
@@ -270,7 +365,11 @@ export class MarginPanel {
   // ------------------------------------------------------------ cartões
   protected readonly costDetail = computed(() => {
     const t = this.report()?.totals;
-    return t ? `${formatAmount(t.directCost)} direto + ${formatAmount(num(t.totalCost) - num(t.directCost))} de ociosidade e fixos` : '';
+    if (!t) {
+      return '';
+    }
+    const base = `${formatAmount(t.directCost)} direto + ${formatAmount(num(t.totalCost) - num(t.directCost))} de ociosidade e fixos`;
+    return this.reconciled() && this.adjustmentTotal() !== 0 ? `${base} · ajuste pela fatura ${signedAmount(this.adjustmentTotal())}` : base;
   });
   protected marginDetail(line: MarginLine, rate: MarginLine['netMarginRate'], withRoi = false): string {
     if (rate === null || rate === undefined) {
@@ -303,7 +402,7 @@ export class MarginPanel {
   protected export(format: 'xlsx' | 'csv'): void {
     this.exporting.set(true);
     this.api
-      .export(this.state.filter(), format)
+      .export(this.state.filter(), format, this.state.basis())
       .pipe(finalize(() => this.exporting.set(false)))
       .subscribe((name) => this.notifications.success(`Relatório exportado: ${name}. A exportação fica registrada no log de acesso.`));
   }
@@ -321,6 +420,7 @@ export class MarginPanel {
       .subscribe(() => {
         this.notifications.success('Custos do período reapurados com os cadastros atuais.');
         this.data.reload();
+        this.trendData.reload();
       });
   }
 }

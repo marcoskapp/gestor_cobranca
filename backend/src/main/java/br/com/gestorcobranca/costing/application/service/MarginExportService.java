@@ -1,13 +1,17 @@
 package br.com.gestorcobranca.costing.application.service;
 
+import br.com.gestorcobranca.costing.application.port.in.ChannelInvoiceUseCases;
 import br.com.gestorcobranca.costing.application.port.in.CostSettingsUseCases;
 import br.com.gestorcobranca.costing.application.port.in.MarginExportUseCases;
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries;
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries.MarginFilter;
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries.MarginReport;
+import br.com.gestorcobranca.costing.domain.model.ChannelItem;
 import br.com.gestorcobranca.costing.domain.model.CostCategory;
+import br.com.gestorcobranca.costing.domain.model.MarginBasis;
 import br.com.gestorcobranca.costing.domain.model.MarginLine;
 import br.com.gestorcobranca.costing.domain.model.OverheadAllocation;
+import br.com.gestorcobranca.costing.domain.model.ReconciliationStatus;
 import br.com.gestorcobranca.costing.domain.model.TariffChannel;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.Guard;
@@ -37,6 +41,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -49,7 +54,8 @@ import java.util.Map;
  * premissas (faixas pelo nome, com o valor-hora só para quem tem {@code COST_RATE_MANAGE}; tarifas, câmbio, custos
  * fixos e regras de rateio — nunca a faixa de uma pessoa) e CSV no formato longo (seção, chave, rótulo, indicador, valor). Mesmos dados e escopo do painel; o arquivo
  * é gerado na hora e não é guardado. O log de acesso registra filtros, linhas e o SHA-256 do arquivo
- * ({@code DATA_EXPORTED}).
+ * ({@code DATA_EXPORTED}). Na base conciliada (§13), o Resumo traz a situação da conciliação e o ajuste por categoria;
+ * as faturas de canal do período entram em Premissas só para quem vê todos os credores (são valores da assessoria).
  */
 @Service
 @Transactional(readOnly = true)
@@ -90,7 +96,20 @@ class MarginExportService implements MarginExportUseCases {
             "NO_FX_RATE", "Meses sem nenhum câmbio do dólar (custo de IA zerado)",
             "MISSING_TARIFF", "Unidades de uso sem tarifa (entraram com custo zero)",
             "OVERHEAD_WITHOUT_BASIS", "Custos fixos sem base de rateio no mês (ficaram sem credor)",
-            "NOT_REFRESHED", "Dias do período ainda não apurados");
+            "NOT_REFRESHED", "Dias do período ainda não apurados",
+            "INVOICE_WITHOUT_USAGE", "Faturas de canal sem uso no mês (o valor ficou sem credor)");
+
+    private static final Map<ChannelItem, String> ITEM_LABELS = Map.of(
+            ChannelItem.TELEPHONY, "Telefonia",
+            ChannelItem.WHATSAPP, "WhatsApp",
+            ChannelItem.SMS, "SMS",
+            ChannelItem.EMAIL, "E-mail",
+            ChannelItem.AI, "Inteligência artificial (em R$)");
+
+    private static final Map<ReconciliationStatus, String> STATUS_LABELS = Map.of(
+            ReconciliationStatus.ESTIMATED, "nenhuma fatura informada no período",
+            ReconciliationStatus.PARTIAL, "parcialmente conciliado (faltam faturas)",
+            ReconciliationStatus.RECONCILED, "todos os itens com uso têm fatura");
 
     private static final List<String> RULES = List.of(
             "Receita = comissão + valor fixo + honorários da assessoria sobre o recebido no período (líquido de estornos).",
@@ -110,22 +129,27 @@ class MarginExportService implements MarginExportUseCases {
                     + "custos fixos.",
             "ROI operacional = margem líquida ÷ custo total; custo por real recuperado = custo total ÷ recuperado; "
                     + "custo por acordo cumprido = custo total ÷ acordos quitados. Sem base, a taxa fica vazia.",
-            "Base dos custos: estimada (uso × tarifa); a conciliação com a fatura real é da fase 2.");
+            "Base dos custos: estimada (uso × tarifa) ou conciliada com a fatura — a diferença entre a fatura do mês de "
+                    + "cada item (telefonia, WhatsApp, SMS, e-mail, IA) e a estimativa é rateada na proporção do custo "
+                    + "estimado do item; sem estimativa, pela quantidade de uso; sem uso, fica sem credor.");
 
     private static final List<String> LINE_HEADER = buildLineHeader();
 
     private final MarginQueries queries;
     private final CostSettingsUseCases settings;
+    private final ChannelInvoiceUseCases invoices;
     private final CurrentActor currentActor;
     private final AccessScope accessScope;
     private final AccessLogger accessLogger;
     private final CostingMetrics metrics;
     private final Clock clock;
 
-    MarginExportService(MarginQueries queries, CostSettingsUseCases settings, CurrentActor currentActor,
-                        AccessScope accessScope, AccessLogger accessLogger, CostingMetrics metrics, Clock clock) {
+    MarginExportService(MarginQueries queries, CostSettingsUseCases settings, ChannelInvoiceUseCases invoices,
+                        CurrentActor currentActor, AccessScope accessScope, AccessLogger accessLogger,
+                        CostingMetrics metrics, Clock clock) {
         this.queries = queries;
         this.settings = settings;
+        this.invoices = invoices;
         this.currentActor = currentActor;
         this.accessScope = accessScope;
         this.accessLogger = accessLogger;
@@ -161,6 +185,7 @@ class MarginExportService implements MarginExportUseCases {
         details.put("to", report.period().to().toString());
         details.put("creditors", String.valueOf(filter == null ? 0 : filter.creditorIds().size()));
         details.put("portfolios", String.valueOf(filter == null ? 0 : filter.portfolioIds().size()));
+        details.put("basis", report.basis());
         details.put("rows", String.valueOf(rows));
         details.put("sha256", sha256);
         details.put("generatedOn", LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE)).toString());
@@ -177,11 +202,15 @@ class MarginExportService implements MarginExportUseCases {
         List<Table> tables = new ArrayList<>();
         List<List<Object>> summary = new ArrayList<>();
         summary.add(List.of("Período", r.period().from() + " a " + r.period().to()));
-        summary.add(List.of("Base dos custos", "Estimada (uso × tarifa)"));
+        summary.add(List.of("Base dos custos", basisLabel(r)));
         summary.add(List.of("Apurado até", r.computedUntil() == null ? "ainda não apurado" : r.computedUntil().toString()));
         summary.add(List.of("Escopo", r.unallocated() == null ? "credores do filtro ou do escopo do usuário"
                 : "assessoria inteira (inclui valores sem credor)"));
         indicatorRows(r.totals()).forEach(summary::add);
+        if (isReconciled(r)) {
+            r.reconciliation().adjustments().forEach((category, value) -> summary.add(List.of(
+                    "Ajuste pela fatura — " + CATEGORY_LABELS.get(category), value)));
+        }
         r.warnings().forEach(w -> summary.add(List.of("Aviso: " + warningLabel(w.code()), w.count())));
         tables.add(new Table("Resumo", List.of("Indicador", "Valor"), summary));
 
@@ -202,11 +231,11 @@ class MarginExportService implements MarginExportUseCases {
         r.months().forEach(m -> byMonth.add(lineRow(List.of(m.month()), m.line())));
         tables.add(new Table("Por mês", prepend(List.of("Mês")), byMonth));
 
-        tables.add(new Table("Premissas", List.of("Seção", "Item", "Valor", "Início", "Fim"), assumptions()));
+        tables.add(new Table("Premissas", List.of("Seção", "Item", "Valor", "Início", "Fim"), assumptions(r)));
         return tables;
     }
 
-    private List<List<Object>> assumptions() {
+    private List<List<Object>> assumptions(MarginReport r) {
         List<List<Object>> rows = new ArrayList<>();
         // valor-hora só para quem gerencia as faixas (COST_RATE_MANAGE); os demais veem só os nomes (LGPD, RC-07)
         boolean rates = currentActor.get().has(Permission.COST_RATE_MANAGE);
@@ -219,8 +248,33 @@ class MarginExportService implements MarginExportUseCases {
         settings.overheads(null, null).forEach(o -> rows.add(row("Custo fixo (" + o.month() + ")",
                 o.description() + " — " + ALLOCATION_LABELS.get(o.allocation())
                         + (o.creditorName() == null ? "" : " — " + o.creditorName()), o.amount(), null, null)));
+        // faturas de canal: valores da assessoria, só para quem vê todos os credores (§13)
+        periodInvoices(r).forEach(i -> rows.add(row("Fatura de canal (" + i.month() + ")",
+                ITEM_LABELS.get(i.item()) + (i.supplier() == null ? "" : " — " + i.supplier()) + " — estimativa "
+                        + i.estimated().toPlainString() + ", ajuste " + i.adjustment().toPlainString(),
+                i.amount(), null, null)));
         RULES.forEach(rule -> rows.add(row("Regra", rule, null, null, null)));
         return rows;
+    }
+
+    /** Faturas dos meses do período, só com escopo total (as faturas são da assessoria). */
+    /** Faturas só na visão da assessoria inteira e sem filtro de credor/carteira (como reconciliation.invoices). */
+    private List<ChannelInvoiceUseCases.InvoiceView> periodInvoices(MarginReport r) {
+        if (!accessScope.hasAllCreditors() || r.unallocated() == null) {
+            return List.of();
+        }
+        return invoices.invoices(YearMonth.from(r.period().from()), YearMonth.from(r.period().to()));
+    }
+
+    private static boolean isReconciled(MarginReport r) {
+        return MarginBasis.RECONCILED.name().equals(r.basis()) && r.reconciliation() != null;
+    }
+
+    private static String basisLabel(MarginReport r) {
+        if (!isReconciled(r)) {
+            return "Estimada (uso × tarifa)";
+        }
+        return "Conciliada com a fatura — " + STATUS_LABELS.get(r.reconciliation().status());
     }
 
     private static List<Object> row(Object... values) {
@@ -292,6 +346,13 @@ class MarginExportService implements MarginExportUseCases {
         r.months().forEach(m -> longLine(rows, "por_mes", m.month(), m.month(), m.line()));
         r.warnings().forEach(w -> rows.add(List.of("avisos", w.code(), warningLabel(w.code()), "quantidade",
                 w.count())));
+        rows.add(List.of("base", r.basis(), basisLabel(r), "situacao_conciliacao",
+                r.reconciliation() == null ? ReconciliationStatus.ESTIMATED.name()
+                        : r.reconciliation().status().name()));
+        if (isReconciled(r)) {
+            r.reconciliation().adjustments().forEach((category, value) -> rows.add(List.of("ajuste_fatura",
+                    category.name(), CATEGORY_LABELS.get(category), "ajuste", value)));
+        }
         boolean rates = currentActor.get().has(Permission.COST_RATE_MANAGE);
         settings.bands().forEach(b -> {
             boolean value = rates && b.hourlyCost() != null;
@@ -306,6 +367,13 @@ class MarginExportService implements MarginExportUseCases {
         settings.overheads(null, null).forEach(o -> rows.add(new ArrayList<>(java.util.Arrays.asList(
                 "premissas_custos_fixos", o.month() + "/" + o.id(), o.description(),
                 "valor_" + o.allocation().name().toLowerCase(Locale.ROOT), o.amount()))));
+        periodInvoices(r).forEach(i -> {
+            String key = i.month() + "/" + i.item();
+            rows.add(new ArrayList<>(java.util.Arrays.asList("premissas_faturas", key, ITEM_LABELS.get(i.item()),
+                    "fatura", i.amount())));
+            rows.add(new ArrayList<>(java.util.Arrays.asList("premissas_faturas", key, ITEM_LABELS.get(i.item()),
+                    "estimativa", i.estimated())));
+        });
         return rows;
     }
 

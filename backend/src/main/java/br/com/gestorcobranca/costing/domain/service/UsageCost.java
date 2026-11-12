@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.costing.domain.service;
 
+import br.com.gestorcobranca.costing.domain.model.ChannelItem;
 import br.com.gestorcobranca.costing.domain.model.CostCategory;
 import br.com.gestorcobranca.costing.domain.model.CostFact;
 import br.com.gestorcobranca.costing.domain.model.CostWarningCode;
@@ -16,7 +17,8 @@ import java.util.UUID;
 
 /**
  * Regras de custo de uso (desenho §4): telefonia por minuto tarifado, mensagens por tarifa do canal, IA convertida pelo
- * câmbio do mês e valores já lançados por outros módulos (comissão variável, custas jurídicas).
+ * câmbio do mês e valores já lançados por outros módulos (comissão variável, custas jurídicas). Os custos de canal saem
+ * por item faturado ({@link ChannelItem}), base do ajuste pela fatura (§13).
  */
 public final class UsageCost {
 
@@ -39,7 +41,7 @@ public final class UsageCost {
         BigDecimal quantity = BigDecimal.valueOf(minutes);
         BigDecimal amount = usage.ratePerMinute() == null ? BigDecimal.ZERO : quantity.multiply(usage.ratePerMinute());
         acc.add(usage.day(), usage.creditorId(), usage.portfolioId(), CostCategory.TELEPHONY, amount, quantity,
-                CostFact.Unit.MINUTES);
+                CostFact.Unit.MINUTES, ChannelItem.TELEPHONY);
         if (usage.ratePerMinute() == null) {
             acc.warn(usage.day(), usage.creditorId(), usage.portfolioId(), CostWarningCode.MISSING_TARIFF, quantity);
         }
@@ -64,7 +66,7 @@ public final class UsageCost {
         BigDecimal quantity = BigDecimal.valueOf(units);
         var tariff = rates.tariff(channel, day);
         acc.add(day, creditorId, portfolioId, CostCategory.MESSAGING, tariff.map(quantity::multiply).orElse(BigDecimal.ZERO),
-                quantity, CostFact.Unit.UNITS);
+                quantity, CostFact.Unit.UNITS, ChannelItem.of(channel));
         if (tariff.isEmpty()) {
             acc.warn(day, creditorId, portfolioId, CostWarningCode.MISSING_TARIFF, quantity);
         }
@@ -81,12 +83,12 @@ public final class UsageCost {
         }
         if (BRL.equalsIgnoreCase(usage.currency())) {
             acc.add(usage.day(), usage.creditorId(), usage.portfolioId(), CostCategory.AI, usage.amount(),
-                    BigDecimal.ZERO, CostFact.Unit.USD);
+                    BigDecimal.ZERO, CostFact.Unit.USD, ChannelItem.AI);
             return;
         }
         RateBook.FxResolution fx = rates.fx(YearMonth.from(usage.day()));
         acc.add(usage.day(), usage.creditorId(), usage.portfolioId(), CostCategory.AI, usage.amount().multiply(fx.rate()),
-                usage.amount(), CostFact.Unit.USD);
+                usage.amount(), CostFact.Unit.USD, ChannelItem.AI);
         switch (fx.status()) {
             case FALLBACK -> acc.warn(usage.day(), usage.creditorId(), usage.portfolioId(),
                     CostWarningCode.MISSING_FX_RATE, usage.amount());

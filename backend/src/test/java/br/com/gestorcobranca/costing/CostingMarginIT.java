@@ -13,6 +13,9 @@ import br.com.gestorcobranca.costing.application.port.in.MarginQueries;
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries.CreditorMargin;
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries.MarginFilter;
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries.MarginReport;
+import br.com.gestorcobranca.costing.application.port.in.MarginQueries.MarginTrend;
+import br.com.gestorcobranca.costing.application.port.in.MarginQueries.TrendMonth;
+import br.com.gestorcobranca.costing.application.port.in.MarginQueries.TrendPoint;
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries.MarginWarning;
 import br.com.gestorcobranca.costing.domain.model.CostCategory;
 import br.com.gestorcobranca.costing.domain.model.MarginLine;
@@ -271,6 +274,91 @@ class CostingMarginIT extends IntegrationTest {
     }
 
     @Test
+    void tendenciaDeSeisMesesPorCredorComMesSemDadoEEscopo() throws Exception {
+        seed();
+        configure();
+        // setembro: só um recebimento em B (R$ 1.000, receita 200); outubro como no cenário principal
+        run(() -> receiptWithCommission(creditorB, portfolioB, LocalDate.of(2026, 9, 10)));
+        asRole(finance, DefaultRoles.FINANCEIRO, null, () -> refresh.refresh(LocalDate.of(2026, 9, 1), TO));
+        MarginReport october = asRole(manager, DefaultRoles.GESTOR, null,
+                () -> margins.margin(new MarginFilter(FROM, TO, null, null)));
+
+        // o início do período não muda a janela: 6 meses até o mês do fim
+        MarginTrend trend = asRole(manager, DefaultRoles.GESTOR, null,
+                () -> margins.trend(new MarginFilter(LocalDate.of(2026, 10, 20), TO, null, null)));
+        assertThat(trend.months()).extracting(TrendMonth::month)
+                .containsExactly("2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10");
+        assertThat(trend.months()).extracting(TrendMonth::status).containsOnly("COMPLETE");
+        assertThat(trend.computedUntil()).isEqualTo(TO);
+        assertThat(trend.creditors()).extracting(MarginQueries.CreditorTrend::creditorId)
+                .containsExactlyInAnyOrder(creditorA, creditorB);
+
+        // A: meses sem fato ficam vazios (nunca zero); outubro igual ao painel
+        List<TrendPoint> a = trend(trend, creditorA);
+        assertThat(a).hasSize(6);
+        assertThat(a.subList(0, 5)).allSatisfy(p -> {
+            assertThat(p.netMargin()).isNull();
+            assertThat(p.revenue()).isNull();
+            assertThat(p.netMarginRate()).isNull();
+        });
+        assertThat(a.get(5).netMargin()).isEqualByComparingTo(creditor(october, creditorA).line().netMargin());
+        assertThat(a.get(5).netMarginRate()).isEqualByComparingTo(creditor(october, creditorA).line().netMarginRate());
+        assertThat(trend.creditors().stream().filter(c -> c.creditorId().equals(creditorA)).findFirst().orElseThrow()
+                .portfolios()).extracting(MarginQueries.PortfolioTrend::portfolioId).contains(portfolioA);
+
+        // B: setembro só receita (margem 100%); outubro só custo (margem negativa, taxa sem base)
+        List<TrendPoint> b = trend(trend, creditorB);
+        assertThat(b.get(4).revenue()).isEqualByComparingTo("200.00");
+        assertThat(b.get(4).recovered()).isEqualByComparingTo("1000.00");
+        assertThat(b.get(4).netMargin()).isEqualByComparingTo("200.00");
+        assertThat(b.get(4).netMarginRate()).isEqualByComparingTo("1");
+        assertThat(b.get(5).revenue()).isZero();
+        assertThat(b.get(5).netMargin()).isEqualByComparingTo(creditor(october, creditorB).line().netMargin());
+        assertThat(b.get(5).netMarginRate()).isNull();
+
+        // mês ainda não apurado: situação e ponto vazio, mesmo com o mês anterior completo
+        MarginTrend november = asRole(manager, DefaultRoles.GESTOR, null, () -> margins.trend(
+                new MarginFilter(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 10), null, null)));
+        assertThat(november.months().getLast()).isEqualTo(new TrendMonth("2026-11", "NOT_REFRESHED"));
+        assertThat(trend(november, creditorA).getLast().netMargin()).isNull();
+        assertThat(trend(november, creditorA).get(4).netMargin()).isNotNull();
+
+        // escopo restrito: só os credores do usuário, mesmo pedindo outro; fora do escopo, nada
+        MarginTrend onlyA = asRole(manager, DefaultRoles.GESTOR, Set.of(creditorA),
+                () -> margins.trend(new MarginFilter(FROM, TO, Set.of(creditorA, creditorB), null)));
+        assertThat(onlyA.creditors()).extracting(MarginQueries.CreditorTrend::creditorId).containsExactly(creditorA);
+        assertThat(asRole(manager, DefaultRoles.GESTOR, Set.of(creditorA),
+                () -> margins.trend(new MarginFilter(FROM, TO, Set.of(creditorB), null))).creditors()).isEmpty();
+        // filtro de carteira: só a carteira pedida
+        MarginTrend byPortfolio = asRole(manager, DefaultRoles.GESTOR, null,
+                () -> margins.trend(new MarginFilter(FROM, TO, null, Set.of(portfolioB))));
+        assertThat(byPortfolio.creditors()).extracting(MarginQueries.CreditorTrend::creditorId)
+                .containsExactly(creditorB);
+        // sem COST_VIEW, negado
+        assertThatThrownBy(() -> asWith(manager, EnumSet.of(Permission.REPORT_EXPORT), null,
+                () -> margins.trend(new MarginFilter(FROM, TO, null, null))))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+
+        // HTTP: contrato JSON (pontos vazios como null) e 403 sem COST_VIEW
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
+        mvc.perform(get("/api/v1/costing/margin/trend").param("from", FROM.toString()).param("to", TO.toString())
+                        .with(authentication(auth(manager, DefaultRoles.GESTOR))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.months[5].month").value("2026-10"))
+                .andExpect(jsonPath("$.months[5].status").value("COMPLETE"))
+                .andExpect(jsonPath("$.creditors[0].points.length()").value(6))
+                .andExpect(jsonPath("$.creditors[0].points[0].month").value("2026-05"));
+        mvc.perform(get("/api/v1/costing/margin/trend").param("from", FROM.toString()).param("to", TO.toString())
+                        .with(authentication(auth(operatorX, DefaultRoles.OPERADOR))))
+                .andExpect(status().isForbidden());
+    }
+
+    private static List<TrendPoint> trend(MarginTrend trend, UUID creditorId) {
+        return trend.creditors().stream().filter(c -> c.creditorId().equals(creditorId)).findFirst().orElseThrow()
+                .points();
+    }
+
+    @Test
     void cadastrosValidamPermissaoVigenciaEPessoa() {
         seed();
         configure();
@@ -413,6 +501,80 @@ class CostingMarginIT extends IntegrationTest {
                 .orElseThrow().permissions();
         return ActorAuthentication.of(new Actor(Actor.ActorType.USER, userId, tenant, Ids.newId(), role,
                 EnumSet.copyOf(permissions), CreditorScope.ALL));
+    }
+
+    /**
+     * Desenho §4.1: a mesma pessoa atende ao mesmo tempo uma ligação do credor A (9h às 10h) e uma conversa de chat do
+     * credor B (respostas às 9h22 e às 9h50). A hora é cobrada uma vez só: o trecho em comum é dividido entre os dois
+     * credores, e cada resposta do chat vale do evento anterior da conversa até o envio (no máximo 3 minutos).
+     */
+    @Test
+    void atendimentosSimultaneosNaoCobramAMesmaHoraDuasVezes() {
+        seedTenantAndCreditors();
+        run(() -> {
+            UUID debtor = debtor();
+            UUID caseA = collectionCase(debtor, creditorA, portfolioA);
+            interaction(caseA, debtor, creditorA, portfolioA, operatorX, at(20, 9), 3600, tabulation());
+            UUID whatsapp = channelAccount("WHATSAPP", creditorB);
+            UUID conversation = conversation(debtor, creditorB, portfolioB, "WHATSAPP", whatsapp);
+            Instant nine = at(20, 9);
+            chat(conversation, whatsapp, false, null, nine.plusSeconds(20 * 60));
+            // resposta 2 min depois da mensagem do devedor: 2 min de trabalho
+            chat(conversation, whatsapp, true, operatorX, nine.plusSeconds(22 * 60));
+            chat(conversation, whatsapp, false, null, nine.plusSeconds(40 * 60));
+            // resposta 10 min depois: só os 3 min anteriores ao envio contam
+            chat(conversation, whatsapp, true, operatorX, nine.plusSeconds(50 * 60));
+            // resposta do assistente não é tempo de pessoa
+            chat(conversation, whatsapp, true, null, nine.plusSeconds(55 * 60));
+            loggedTime(operatorX, LocalDate.of(2026, 10, 20), 3600);
+        });
+        asRole(finance, DefaultRoles.FINANCEIRO, null, () -> {
+            settings.createBand(new CreateBandCommand("Negociador júnior", new BigDecimal("36.00"),
+                    LocalDate.of(2026, 1, 1)));
+            settings.assignUserBand(operatorX, new AssignUserBandCommand("Negociador júnior", LocalDate.of(2026, 1, 1)));
+            return refresh.refresh(FROM, TO);
+        });
+        MarginReport all = asRole(manager, DefaultRoles.GESTOR, null,
+                () -> margins.margin(new MarginFilter(FROM, TO, null, null)));
+        MarginLine a = creditor(all, creditorA).line();
+        MarginLine b = creditor(all, creditorB).line();
+        // 5 min em comum divididos ao meio: A 55 + 2,5 = 57,5 min; B 2,5 min; a soma é a hora do relógio
+        assertThat(cost(a, CostCategory.HUMAN_DIRECT)).isEqualByComparingTo("34.50");
+        assertThat(cost(b, CostCategory.HUMAN_DIRECT)).isEqualByComparingTo("1.50");
+        assertThat(all.totals().directHours()).isEqualByComparingTo("1.00");
+        assertThat(cost(all.totals(), CostCategory.HUMAN_DIRECT)).isEqualByComparingTo("36.00");
+        // logada 1 h e trabalhada 1 h: sem ociosidade
+        assertThat(cost(all.totals(), CostCategory.HUMAN_IDLE)).isZero();
+    }
+
+    private void seedTenantAndCreditors() {
+        String slug = "simultaneo-" + UUID.randomUUID().toString().substring(0, 8);
+        tenant = tenantExecution.callInTenant(Ids.newId(), "test.setup", () -> provisioning.provision(
+                new ProvisionTenantCommand(slug, "Assessoria Simultânea Ltda", "Simultânea", "11.444.777/0001-61",
+                        "Admin", "admin@" + slug + ".test"))).tenant().id();
+        Map<String, UUID> roleIds = system(() -> roles.list().stream()
+                .collect(Collectors.toMap(RoleManagementUseCases.RoleView::code, RoleManagementUseCases.RoleView::id)));
+        operatorX = user("Operador X", roleIds.get(DefaultRoles.OPERADOR));
+        manager = user("Gestor G", roleIds.get(DefaultRoles.GESTOR));
+        finance = user("Financeiro F", roleIds.get(DefaultRoles.FINANCEIRO));
+        run(() -> {
+            creditorA = creditor("Credor A");
+            creditorB = creditor("Credor B");
+            portfolioA = portfolio(creditorA, "PA");
+            portfolioB = portfolio(creditorB, "PB");
+        });
+    }
+
+    /** Mensagem de chat: do devedor (entrada) ou saída escrita pela pessoa {@code userId} (nula = assistente). */
+    private void chat(UUID conversationId, UUID account, boolean outbound, UUID userId, Instant at) {
+        jdbc.update("""
+                insert into communication.message (id, tenant_id, version, created_at, updated_at, conversation_id,
+                    channel, channel_account_id, direction, sender_type, sender_id, status, status_at, send_attempts,
+                    queued_at, sent_at, received_at)
+                values (?, ?, 0, ?, ?, ?, 'WHATSAPP', ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)""",
+                Ids.newId(), tenant, ts(at), ts(at), conversationId, account, outbound ? "OUTBOUND" : "INBOUND",
+                outbound ? (userId == null ? "ASSISTANT" : "USER") : "DEBTOR", userId, outbound ? "SENT" : "RECEIVED",
+                ts(at), outbound ? ts(at) : null, outbound ? ts(at) : null, outbound ? null : ts(at));
     }
 
     private void configure() {

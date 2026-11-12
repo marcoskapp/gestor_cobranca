@@ -78,16 +78,16 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'analytics.margin',
-    version: 1,
+    version: 2,
     title: 'Margem por carteira',
     summary: 'Quanto cada credor e carteira rende depois do custo operacional estimado da recuperação.',
     steps: [
       { anchor: 'kpi-revenue', title: 'Receita', body: 'Comissão, valor fixo e honorários da assessoria sobre o recebido no período. Leva ao Razão de comissão.' },
       { anchor: 'kpi-net-margin', title: 'Margem líquida', body: 'Receita menos todo o custo, inclusive ociosidade e custos fixos rateados. Negativa: a carteira consome margem.' },
       { anchor: 'kpi-cost-per-settled', title: 'Custo por acordo cumprido', body: 'Quanto custa cada acordo que o devedor pagou até o fim: o resultado que importa, não só o fechamento.' },
-      { anchor: 'margin-table', title: 'Por credor e carteira', body: 'Ordene pela coluna e abra o credor para ver as carteiras. Margem negativa aparece com "negativa" escrito.' },
+      { anchor: 'margin-scatter', title: 'Margem × volume', body: 'Cada carteira é um ponto, nos quadrantes de rende e escala a revisar contrato. Clique para ver só a carteira.' },
+      { anchor: 'margin-table', title: 'Por credor e carteira', body: 'Ordene, abra o credor para ver as carteiras e veja a tendência de seis meses. Margem negativa vem escrita.' },
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
-      { anchor: 'margin-warnings', title: 'Custos incompletos', body: 'Horas sem faixa, mês sem câmbio ou canal sem tarifa entram com custo zero. Corrija pelo atalho.' },
     ],
   },
   {
@@ -691,11 +691,11 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'organization.costs',
-    version: 1,
+    version: 2,
     title: 'Custos operacionais',
-    summary: 'Faixas de custo de pessoas, tarifas de canal, câmbio da IA e custos fixos usados no painel de margem.',
+    summary: 'Faixas de custo de pessoas, tarifas de canal, câmbio da IA, custos fixos e faturas de canal usados no painel de margem.',
     steps: [
-      { anchor: 'costs-tabs', title: 'Um cadastro por aba', body: 'Faixas de pessoas, tarifas, câmbio e custos fixos. Faixas, tarifas e câmbio são encerrados, nunca apagados; excluir um custo fixo refaz o rateio do mês.' },
+      { anchor: 'costs-tabs', title: 'Um cadastro por aba', body: 'Faixas, tarifas, câmbio, custos fixos e faturas dos canais. Vigências são encerradas, nunca apagadas; custo fixo e fatura refazem o mês na hora.' },
       { anchor: 'costs-people', title: 'Pessoas e faixas', body: 'Cada pessoa aponta para a faixa do cargo. O valor-hora nunca aparece por pessoa.' },
       { anchor: 'costs-new', title: 'Novo cadastro', body: 'Crie o item da aba aberta. Uma nova vigência do mesmo item vale a partir da data escolhida.' },
     ],

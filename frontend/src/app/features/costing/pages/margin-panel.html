@@ -22,12 +22,26 @@
 
 <app-analytics-filters [filter]="analyticsFilter()" [options]="{ period: true, creditor: true, portfolio: true }" (changed)="changeFilter($event)" />
 
-<p class="mp__basis" data-tour="margin-basis">
-  <span class="badge rounded-pill text-bg-secondary">Estimado</span>
-  <span>Custo = uso registrado × faixas de custo, tarifas e câmbio cadastrados; a fatura real dos provedores ainda não entra.</span>
-  <app-info-hint indicator="analytics.margin.estimated" label="Valores estimados" />
+<div class="mp__basis" data-tour="margin-basis">
+  <div class="btn-group btn-group-sm" role="radiogroup" aria-label="Base dos custos">
+    @for (option of basisOptions; track option.value) {
+      <input type="radio" class="btn-check" name="mp-basis" [id]="'mp-basis-' + option.value" [checked]="state.basis() === option.value"
+             (change)="setBasis(option.value)" />
+      <label class="btn btn-outline-secondary" [for]="'mp-basis-' + option.value">{{ option.label }}</label>
+    }
+  </div>
+  <span [class]="'badge rounded-pill text-bg-' + badge().tone">{{ badge().label }}</span>
+  <span>{{ badge().text }}</span>
+  @if (reconciled()) {
+    <app-info-hint indicator="analytics.margin.reconciled" label="Conciliado com a fatura" />
+  } @else {
+    <app-info-hint indicator="analytics.margin.estimated" label="Valores estimados" />
+  }
   <app-config-link [route]="settingsRoute" label="Custos operacionais" [permissions]="settingsPermissions" />
-</p>
+  @if (invoicesAvailable()) {
+    <span class="mp__basis-note">Há faturas de canal informadas no período: escolha "Conciliado com a fatura" para ver os custos com elas.</span>
+  }
+</div>
 
 @if (partialScope()) {
   <div class="alert alert-info d-flex align-items-start gap-2" role="note">
@@ -95,16 +109,78 @@
       </app-kpi-card>
     </section>
 
+    @if (reconciled() && (adjustments().length || pending().length || invoiceLines().length)) {
+      <section class="app-card mp__reconciliation" aria-labelledby="mp-rec-title" data-tour="margin-reconciliation">
+        <h2 class="app-card__title" id="mp-rec-title">
+          Ajuste pela fatura
+          <app-info-hint indicator="analytics.margin.invoice-adjustment" label="Ajuste pela fatura" />
+        </h2>
+        @if (adjustments().length) {
+          <ul class="mp__adjustments">
+            @for (a of adjustments(); track a.category) {
+              <li>{{ a.text }}</li>
+            }
+          </ul>
+        } @else {
+          <p class="mp__hint">As faturas informadas são iguais à estimativa: nenhum ajuste no período.</p>
+        }
+        @if (pending().length) {
+          <p class="mp__pending">
+            <app-icon name="exclamation-triangle" />
+            <span>Canais com uso ainda sem fatura (continuam estimados): {{ pending().join('; ') }}.</span>
+            @if (invoiceLink()) {
+              <app-config-link [route]="settingsRoute" [queryParams]="invoiceTab" label="Informar faturas" [permissions]="invoicePermissions" />
+            }
+          </p>
+        }
+        @if (invoiceLines().length) {
+          <div class="mp__table-wrap">
+            <table class="mp__table mp__invoices">
+              <caption class="visually-hidden">Faturas de canal do período ao lado da estimativa da assessoria</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Mês</th>
+                  <th scope="col">Canal</th>
+                  <th scope="col" class="num">Estimativa</th>
+                  <th scope="col" class="num">Fatura</th>
+                  <th scope="col" class="num">Ajuste</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (i of invoiceLines(); track i.month + i.item) {
+                  <tr>
+                    <td>{{ monthLabel(i.month) }}</td>
+                    <th scope="row">{{ itemLabels[i.item] }}</th>
+                    <td class="num"><app-amount [value]="i.estimated" /></td>
+                    <td class="num"><app-amount [value]="i.invoiced" /></td>
+                    <td class="num app-numeric">{{ signed(i.adjustment) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    }
+
     <div class="app-columns mp__grid">
       <section class="app-card" data-tour="margin-waterfall">
         <app-waterfall-chart title="Da receita à margem líquida" info="analytics.margin.waterfall" [summary]="waterfallSummary()" [steps]="steps()" />
         <p class="mp__hint">Horas de trabalho: {{ hours(t.directHours) }} diretas e {{ hours(t.idleHours) }} de ociosidade.</p>
+        @if (reconciled() && adjustmentTotal() !== 0) {
+          <p class="mp__hint">Telefonia, mensagens e IA incluem o ajuste pela fatura ({{ signed(adjustmentTotal()) }} no total).</p>
+        }
       </section>
       <section class="app-card" data-tour="margin-months">
         <app-waterfall-chart title="Margem líquida por mês" info="analytics.margin.by-month" categoryHeader="Mês" valueHeader="Margem líquida"
                              [summary]="monthSummary()" [steps]="monthSteps()" [notes]="monthNotes()" />
       </section>
     </div>
+
+    <section class="app-card mp__scatter" data-tour="margin-scatter">
+      <app-margin-scatter info="analytics.margin.scatter" [summary]="scatterSummary()" [model]="scatter()" [queryParamsFor]="scatterParams"
+                          (selected)="openPortfolio($event)" />
+    </section>
 
     <section class="app-card" aria-labelledby="mp-table-title" data-tour="margin-table">
       <div class="mp__table-head">
@@ -148,6 +224,11 @@
                   <app-info-hint [indicator]="c.info" [label]="c.label" />
                 </th>
               }
+              <th scope="col" class="mp__trend">
+                <span>Tendência</span>
+                <span class="sub">margem, 6 meses</span>
+                <app-info-hint indicator="analytics.margin.trend" label="Tendência da margem líquida" />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -165,13 +246,13 @@
                   <span>{{ creditorName(c) }}</span>
                   <span class="sub">{{ count(item.portfolios.length) }} {{ item.portfolios.length === 1 ? 'carteira' : 'carteiras' }}</span>
                 </th>
-                <ng-container *ngTemplateOutlet="cells; context: { $implicit: c, link: creditorLink(c) }" />
+                <ng-container *ngTemplateOutlet="cells; context: { $implicit: c, link: creditorLink(c), trend: trendOf(c.creditorId) }" />
               </tr>
               @if (open) {
                 @for (p of item.portfolios; track p.portfolioId ?? '-'; let first = $first) {
                   <tr class="mp__portfolio" [class.mp__negative]="negative(p.netMargin)" [attr.id]="first ? 'mp-p-' + c.creditorId : null">
                     <th scope="row"><span class="mp__indent">{{ portfolioName(p) }}</span></th>
-                    <ng-container *ngTemplateOutlet="cells; context: { $implicit: p, link: portfolioLink(c, p) }" />
+                    <ng-container *ngTemplateOutlet="cells; context: { $implicit: p, link: portfolioLink(c, p), trend: trendOf(c.creditorId, p.portfolioId) }" />
                   </tr>
                 }
               }
@@ -200,7 +281,7 @@
   }
 }
 
-<ng-template #cells let-line let-link="link">
+<ng-template #cells let-line let-link="link" let-trend="trend">
   <td class="num"><app-drill-link [to]="link"><app-amount [value]="line.recovered" /></app-drill-link></td>
   <td class="num"><app-drill-link [to]="link"><app-amount [value]="line.revenue" /></app-drill-link></td>
   @if (showCategories()) {
@@ -217,4 +298,13 @@
     {{ marginText(line.netMargin) }}<span class="sub">{{ rate(line.netMarginRate) }} da receita</span>
   </td>
   <td class="num app-numeric">{{ rate(line.roi) }}</td>
+  <td class="mp__trend">
+    @if (trend === 'loading') {
+      <span class="mp__trend-state">Carregando…</span>
+    } @else if (trend === 'error') {
+      <span class="mp__trend-state">Indisponível</span>
+    } @else if (trend) {
+      <app-trend-sparkline [points]="trend" [months]="trendMonths()" />
+    }
+  </td>
 </ng-template>

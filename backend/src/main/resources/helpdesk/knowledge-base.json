@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "5e0fa104a4630151",
+ "contentVersion": "36cda8b51107277d",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -6564,9 +6564,9 @@
    "title": "Margem por carteira",
    "objective": "Quanto cada credor e carteira rende para a assessoria depois do custo operacional estimado da recuperação.",
    "purpose": [
-    "Mostra a receita, o custo por categoria (pessoas, inteligência artificial, telefonia, mensagens, comissão dos negociadores, jurídico, ociosidade e custos fixos) e as margens de cada credor e carteira. Abre no último mês fechado.",
-    "O custo é estimado: uso registrado vezes as faixas, tarifas e câmbio cadastrados em Custos operacionais. Horas sem faixa, mês sem câmbio ou canal sem tarifa entram com custo zero, e o painel avisa com o atalho para corrigir.",
-    "Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. Depois de corrigir uma faixa, tarifa ou câmbio, \"Reapurar o período\" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores."
+    "Mostra a receita, o custo por categoria (pessoas, inteligência artificial, telefonia, mensagens, comissão dos negociadores, jurídico, ociosidade e custos fixos) e as margens de cada credor e carteira. Abre no último mês fechado. A coluna \"Tendência\" traz a margem líquida em % da receita dos seis meses que terminam no fim do período, com a frase \"subiu\", \"caiu\" ou \"estável\"; mês sem receita ou ainda não apurado fica como lacuna, nunca como zero.",
+    "O custo é estimado: uso registrado vezes as faixas, tarifas e câmbio cadastrados em Custos operacionais. Horas sem faixa, mês sem câmbio ou canal sem tarifa entram com custo zero, e o painel avisa com o atalho para corrigir. Com as faturas dos canais informadas, escolha \"Conciliado com a fatura\": telefonia, mensagens e inteligência artificial passam a usar o valor cobrado, com a diferença rateada pelo custo estimado de cada credor e carteira; o selo mostra \"Conciliado\" ou \"Parcialmente conciliado\" e o quadro \"Ajuste pela fatura\" explica cada canal.",
+    "O mapa \"Carteiras: margem × volume recuperado\" põe cada carteira num de quatro quadrantes — rende e escala, rende pouco, consome e revisar contrato — pelos cortes escritos na tela: a mediana do recuperado e a margem do conjunto (ou zero, se negativa). Carteira sem receita fica fora, com a contagem. Clicar no ponto (ou Enter) abre o painel só daquela carteira e o \"voltar\" retorna ao mapa; \"Ver tabela\" mostra o mesmo em lista. Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. Depois de corrigir uma faixa, tarifa ou câmbio, \"Reapurar o período\" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores."
    ],
    "profiles": [
     "GESTOR",
@@ -6583,7 +6583,7 @@
    "related": [
     {
      "screen": "organization.costs",
-     "why": "Faixas, tarifas, câmbio e custos fixos usados no cálculo."
+     "why": "Faixas, tarifas, câmbio, custos fixos e faturas de canal usados no cálculo."
     },
     {
      "screen": "settlement.ledger",
@@ -6598,6 +6598,7 @@
     "margem-de-contribuicao",
     "margem-liquida",
     "custo-estimado",
+    "custo-conciliado",
     "rateio"
    ],
    "path": "/paineis/margem",
@@ -6770,21 +6771,21 @@
    "id": "organization.costs",
    "module": "administracao",
    "title": "Custos operacionais",
-   "objective": "Faixas de custo de pessoas, tarifas de canal, câmbio da inteligência artificial e custos fixos usados no painel de margem.",
+   "objective": "Faixas de custo de pessoas, tarifas de canal, câmbio da inteligência artificial, custos fixos e faturas de canal usados no painel de margem.",
    "purpose": [
     "Faixas, tarifas e câmbio têm vigência: uma nova vigência vale a partir da data escolhida e as anteriores ficam no histórico; nada disso é apagado, só encerrado. O custo fixo pode ser excluído em qualquer mês, com motivo opcional: o rateio do mês é refeito na hora e a margem dos credores muda, mesmo em mês já apurado.",
     "Faixa de custo é o custo-empresa por hora de um cargo. Cada pessoa aponta para uma faixa a partir de uma data, e a tela mostra só o nome da faixa de cada pessoa, nunca o valor. Tarifas de canal: WhatsApp por conversa iniciada pela assessoria, SMS e e-mail por mensagem (o e-mail pode ficar zerado).",
-    "Custos fixos são rateados pelas horas trabalhadas de cada credor no mês, a menos que você escolha outra regra: valor recuperado, casos trabalhados ou direto a um credor. Só quem vê todos os credores altera os cadastros; com acesso a alguns credores, você lança ou exclui só o custo fixo direto a um dos seus credores."
+    "Custos fixos são rateados pelas horas trabalhadas de cada credor no mês, a menos que você escolha outra regra: valor recuperado, casos trabalhados ou direto a um credor. Só quem vê todos os credores altera os cadastros; com acesso a alguns credores, você lança ou exclui só o custo fixo direto a um dos seus credores. Na aba Faturas (só para quem vê todos os credores), informe o valor cobrado por canal no mês, em reais, ao lado da estimativa: a diferença é rateada na hora pelo custo estimado de cada credor e carteira."
    ],
    "profiles": [
     "FINANCEIRO",
     "ADMIN"
    ],
    "inputs": [
-    "Custo-empresa por cargo, tarifas dos provedores, câmbio do dólar e despesas fixas do mês."
+    "Custo-empresa por cargo, tarifas dos provedores, câmbio do dólar, despesas fixas do mês e faturas dos canais."
    ],
    "outputs": [
-    "Custo estimado por credor e carteira no painel de margem, recalculado na apuração diária."
+    "Custo estimado por credor e carteira no painel de margem, recalculado na apuração diária, e a base conciliada com as faturas."
    ],
    "related": [
     {
@@ -6799,7 +6800,8 @@
    "terms": [
     "faixa-de-custo",
     "rateio",
-    "custo-estimado"
+    "custo-estimado",
+    "custo-conciliado"
    ],
    "path": "/organizacao/custos",
    "access": {
@@ -7718,6 +7720,11 @@
    "definition": "Custo calculado pelo uso registrado no sistema vezes as faixas, tarifas e câmbio cadastrados. Pode diferir da fatura do provedor."
   },
   {
+   "id": "custo-conciliado",
+   "term": "Custo conciliado",
+   "definition": "Custo de canal ajustado pela fatura do provedor: a diferença entre a fatura do mês e a estimativa é rateada na proporção do custo estimado de cada credor e carteira."
+  },
+  {
    "id": "comissao-do-negociador",
    "term": "Comissão do negociador",
    "definition": "Remuneração variável que a assessoria paga ao negociador sobre o que ele recuperou, pelo plano vigente."
@@ -8628,9 +8635,33 @@
    "title": "Valores estimados",
    "what": "Os custos do painel são estimados a partir do uso registrado no sistema, e não da fatura dos provedores.",
    "how": "Tempo de atendimento vezes a faixa de custo do cargo, envios vezes a tarifa do canal, uso de inteligência artificial vezes o câmbio do mês e custos fixos rateados. A apuração roda todo dia e refaz os últimos 35 dias.",
-   "use": "Use para comparar credores e carteiras e encontrar onde a margem some. Para fechar contas com o fornecedor, a referência continua sendo a fatura.",
+   "use": "Use para comparar credores e carteiras e encontrar onde a margem some. Com as faturas dos canais informadas em Custos operacionais, escolha \"Conciliado com a fatura\" para ver telefonia, mensagens e IA pelo valor cobrado.",
+   "screens": [
+    "analytics.margin",
+    "organization.costs"
+   ]
+  },
+  {
+   "id": "analytics.margin.reconciled",
+   "module": "paineis",
+   "title": "Conciliado com a fatura",
+   "what": "Base do painel em que telefonia, mensagens e inteligência artificial usam o valor das faturas dos provedores informadas pela gestão, no lugar só da estimativa.",
+   "how": "Para cada canal com fatura no mês, a diferença entre a fatura e a estimativa é rateada pelos credores e carteiras na proporção do custo estimado de cada um (sem estimativa, pela quantidade de uso). Canal sem fatura continua estimado; pessoas, comissão, jurídico e custos fixos não mudam.",
+   "use": "Use para fechar o mês com números que batem com o que a assessoria pagou. \"Parcialmente conciliado\" indica canais com uso ainda sem fatura no período.",
    "screens": [
     "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.invoice-adjustment",
+   "module": "paineis",
+   "title": "Ajuste pela fatura",
+   "what": "Diferença entre a fatura real de um canal no mês e o custo estimado pelo uso registrado.",
+   "how": "Fatura do mês menos a estimativa do mesmo canal no mês. Positiva: o provedor cobrou mais do que o estimado (ex.: tarifa desatualizada); negativa: cobrou menos. Fatura de canal sem nenhum uso no mês fica em \"Sem credor\".",
+   "use": "Ajustes grandes e repetidos indicam tarifa ou câmbio desatualizados em Custos operacionais: corrija-os para a estimativa dos próximos meses ficar mais perto da fatura.",
+   "screens": [
+    "analytics.margin",
+    "organization.costs"
    ]
   },
   {
@@ -8755,11 +8786,33 @@
    ]
   },
   {
+   "id": "analytics.margin.trend",
+   "module": "paineis",
+   "title": "Tendência da margem líquida",
+   "what": "A margem líquida em percentual da receita nos seis meses que terminam no mês do fim do período escolhido, para cada credor e carteira.",
+   "how": "A mesma conta da margem líquida, mês a mês. Mês sem receita ou ainda não apurado fica como lacuna, nunca como zero. A frase compara o primeiro e o último mês com receita; menos de 1 ponto de diferença é estável.",
+   "use": "Margem caindo mês a mês pede atenção antes de ficar negativa: veja na cascata qual custo cresceu. Dois meses seguidos de margem negativa pedem revisão do contrato.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
+   "id": "analytics.margin.scatter",
+   "module": "paineis",
+   "title": "Carteiras: margem × volume recuperado",
+   "what": "Cada carteira do período como um ponto: à direita, mais valor recuperado; acima, maior margem líquida em percentual da receita; o tamanho do ponto é a receita.",
+   "how": "O corte de volume é a mediana do recuperado das carteiras do mapa; o de margem é a margem líquida do conjunto do mapa (zero se ela for negativa). Daí os quadrantes: rende e escala, rende pouco, consome e revisar contrato. Carteira sem receita ou sem recuperado fica fora, com a contagem. O volume usa escala logarítmica, porque as carteiras variam de milhares a milhões.",
+   "use": "Rende e escala: proteja e dê prioridade. Rende pouco: busque mais volume. Consome: reveja canal, esforço e automação. Revisar contrato: renegocie o preço ou reavalie a carteira. Clique no ponto para ver só a carteira.",
+   "screens": [
+    "analytics.margin"
+   ]
+  },
+  {
    "id": "analytics.margin.cost-human-direct",
    "module": "paineis",
    "title": "Pessoas (tempo direto)",
    "what": "Custo do tempo que as pessoas dedicaram aos casos do credor: atendimento, pós-atendimento das chamadas e conversa no chat.",
-   "how": "Tempo atribuído ao credor vezes o custo por hora da faixa do cargo vigente no dia. Horas sem faixa entram com custo zero, com aviso.",
+   "how": "Tempo atribuído ao credor vezes o custo por hora da faixa do cargo vigente no dia. Quem atende vários devedores ao mesmo tempo tem o tempo dividido entre os atendimentos, sem contar a mesma hora duas vezes. No chat, cada resposta vale até 3 minutos. Horas sem faixa entram com custo zero, com aviso.",
    "use": "Geralmente o maior custo. Subindo sem mais acordos cumpridos, reveja filas, roteiro e a parte que pode ir para campanhas ou para o assistente.",
    "screens": [
     "analytics.margin"

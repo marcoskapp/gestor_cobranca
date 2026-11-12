@@ -310,6 +310,8 @@ app:
     refresh-statement-timeout: PT10M
     max-refresh-days: 93
     max-period-days: 731
+    # tempo de trabalho atribuído a cada mensagem escrita por uma pessoa no chat (§4.1)
+    chat-reply-window: PT3M
   # Minhas pendências (docs/tecnico/desenho/pendencias.md): limite de tempo da consulta inteira (também
   # statement_timeout de cada fonte), fontes em paralelo por instância, janela de "perto do prazo"
   pending-work:

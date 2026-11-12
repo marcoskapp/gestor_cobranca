@@ -1,4 +1,4 @@
-import { CreditorMargin, MarginLine, MarginReport } from '../app/features/costing/data/costing.models';
+import { CreditorMargin, MarginLine, MarginReport, MarginTrend, TrendPoint } from '../app/features/costing/data/costing.models';
 
 /** Linha de margem fictícia (valores redondos para conferir a formatação). */
 export function marginLine(o: Partial<MarginLine> = {}): MarginLine {
@@ -45,6 +45,28 @@ export function marginReport(o: Partial<MarginReport> = {}): MarginReport {
     creditors: [rends, consumes],
     months: [{ ...marginLine(), month: '2026-10' }],
     warnings: [],
+    ...o,
+  };
+}
+
+export const TREND_MONTHS = ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'];
+
+/** Ponto da tendência: só a taxa (fração) e a margem; `null` = mês sem receita ou sem fato. */
+export function trendPoint(month: string, rate: number | null, netMargin: number | null = rate === null ? null : rate * 1000): TrendPoint {
+  return { month, recovered: netMargin === null ? null : 5000, revenue: rate === null ? null : 1000, netMargin, netMarginRate: rate };
+}
+
+/** Resposta de `GET /costing/margin/trend`: A subindo de 8% para 12% com maio sem receita; B caindo até ficar negativa. */
+export function marginTrend(o: Partial<MarginTrend> = {}): MarginTrend {
+  const rates = (values: (number | null)[]) => values.map((v, i) => trendPoint(TREND_MONTHS[i], v));
+  return {
+    period: { from: '2026-10-01', to: '2026-10-31' },
+    months: TREND_MONTHS.map((month) => ({ month, status: 'COMPLETE' })),
+    computedUntil: '2026-11-11',
+    creditors: [
+      { creditorId: CREDITOR_A, points: rates([null, 0.08, 0.09, 0.1, 0.11, 0.12]), portfolios: [{ portfolioId: PORTFOLIO_A1, points: rates([null, 0.08, 0.09, 0.1, 0.11, 0.12]) }] },
+      { creditorId: CREDITOR_B, points: rates([0.1, 0.05, 0.02, -0.1, -0.2, -0.3]), portfolios: [] },
+    ],
     ...o,
   };
 }

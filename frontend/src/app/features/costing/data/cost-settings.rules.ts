@@ -1,4 +1,5 @@
-import { CostBand } from './costing.models';
+import { formatAmount, toAmount } from '../../../shared/components/amount/amount';
+import { CHANNEL_ITEMS, ChannelInvoice, ChannelItem, CostBand, ItemEstimate, Money } from './costing.models';
 import { monthLabel } from './margin.rules';
 
 /** Regras puras da configuração de custos (vigências, meses e faixas). */
@@ -61,4 +62,68 @@ export function lastClosedMonthStart(today: Date): string {
 export function normalizeMonth(month: string): string {
   const match = /^(\d{4})-(\d{2})/.exec(month);
   return match ? `${match[1]}-${match[2]}-01` : month;
+}
+
+// ------------------------------------------------------------------ faturas de canal (fase 2, §13)
+
+const QUANTITY = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+const USD = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+
+/** Uso do canal no mês na unidade cobrada: "120 minutos", "35 conversas ou mensagens", "US$ 12,40". */
+export function usageText(estimate: Pick<ItemEstimate, 'quantity' | 'unit' | 'item'> | null): string {
+  const n = toAmount(estimate?.quantity ?? 0) ?? 0;
+  if (!estimate || n === 0) {
+    return 'sem uso';
+  }
+  switch (estimate.unit) {
+    case 'MINUTES':
+      return `${QUANTITY.format(n)} ${n === 1 ? 'minuto' : 'minutos'}`;
+    case 'USD':
+      return `${USD.format(n)} de uso`;
+    default:
+      if (estimate.item === 'WHATSAPP') {
+        return `${QUANTITY.format(n)} ${n === 1 ? 'conversa' : 'conversas'}`;
+      }
+      return `${QUANTITY.format(n)} ${n === 1 ? 'mensagem' : 'mensagens'}`;
+  }
+}
+
+/** Diferença entre a fatura e a estimativa com o sinal escrito ("+R$ 3,00", "−R$ 1,20", "R$ 0,00"). */
+export function differenceText(invoice: Money, estimated: Money): string {
+  const diff = Math.round(((toAmount(invoice) ?? 0) - (toAmount(estimated) ?? 0)) * 100) / 100;
+  if (diff === 0) {
+    return formatAmount(0);
+  }
+  return diff < 0 ? `−${formatAmount(-diff)}` : `+${formatAmount(diff)}`;
+}
+
+/** Texto ao lado do valor no diálogo: a estimativa do mês e a diferença que será rateada. */
+export function invoiceEstimateText(estimate: ItemEstimate | null, amount: number | null): string {
+  if (!estimate) {
+    return 'Estimativa do mês: sem uso registrado deste canal. Sem uso, o valor da fatura fica em "Sem credor" no painel.';
+  }
+  const base = `Estimativa do mês: ${formatAmount(estimate.estimated)} (${usageText(estimate)}).`;
+  if (amount === null) {
+    return base;
+  }
+  if ((toAmount(estimate.quantity) ?? 0) === 0 && (toAmount(estimate.estimated) ?? 0) === 0) {
+    return `${base} Sem uso, o valor da fatura fica em "Sem credor" no painel.`;
+  }
+  return `${base} Diferença de ${differenceText(amount, estimate.estimated)}, rateada pelos credores e carteiras na proporção do custo estimado.`;
+}
+
+/** Linha da aba Faturas: um canal no mês, com a estimativa e a fatura (se houver). */
+export interface InvoiceRow {
+  item: ChannelItem;
+  estimate: ItemEstimate | null;
+  invoice: ChannelInvoice | null;
+}
+
+/** Os cinco canais na ordem do cadastro, com a estimativa e a fatura do mês. */
+export function invoiceRows(estimates: readonly ItemEstimate[], invoices: readonly ChannelInvoice[]): InvoiceRow[] {
+  return CHANNEL_ITEMS.map((item) => ({
+    item,
+    estimate: estimates.find((e) => e.item === item) ?? null,
+    invoice: invoices.find((i) => i.item === item) ?? null,
+  }));
 }

@@ -38,6 +38,12 @@ class CostingMetrics {
                 .register(registry).record(elapsed);
     }
 
+    /** Tendência de 6 meses do painel ({@code GET /margin/trend}), separada da consulta principal. */
+    void trendQueried(String outcome, Duration elapsed) {
+        Timer.builder("costing.margin.trend.duration").tag("outcome", outcome).publishPercentiles(0.5, 0.95, 0.99)
+                .register(registry).record(elapsed);
+    }
+
     void exported(String format, int rows) {
         Counter.builder("costing.exports").tag("format", format).register(registry).increment();
         DistributionSummary.builder("costing.export.rows").register(registry).record(rows);

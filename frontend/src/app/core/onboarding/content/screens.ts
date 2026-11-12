@@ -86,7 +86,13 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 4, items: ['Divergências em aberto, abertas no período e por tipo levam à lista de divergências com o mesmo credor e período.'] },
     ],
   },
-  { key: 'analytics.margin', version: 1, path: '/paineis/margem', tourId: 'analytics.margin' },
+  {
+    key: 'analytics.margin',
+    version: 2,
+    path: '/paineis/margem',
+    tourId: 'analytics.margin',
+    changes: [{ version: 2, items: ['Base "Conciliado com a fatura", coluna "Tendência" dos últimos 6 meses e mapa das carteiras por margem e volume recuperado.'] }],
+  },
   { key: 'scoring.models', version: 1, path: '/score/modelos', tourId: 'scoring.models' },
   {
     key: 'scoring.model',
@@ -1031,7 +1037,13 @@ export const SCREENS: readonly ScreenGuide[] = [
     ],
   },
   { key: 'organization.settings', version: 1, path: '/organizacao/configuracoes' },
-  { key: 'organization.costs', version: 1, path: '/organizacao/custos', tourId: 'organization.costs' },
+  {
+    key: 'organization.costs',
+    version: 2,
+    path: '/organizacao/custos',
+    tourId: 'organization.costs',
+    changes: [{ version: 2, items: ['Aba "Faturas": valor cobrado por canal no mês, ao lado da estimativa, para conciliar a margem.'] }],
+  },
   {
     key: 'governance.access-log',
     version: 3,

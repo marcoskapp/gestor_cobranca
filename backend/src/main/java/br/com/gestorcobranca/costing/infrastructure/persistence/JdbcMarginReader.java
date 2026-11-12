@@ -1,12 +1,15 @@
 package br.com.gestorcobranca.costing.infrastructure.persistence;
 
 import br.com.gestorcobranca.costing.application.port.out.MarginReader;
+import br.com.gestorcobranca.costing.domain.model.ChannelItem;
 import br.com.gestorcobranca.costing.domain.model.CostCategory;
+import br.com.gestorcobranca.costing.domain.model.ItemEstimate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Types;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Collection;
 import java.util.HashMap;
@@ -53,12 +56,35 @@ class JdbcMarginReader implements MarginReader {
 
     @Override
     public List<CostRow> costs(Slice slice) {
+        return costRows(slice, "ESTIMATED");
+    }
+
+    @Override
+    public List<CostRow> invoiceAdjustments(Slice slice) {
+        return costRows(slice, "INVOICE_ADJUSTMENT");
+    }
+
+    /** Somas de uma base dos fatos (lista fixa: {@code ESTIMATED} ou {@code INVOICE_ADJUSTMENT}). */
+    private List<CostRow> costRows(Slice slice, String basis) {
         return jdbc.query("select creditor_id, portfolio_id, to_char(day, 'YYYY-MM') as month, category, "
                         + "sum(amount) as amount, sum(quantity) as quantity from costing.cost_daily" + where(slice)
-                        + " group by 1, 2, 3, 4", params(slice),
+                        + " and basis = :basis group by 1, 2, 3, 4", params(slice).addValue("basis", basis),
                 (rs, i) -> new CostRow(JdbcUsageReader.uuid(rs, "creditor_id"), JdbcUsageReader.uuid(rs, "portfolio_id"),
                         YearMonth.parse(rs.getString("month")), CostCategory.valueOf(rs.getString("category")),
                         rs.getBigDecimal("amount"), rs.getBigDecimal("quantity")));
+    }
+
+    @Override
+    public List<ItemMonthRow> channelEstimates(LocalDate from, LocalDate to) {
+        return jdbc.query("""
+                        select to_char(day, 'YYYY-MM') as month, item, sum(amount) as amount, sum(quantity) as quantity
+                          from costing.cost_daily
+                         where day between :from and :to and basis = 'ESTIMATED' and item is not null
+                         group by 1, 2
+                        """, new MapSqlParameterSource().addValue("from", from, Types.DATE).addValue("to", to, Types.DATE),
+                (rs, i) -> new ItemMonthRow(YearMonth.parse(rs.getString("month")),
+                        ChannelItem.valueOf(rs.getString("item")),
+                        new ItemEstimate(rs.getBigDecimal("amount"), rs.getBigDecimal("quantity"))));
     }
 
     @Override

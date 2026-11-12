@@ -1,8 +1,26 @@
 import { convertToParamMap } from '@angular/router';
 import { marginLine as line } from '../../../../testing/costing-fixtures';
-import { assignableBandNames, isCurrent, monthOptions, normalizeMonth, sortBands, validityText } from './cost-settings.rules';
+import {
+  assignableBandNames,
+  differenceText,
+  invoiceEstimateText,
+  invoiceRows,
+  isCurrent,
+  monthOptions,
+  normalizeMonth,
+  sortBands,
+  usageText,
+  validityText,
+} from './cost-settings.rules';
 import {
   DEFAULT_MARGIN_SORT,
+  adjustmentViews,
+  basisBadge,
+  formatMarginBasis,
+  listText,
+  parseMarginBasis,
+  pendingInvoices,
+  signedAmount,
   formatMarginSort,
   lastClosedMonth,
   marginFilterParams,
@@ -150,5 +168,77 @@ describe('custos operacionais — regras puras', () => {
     expect(late.text).toContain('1 dia do período ainda não foi apurado');
     expect(late.linkLabel).toBeNull();
   });
-});
 
+  it('base dos custos na URL: só "conciliado" muda a base; o padrão não aparece', () => {
+    expect(parseMarginBasis('conciliado')).toBe('RECONCILED');
+    expect(parseMarginBasis(null)).toBe('ESTIMATED');
+    expect(parseMarginBasis('RECONCILED')).toBe('ESTIMATED');
+    expect(formatMarginBasis('RECONCILED')).toBe('conciliado');
+    expect(formatMarginBasis('ESTIMATED')).toBeNull();
+  });
+
+  it('selo da base: estimado, conciliado ou parcialmente conciliado conforme a situação', () => {
+    const rec = (status: 'ESTIMATED' | 'PARTIAL' | 'RECONCILED') => ({ status, months: [], adjustments: {}, invoices: null });
+    expect(basisBadge('ESTIMATED', rec('RECONCILED')).label).toBe('Estimado');
+    expect(basisBadge('RECONCILED', rec('RECONCILED'))).toEqual(expect.objectContaining({ label: 'Conciliado', tone: 'success' }));
+    expect(basisBadge('RECONCILED', rec('PARTIAL'))).toEqual(expect.objectContaining({ label: 'Parcialmente conciliado', tone: 'warning' }));
+    expect(basisBadge('RECONCILED', rec('ESTIMATED')).text).toContain('Nenhuma fatura');
+    expect(basisBadge('RECONCILED', null).label).toBe('Estimado');
+  });
+
+  it('ajuste por categoria: estimado, com a fatura e o sinal, nas duas bases; sem ajuste não aparece', () => {
+    const rec = { status: 'PARTIAL' as const, months: [], adjustments: { TELEPHONY: 30, MESSAGING: -5, AI: 0 }, invoices: null };
+    const reconciled = adjustmentViews(line(), 'RECONCILED', rec);
+    expect(reconciled.map((a) => a.category)).toEqual(['TELEPHONY', 'MESSAGING']);
+    // linha com telefonia 80 e mensagens 40 já com o ajuste
+    expect(nbsp(reconciled[0].text)).toBe('Telefonia: estimado R$ 50,00, com a fatura R$ 80,00 (ajuste +R$ 30,00)');
+    expect(nbsp(reconciled[1].text)).toBe('Mensagens: estimado R$ 45,00, com a fatura R$ 40,00 (ajuste −R$ 5,00)');
+    // na base estimada, o custo é a estimativa
+    expect(adjustmentViews(line(), 'ESTIMATED', rec)[0].reconciled).toBe(110);
+    expect(adjustmentViews(line(), 'RECONCILED', null)).toEqual([]);
+    expect(nbsp(signedAmount(-1.2))).toBe('−R$ 1,20');
+  });
+
+  it('meses com canais usados ainda sem fatura, por extenso', () => {
+    const rec = {
+      status: 'PARTIAL' as const,
+      adjustments: {},
+      invoices: null,
+      months: [
+        { month: '2026-09', status: 'ESTIMATED' as const, invoiced: [], pending: ['TELEPHONY' as const] },
+        { month: '2026-10', status: 'PARTIAL' as const, invoiced: ['TELEPHONY' as const], pending: ['WHATSAPP' as const, 'SMS' as const, 'AI' as const] },
+      ],
+    };
+    // mês sem nenhuma fatura não lista pendências (está todo estimado)
+    expect(pendingInvoices(rec)).toEqual(['out. de 2026: WhatsApp, SMS e Inteligência artificial']);
+    expect(listText(['A'])).toBe('A');
+    expect(listText([])).toBe('');
+  });
+
+  it('aviso de fatura sem uso leva à aba Faturas, para quem gerencia', () => {
+    const view = warningView({ code: 'INVOICE_WITHOUT_USAGE', count: 1 });
+    expect(view.text).toContain('1 fatura de canal sem nenhum uso');
+    expect(view.text).toContain('Sem credor');
+    expect(view.queryParams).toEqual({ aba: 'faturas' });
+    expect(view.permissions).toEqual(['COST_MANAGE']);
+  });
+
+  it('faturas: uso na unidade cobrada, diferença com sinal, texto do diálogo e linhas dos cinco canais', () => {
+    expect(usageText({ item: 'TELEPHONY', quantity: 1, unit: 'MINUTES' })).toBe('1 minuto');
+    expect(usageText({ item: 'WHATSAPP', quantity: 3, unit: 'UNITS' })).toBe('3 conversas');
+    expect(usageText({ item: 'SMS', quantity: 2, unit: 'UNITS' })).toBe('2 mensagens');
+    expect(nbsp(usageText({ item: 'AI', quantity: 12.4, unit: 'USD' }))).toBe('US$ 12,40 de uso');
+    expect(usageText({ item: 'EMAIL', quantity: 0, unit: 'UNITS' })).toBe('sem uso');
+    expect(nbsp(differenceText(80, 50))).toBe('+R$ 30,00');
+    expect(nbsp(differenceText('40.00', '45.10'))).toBe('−R$ 5,10');
+    expect(nbsp(differenceText(10, 10))).toBe('R$ 0,00');
+    const estimate = { month: '2026-10', item: 'SMS' as const, estimated: 4, quantity: 40, unit: 'UNITS', invoiceId: null, invoiced: null };
+    expect(nbsp(invoiceEstimateText(estimate, null))).toBe('Estimativa do mês: R$ 4,00 (40 mensagens).');
+    expect(nbsp(invoiceEstimateText(estimate, 6))).toContain('Diferença de +R$ 2,00');
+    expect(invoiceEstimateText(null, 6)).toContain('Sem credor');
+    const rows = invoiceRows([estimate], []);
+    expect(rows.map((r) => r.item)).toEqual(['TELEPHONY', 'WHATSAPP', 'SMS', 'EMAIL', 'AI']);
+    expect(rows[2].estimate).toBe(estimate);
+    expect(rows[0].invoice).toBeNull();
+  });
+});

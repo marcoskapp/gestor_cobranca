@@ -2,12 +2,13 @@ package br.com.gestorcobranca.costing.application.port.out;
 
 import br.com.gestorcobranca.costing.domain.model.Usage.AiUsage;
 import br.com.gestorcobranca.costing.domain.model.Usage.CallUsage;
-import br.com.gestorcobranca.costing.domain.model.Usage.DirectTime;
 import br.com.gestorcobranca.costing.domain.model.Usage.LoggedTime;
 import br.com.gestorcobranca.costing.domain.model.Usage.MessageCount;
 import br.com.gestorcobranca.costing.domain.model.Usage.Posted;
 import br.com.gestorcobranca.costing.domain.model.Usage.TemplateSend;
+import br.com.gestorcobranca.costing.domain.model.Usage.WorkSpan;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Consumer;
@@ -18,8 +19,12 @@ import java.util.function.Consumer;
  */
 public interface UsageReader {
 
-    /** Tempo direto por pessoa: duração das interações de pessoas + pós-atendimento das chamadas com credor. */
-    List<DirectTime> directTime(LocalDate from, LocalDate to);
+    /**
+     * Trechos de trabalho das pessoas que tocam o período: interações de pessoas com duração, pós-atendimento das
+     * chamadas com credor e respostas escritas no chat (cada mensagem enviada por uma pessoa vale do evento anterior da
+     * conversa até o envio, limitado a {@code chatReply}).
+     */
+    List<WorkSpan> workSpans(LocalDate from, LocalDate to, Duration chatReply);
 
     List<LoggedTime> loggedTime(LocalDate from, LocalDate to);
 

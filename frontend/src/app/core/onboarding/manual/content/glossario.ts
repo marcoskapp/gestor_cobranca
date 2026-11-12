@@ -69,6 +69,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
   { id: 'faixa-de-custo', term: 'Faixa de custo', definition: 'Custo-empresa por hora de um cargo (salário, encargos e benefícios ÷ horas contratadas). Cada pessoa aponta para uma faixa; o valor nunca é mostrado por pessoa.' },
   { id: 'rateio', term: 'Rateio', definition: 'Divisão de um custo que não pertence a um caso (aluguel, licenças, ociosidade) entre os credores, pela regra escolhida: horas trabalhadas, valor recuperado, casos trabalhados ou direto a um credor.' },
   { id: 'custo-estimado', term: 'Custo estimado', definition: 'Custo calculado pelo uso registrado no sistema vezes as faixas, tarifas e câmbio cadastrados. Pode diferir da fatura do provedor.' },
+  { id: 'custo-conciliado', term: 'Custo conciliado', definition: 'Custo de canal ajustado pela fatura do provedor: a diferença entre a fatura do mês e a estimativa é rateada na proporção do custo estimado de cada credor e carteira.' },
   { id: 'comissao-do-negociador', term: 'Comissão do negociador', definition: 'Remuneração variável que a assessoria paga ao negociador sobre o que ele recuperou, pelo plano vigente.' },
   { id: 'plano-de-remuneracao', term: 'Plano de remuneração', definition: 'Regras versionadas da comissão dos negociadores: percentuais, metas, qualidade e peso de crédito.' },
   { id: 'atribuicao-de-credito', term: 'Atribuição de crédito', definition: 'Quem gerou o acordo (negociador, assistente, portal ou campanha) e quanto do resultado conta para cada um.' },

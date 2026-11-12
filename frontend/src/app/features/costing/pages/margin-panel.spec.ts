@@ -6,7 +6,7 @@ import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angul
 import { BehaviorSubject } from 'rxjs';
 import { fakeUser } from '../../../../testing/auth-fixtures';
 import { flushAll, tick } from '../../../../testing/campaign-fixtures';
-import { CREDITOR_A, CREDITOR_B, PORTFOLIO_A1, marginReport } from '../../../../testing/costing-fixtures';
+import { CREDITOR_A, CREDITOR_B, PORTFOLIO_A1, marginLine, marginReport, marginTrend } from '../../../../testing/costing-fixtures';
 import { AuthService } from '../../../core/auth/auth.service';
 import { provideAppLocale } from '../../../core/config/app-locale';
 import { MarginReport } from '../data/costing.models';
@@ -52,12 +52,12 @@ describe('painel de margem por carteira', () => {
     [`/api/v1/portfolios/${PORTFOLIO_A1}`]: { id: PORTFOLIO_A1, code: 'A1', name: 'Cartão 2026' },
   };
 
-  async function render(report: MarginReport | ((req: never) => unknown)): Promise<ComponentFixture<MarginPanel>> {
+  async function render(report: MarginReport | ((req: never) => unknown), trend: unknown = marginTrend()): Promise<ComponentFixture<MarginPanel>> {
     const fixture = TestBed.createComponent(MarginPanel);
     for (let i = 0; i < 3; i++) {
       fixture.detectChanges();
       await tick();
-      flushAll(http, { ...names, '/api/v1/costing/margin': report });
+      flushAll(http, { ...names, '/api/v1/costing/margin': report, '/api/v1/costing/margin/trend': trend });
     }
     fixture.detectChanges();
     return fixture;
@@ -182,7 +182,7 @@ describe('painel de margem por carteira', () => {
     expect(req.request.params.get('to')).toBe('2026-10-31');
     req.flush({});
     await tick();
-    flushAll(http, { ...names, '/api/v1/costing/margin': marginReport() });
+    flushAll(http, { ...names, '/api/v1/costing/margin': marginReport(), '/api/v1/costing/margin/trend': marginTrend() });
   });
 
   it('período acima de 93 dias: avisa sem chamar o servidor', async () => {
@@ -191,6 +191,60 @@ describe('painel de margem por carteira', () => {
     const fixture = await render(marginReport());
     (el(fixture).querySelector('[data-tour="margin-refresh"]') as HTMLButtonElement).click();
     http.expectNone((r) => r.url === '/api/v1/costing/refresh');
+  });
+
+  const reconciliation = (status: 'ESTIMATED' | 'PARTIAL' | 'RECONCILED') => ({
+    status,
+    months: [{ month: '2026-10', status, invoiced: ['TELEPHONY' as const], pending: status === 'PARTIAL' ? ['WHATSAPP' as const, 'SMS' as const] : [] }],
+    adjustments: { TELEPHONY: 30, MESSAGING: 0, AI: 0 },
+    invoices: [{ month: '2026-10', item: 'TELEPHONY' as const, estimated: 50, invoiced: 80, adjustment: 30 }],
+  });
+
+  it('base "Conciliado com a fatura" vem da URL, vai à API e explica o ajuste; a escolha grava na URL', async () => {
+    permissions.set(['COST_VIEW', 'COST_MANAGE']);
+    query.next(convertToParamMap({ de: '2026-10-01', ate: '2026-10-31', base: 'conciliado' }));
+    const fixture = await render(((req: { request: { params: { get(n: string): string | null } } }) => {
+      expect(req.request.params.get('basis')).toBe('RECONCILED');
+      return marginReport({ basis: 'RECONCILED', reconciliation: reconciliation('PARTIAL') });
+    }) as never);
+    const basis = el(fixture).querySelector('[data-tour="margin-basis"]')!;
+    expect(text(basis)).toContain('Parcialmente conciliado');
+    expect(basis.querySelector<HTMLInputElement>('#mp-basis-RECONCILED')!.checked).toBe(true);
+    const box = text(el(fixture).querySelector('[data-tour="margin-reconciliation"]'));
+    // telefonia na base conciliada (R$ 80) = estimado R$ 50 + ajuste R$ 30
+    expect(box).toContain('Telefonia: estimado R$ 50,00, com a fatura R$ 80,00 (ajuste +R$ 30,00)');
+    expect(box).toContain('out. de 2026: WhatsApp e SMS');
+    expect(box).toContain('Informar faturas');
+    expect(box).not.toMatch(/TELEPHONY|WHATSAPP|PARTIAL/);
+    expect(text(el(fixture).querySelector('[data-tour="kpi-total-cost"]'))).toContain('ajuste pela fatura +R$ 30,00');
+    expect(text(el(fixture).querySelector('[data-tour="margin-waterfall"]'))).toContain('incluem o ajuste pela fatura');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const estimated = basis.querySelector<HTMLInputElement>('#mp-basis-ESTIMATED')!;
+    estimated.dispatchEvent(new Event('change'));
+    expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { base: null }, replaceUrl: true }));
+  });
+
+  it('base estimada (padrão) não manda o parâmetro e sugere a conciliada quando há faturas', async () => {
+    permissions.set(['COST_VIEW']);
+    const fixture = await render(((req: { request: { params: { has(n: string): boolean } } }) => {
+      expect(req.request.params.has('basis')).toBe(false);
+      return marginReport({ reconciliation: reconciliation('RECONCILED') });
+    }) as never);
+    const basis = text(el(fixture).querySelector('[data-tour="margin-basis"]'));
+    expect(basis).toContain('Estimado');
+    expect(basis).toContain('Há faturas de canal informadas no período');
+    expect(el(fixture).querySelector('[data-tour="margin-reconciliation"]')).toBeNull();
+  });
+
+  it('conciliado com escopo restrito: sem atalho para as faturas (a aba é da assessoria inteira)', async () => {
+    permissions.set(['COST_VIEW', 'COST_MANAGE']);
+    allCreditors.set(false);
+    query.next(convertToParamMap({ de: '2026-10-01', ate: '2026-10-31', base: 'conciliado' }));
+    const fixture = await render(marginReport({ basis: 'RECONCILED', reconciliation: { ...reconciliation('PARTIAL'), invoices: null } }));
+    const box = el(fixture).querySelector('[data-tour="margin-reconciliation"]')!;
+    expect(text(box)).toContain('Telefonia: estimado');
+    expect(text(box)).not.toContain('Informar faturas');
+    expect(box.querySelector('table')).toBeNull();
   });
 
   it('quem não vê todos os credores é avisado de que os totais são a soma dos próprios credores', async () => {
@@ -211,9 +265,97 @@ describe('painel de margem por carteira', () => {
     fixture.detectChanges();
     await tick();
     http.expectOne((r) => r.url === '/api/v1/costing/margin').flush({ title: 'falha' }, { status: 500, statusText: 'Erro' });
+    http.expectOne((r) => r.url === '/api/v1/costing/margin/trend').flush(marginTrend());
     await tick();
     fixture.detectChanges();
     expect(text(el(fixture))).toContain('Não foi possível carregar a margem');
     expect(text(el(fixture))).toContain('Tentar novamente');
+  });
+
+  it('tendência de 6 meses: minigráfico com a frase acessível por credor e carteira, sem pesar a resposta principal', async () => {
+    permissions.set(['COST_VIEW', 'CREDITOR_VIEW', 'PORTFOLIO_VIEW']);
+    const fixture = await render(marginReport(), ((req: {
+      request: { params: { get(n: string): string | null } };
+    }) => {
+      // mesmos filtros do painel
+      expect(req.request.params.get('from')).toBe('2026-10-01');
+      expect(req.request.params.get('to')).toBe('2026-10-31');
+      return marginTrend();
+    }) as never);
+    expect(text(el(fixture).querySelector('thead'))).toContain('Tendência');
+    const rows = [...el(fixture).querySelectorAll('tbody tr.mp__creditor')];
+    const label = (row: Element) => row.querySelector('[role="img"]')?.getAttribute('aria-label') ?? '';
+    // B (menor margem) primeiro: caiu até ficar negativa, com a palavra "negativa"
+    expect(label(rows[0])).toBe('Margem líquida de mai. a out.: caiu de 10,0% para -30,0% (negativa) da receita.');
+    expect(label(rows[1])).toBe('Margem líquida de mai. a out.: subiu de 8,0% para 12,0% da receita. 1 mês sem receita.');
+    // a carteira tem a própria série
+    el(fixture).querySelector<HTMLButtonElement>('button.mp__expand')!.click();
+    fixture.detectChanges();
+    expect(label(el(fixture).querySelector('tr.mp__portfolio')!)).toContain('subiu de 8,0% para 12,0%');
+    // dica no foco, mês a mês
+    (rows[1].querySelector('[role="img"]') as HTMLElement).dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+    expect(text(el(fixture).querySelector('[role="tooltip"]'))).toContain('mai.: sem receita');
+  });
+
+  it('tendência indisponível não derruba o painel; credor sem fato nos 6 meses mostra "sem base"', async () => {
+    permissions.set(['COST_VIEW', 'CREDITOR_VIEW']);
+    const fixture = TestBed.createComponent(MarginPanel);
+    for (let i = 0; i < 3; i++) {
+      fixture.detectChanges();
+      await tick();
+      for (const req of http.match((r) => r.url === '/api/v1/costing/margin/trend')) {
+        req.flush({ title: 'falha' }, { status: 500, statusText: 'Erro' });
+      }
+      flushAll(http, { ...names, '/api/v1/costing/margin': marginReport() });
+    }
+    fixture.detectChanges();
+    expect(text(el(fixture).querySelector('[data-tour="margin-kpis"]'))).toContain('Receita');
+    expect(text(el(fixture).querySelector('tbody tr.mp__creditor'))).toContain('Indisponível');
+    fixture.destroy();
+
+    const empty = await render(marginReport(), marginTrend({ creditors: [] }));
+    expect(el(empty).querySelector('tbody tr.mp__creditor [role="img"]')?.getAttribute('aria-label')).toBe(
+      'Margem líquida de mai. a out.: sem receita nos meses apurados.',
+    );
+  });
+
+  it('mapa de dispersão: carteiras nos quadrantes com os cortes escritos; sem base fora com a contagem; clique filtra pela carteira', async () => {
+    permissions.set(['COST_VIEW']);
+    const P2 = '00000000-0000-0000-0000-0000000000a2';
+    const P3 = '00000000-0000-0000-0000-0000000000a3';
+    const report = marginReport();
+    report.creditors[0].portfolios = [
+      { ...marginLine({ recovered: 100000, revenue: 10000, netMargin: 3000, netMarginRate: 0.3 }), portfolioId: PORTFOLIO_A1 },
+      { ...marginLine({ recovered: 4000, revenue: 800, netMargin: -200, netMarginRate: -0.25 }), portfolioId: P2 },
+      { ...marginLine({ recovered: 0, revenue: 0, netMargin: -50, netMarginRate: null }), portfolioId: P3 },
+      { ...marginLine({ recovered: 0, revenue: 0, netMargin: -10, netMarginRate: null }), portfolioId: null },
+    ];
+    const fixture = await render(report);
+    const map = el(fixture).querySelector('[data-tour="margin-scatter"]')!;
+    expect(text(map)).toContain('Cortes: volume na mediana do recuperado');
+    for (const q of ['Rende e escala', 'Rende pouco', 'Consome', 'Revisar contrato']) {
+      expect(text(map)).toContain(q);
+    }
+    expect(text(map)).toContain('1 carteira sem base');
+    const points = [...map.querySelectorAll<SVGGElement>('g.sc__point')];
+    expect(points.length).toBe(2);
+    const negative = points.find((p) => p.getAttribute('aria-label')!.includes('(negativa)'))!;
+    expect(negative.getAttribute('aria-label')).toContain('Quadrante: Revisar contrato');
+    expect(negative.querySelector('path.sc__mark--neg')).not.toBeNull();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    negative.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    // passo novo do histórico (sem replaceUrl): o "voltar" retorna ao mapa
+    expect(navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({ queryParams: expect.objectContaining({ credor: [CREDITOR_A], carteira: [P2], de: '2026-10-01', ate: '2026-10-31' }) }),
+    );
+    expect(navigate.mock.calls[0][1]?.replaceUrl).toBeUndefined();
+    // tabela equivalente com link para o mesmo filtro
+    [...map.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Ver tabela'))!.click();
+    fixture.detectChanges();
+    const links = [...map.querySelectorAll('tbody a')].map((a) => decodeURIComponent(a.getAttribute('href') ?? ''));
+    expect(links.length).toBe(2);
+    expect(links.some((h) => h.includes(`carteira=${P2}`) && h.includes(`credor=${CREDITOR_A}`))).toBe(true);
   });
 });

@@ -1,11 +1,13 @@
 package br.com.gestorcobranca.costing.infrastructure.persistence;
 
 import br.com.gestorcobranca.costing.application.port.out.CostFactStore;
+import br.com.gestorcobranca.costing.domain.model.ChannelItem;
 import br.com.gestorcobranca.costing.domain.model.CostCategory;
 import br.com.gestorcobranca.costing.domain.model.CostFact;
 import br.com.gestorcobranca.costing.domain.model.CostKey;
 import br.com.gestorcobranca.costing.domain.model.CostWarning;
 import br.com.gestorcobranca.costing.domain.model.CostWarningCode;
+import br.com.gestorcobranca.costing.domain.model.ItemEstimate;
 import br.com.gestorcobranca.costing.domain.model.OverheadAllocation;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -21,6 +23,7 @@ import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,11 +68,27 @@ class JdbcCostFactStore implements CostFactStore {
     @Override
     public long replaceFacts(LocalDate from, LocalDate to, Collection<CostCategory> categories,
                              Collection<CostFact> facts) {
-        jdbc.update("delete from costing.cost_daily where day between :from and :to and category in (:categories)",
-                new MapSqlParameterSource().addValue("from", from, Types.DATE).addValue("to", to, Types.DATE)
-                        .addValue("categories", categories.stream().map(Enum::name).toList()));
-        List<CostFact> rows = facts.stream().filter(f -> !f.day().isBefore(from) && !f.day().isAfter(to)
-                && categories.contains(f.category())).toList();
+        jdbc.update("""
+                delete from costing.cost_daily
+                 where day between :from and :to and category in (:categories) and basis = 'ESTIMATED'
+                """, new MapSqlParameterSource().addValue("from", from, Types.DATE).addValue("to", to, Types.DATE)
+                .addValue("categories", categories.stream().map(Enum::name).toList()));
+        return insert(facts.stream().filter(f -> !f.day().isBefore(from) && !f.day().isAfter(to)
+                && categories.contains(f.category())).toList(), "ESTIMATED");
+    }
+
+    @Override
+    public long replaceInvoiceAdjustments(LocalDate from, LocalDate to, Collection<CostFact> facts) {
+        jdbc.update("""
+                delete from costing.cost_daily
+                 where day between :from and :to and basis = 'INVOICE_ADJUSTMENT'
+                """, new MapSqlParameterSource().addValue("from", from, Types.DATE).addValue("to", to, Types.DATE));
+        return insert(facts.stream().filter(f -> !f.day().isBefore(from) && !f.day().isAfter(to)).toList(),
+                "INVOICE_ADJUSTMENT");
+    }
+
+    /** Grava os fatos na base informada (lista fixa: {@code ESTIMATED} ou {@code INVOICE_ADJUSTMENT}). */
+    private long insert(List<CostFact> rows, String basis) {
         if (rows.isEmpty()) {
             return 0;
         }
@@ -78,16 +97,45 @@ class JdbcCostFactStore implements CostFactStore {
                 .addValue("creditor", f.creditorId())
                 .addValue("portfolio", f.portfolioId())
                 .addValue("category", f.category().name())
+                .addValue("item", f.item() == null ? null : f.item().name(), Types.VARCHAR)
                 .addValue("amount", f.amount())
                 .addValue("quantity", f.quantity())
-                .addValue("unit", f.unit().name())).toArray(SqlParameterSource[]::new);
+                .addValue("unit", f.unit().name())
+                .addValue("basis", basis)).toArray(SqlParameterSource[]::new);
         jdbc.batchUpdate("""
-                insert into costing.cost_daily (tenant_id, day, creditor_id, portfolio_id, category, amount, quantity,
-                                                unit, basis)
-                values (shared.current_tenant_id(), :day, :creditor, :portfolio, :category, :amount, :quantity, :unit,
-                        'ESTIMATED')
+                insert into costing.cost_daily (tenant_id, day, creditor_id, portfolio_id, category, item, amount,
+                                                quantity, unit, basis)
+                values (shared.current_tenant_id(), :day, :creditor, :portfolio, :category, :item, :amount, :quantity,
+                        :unit, :basis)
                 """, batch);
         return rows.size();
+    }
+
+    @Override
+    public Map<ChannelItem, Map<CostKey, ItemEstimate>> channelEstimates(YearMonth month) {
+        Map<ChannelItem, Map<CostKey, ItemEstimate>> out = new EnumMap<>(ChannelItem.class);
+        jdbc.query("""
+                select day, creditor_id, portfolio_id, item, sum(amount) as amount, sum(quantity) as quantity
+                  from costing.cost_daily
+                 where day between :from and :to and basis = 'ESTIMATED' and item is not null
+                 group by 1, 2, 3, 4
+                """, new MapSqlParameterSource().addValue("from", month.atDay(1), Types.DATE)
+                .addValue("to", month.atEndOfMonth(), Types.DATE), rs -> {
+            out.computeIfAbsent(ChannelItem.valueOf(rs.getString("item")), k -> new LinkedHashMap<>())
+                    .put(new CostKey(JdbcUsageReader.day(rs), JdbcUsageReader.uuid(rs, "creditor_id"),
+                                    JdbcUsageReader.uuid(rs, "portfolio_id")),
+                            new ItemEstimate(rs.getBigDecimal("amount"), rs.getBigDecimal("quantity")));
+        });
+        return out;
+    }
+
+    @Override
+    public boolean hasUnitemizedMessaging(YearMonth month) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                select exists (select 1 from costing.cost_daily
+                                where day between :from and :to and category = 'MESSAGING' and item is null)
+                """, new MapSqlParameterSource().addValue("from", month.atDay(1), Types.DATE)
+                .addValue("to", month.atEndOfMonth(), Types.DATE), Boolean.class));
     }
 
     @Override
@@ -158,7 +206,7 @@ class JdbcCostFactStore implements CostFactStore {
                     select day, creditor_id, portfolio_id, sum(quantity) as basis
                       from costing.cost_daily
                      where day between :from and :to and category in ('HUMAN_DIRECT', 'HUMAN_IDLE')
-                       and creditor_id is not null
+                       and basis = 'ESTIMATED' and creditor_id is not null
                      group by 1, 2, 3
                     """;
             case RECOVERED -> """

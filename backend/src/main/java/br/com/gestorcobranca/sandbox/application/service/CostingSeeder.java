@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.sandbox.application.service;
 
+import br.com.gestorcobranca.costing.application.port.in.ChannelInvoiceUseCases;
+import br.com.gestorcobranca.costing.application.port.in.ChannelInvoiceUseCases.SaveInvoiceCommand;
 import br.com.gestorcobranca.costing.application.port.in.CostRefreshUseCases;
 import br.com.gestorcobranca.costing.application.port.in.CostSettingsUseCases;
 import br.com.gestorcobranca.costing.application.port.in.CostSettingsUseCases.AssignUserBandCommand;
@@ -7,6 +9,7 @@ import br.com.gestorcobranca.costing.application.port.in.CostSettingsUseCases.Cr
 import br.com.gestorcobranca.costing.application.port.in.CostSettingsUseCases.CreateOverheadCommand;
 import br.com.gestorcobranca.costing.application.port.in.CostSettingsUseCases.CreateTariffCommand;
 import br.com.gestorcobranca.costing.application.port.in.CostSettingsUseCases.SaveFxRateCommand;
+import br.com.gestorcobranca.costing.domain.model.ChannelItem;
 import br.com.gestorcobranca.costing.domain.model.OverheadAllocation;
 import br.com.gestorcobranca.costing.domain.model.TariffChannel;
 import br.com.gestorcobranca.sandbox.application.SandboxSeedComponent;
@@ -21,7 +24,8 @@ import java.util.Map;
 /**
  * Custos operacionais de demonstração (valores <b>fictícios</b>) para o painel "Margem por carteira": faixas de custo
  * por cargo, faixa dos usuários de demonstração, tarifas de canal, câmbio dos últimos meses e um custo fixo do mês
- * anterior rateado por horas; depois, a apuração dos últimos 60 dias. Feito pelo financeiro, pelos casos de uso do
+ * anterior rateado por horas; depois, a apuração dos últimos 60 dias e as faturas fictícias de telefonia e WhatsApp do
+ * mês anterior (conciliação com a fatura, base "Conciliado" do painel). Feito pelo financeiro, pelos casos de uso do
  * costing (mesmas validações e auditoria da operação real). Subir de novo não duplica: com faixas já cadastradas, só
  * reapura.
  */
@@ -35,11 +39,14 @@ class CostingSeeder {
 
     private final CostSettingsUseCases settings;
     private final CostRefreshUseCases refresh;
+    private final ChannelInvoiceUseCases invoices;
     private final SeedRuntime rt;
 
-    CostingSeeder(CostSettingsUseCases settings, CostRefreshUseCases refresh, SeedRuntime rt) {
+    CostingSeeder(CostSettingsUseCases settings, CostRefreshUseCases refresh, ChannelInvoiceUseCases invoices,
+                  SeedRuntime rt) {
         this.settings = settings;
         this.refresh = refresh;
+        this.invoices = invoices;
         this.rt = rt;
     }
 
@@ -79,5 +86,16 @@ class CostingSeeder {
         });
         rt.optional("apuração dos custos", () -> rt.as(financeiro,
                 () -> refresh.refresh(seed.today.minusDays(60), seed.today.minusDays(1))));
+        // faturas fictícias de telefonia e WhatsApp do mês anterior (o painel mostra "Parcialmente conciliado")
+        YearMonth previous = YearMonth.from(seed.today).minusMonths(1);
+        rt.optional("faturas de canal fictícias", () -> rt.asRun(financeiro, () -> {
+            if (!invoices.invoices(previous, previous).isEmpty()) {
+                return;
+            }
+            invoices.save(new SaveInvoiceCommand(previous, ChannelItem.TELEPHONY, new BigDecimal("180.00"),
+                    "Operadora de telefonia (fictício)", null));
+            invoices.save(new SaveInvoiceCommand(previous, ChannelItem.WHATSAPP, new BigDecimal("95.00"),
+                    "Provedor de WhatsApp (fictício)", null));
+        }));
     }
 }

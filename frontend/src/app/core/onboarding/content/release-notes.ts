@@ -3,6 +3,17 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 32,
+    date: '2026-11-12',
+    title: 'Margem por carteira: fatura, tendência e mapa',
+    items: [
+      { text: 'Na configuração de custos, aba "Faturas": informe o valor cobrado por canal no mês (telefonia, WhatsApp, SMS, e-mail e inteligência artificial) ao lado da estimativa.', route: '/organizacao/custos' },
+      { text: 'No painel de margem, escolha "Conciliado com a fatura": a diferença entre fatura e estimativa é rateada pelo uso de cada credor e carteira, e o quadro "Ajuste pela fatura" explica cada canal.', route: '/paineis/margem' },
+      { text: 'Coluna "Tendência" com a margem líquida dos últimos 6 meses e o mapa "Carteiras: margem × volume recuperado", com os quadrantes rende e escala, rende pouco, consome e revisar contrato.', route: '/paineis/margem' },
+      { text: 'Custo de pessoas mais justo: quem atende vários devedores ao mesmo tempo tem a hora dividida entre os atendimentos, sem contar a mesma hora duas vezes, e as respostas no chat passam a entrar no tempo trabalhado.', route: '/paineis/margem' },
+    ],
+  },
+  {
     version: 31,
     date: '2026-11-12',
     title: 'Distribuição por desempenho',

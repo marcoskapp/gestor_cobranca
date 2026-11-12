@@ -3,8 +3,19 @@ import { Permission } from '../../../core/auth/permission';
 import { formatAmount, toAmount } from '../../../shared/components/amount/amount';
 import { presetRange } from '../../analytics/data/analytics.filters';
 import { AnalyticsFilter } from '../../analytics/data/analytics.models';
-import { CATEGORY_LABELS, CostTab } from './costing.labels';
-import { DIRECT_CATEGORIES, INDIRECT_CATEGORIES, MarginFilter, MarginLine, MarginWarning, Money } from './costing.models';
+import { CATEGORY_LABELS, CHANNEL_ITEM_LABELS, CostTab, RECONCILIATION_LABELS } from './costing.labels';
+import {
+  CHANNEL_CATEGORIES,
+  CostCategory,
+  DIRECT_CATEGORIES,
+  INDIRECT_CATEGORIES,
+  MarginBasis,
+  MarginFilter,
+  MarginLine,
+  MarginReconciliation,
+  MarginWarning,
+  Money,
+} from './costing.models';
 
 /**
  * Regras puras do painel de margem (sem Angular além dos tipos do roteador): período padrão, filtro na URL,
@@ -220,6 +231,15 @@ export function warningView(warning: MarginWarning): WarningView {
         permissions: [],
         queryParams: null,
       };
+    case 'INVOICE_WITHOUT_USAGE':
+      return {
+        code: warning.code,
+        text: `${qty} ${plural(n, 'fatura de canal sem', 'faturas de canal sem')} nenhum uso do item no mês: o valor ${plural(n, 'aparece', 'dessas faturas aparece')} em "Sem credor". Confira o mês e o item.`,
+        tab: 'faturas',
+        linkLabel: 'Ver faturas de canal',
+        permissions: [Permission.COST_MANAGE],
+        queryParams: { aba: 'faturas' },
+      };
     case 'MISSING_TARIFF':
       return {
         code: warning.code,
@@ -350,4 +370,115 @@ export function waterfallSteps(line: MarginLine): WaterfallStep[] {
   const net = num(line.netMargin);
   steps.push({ key: 'net', label: 'Margem líquida', kind: 'subtotal', start: 0, end: net, display: marginText(net) });
   return steps;
+}
+
+// ------------------------------------------------------------------ base dos custos: conciliação com a fatura (§13)
+
+/** Parâmetro da base na URL: `base=conciliado`; ausente = estimada (padrão). */
+export const MARGIN_BASIS_QUERY = 'base';
+
+export function parseMarginBasis(raw: string | null): MarginBasis {
+  return raw === 'conciliado' ? 'RECONCILED' : 'ESTIMATED';
+}
+
+export function formatMarginBasis(basis: MarginBasis): string | null {
+  return basis === 'RECONCILED' ? 'conciliado' : null;
+}
+
+/** Selo da base ao lado dos filtros: rótulo, tom e a explicação em uma frase. */
+export interface BasisBadge {
+  label: string;
+  tone: 'secondary' | 'success' | 'warning';
+  text: string;
+}
+
+export function basisBadge(basis: MarginBasis, reconciliation: MarginReconciliation | null | undefined): BasisBadge {
+  if (basis !== 'RECONCILED') {
+    return {
+      label: RECONCILIATION_LABELS.ESTIMATED,
+      tone: 'secondary',
+      text: 'Custo = uso registrado × faixas de custo, tarifas e câmbio cadastrados; as faturas dos provedores não entram nesta base.',
+    };
+  }
+  switch (reconciliation?.status) {
+    case 'RECONCILED':
+      return {
+        label: RECONCILIATION_LABELS.RECONCILED,
+        tone: 'success',
+        text: 'Telefonia, mensagens e IA com o valor das faturas informadas: a diferença para a estimativa foi rateada pelo custo estimado de cada credor e carteira. Os demais custos seguem estimados.',
+      };
+    case 'PARTIAL':
+      return {
+        label: RECONCILIATION_LABELS.PARTIAL,
+        tone: 'warning',
+        text: 'Só parte dos canais com uso no período tem a fatura informada: esses usam o valor da fatura, os demais continuam estimados.',
+      };
+    default:
+      return {
+        label: RECONCILIATION_LABELS.ESTIMATED,
+        tone: 'secondary',
+        text: 'Nenhuma fatura de canal informada no período: os custos continuam estimados.',
+      };
+  }
+}
+
+/** Valor com sinal escrito: "+R$ 3,00", "−R$ 1,20". */
+export function signedAmount(value: Money | null | undefined): string {
+  const n = num(value);
+  return n < 0 ? `−${formatAmount(-n)}` : `+${formatAmount(n)}`;
+}
+
+/** Ajuste de uma categoria de canal: estimado, com a fatura e a diferença (o que a tela explica). */
+export interface AdjustmentView {
+  category: CostCategory;
+  label: string;
+  estimated: number;
+  reconciled: number;
+  adjustment: number;
+  text: string;
+}
+
+/**
+ * Categorias de canal com ajuste no recorte. Na base conciliada os custos já incluem o ajuste (estimado = custo −
+ * ajuste); na estimada, o conciliado = custo + ajuste.
+ */
+export function adjustmentViews(line: MarginLine | null | undefined, basis: MarginBasis, reconciliation: MarginReconciliation | null | undefined): AdjustmentView[] {
+  if (!line || !reconciliation) {
+    return [];
+  }
+  return CHANNEL_CATEGORIES.flatMap((category) => {
+    const adjustment = num(reconciliation.adjustments?.[category]);
+    if (adjustment === 0) {
+      return [];
+    }
+    const cost = num(line.costs?.[category]);
+    const estimated = basis === 'RECONCILED' ? cost - adjustment : cost;
+    const reconciled = estimated + adjustment;
+    const label = CATEGORY_LABELS[category];
+    return [
+      {
+        category,
+        label,
+        estimated,
+        reconciled,
+        adjustment,
+        text: `${label}: estimado ${formatAmount(estimated)}, com a fatura ${formatAmount(reconciled)} (ajuste ${signedAmount(adjustment)})`,
+      },
+    ];
+  });
+}
+
+/** Meses com canais usados ainda sem fatura: "out. de 2026: WhatsApp e SMS". */
+export function pendingInvoices(reconciliation: MarginReconciliation | null | undefined): string[] {
+  return (reconciliation?.months ?? [])
+    .filter((m) => m.invoiced.length > 0 && m.pending.length > 0)
+    .map((m) => `${monthLabel(m.month)}: ${listText(m.pending.map((i) => CHANNEL_ITEM_LABELS[i]))}`);
+}
+
+/** "A", "A e B", "A, B e C". */
+export function listText(items: readonly string[]): string {
+  if (items.length <= 1) {
+    return items[0] ?? '';
+  }
+  return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
 }

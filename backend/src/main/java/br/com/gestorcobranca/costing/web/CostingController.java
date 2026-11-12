@@ -1,5 +1,9 @@
 package br.com.gestorcobranca.costing.web;
 
+import br.com.gestorcobranca.costing.application.port.in.ChannelInvoiceUseCases;
+import br.com.gestorcobranca.costing.application.port.in.ChannelInvoiceUseCases.InvoiceView;
+import br.com.gestorcobranca.costing.application.port.in.ChannelInvoiceUseCases.ItemEstimateView;
+import br.com.gestorcobranca.costing.application.port.in.ChannelInvoiceUseCases.SaveInvoiceCommand;
 import br.com.gestorcobranca.costing.application.port.in.CostRefreshUseCases;
 import br.com.gestorcobranca.costing.application.port.in.CostRefreshUseCases.RefreshResult;
 import br.com.gestorcobranca.costing.application.port.in.CostSettingsUseCases;
@@ -18,6 +22,9 @@ import br.com.gestorcobranca.costing.application.port.in.MarginExportUseCases.Ex
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries;
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries.MarginFilter;
 import br.com.gestorcobranca.costing.application.port.in.MarginQueries.MarginReport;
+import br.com.gestorcobranca.costing.application.port.in.MarginQueries.MarginTrend;
+import br.com.gestorcobranca.costing.domain.model.ChannelItem;
+import br.com.gestorcobranca.costing.domain.model.MarginBasis;
 import br.com.gestorcobranca.costing.domain.model.OverheadAllocation;
 import br.com.gestorcobranca.costing.domain.model.TariffChannel;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
@@ -74,22 +81,32 @@ class CostingController {
     private final MarginQueries margins;
     private final MarginExportUseCases exports;
     private final CostRefreshUseCases refresh;
+    private final ChannelInvoiceUseCases invoices;
 
     CostingController(CostSettingsUseCases settings, MarginQueries margins, MarginExportUseCases exports,
-                      CostRefreshUseCases refresh) {
+                      CostRefreshUseCases refresh, ChannelInvoiceUseCases invoices) {
         this.settings = settings;
         this.margins = margins;
         this.exports = exports;
         this.refresh = refresh;
+        this.invoices = invoices;
     }
 
     // ------------------------------------------------------------------ margem
 
     @GetMapping("/margin")
     @PreAuthorize("hasAuthority('COST_VIEW')")
-    @Operation(summary = "Margem por credor (com carteiras) e por mês, com os avisos da apuração")
+    @Operation(summary = "Margem por credor (com carteiras) e por mês, com os avisos da apuração; basis=ESTIMATED "
+            + "(padrão) ou RECONCILED (custos de canal com o ajuste pela fatura)")
     MarginReport margin(@Valid MarginParams params) {
         return margins.margin(params.toFilter());
+    }
+
+    @GetMapping("/margin/trend")
+    @PreAuthorize("hasAuthority('COST_VIEW')")
+    @Operation(summary = "Tendência dos 6 meses que terminam no mês do fim do período, por credor e carteira")
+    MarginTrend marginTrend(@Valid MarginParams params) {
+        return margins.trend(params.toFilter());
     }
 
     @GetMapping("/margin/export")
@@ -220,6 +237,38 @@ class CostingController {
         settings.deleteOverhead(id, reason);
     }
 
+    // ------------------------------------------------------------------ faturas de canal (conciliação, §13)
+
+    @GetMapping("/invoices")
+    @PreAuthorize(VIEW_OR_MANAGE)
+    @Operation(summary = "Faturas de canal dos meses (AAAA-MM; sem os dois = últimos 24 meses), com a estimativa do item")
+    List<InvoiceView> invoices(@RequestParam(required = false) String from, @RequestParam(required = false) String to) {
+        return invoices.invoices(from == null ? null : month(from), to == null ? null : month(to));
+    }
+
+    @GetMapping("/invoices/estimates")
+    @PreAuthorize(VIEW_OR_MANAGE)
+    @Operation(summary = "Estimativa de cada item de canal por mês (assessoria inteira), com a fatura quando houver")
+    List<ItemEstimateView> invoiceEstimates(@RequestParam(required = false) String from,
+                                            @RequestParam(required = false) String to) {
+        return invoices.estimates(from == null ? null : month(from), to == null ? null : month(to));
+    }
+
+    @PostMapping("/invoices")
+    @PreAuthorize(MANAGE)
+    @Operation(summary = "Informa a fatura do mês × item (substitui a já informada); o ajuste do mês é refeito na hora")
+    InvoiceView saveInvoice(@Valid @RequestBody InvoiceRequest r) {
+        return invoices.save(new SaveInvoiceCommand(month(r.month()), r.item(), r.amount(), r.supplier(), r.note()));
+    }
+
+    @DeleteMapping("/invoices/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize(MANAGE)
+    @Operation(summary = "Exclui a fatura e refaz o ajuste do mês; motivo opcional na auditoria")
+    void deleteInvoice(@PathVariable UUID id, @RequestParam(required = false) @Size(max = 500) String reason) {
+        invoices.delete(id, reason);
+    }
+
     // ------------------------------------------------------------------ requisições
 
     static YearMonth month(String value) {
@@ -236,10 +285,11 @@ class CostingController {
 
     record MarginParams(@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-                        @Size(max = 200) Set<UUID> creditorId, @Size(max = 500) Set<UUID> portfolioId) {
+                        @Size(max = 200) Set<UUID> creditorId, @Size(max = 500) Set<UUID> portfolioId,
+                        MarginBasis basis) {
 
         MarginFilter toFilter() {
-            return new MarginFilter(from, to, creditorId, portfolioId);
+            return new MarginFilter(from, to, creditorId, portfolioId, basis);
         }
     }
 
@@ -257,6 +307,10 @@ class CostingController {
     }
 
     record FxRateRequest(@NotNull String month, @NotNull BigDecimal usdBrl) {
+    }
+
+    record InvoiceRequest(@NotNull String month, @NotNull ChannelItem item, @NotNull BigDecimal amount,
+                          @Size(max = 120) String supplier, @Size(max = 500) String note) {
     }
 
     record OverheadRequest(@NotNull String month, @NotNull @Size(max = 200) String description,

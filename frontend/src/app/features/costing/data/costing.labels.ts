@@ -1,4 +1,4 @@
-import { Allocation, CostCategory, TariffChannel } from './costing.models';
+import { Allocation, ChannelItem, CostCategory, ReconciliationStatus, TariffChannel } from './costing.models';
 
 /** Categorias de custo na linguagem da gestão (sem códigos internos). */
 export const CATEGORY_LABELS: Readonly<Record<CostCategory, string>> = {
@@ -56,6 +56,34 @@ export const ALLOCATION_HINTS: Readonly<Record<Allocation, string>> = {
 };
 
 /** Abas da configuração de custos (`?aba=`). */
-export type CostTab = 'faixas' | 'tarifas' | 'cambio' | 'fixos';
+export type CostTab = 'faixas' | 'tarifas' | 'cambio' | 'fixos' | 'faturas';
+
+/** Itens de custo de canal faturados (fase 2, §13). */
+export const CHANNEL_ITEM_LABELS: Readonly<Record<ChannelItem, string>> = {
+  TELEPHONY: 'Telefonia',
+  WHATSAPP: 'WhatsApp',
+  SMS: 'SMS',
+  EMAIL: 'E-mail',
+  AI: 'Inteligência artificial',
+};
+
+/** Como a fatura de cada item é informada. */
+export const CHANNEL_ITEM_HINTS: Readonly<Record<ChannelItem, string>> = {
+  TELEPHONY: 'Fatura da operadora ou da plataforma de telefonia.',
+  WHATSAPP: 'Fatura do provedor do WhatsApp (todas as categorias de conversa).',
+  SMS: 'Fatura do provedor de SMS.',
+  EMAIL: 'Fatura do provedor de e-mail.',
+  AI: 'Fatura do provedor de inteligência artificial convertida para reais pela assessoria (ex.: valor pago no cartão).',
+};
+
+/** Selo da base dos custos no painel. */
+export const RECONCILIATION_LABELS: Readonly<Record<ReconciliationStatus, string>> = {
+  ESTIMATED: 'Estimado',
+  PARTIAL: 'Parcialmente conciliado',
+  RECONCILED: 'Conciliado',
+};
 
 export const COST_SETTINGS_ROUTE = '/organizacao/custos';
+
+/** Painel "Margem por carteira" (`COST_VIEW`). */
+export const MARGIN_ROUTE = '/paineis/margem';

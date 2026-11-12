@@ -84,20 +84,20 @@ export const MANUAL: ModuleManual = {
     {
       id: 'organization.costs',
       title: 'Custos operacionais',
-      objective: 'Faixas de custo de pessoas, tarifas de canal, câmbio da inteligência artificial e custos fixos usados no painel de margem.',
+      objective: 'Faixas de custo de pessoas, tarifas de canal, câmbio da inteligência artificial, custos fixos e faturas de canal usados no painel de margem.',
       purpose: [
         'Faixas, tarifas e câmbio têm vigência: uma nova vigência vale a partir da data escolhida e as anteriores ficam no histórico; nada disso é apagado, só encerrado. O custo fixo pode ser excluído em qualquer mês, com motivo opcional: o rateio do mês é refeito na hora e a margem dos credores muda, mesmo em mês já apurado.',
         'Faixa de custo é o custo-empresa por hora de um cargo. Cada pessoa aponta para uma faixa a partir de uma data, e a tela mostra só o nome da faixa de cada pessoa, nunca o valor. Tarifas de canal: WhatsApp por conversa iniciada pela assessoria, SMS e e-mail por mensagem (o e-mail pode ficar zerado).',
-        'Custos fixos são rateados pelas horas trabalhadas de cada credor no mês, a menos que você escolha outra regra: valor recuperado, casos trabalhados ou direto a um credor. Só quem vê todos os credores altera os cadastros; com acesso a alguns credores, você lança ou exclui só o custo fixo direto a um dos seus credores.',
+        'Custos fixos são rateados pelas horas trabalhadas de cada credor no mês, a menos que você escolha outra regra: valor recuperado, casos trabalhados ou direto a um credor. Só quem vê todos os credores altera os cadastros; com acesso a alguns credores, você lança ou exclui só o custo fixo direto a um dos seus credores. Na aba Faturas (só para quem vê todos os credores), informe o valor cobrado por canal no mês, em reais, ao lado da estimativa: a diferença é rateada na hora pelo custo estimado de cada credor e carteira.',
       ],
       profiles: ['FINANCEIRO', 'ADMIN'],
-      inputs: ['Custo-empresa por cargo, tarifas dos provedores, câmbio do dólar e despesas fixas do mês.'],
-      outputs: ['Custo estimado por credor e carteira no painel de margem, recalculado na apuração diária.'],
+      inputs: ['Custo-empresa por cargo, tarifas dos provedores, câmbio do dólar, despesas fixas do mês e faturas dos canais.'],
+      outputs: ['Custo estimado por credor e carteira no painel de margem, recalculado na apuração diária, e a base conciliada com as faturas.'],
       related: [
         { screen: 'analytics.margin', why: 'O resultado dos custos por credor e carteira.' },
         { screen: 'telephony.accounts', why: 'Tarifa por minuto de cada plataforma de telefonia.' },
       ],
-      terms: ['faixa-de-custo', 'rateio', 'custo-estimado'],
+      terms: ['faixa-de-custo', 'rateio', 'custo-estimado', 'custo-conciliado'],
     },
     {
       id: 'admin.users',

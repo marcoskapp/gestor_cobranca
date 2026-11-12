@@ -1,5 +1,5 @@
-import { Component, WritableSignal, inject, signal } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { Component, WritableSignal, computed, inject, signal } from '@angular/core';
+import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { Observable, finalize } from 'rxjs';
@@ -15,9 +15,9 @@ import { UserLookup } from '../../admin/data/user.lookup';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { CreditorLookup } from '../../organization/data/organization.lookups';
 import { CostSettingsApi } from '../data/costing.api';
-import { ALLOCATION_HINTS, ALLOCATION_LABELS, CHANNEL_LABELS, CHANNEL_UNITS } from '../data/costing.labels';
-import { ALLOCATIONS, Allocation, CostBand, TARIFF_CHANNELS, TariffChannel } from '../data/costing.models';
-import { lastClosedMonthStart, monthOptions, normalizeMonth } from '../data/cost-settings.rules';
+import { ALLOCATION_HINTS, ALLOCATION_LABELS, CHANNEL_ITEM_HINTS, CHANNEL_ITEM_LABELS, CHANNEL_LABELS, CHANNEL_UNITS } from '../data/costing.labels';
+import { ALLOCATIONS, Allocation, CHANNEL_ITEMS, ChannelInvoice, ChannelItem, CostBand, TARIFF_CHANNELS, TariffChannel } from '../data/costing.models';
+import { invoiceEstimateText, lastClosedMonthStart, monthOptions, normalizeMonth } from '../data/cost-settings.rules';
 
 function errorText(err: unknown): string {
   return userMessage(toApiError(err));
@@ -525,4 +525,129 @@ export class OverheadDialog {
       this.ref,
     );
   }
+}
+
+// ------------------------------------------------------------------ fatura de canal (fase 2, §13)
+
+export interface InvoiceDialogData {
+  /** Mês já escolhido na aba (`AAAA-MM-01`). */
+  month: string;
+  /** Canal já escolhido (informar a fatura de uma linha); nulo = escolher. */
+  item: ChannelItem | null;
+  /** Fatura existente do mês × canal (corrigir): valor, fornecedor e observação vêm preenchidos. */
+  invoice: ChannelInvoice | null;
+}
+
+/**
+ * Fatura do mês de um canal, em reais (a de IA convertida pela assessoria). Mostra ao lado a estimativa do mês e a
+ * diferença que será rateada; informar de novo o mesmo mês e canal substitui a fatura (fica na auditoria).
+ */
+@Component({
+  selector: 'app-invoice-dialog',
+  imports: [ReactiveFormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Icon],
+  template: `
+    <div class="modal-header">
+      <h2 appDialogTitle class="h5 mb-0">{{ data.invoice ? 'Corrigir fatura' : 'Informar fatura' }}</h2>
+      <button type="button" class="btn-close" aria-label="Cancelar" appDialogClose></button>
+    </div>
+    <form class="d-flex flex-column overflow-hidden" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="modal-body">
+        <div class="app-form-grid">
+          <app-field label="Mês">
+            <select appInput formControlName="month" required>
+              @for (m of months; track m.value) {
+                <option [ngValue]="m.value">{{ m.label }}</option>
+              }
+            </select>
+          </app-field>
+          <app-field label="Canal" [hint]="hints[item()]">
+            <select appInput formControlName="item" required>
+              @for (i of items; track i) {
+                <option [ngValue]="i">{{ labels[i] }}</option>
+              }
+            </select>
+          </app-field>
+          <app-field label="Valor da fatura" hint="Em reais; zero vale (ex.: franquia sem cobrança)" error="Informe o valor (zero ou mais).">
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true">R$</span>
+              <input appInput appMoney ngbAutofocus formControlName="amount" required [min]="0" />
+            </div>
+          </app-field>
+          <app-field label="Fornecedor" hint="Opcional, ex.: nome da operadora" error="Até 120 caracteres.">
+            <input appInput formControlName="supplier" maxlength="120" />
+          </app-field>
+          <app-field class="app-span-all" label="Observação" hint="Opcional" error="Até 500 caracteres.">
+            <textarea appInput formControlName="note" rows="2" maxlength="500"></textarea>
+          </app-field>
+        </div>
+        <p class="app-muted small mt-2 mb-0" aria-live="polite" data-testid="invoice-estimate">
+          @if (estimate.isLoading()) {
+            Carregando a estimativa do mês…
+          } @else if (estimate.error()) {
+            Não foi possível carregar a estimativa do mês; a fatura pode ser salva mesmo assim.
+          } @else {
+            {{ estimateText() }}
+          }
+        </p>
+        @if (replacing()) {
+          <p class="app-muted small mt-2 mb-0">Já há fatura deste canal no mês: salvar substitui o valor, e a troca fica na auditoria.</p>
+        }
+        @if (error()) {
+          <div class="alert alert-danger d-flex align-items-start gap-2 mt-3 mb-0" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-link" type="button" appDialogClose>Cancelar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">Salvar</button>
+      </div>
+    </form>
+  `,
+})
+export class InvoiceDialog {
+  protected readonly data = inject<InvoiceDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<unknown>>(DialogRef);
+  private readonly api = inject(CostSettingsApi);
+  /** A fatura é de um mês que já começou: nada à frente do mês corrente. */
+  protected readonly months = monthOptions(new Date(), 24, 0);
+  protected readonly items: readonly ChannelItem[] = fixedItem(this.data) ? [fixedItem(this.data)!] : CHANNEL_ITEMS;
+  protected readonly labels = CHANNEL_ITEM_LABELS;
+  protected readonly hints = CHANNEL_ITEM_HINTS;
+  protected readonly saving = signal(false);
+  protected readonly error = signal<string | null>(null);
+  private readonly fb = inject(FormBuilder).nonNullable;
+  protected readonly form = this.fb.group({
+    // corrigir: mês e canal são a chave da fatura (trocar o mês criaria outra fatura e manteria a original)
+    month: [{ value: normalizeMonth(this.data.invoice?.month ?? this.data.month), disabled: !!this.data.invoice }, [Validators.required]],
+    item: this.fb.control<ChannelItem>(fixedItem(this.data) ?? 'TELEPHONY', [Validators.required]),
+    amount: this.fb.control<number | null>(this.data.invoice ? Number(this.data.invoice.amount) : null, [Validators.required]),
+    supplier: [this.data.invoice?.supplier ?? '', [Validators.maxLength(120)]],
+    note: [this.data.invoice?.note ?? '', [Validators.maxLength(500)]],
+  });
+  protected readonly item = toSignal(this.form.controls.item.valueChanges, { initialValue: this.form.controls.item.value });
+  private readonly month = toSignal(this.form.controls.month.valueChanges, { initialValue: this.form.controls.month.value });
+  private readonly amount = toSignal(this.form.controls.amount.valueChanges, { initialValue: this.form.controls.amount.value });
+  /** Estimativa do mês escolhido (todos os canais; compara-se a linha do canal escolhido). */
+  protected readonly estimate = rxResource({ params: () => this.month(), stream: ({ params }) => this.api.invoiceEstimates(params, params) });
+  private readonly current = computed(() => (this.estimate.value() ?? []).find((e) => e.item === this.item()) ?? null);
+  /** O mês × canal escolhido já tem fatura (salvar substitui). */
+  protected readonly replacing = computed(() => !this.data.invoice && !!this.current()?.invoiceId);
+  protected readonly estimateText = computed(() => invoiceEstimateText(this.current(), this.amount()));
+
+  protected save(): void {
+    const v = this.form.getRawValue();
+    if (this.form.invalid || v.amount === null || this.saving()) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    submit(
+      this.api.saveInvoice({ month: v.month, item: v.item, amount: v.amount, supplier: v.supplier.trim() || null, note: v.note.trim() || null }),
+      this.saving,
+      this.error,
+      this.ref,
+    );
+  }
+}
+
+function fixedItem(data: InvoiceDialogData): ChannelItem | null {
+  return data.invoice?.item ?? data.item;
 }

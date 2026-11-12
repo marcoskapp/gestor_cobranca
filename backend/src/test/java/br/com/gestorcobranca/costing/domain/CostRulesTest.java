@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.costing.domain;
 
+import br.com.gestorcobranca.costing.domain.model.ChannelItem;
 import br.com.gestorcobranca.costing.domain.model.ChannelTariff;
 import br.com.gestorcobranca.costing.domain.model.CostBand;
 import br.com.gestorcobranca.costing.domain.model.CostCategory;
@@ -13,10 +14,10 @@ import br.com.gestorcobranca.costing.domain.model.OverheadAllocation;
 import br.com.gestorcobranca.costing.domain.model.TariffChannel;
 import br.com.gestorcobranca.costing.domain.model.Usage.AiUsage;
 import br.com.gestorcobranca.costing.domain.model.Usage.CallUsage;
-import br.com.gestorcobranca.costing.domain.model.Usage.DirectTime;
 import br.com.gestorcobranca.costing.domain.model.Usage.LoggedTime;
 import br.com.gestorcobranca.costing.domain.model.Usage.MessageCount;
 import br.com.gestorcobranca.costing.domain.model.Usage.TemplateSend;
+import br.com.gestorcobranca.costing.domain.model.Usage.WorkSpan;
 import br.com.gestorcobranca.costing.domain.model.UserCostBand;
 import br.com.gestorcobranca.costing.domain.service.CostAccumulator;
 import br.com.gestorcobranca.costing.domain.service.HumanCost;
@@ -31,6 +32,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +52,19 @@ class CostRulesTest {
     static final UUID C2 = UUID.randomUUID();
     static final UUID P1 = UUID.randomUUID();
     static final UUID P2 = UUID.randomUUID();
+
+    static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
+
+    /** Trecho de trabalho no dia {@link #DAY}, de {@code startMinute} a {@code endMinute} (minutos desde 8h). */
+    private static WorkSpan span(UUID user, UUID creditor, UUID portfolio, int startMinute, int endMinute) {
+        Instant eight = DAY.atTime(8, 0).atZone(ZONE).toInstant();
+        return new WorkSpan(user, creditor, portfolio, eight.plusSeconds(startMinute * 60L),
+                eight.plusSeconds(endMinute * 60L));
+    }
+
+    private static void human(List<WorkSpan> spans, List<LoggedTime> logged, RateBook rates, CostAccumulator acc) {
+        HumanCost.apply(spans, logged, ZONE, DAY, DAY, rates, acc);
+    }
 
     private static RateBook rates(List<FxRate> fx) {
         return new RateBook(
@@ -71,7 +86,7 @@ class CostRulesTest {
     void tempoDiretoPeloValorHoraEOciosidadeRateadaPeloTempoDiretoDaPessoaNoDia() {
         CostAccumulator acc = new CostAccumulator();
         // Ana: 1 h no credor 1 e 3 h no credor 2; 6 h logadas → 2 h ociosas: 0,5 h para C1 e 1,5 h para C2
-        HumanCost.apply(List.of(new DirectTime(DAY, ANA, C1, P1, 3600), new DirectTime(DAY, ANA, C2, P2, 3 * 3600)),
+        human(List.of(span(ANA, C1, P1, 0, 60), span(ANA, C2, P2, 60, 240)),
                 List.of(new LoggedTime(DAY, ANA, 6 * 3600)), rates(List.of()), acc);
         Map<String, CostFact> f = byKey(acc.facts());
         assertThat(f.get("HUMAN_DIRECT|" + C1 + "|" + P1).amount()).isEqualByComparingTo("36");
@@ -83,9 +98,58 @@ class CostRulesTest {
     }
 
     @Test
+    void atendimentosSimultaneosDeCredoresDiferentesDividemAMesmaHoraSemContarDuasVezes() {
+        CostAccumulator acc = new CostAccumulator();
+        // Ana atende em paralelo, das 8h às 9h, uma conversa do credor 1 e duas do credor 2 (canais diferentes):
+        // a hora é uma só — 1/3 para C1 e 2/3 para C2; logada 1 h → sem ociosidade
+        human(List.of(span(ANA, C1, P1, 0, 60), span(ANA, C2, P2, 0, 60), span(ANA, C2, P2, 0, 60)),
+                List.of(new LoggedTime(DAY, ANA, 3600)), rates(List.of()), acc);
+        Map<String, CostFact> f = byKey(acc.facts());
+        assertThat(f.get("HUMAN_DIRECT|" + C1 + "|" + P1).quantity()).isEqualByComparingTo("0.3333");
+        assertThat(f.get("HUMAN_DIRECT|" + C2 + "|" + P2).quantity()).isEqualByComparingTo("0.6667");
+        BigDecimal hours = acc.facts().stream().filter(x -> x.category() == CostCategory.HUMAN_DIRECT)
+                .map(CostFact::quantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal amount = acc.facts().stream().filter(x -> x.category() == CostCategory.HUMAN_DIRECT)
+                .map(CostFact::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(hours).isEqualByComparingTo("1");
+        assertThat(amount).isEqualByComparingTo("36");
+        assertThat(acc.facts()).noneMatch(x -> x.category() == CostCategory.HUMAN_IDLE);
+    }
+
+    @Test
+    void sobreposicaoParcialDivideSoOTrechoEmComum() {
+        CostAccumulator acc = new CostAccumulator();
+        // ligação de C1 das 8h às 8h40 e chat de C2 das 8h20 às 9h: 20 min só C1, 20 min divididos, 20 min só C2
+        human(List.of(span(ANA, C1, P1, 0, 40), span(ANA, C2, P2, 20, 60)), List.of(), rates(List.of()), acc);
+        Map<String, CostFact> f = byKey(acc.facts());
+        assertThat(f.get("HUMAN_DIRECT|" + C1 + "|" + P1).quantity()).isEqualByComparingTo("0.5");
+        assertThat(f.get("HUMAN_DIRECT|" + C2 + "|" + P2).quantity()).isEqualByComparingTo("0.5");
+    }
+
+    @Test
+    void trechoQueAtravessaAMeiaNoiteFicaEmCadaDiaESoOPeriodoEntra() {
+        CostAccumulator acc = new CostAccumulator();
+        Instant start = DAY.atTime(23, 30).atZone(ZONE).toInstant();
+        HumanCost.apply(List.of(new WorkSpan(ANA, C1, P1, start, start.plusSeconds(3600))), List.of(), ZONE, DAY,
+                DAY.plusDays(1), rates(List.of()), acc);
+        Map<LocalDate, BigDecimal> byDay = new LinkedHashMap<>();
+        acc.facts().forEach(x -> byDay.merge(x.day(), x.quantity(), BigDecimal::add));
+        assertThat(byDay).containsOnlyKeys(DAY, DAY.plusDays(1));
+        assertThat(byDay.get(DAY)).isEqualByComparingTo("0.5");
+        assertThat(byDay.get(DAY.plusDays(1))).isEqualByComparingTo("0.5");
+        CostAccumulator onlyFirst = new CostAccumulator();
+        HumanCost.apply(List.of(new WorkSpan(ANA, C1, P1, start, start.plusSeconds(3600))), List.of(), ZONE, DAY,
+                DAY, rates(List.of()), onlyFirst);
+        assertThat(onlyFirst.facts()).singleElement().satisfies(x -> {
+            assertThat(x.day()).isEqualTo(DAY);
+            assertThat(x.quantity()).isEqualByComparingTo("0.5");
+        });
+    }
+
+    @Test
     void logadoMenorQueODiretoNaoGeraOciosidadeNegativa() {
         CostAccumulator acc = new CostAccumulator();
-        HumanCost.apply(List.of(new DirectTime(DAY, ANA, C1, P1, 7200)), List.of(new LoggedTime(DAY, ANA, 3600)),
+        human(List.of(span(ANA, C1, P1, 0, 120)), List.of(new LoggedTime(DAY, ANA, 3600)),
                 rates(List.of()), acc);
         assertThat(acc.facts()).extracting(CostFact::category).containsExactly(CostCategory.HUMAN_DIRECT);
     }
@@ -93,7 +157,7 @@ class CostRulesTest {
     @Test
     void logadoSemTempoDiretoViraOciosidadeSemCredorESemFaixaGeraAvisoDeHoras() {
         CostAccumulator acc = new CostAccumulator();
-        HumanCost.apply(List.of(new DirectTime(DAY, BRUNO, C1, P1, 1800)),
+        human(List.of(span(BRUNO, C1, P1, 0, 30)),
                 List.of(new LoggedTime(DAY, ANA, 2 * 3600), new LoggedTime(DAY, BRUNO, 1800)), rates(List.of()), acc);
         Map<String, CostFact> f = byKey(acc.facts());
         CostFact idle = f.get("HUMAN_IDLE|null|null");
@@ -164,9 +228,13 @@ class CostRulesTest {
         CostAccumulator acc = new CostAccumulator();
         UsageCost.messages(new MessageCount(DAY, C1, P1, TariffChannel.SMS, 10), rates(List.of()), acc);
         UsageCost.messages(new MessageCount(DAY, C1, P1, TariffChannel.EMAIL, 5), rates(List.of()), acc);
+        // um fato por item faturado (base do ajuste pela fatura, §13), na mesma categoria
+        assertThat(acc.facts()).extracting(CostFact::item).containsExactly(ChannelItem.SMS, ChannelItem.EMAIL);
+        assertThat(acc.facts()).allSatisfy(f -> assertThat(f.category()).isEqualTo(CostCategory.MESSAGING));
         CostFact f = acc.facts().getFirst();
-        assertThat(f.quantity()).isEqualByComparingTo("15");
+        assertThat(f.quantity()).isEqualByComparingTo("10");
         assertThat(f.amount()).isEqualByComparingTo("0.8");
+        assertThat(acc.facts().get(1).amount()).isZero();
         assertThat(acc.warnings()).singleElement().extracting(CostWarning::quantity)
                 .satisfies(q -> assertThat(q).isEqualByComparingTo("5"));
     }

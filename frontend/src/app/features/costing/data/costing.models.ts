@@ -64,7 +64,8 @@ export type MarginWarningCode =
   | 'NO_FX_RATE'
   | 'MISSING_TARIFF'
   | 'OVERHEAD_WITHOUT_BASIS'
-  | 'NOT_REFRESHED';
+  | 'NOT_REFRESHED'
+  | 'INVOICE_WITHOUT_USAGE';
 
 export interface MarginWarning {
   code: MarginWarningCode | string;
@@ -73,8 +74,8 @@ export interface MarginWarning {
 
 export interface MarginReport {
   period: { from: string; to: string };
-  /** Fase 1: sempre `ESTIMATED` (uso × tarifa); a conciliação com a fatura é da fase 2. */
-  basis: 'ESTIMATED' | 'RECONCILED' | string;
+  /** `ESTIMATED` (uso × tarifa) ou `RECONCILED` (custos de canal com o ajuste pela fatura — §13). */
+  basis: MarginBasis | string;
   totals: MarginLine;
   creditors: CreditorMargin[];
   /**
@@ -84,6 +85,100 @@ export interface MarginReport {
   unallocated?: MarginLine | null;
   months: MonthMargin[];
   warnings: MarginWarning[];
+  /** Situação da conciliação com as faturas de canal e o ajuste por categoria (fase 2, §13); ausente em servidor antigo. */
+  reconciliation?: MarginReconciliation | null;
+}
+
+// ------------------------------------------------------------------ conciliação com a fatura (fase 2, §13)
+
+/** Base dos custos de canal no painel (`?basis=`): estimada (padrão) ou conciliada com a fatura. */
+export type MarginBasis = 'ESTIMATED' | 'RECONCILED';
+
+/** Itens de custo de canal faturados (um valor de fatura por mês × item). */
+export const CHANNEL_ITEMS = ['TELEPHONY', 'WHATSAPP', 'SMS', 'EMAIL', 'AI'] as const;
+export type ChannelItem = (typeof CHANNEL_ITEMS)[number];
+
+/** Categoria de custo de cada item (o ajuste da fatura entra na categoria do item). */
+export const CHANNEL_ITEM_CATEGORY: Readonly<Record<ChannelItem, CostCategory>> = {
+  TELEPHONY: 'TELEPHONY',
+  WHATSAPP: 'MESSAGING',
+  SMS: 'MESSAGING',
+  EMAIL: 'MESSAGING',
+  AI: 'AI',
+};
+
+/** Categorias de custo que recebem o ajuste pela fatura. */
+export const CHANNEL_CATEGORIES: readonly CostCategory[] = ['TELEPHONY', 'MESSAGING', 'AI'];
+
+/** Nenhuma fatura no período, parte dos itens com uso faturada, ou todos. */
+export type ReconciliationStatus = 'ESTIMATED' | 'PARTIAL' | 'RECONCILED';
+
+export interface MonthReconciliation {
+  /** `AAAA-MM`. */
+  month: string;
+  status: ReconciliationStatus;
+  /** Itens com fatura no mês. */
+  invoiced: ChannelItem[];
+  /** Itens com uso estimado no mês ainda sem fatura. */
+  pending: ChannelItem[];
+}
+
+/** Fatura de um item no mês ao lado da estimativa da assessoria inteira (só para quem vê todos os credores). */
+export interface InvoiceLine {
+  month: string;
+  item: ChannelItem;
+  estimated: Money;
+  invoiced: Money;
+  adjustment: Money;
+}
+
+export interface MarginReconciliation {
+  status: ReconciliationStatus;
+  months: MonthReconciliation[];
+  /** Ajuste pela fatura por categoria de canal no recorte visível (já incluído nos custos na base conciliada). */
+  adjustments: Partial<Record<CostCategory, Money>>;
+  /** Nulo para escopo restrito ou com filtro de credor/carteira (o valor da fatura é da assessoria). */
+  invoices: InvoiceLine[] | null;
+}
+
+// ------------------------------------------------------------------ tendência de 6 meses (`GET /margin/trend`, §14.1)
+
+/** Situação do mês pela apuração: completo, apurado só até parte do mês ou ainda não apurado. */
+export type TrendMonthStatus = 'COMPLETE' | 'PARTIAL' | 'NOT_REFRESHED';
+
+export interface TrendMonth {
+  /** `AAAA-MM`. */
+  month: string;
+  status: TrendMonthStatus | string;
+}
+
+/** Ponto do mês. Mês não apurado ou sem nenhum fato: tudo nulo (nunca zero); taxa nula sem receita. */
+export interface TrendPoint {
+  month: string;
+  recovered: Money | null;
+  revenue: Money | null;
+  netMargin: Money | null;
+  netMarginRate: Money | null;
+}
+
+export interface PortfolioTrend {
+  portfolioId: string | null;
+  points: TrendPoint[];
+}
+
+export interface CreditorTrend {
+  creditorId: string;
+  /** Um ponto por mês de `months`, na mesma ordem. */
+  points: TrendPoint[];
+  portfolios: PortfolioTrend[];
+}
+
+/** Os 6 meses que terminam no mês do fim do período filtrado (o início não muda a janela). */
+export interface MarginTrend {
+  period: { from: string; to: string };
+  months: TrendMonth[];
+  computedUntil: string | null;
+  creditors: CreditorTrend[];
 }
 
 /** Filtro do painel (URL e API). */
@@ -174,4 +269,40 @@ export interface OverheadInput {
   amount: number;
   allocation: Allocation;
   creditorId: string | null;
+}
+
+/** Fatura de canal do mês (`/costing/invoices`), com a estimativa do item na assessoria inteira. */
+export interface ChannelInvoice {
+  id: string;
+  /** `AAAA-MM`. */
+  month: string;
+  item: ChannelItem;
+  amount: Money;
+  supplier: string | null;
+  note: string | null;
+  estimated: Money;
+  /** Fatura − estimativa (o que o ajuste rateia). */
+  adjustment: Money;
+  updatedAt?: string | null;
+}
+
+/** Estimativa do item no mês (`/costing/invoices/estimates`), com a fatura quando houver. */
+export interface ItemEstimate {
+  month: string;
+  item: ChannelItem;
+  estimated: Money;
+  /** Uso: minutos (telefonia), conversas ou mensagens, dólares (IA). */
+  quantity: Money;
+  unit: 'MINUTES' | 'UNITS' | 'USD' | string;
+  invoiceId: string | null;
+  invoiced: Money | null;
+}
+
+export interface ChannelInvoiceInput {
+  /** `AAAA-MM`. */
+  month: string;
+  item: ChannelItem;
+  amount: number;
+  supplier: string | null;
+  note: string | null;
 }

@@ -4,11 +4,11 @@ import br.com.gestorcobranca.costing.application.port.out.UsageReader;
 import br.com.gestorcobranca.costing.domain.model.TariffChannel;
 import br.com.gestorcobranca.costing.domain.model.Usage.AiUsage;
 import br.com.gestorcobranca.costing.domain.model.Usage.CallUsage;
-import br.com.gestorcobranca.costing.domain.model.Usage.DirectTime;
 import br.com.gestorcobranca.costing.domain.model.Usage.LoggedTime;
 import br.com.gestorcobranca.costing.domain.model.Usage.MessageCount;
 import br.com.gestorcobranca.costing.domain.model.Usage.Posted;
 import br.com.gestorcobranca.costing.domain.model.Usage.TemplateSend;
+import br.com.gestorcobranca.costing.domain.model.Usage.WorkSpan;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -18,6 +18,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -52,27 +53,42 @@ class JdbcUsageReader implements UsageReader {
     }
 
     @Override
-    public List<DirectTime> directTime(LocalDate from, LocalDate to) {
-        MapSqlParameterSource p = period(from, to).addValue("queuedFromTs", start(from.minusDays(1)),
-                Types.TIMESTAMP_WITH_TIMEZONE);
+    public List<WorkSpan> workSpans(LocalDate from, LocalDate to, Duration chatReply) {
+        // trechos que começam até 2 dias antes e terminam dentro do período (a WorkTimeline corta no dia)
+        MapSqlParameterSource p = period(from, to)
+                .addValue("lookbackTs", start(from.minusDays(2)), Types.TIMESTAMP_WITH_TIMEZONE)
+                .addValue("replySeconds", chatReply.toSeconds());
         return jdbc.query("""
-                select t.day, t.user_id, t.creditor_id, t.portfolio_id, sum(t.seconds) as seconds
-                  from (select (i.started_at at time zone :zone)::date as day, i.operator_id as user_id, i.creditor_id,
-                               i.portfolio_id, i.duration_seconds::bigint as seconds
+                select t.user_id, t.creditor_id, t.portfolio_id, t.start_at, t.end_at
+                  from (select i.operator_id as user_id, i.creditor_id, i.portfolio_id, i.started_at as start_at,
+                               i.started_at + make_interval(secs => i.duration_seconds) as end_at
                           from costing.src_interaction i
                          where i.actor_type = 'USER' and i.operator_id is not null and i.duration_seconds > 0
-                           and i.started_at >= :fromTs and i.started_at < :toTs
+                           and i.started_at >= :lookbackTs and i.started_at < :toTs
                         union all
-                        select (coalesce(c.ended_at, c.queued_at) at time zone :zone)::date, c.operator_id, c.creditor_id,
-                               c.portfolio_id, c.wrap_up_seconds::bigint
+                        select c.operator_id, c.creditor_id, c.portfolio_id, coalesce(c.ended_at, c.queued_at),
+                               coalesce(c.ended_at, c.queued_at) + make_interval(secs => c.wrap_up_seconds)
                           from costing.src_call c
                          where c.operator_id is not null and c.creditor_id is not null and c.wrap_up_seconds > 0
-                           and c.queued_at >= :queuedFromTs and c.queued_at < :toTs
-                           and coalesce(c.ended_at, c.queued_at) >= :fromTs
-                           and coalesce(c.ended_at, c.queued_at) < :toTs) t
-                 group by t.day, t.user_id, t.creditor_id, t.portfolio_id
-                """, p, (rs, i) -> new DirectTime(day(rs), uuid(rs, "user_id"), uuid(rs, "creditor_id"),
-                uuid(rs, "portfolio_id"), rs.getLong("seconds")));
+                           and c.queued_at >= :lookbackTs and coalesce(c.ended_at, c.queued_at) < :toTs
+                        union all
+                        select u.sender_id, u.creditor_id, u.portfolio_id,
+                               coalesce(prev.at, u.created_at - make_interval(secs => :replySeconds)), u.created_at
+                          from costing.src_chat_message u
+                          left join lateral (select max(p.created_at) as at
+                                               from costing.src_chat_message p
+                                              where p.conversation_id = u.conversation_id
+                                                and p.created_at < u.created_at
+                                                and p.created_at >= u.created_at
+                                                                    - make_interval(secs => :replySeconds)) prev
+                                 on true
+                         where u.sender_type = 'USER' and u.sender_id is not null and u.creditor_id is not null
+                           and u.created_at > :fromTs
+                           and u.created_at < :toTs + make_interval(secs => :replySeconds)) t
+                 where t.end_at > :fromTs
+                """, p, (rs, i) -> new WorkSpan(uuid(rs, "user_id"), uuid(rs, "creditor_id"), uuid(rs, "portfolio_id"),
+                rs.getObject("start_at", OffsetDateTime.class).toInstant(),
+                rs.getObject("end_at", OffsetDateTime.class).toInstant()));
     }
 
     @Override

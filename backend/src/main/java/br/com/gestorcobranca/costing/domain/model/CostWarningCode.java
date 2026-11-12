@@ -14,5 +14,10 @@ public enum CostWarningCode {
     /** Unidades (minutos, conversas, mensagens) sem tarifa vigente: entram com custo zero. */
     MISSING_TARIFF,
     /** Custos fixos sem base de rateio no mês (nenhuma hora, recuperado ou caso): ficam sem credor. */
-    OVERHEAD_WITHOUT_BASIS
+    OVERHEAD_WITHOUT_BASIS,
+    /**
+     * Faturas de canal de um mês sem nenhum uso estimado do item (nem valor, nem quantidade): o valor da fatura fica
+     * sem credor no primeiro dia do mês (só na base conciliada).
+     */
+    INVOICE_WITHOUT_USAGE
 }

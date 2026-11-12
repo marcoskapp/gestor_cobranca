@@ -1,7 +1,8 @@
 import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { NgbNavModule } from '@ng-bootstrap/ng-bootstrap';
-import { of } from 'rxjs';
+import { RouterLink } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { toApiError, userMessage } from '../../../core/http/problem';
@@ -22,9 +23,22 @@ import { USER_NAMES_BATCH, USER_NAMES_PERMISSIONS, UserNames } from '../../admin
 import { zonedNow } from '../../collection/data/collection.rules';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { CostSettingsApi } from '../data/costing.api';
-import { ALLOCATION_LABELS, CHANNEL_LABELS, CHANNEL_UNITS, CostTab } from '../data/costing.labels';
+import { ALLOCATION_LABELS, CHANNEL_ITEM_LABELS, CHANNEL_LABELS, CHANNEL_UNITS, CostTab, MARGIN_ROUTE } from '../data/costing.labels';
 import { ChannelTariff, CostBand, FxRate, Overhead, UserCostBand } from '../data/costing.models';
-import { assignableBandNames, isCurrent, isOpen, normalizeMonth, sortBands, validityText } from '../data/cost-settings.rules';
+import {
+  InvoiceRow,
+  assignableBandNames,
+  differenceText,
+  invoiceRows,
+  isCurrent,
+  isOpen,
+  lastClosedMonthStart,
+  monthOptions,
+  normalizeMonth,
+  sortBands,
+  usageText,
+  validityText,
+} from '../data/cost-settings.rules';
 import { monthLabel } from '../data/margin.rules';
 import {
   AssignBandDialog,
@@ -36,6 +50,8 @@ import {
   EndValidityDialogData,
   FxRateDialog,
   FxRateDialogData,
+  InvoiceDialog,
+  InvoiceDialogData,
   OverheadDialog,
   OverheadDialogData,
   TariffDialog,
@@ -47,6 +63,7 @@ const TAB_LABELS: Record<CostTab, string> = {
   tarifas: 'Tarifas de canal',
   cambio: 'Câmbio da IA',
   fixos: 'Custos fixos',
+  faturas: 'Faturas',
 };
 
 /**
@@ -54,7 +71,8 @@ const TAB_LABELS: Record<CostTab, string> = {
  * cada faixa (`COST_RATE_MANAGE`), tarifas de canal, câmbio da IA e custos fixos com a regra de rateio (escrita com
  * `COST_MANAGE`). Abas sem permissão ficam ocultas. Vigências são encerradas, nunca apagadas (o histórico vale para
  * as apurações já feitas); o custo fixo pode ser excluído em qualquer mês, e o servidor refaz o rateio do mês na hora
- * (decisão 1247), com motivo opcional na auditoria.
+ * (decisão 1247), com motivo opcional na auditoria. A aba Faturas (fase 2, §13) recebe a fatura do mês de cada canal ao
+ * lado da estimativa; ela existe só para quem vê todos os credores (os valores da fatura são da assessoria).
  *
  * Escopo: os cadastros valem para a assessoria inteira, e o servidor exige todos os credores para alterá-los. Quem
  * tem escopo restrito vê as abas pela permissão, mas sem as ações de escrita — exceto o custo fixo direto a um credor
@@ -65,9 +83,9 @@ const TAB_LABELS: Record<CostTab, string> = {
  */
 @Component({
   selector: 'app-cost-settings',
-  imports: [NgbNavModule, TabsMore, DataTable, CellDef, Icon, PageHeader, Amount, AppDatePipe],
+  imports: [NgbNavModule, RouterLink, TabsMore, DataTable, CellDef, Icon, PageHeader, Amount, AppDatePipe],
   template: `
-    <app-page-header title="Custos operacionais" subtitle="Faixas de custo de pessoas, tarifas de canal, câmbio da IA e custos fixos usados no painel de margem.">
+    <app-page-header title="Custos operacionais" subtitle="Faixas de custo de pessoas, tarifas de canal, câmbio da IA, custos fixos e faturas de canal usados no painel de margem.">
       @switch (tab.value()) {
         @case ('faixas') {
           @if (canRates()) {
@@ -98,6 +116,14 @@ const TAB_LABELS: Record<CostTab, string> = {
             <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="newOverhead()" data-tour="costs-new">
               <app-icon name="plus-lg" />
               Novo custo fixo
+            </button>
+          }
+        }
+        @case ('faturas') {
+          @if (canManage()) {
+            <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="invoice(null)" data-tour="costs-new">
+              <app-icon name="plus-lg" />
+              Informar fatura
             </button>
           }
         }
@@ -288,6 +314,75 @@ const TAB_LABELS: Record<CostTab, string> = {
           </ng-template>
         </li>
       }
+      @if (tabs.includes('faturas')) {
+        <li [ngbNavItem]="'faturas'">
+          <button ngbNavLink type="button">{{ labels.faturas }}</button>
+          <ng-template ngbNavContent>
+            <p class="app-muted">
+              Valor real cobrado por cada canal no mês, em reais (a fatura de IA em dólar entra convertida pela assessoria). A diferença para a
+              estimativa é rateada pelos credores e carteiras na proporção do custo estimado de cada um, e o painel de margem passa a mostrar a
+              base "Conciliado com a fatura". A estimativa continua guardada.
+            </p>
+            <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+              <div>
+                <label class="form-label" for="cs-invoice-month">Mês</label>
+                <select class="form-select" id="cs-invoice-month" [value]="invoiceMonth.value()" (change)="invoiceMonth.set($any($event.target).value)">
+                  @for (m of invoiceMonths; track m.value) {
+                    <option [value]="m.value">{{ m.label }}</option>
+                  }
+                </select>
+              </div>
+              @if (canSeeMargin()) {
+                <a class="mb-2" [routerLink]="marginRoute" [queryParams]="marginQuery()">Ver a margem conciliada do mês</a>
+              }
+            </div>
+            <app-data-table
+              caption="Faturas de canal do mês"
+              [rows]="invoiceRows()"
+              [columns]="invoiceColumns"
+              [loading]="invoiceData.isLoading()"
+              [failed]="invoiceData.status() === 'error'"
+              (retry)="invoiceData.reload()"
+              emptyIcon="receipt-cutoff"
+              emptyMessage="Nenhum canal neste mês."
+              emptyHint="Escolha outro mês."
+            >
+              <ng-template appCell="item" [appCellOf]="invoiceRows()" let-r>
+                <strong>{{ itemLabels[r.item] }}</strong>
+                @if (r.invoice?.supplier) {
+                  <div class="app-muted small">{{ r.invoice.supplier }}</div>
+                }
+              </ng-template>
+              <ng-template appCell="usage" [appCellOf]="invoiceRows()" let-r>{{ usage(r) }}</ng-template>
+              <ng-template appCell="estimated" [appCellOf]="invoiceRows()" let-r><app-amount [value]="r.estimate?.estimated ?? 0" /></ng-template>
+              <ng-template appCell="invoiced" [appCellOf]="invoiceRows()" let-r>
+                @if (r.invoice) {
+                  <app-amount [value]="r.invoice.amount" />
+                } @else {
+                  <span class="app-muted">Sem fatura</span>
+                }
+              </ng-template>
+              <ng-template appCell="difference" [appCellOf]="invoiceRows()" let-r>
+                @if (r.invoice) {
+                  <span class="app-numeric">{{ difference(r) }}</span>
+                } @else {
+                  —
+                }
+              </ng-template>
+              <ng-template appCell="actions" [appCellOf]="invoiceRows()" let-r>
+                @if (canManage()) {
+                  @if (r.invoice) {
+                    <button class="btn btn-link" type="button" (click)="invoice(r)" [attr.aria-label]="'Corrigir a fatura de ' + itemLabels[r.item]"><app-icon name="pencil" /></button>
+                    <button class="btn btn-link" type="button" (click)="removeInvoice(r)" [attr.aria-label]="'Excluir a fatura de ' + itemLabels[r.item]"><app-icon name="trash3" /></button>
+                  } @else {
+                    <button class="btn btn-link" type="button" (click)="invoice(r)" [attr.aria-label]="'Informar a fatura de ' + itemLabels[r.item]"><app-icon name="plus-lg" /></button>
+                  }
+                }
+              </ng-template>
+            </app-data-table>
+          </ng-template>
+        </li>
+      }
       <li class="nav-item app-tabs-more-item d-none" role="presentation"><app-tabs-more [nav]="nav" /></li>
     </ul>
     <div [ngbNavOutlet]="nav"></div>
@@ -317,13 +412,32 @@ export class CostSettings {
   protected readonly tabs: readonly CostTab[] = [
     ...(this.hasRates() ? (['faixas'] as const) : []),
     ...(this.canReadCosts() ? (['tarifas', 'cambio', 'fixos'] as const) : []),
+    // faturas: valores da assessoria inteira — só com todos os credores, como o servidor exige (§13)
+    ...(this.canReadCosts() && this.allCreditors() ? (['faturas'] as const) : []),
   ];
   protected readonly tab = urlTab<CostTab>(this.tabs, this.tabs[0] ?? 'tarifas');
   protected readonly labels = TAB_LABELS;
   protected readonly channelLabels = CHANNEL_LABELS;
   protected readonly channelUnits = CHANNEL_UNITS;
   protected readonly allocationLabels = ALLOCATION_LABELS;
+  protected readonly itemLabels = CHANNEL_ITEM_LABELS;
   private readonly today = zonedNow().date;
+  /** Mês da aba Faturas na URL (`?mes=AAAA-MM-01`); padrão: último mês fechado; só meses já começados. */
+  protected readonly invoiceMonths = monthOptions(new Date(), 24, 0);
+  protected readonly invoiceMonth = urlTab<string>(
+    this.invoiceMonths.map((m) => m.value),
+    lastClosedMonthStart(new Date()),
+    'mes',
+  );
+  protected readonly marginRoute = MARGIN_ROUTE;
+  protected readonly canSeeMargin = computed(() => this.auth.hasPermission(Permission.COST_VIEW));
+  /** Painel no mês escolhido, já na base conciliada. */
+  protected readonly marginQuery = computed(() => {
+    const [y, m] = this.invoiceMonth.value().split('-').map(Number);
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const month = this.invoiceMonth.value().slice(0, 7);
+    return { de: `${month}-01`, ate: `${month}-${String(last).padStart(2, '0')}`, base: 'conciliado' };
+  });
 
   // ------------------------------------------------------------ dados (carregados na aba aberta)
   private readonly on = (t: CostTab) => () => (this.tab.value() === t && this.tabs.includes(t)) || undefined;
@@ -332,6 +446,11 @@ export class CostSettings {
   protected readonly tariffs = rxResource({ params: this.on('tarifas'), stream: () => this.api.tariffs() });
   protected readonly fxRates = rxResource({ params: this.on('cambio'), stream: () => this.api.fxRates() });
   protected readonly overheads = rxResource({ params: this.on('fixos'), stream: () => this.api.overheads() });
+  protected readonly invoiceData = rxResource({
+    params: () => (this.on('faturas')() ? this.invoiceMonth.value() : undefined),
+    stream: ({ params }) =>
+      forkJoin({ estimates: this.api.invoiceEstimates(params, params), invoices: this.api.invoices(params, params) }),
+  });
 
   private readonly bandValues = valueOr(this.bands, [] as CostBand[]);
   protected readonly bandRows = computed(() => sortBands(this.bandValues()));
@@ -340,6 +459,10 @@ export class CostSettings {
   private readonly tariffValues = valueOr(this.tariffs, [] as ChannelTariff[]);
   private readonly fxValues = valueOr(this.fxRates, [] as FxRate[]);
   private readonly overheadValues = valueOr(this.overheads, [] as Overhead[]);
+  protected readonly invoiceRows = computed(() => {
+    const value = this.invoiceData.value();
+    return value ? invoiceRows(value.estimates, value.invoices) : [];
+  });
   protected readonly tariffRows = computed(() =>
     [...this.tariffValues()].sort((a, b) => a.channel.localeCompare(b.channel) || b.validFrom.localeCompare(a.validFrom)),
   );
@@ -384,6 +507,14 @@ export class CostSettings {
   protected readonly fxColumns: TableColumn[] = [
     { key: 'month', header: 'Mês' },
     { key: 'usdBrl', header: 'Câmbio', align: 'end' },
+    { key: 'actions', header: 'Ações', actions: true },
+  ];
+  protected readonly invoiceColumns: TableColumn[] = [
+    { key: 'item', header: 'Canal' },
+    { key: 'usage', header: 'Uso no mês' },
+    { key: 'estimated', header: 'Estimativa', align: 'end', info: 'analytics.margin.estimated' },
+    { key: 'invoiced', header: 'Fatura', align: 'end' },
+    { key: 'difference', header: 'Diferença', align: 'end', info: 'analytics.margin.invoice-adjustment' },
     { key: 'actions', header: 'Ações', actions: true },
   ];
   protected readonly overheadColumns: TableColumn[] = [
@@ -503,6 +634,54 @@ export class CostSettings {
       .subscribe((reason) =>
         this.api.deleteOverhead(o.id, reason).subscribe({
           next: () => this.done(true, 'Custo fixo excluído.', () => this.overheads.reload()),
+          error: (err: unknown) => this.notifications.error(userMessage(toApiError(err))),
+        }),
+      );
+  }
+
+  // ------------------------------------------------------------ faturas de canal (§13)
+  protected usage(row: InvoiceRow): string {
+    return usageText(row.estimate);
+  }
+
+  protected difference(row: InvoiceRow): string {
+    return row.invoice ? differenceText(row.invoice.amount, row.estimate?.estimated ?? 0) : '—';
+  }
+
+  /** Informar (linha sem fatura ou botão do cabeçalho) ou corrigir a fatura do mês escolhido. */
+  protected invoice(row: InvoiceRow | null): void {
+    this.dialog
+      .open<InvoiceDialog, InvoiceDialogData, unknown>(InvoiceDialog, {
+        data: { month: this.invoiceMonth.value(), item: row?.item ?? null, invoice: row?.invoice ?? null },
+      })
+      .afterClosed()
+      .subscribe((saved) =>
+        this.done(saved, 'Fatura salva. O ajuste do mês foi refeito e já aparece no painel de margem.', () => this.invoiceData.reload()),
+      );
+  }
+
+  protected removeInvoice(row: InvoiceRow): void {
+    const invoice = row.invoice;
+    if (!invoice) {
+      return;
+    }
+    this.confirm
+      .confirm({
+        title: 'Excluir fatura',
+        message:
+          'O ajuste deste canal no mês é desfeito na hora e o painel volta a usar a estimativa para ele. A exclusão fica registrada na auditoria.',
+        confirmLabel: 'Excluir',
+        destructive: true,
+        reason: 'optional',
+        reasonLabel: 'Motivo (opcional)',
+        details: [
+          { label: 'Mês', value: this.month(invoice.month) },
+          { label: 'Canal', value: CHANNEL_ITEM_LABELS[invoice.item] },
+        ],
+      })
+      .subscribe((reason) =>
+        this.api.deleteInvoice(invoice.id, reason).subscribe({
+          next: () => this.done(true, 'Fatura excluída.', () => this.invoiceData.reload()),
           error: (err: unknown) => this.notifications.error(userMessage(toApiError(err))),
         }),
       );

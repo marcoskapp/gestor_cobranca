@@ -103,7 +103,14 @@ create view costing.src_agreement with (security_invoker = true) as
 select a.tenant_id, a.creditor_id, a.portfolio_id, a.status, a.settled_at
 from negotiation.agreement a;
 
+-- Mensagens do chat para o tempo de resposta das pessoas (§4.1): quem enviou (só o id do usuário, para o
+-- cálculo em memória) e quando; sem conteúdo, contato nem devedor.
+create view costing.src_chat_message with (security_invoker = true) as
+select m.tenant_id, m.conversation_id, c.creditor_id, c.portfolio_id, m.sender_type, m.sender_id, m.created_at
+from communication.message m
+join communication.conversation c on c.id = m.conversation_id;
+
 grant select on costing.src_creditor, costing.src_portfolio, costing.src_interaction, costing.src_call,
     costing.src_provider_account, costing.src_logged_time, costing.src_commission_ledger, costing.src_assistant_cost,
     costing.src_pdf_import_cost, costing.src_message, costing.src_legal_expense, costing.src_receipt,
-    costing.src_commission_entry, costing.src_agreement to app_runtime;
+    costing.src_commission_entry, costing.src_agreement, costing.src_chat_message to app_runtime;

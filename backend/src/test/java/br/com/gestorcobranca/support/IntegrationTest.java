@@ -52,6 +52,11 @@ public abstract class IntegrationTest {
         return standaloneUrl;
     }
 
+    /** Banco novo e vazio (sem migrations), para testes de migration com Flyway em versão-alvo. */
+    protected static String newEmptyDatabase() {
+        return createIsolatedDatabase();
+    }
+
     protected static String ownerPassword() {
         return OWNER_PASSWORD;
     }

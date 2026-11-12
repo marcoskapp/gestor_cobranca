@@ -1,6 +1,8 @@
 package br.com.gestorcobranca.costing.application.port.out;
 
+import br.com.gestorcobranca.costing.domain.model.ChannelItem;
 import br.com.gestorcobranca.costing.domain.model.CostCategory;
+import br.com.gestorcobranca.costing.domain.model.ItemEstimate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,11 +35,27 @@ public interface MarginReader {
                        long settledAgreements) {
     }
 
+    /** Estimativa de um item de canal num mês, na assessoria inteira. */
+    record ItemMonthRow(YearMonth month, ChannelItem item, ItemEstimate estimate) {
+    }
+
     /** @param months meses distintos com o aviso */
     record WarningRow(String code, BigDecimal quantity, long months) {
     }
 
+    /** Custos estimados (base {@code ESTIMATED}) do recorte. */
     List<CostRow> costs(Slice slice);
+
+    /**
+     * Ajuste pela fatura (base {@code INVOICE_ADJUSTMENT}) do recorte, por categoria de canal; quantidade sempre zero.
+     */
+    List<CostRow> invoiceAdjustments(Slice slice);
+
+    /**
+     * Estimativa de cada item de canal por mês na assessoria inteira (todas as linhas, inclusive sem credor), entre
+     * {@code from} e {@code to}: base da situação da conciliação e da comparação com a fatura.
+     */
+    List<ItemMonthRow> channelEstimates(LocalDate from, LocalDate to);
 
     List<ActivityRow> activity(Slice slice);
 

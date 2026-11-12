@@ -3,12 +3,17 @@ package br.com.gestorcobranca.costing.application.service;
 import br.com.gestorcobranca.costing.application.CostingProperties;
 import br.com.gestorcobranca.costing.application.port.in.CostRefreshUseCases;
 import br.com.gestorcobranca.costing.application.port.out.CostFactStore;
+import br.com.gestorcobranca.costing.application.port.out.CostFactStore.RefreshState;
 import br.com.gestorcobranca.costing.application.port.out.UsageReader;
+import br.com.gestorcobranca.costing.domain.model.ChannelInvoice;
+import br.com.gestorcobranca.costing.domain.model.ChannelItem;
 import br.com.gestorcobranca.costing.domain.model.CostCategory;
 import br.com.gestorcobranca.costing.domain.model.CostKey;
 import br.com.gestorcobranca.costing.domain.model.CostWarningCode;
+import br.com.gestorcobranca.costing.domain.model.ItemEstimate;
 import br.com.gestorcobranca.costing.domain.model.Overhead;
 import br.com.gestorcobranca.costing.domain.model.OverheadAllocation;
+import br.com.gestorcobranca.costing.domain.repository.ChannelInvoiceRepository;
 import br.com.gestorcobranca.costing.domain.repository.ChannelTariffRepository;
 import br.com.gestorcobranca.costing.domain.repository.CostBandRepository;
 import br.com.gestorcobranca.costing.domain.repository.FxRateRepository;
@@ -16,6 +21,8 @@ import br.com.gestorcobranca.costing.domain.repository.OverheadRepository;
 import br.com.gestorcobranca.costing.domain.repository.UserCostBandRepository;
 import br.com.gestorcobranca.costing.domain.service.CostAccumulator;
 import br.com.gestorcobranca.costing.domain.service.HumanCost;
+import br.com.gestorcobranca.costing.domain.service.MarginTrendSeries;
+import br.com.gestorcobranca.costing.domain.service.InvoiceReconciler;
 import br.com.gestorcobranca.costing.domain.service.OverheadAllocator;
 import br.com.gestorcobranca.costing.domain.service.RateBook;
 import br.com.gestorcobranca.costing.domain.service.UsageCost;
@@ -41,6 +48,7 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -49,10 +57,11 @@ import java.util.UUID;
  * Apuração dos custos da assessoria corrente (desenho §4): lê o uso do período pelas views de contrato, aplica as
  * regras do domínio com os cadastros vigentes e substitui os fatos do período numa única transação (leitores veem a
  * versão anterior até o commit). Os custos fixos são rateados por <b>mês inteiro</b> — todo mês que toca o período —,
- * depois de gravados os fatos que servem de base (horas, recuperado, casos).
+ * depois de gravados os fatos que servem de base (horas, recuperado, casos); o ajuste pela fatura de canal (§13) também
+ * é refeito por mês inteiro, depois da estimativa.
  * <p>
  * Concorrência: o job agendado espera a apuração em andamento da assessoria; as rotas HTTP (reapuração manual e o
- * rateio refeito ao criar ou excluir custo fixo) só tentam o lock e, se ocupado, falham na hora com
+ * rateio refeito ao criar ou excluir custo fixo e o ajuste refeito ao informar ou excluir fatura) só tentam o lock e, se ocupado, falham na hora com
  * {@code costing.refresh_running} (409), sem prender a requisição nem a conexão.
  * <p>
  * Log técnico só com período, linhas e duração: nenhum valor de custo nem de pessoa.
@@ -62,13 +71,13 @@ import java.util.UUID;
 class CostRefreshService implements CostRefreshUseCases {
 
     /** Versão das regras de apuração gravada no estado (sobe quando uma regra muda e o histórico pede reapuração). */
-    static final int RULES_VERSION = 1;
+    static final int RULES_VERSION = 2;
 
     private static final Logger LOG = LoggerFactory.getLogger(CostRefreshService.class);
 
     private static final Set<CostCategory> USAGE_CATEGORIES = EnumSet.complementOf(EnumSet.of(CostCategory.OVERHEAD));
-    private static final Set<CostWarningCode> USAGE_WARNINGS =
-            EnumSet.complementOf(EnumSet.of(CostWarningCode.OVERHEAD_WITHOUT_BASIS));
+    private static final Set<CostWarningCode> USAGE_WARNINGS = EnumSet.complementOf(
+            EnumSet.of(CostWarningCode.OVERHEAD_WITHOUT_BASIS, CostWarningCode.INVOICE_WITHOUT_USAGE));
 
     private final UsageReader usage;
     private final CostFactStore store;
@@ -77,6 +86,7 @@ class CostRefreshService implements CostRefreshUseCases {
     private final ChannelTariffRepository tariffs;
     private final FxRateRepository fxRates;
     private final OverheadRepository overheads;
+    private final ChannelInvoiceRepository invoices;
     private final CurrentActor currentActor;
     private final AccessScope accessScope;
     private final CostingMetrics metrics;
@@ -86,8 +96,9 @@ class CostRefreshService implements CostRefreshUseCases {
 
     CostRefreshService(UsageReader usage, CostFactStore store, CostBandRepository bands,
                        UserCostBandRepository userBands, ChannelTariffRepository tariffs, FxRateRepository fxRates,
-                       OverheadRepository overheads, CurrentActor currentActor, AccessScope accessScope,
-                       CostingMetrics metrics, CostingProperties properties, AuditTrail audit, Clock clock) {
+                       OverheadRepository overheads, ChannelInvoiceRepository invoices, CurrentActor currentActor,
+                       AccessScope accessScope, CostingMetrics metrics, CostingProperties properties, AuditTrail audit,
+                       Clock clock) {
         this.usage = usage;
         this.store = store;
         this.bands = bands;
@@ -95,6 +106,7 @@ class CostRefreshService implements CostRefreshUseCases {
         this.tariffs = tariffs;
         this.fxRates = fxRates;
         this.overheads = overheads;
+        this.invoices = invoices;
         this.currentActor = currentActor;
         this.accessScope = accessScope;
         this.metrics = metrics;
@@ -128,13 +140,31 @@ class CostRefreshService implements CostRefreshUseCases {
     RefreshResult refreshScheduled() {
         LocalDate to = today().minusDays(1);
         store.lockForRefresh(properties.refreshStatementTimeout());
-        return run(to.minusDays(properties.refreshDays() - 1L), to, "scheduled");
+        LocalDate from = to.minusDays(properties.refreshDays() - 1L);
+        // regra de apuração nova (RULES_VERSION): refaz uma vez os meses da tendência do painel, para a série de 6
+        // meses não misturar fatos apurados com regras diferentes (decisão 1328)
+        boolean outdated = store.state().map(st -> st.version() < RULES_VERSION).orElse(false);
+        if (outdated && trendStart(to).isBefore(from)) {
+            from = trendStart(to);
+        }
+        return run(from, to, outdated ? "rules_upgrade" : "scheduled");
+    }
+
+    /** Primeiro dia da janela da tendência (6 meses) que termina no mês de {@code to}. */
+    private static LocalDate trendStart(LocalDate to) {
+        return YearMonth.from(to).minusMonths(MarginTrendSeries.MONTHS - 1L).atDay(1);
     }
 
     /** Refaz só o rateio dos custos fixos do mês (ao criar ou excluir um custo fixo). */
     void reallocateOverheads(YearMonth month) {
         requireLock();
         allocateOverheads(month);
+    }
+
+    /** Refaz só o ajuste pela fatura do mês (ao informar, substituir ou excluir uma fatura de canal). */
+    void reconcileInvoices(YearMonth month) {
+        requireLock();
+        reconcile(month);
     }
 
     /** Modo das rotas HTTP: não espera a apuração em andamento (ver a nota de concorrência da classe). */
@@ -151,7 +181,8 @@ class CostRefreshService implements CostRefreshUseCases {
                     userBands.findAllByOrderByUserIdAscValidFromAsc(), tariffs.findAllByOrderByChannelAscValidFromAsc(),
                     fxRates.findAllByOrderByMonthAsc());
             CostAccumulator acc = new CostAccumulator();
-            HumanCost.apply(usage.directTime(from, to), usage.loggedTime(from, to), rates, acc);
+            HumanCost.apply(usage.workSpans(from, to, properties.chatReplyWindow()), usage.loggedTime(from, to),
+                    TimeConfig.BUSINESS_ZONE, from, to, rates, acc);
             usage.calls(from, to).forEach(c -> UsageCost.telephony(c, acc));
             usage.ai(from, to).forEach(a -> UsageCost.ai(a, rates, acc));
             usage.messages(from, to).forEach(m -> UsageCost.messages(m, rates, acc));
@@ -164,10 +195,15 @@ class CostRefreshService implements CostRefreshUseCases {
             store.replaceActivity(from, to);
             for (YearMonth m = YearMonth.from(from); !m.isAfter(YearMonth.from(to)); m = m.plusMonths(1)) {
                 rows += allocateOverheads(m);
+                rows += reconcile(m);
             }
             Instant now = Instant.now(clock);
             Duration elapsed = Duration.ofNanos(System.nanoTime() - start);
-            store.saveState(from, to, now, elapsed.toMillis(), rows, RULES_VERSION);
+            // a versão das regras só sobe quando a apuração cobre a janela da tendência: uma reapuração curta não
+            // marca como atualizado um histórico que ainda tem fatos da regra anterior
+            int version = !from.isAfter(trendStart(to)) ? RULES_VERSION
+                    : store.state().map(RefreshState::version).orElse(RULES_VERSION);
+            store.saveState(from, to, now, elapsed.toMillis(), rows, version);
             metrics.refreshed(trigger, "ok", elapsed, rows);
             LOG.atInfo().addKeyValue("process", "costing.refresh").addKeyValue("trigger", trigger)
                     .addKeyValue("from", from).addKeyValue("to", to).addKeyValue("rows", rows)
@@ -211,6 +247,26 @@ class CostRefreshService implements CostRefreshUseCases {
         LocalDate last = month.atEndOfMonth();
         store.replaceWarnings(first, last, Set.of(CostWarningCode.OVERHEAD_WITHOUT_BASIS), acc.warnings());
         return store.replaceFacts(first, last, Set.of(CostCategory.OVERHEAD), acc.facts());
+    }
+
+    /**
+     * Ajuste pela fatura de todo o mês (§13): refeito por inteiro sobre a estimativa gravada, como o rateio dos fixos.
+     * A estimativa não muda; o ajuste é outra base dos fatos ({@code INVOICE_ADJUSTMENT}).
+     */
+    private long reconcile(YearMonth month) {
+        CostAccumulator acc = new CostAccumulator();
+        List<ChannelInvoice> monthInvoices = invoices.findAllByMonth(month.atDay(1));
+        if (!monthInvoices.isEmpty()) {
+            Map<ChannelItem, Map<CostKey, ItemEstimate>> estimates = store.channelEstimates(month);
+            for (ChannelInvoice invoice : monthInvoices) {
+                InvoiceReconciler.reconcile(month, invoice.getItem(), invoice.getAmount(),
+                        estimates.getOrDefault(invoice.getItem(), Map.of()), acc);
+            }
+        }
+        LocalDate first = month.atDay(1);
+        LocalDate last = month.atEndOfMonth();
+        store.replaceWarnings(first, last, Set.of(CostWarningCode.INVOICE_WITHOUT_USAGE), acc.warnings());
+        return store.replaceInvoiceAdjustments(first, last, acc.facts());
     }
 
     private LocalDate today() {

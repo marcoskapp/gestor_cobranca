@@ -7,6 +7,31 @@
   font-size: var(--app-text-sm);
   color: var(--bs-secondary-color);
 }
+.mp__basis-note {
+  flex-basis: 100%;
+}
+.mp__reconciliation {
+  margin-bottom: var(--app-gap);
+  .app-card__title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+.mp__adjustments {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding-left: 1.25rem;
+}
+.mp__pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0 0 8px;
+  font-size: var(--app-text-sm);
+}
 .mp__warnings {
   ul {
     display: grid;
@@ -113,4 +138,17 @@
 .mp__unallocated td {
   color: var(--bs-secondary-color);
   border-top: var(--bs-border-width) solid var(--bs-border-color);
+}
+// tendência de 6 meses: coluna estreita (minigráfico de 72 px), sem rolagem lateral na tabela padrão
+.mp__table .mp__trend {
+  width: 1%;
+  text-align: center;
+  white-space: nowrap;
+}
+.mp__trend-state {
+  font-size: var(--app-text-xs);
+  color: var(--bs-secondary-color);
+}
+.mp__scatter {
+  margin-bottom: var(--app-gap);
 }

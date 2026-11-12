@@ -14,8 +14,12 @@ public final class Usage {
     private Usage() {
     }
 
-    /** Tempo direto de uma pessoa num credor/carteira no dia (interações + pós-atendimento), em segundos. */
-    public record DirectTime(LocalDate day, UUID userId, UUID creditorId, UUID portfolioId, long seconds) {
+    /**
+     * Trecho de trabalho de uma pessoa num credor/carteira, com início e fim: interação com duração, pós-atendimento de
+     * chamada ou resposta escrita no chat. Trechos da mesma pessoa podem se sobrepor (atendimentos simultâneos); a
+     * {@code WorkTimeline} divide o tempo sobreposto, sem contar duas vezes.
+     */
+    public record WorkSpan(UUID userId, UUID creditorId, UUID portfolioId, Instant start, Instant end) {
     }
 
     /** Tempo logado de uma pessoa no dia, em segundos. */

@@ -12,8 +12,8 @@ import { provideBootstrapDefaults } from '../../../core/config/bootstrap.config'
 import { provideBootstrapComponentDefaults } from '../../../core/config/bootstrap-components.config';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { CHANNEL_UNITS } from '../data/costing.labels';
-import { CostBand, UserCostBand } from '../data/costing.models';
-import { OverheadDialog, TariffDialog } from './cost-dialogs';
+import { ChannelInvoice, CostBand, ItemEstimate, UserCostBand } from '../data/costing.models';
+import { InvoiceDialog, OverheadDialog, TariffDialog } from './cost-dialogs';
 import { CostSettings } from './cost-settings';
 
 const USER_1 = '00000000-0000-0000-0000-0000000000e1';
@@ -28,6 +28,27 @@ const userBands: UserCostBand[] = [
   { userId: USER_1, bandName: 'Negociador júnior', validFrom: '2026-02-01', validTo: null },
   { userId: USER_2, bandName: null, validFrom: null, validTo: null },
 ];
+
+const telephonyInvoice: ChannelInvoice = {
+  id: 'i-1',
+  month: '2026-10',
+  item: 'TELEPHONY',
+  amount: 180,
+  supplier: 'Operadora fictícia',
+  note: null,
+  estimated: 150,
+  adjustment: 30,
+};
+
+function estimates(month: string): ItemEstimate[] {
+  return [
+    { month, item: 'TELEPHONY', estimated: 150, quantity: 1500, unit: 'MINUTES', invoiceId: month === '2026-10' ? 'i-1' : null, invoiced: month === '2026-10' ? 180 : null },
+    { month, item: 'WHATSAPP', estimated: 40, quantity: 100, unit: 'UNITS', invoiceId: null, invoiced: null },
+    { month, item: 'SMS', estimated: 0, quantity: 0, unit: 'UNITS', invoiceId: null, invoiced: null },
+    { month, item: 'EMAIL', estimated: 0, quantity: 0, unit: 'UNITS', invoiceId: null, invoiced: null },
+    { month, item: 'AI', estimated: 54, quantity: 10, unit: 'USD', invoiceId: null, invoiced: null },
+  ];
+}
 
 describe('configuração de custos operacionais', () => {
   let http: HttpTestingController;
@@ -72,6 +93,12 @@ describe('configuração de custos operacionais', () => {
       { id: 'o-1', month: '2026-10', description: 'Aluguel', amount: 1000, allocation: 'HOURS', creditorId: null, creditorName: null },
       { id: 'o-2', month: '2026-10', description: 'Licença do credor', amount: 50, allocation: 'CREDITOR', creditorId: 'c-1', creditorName: 'Credor A' },
     ],
+    '/api/v1/costing/invoices/estimates': (req: { request: { params: { get(n: string): string | null } } }) => {
+      expect(req.request.params.get('from')).toBe(req.request.params.get('to'));
+      return estimates(req.request.params.get('from')!);
+    },
+    '/api/v1/costing/invoices': (req: { request: { params: { get(n: string): string | null } } }) =>
+      req.request.params.get('from') === '2026-10' ? [telephonyInvoice] : [],
     '/api/v1/users/display-names': (req: { request: { params: { get(n: string): string | null } } }) =>
       (req.request.params.get('ids') ?? '').split(',').map((id) => ({ id, name: id === USER_1 ? 'Ana Souza' : 'Bruno Lima' })),
   };
@@ -94,14 +121,14 @@ describe('configuração de custos operacionais', () => {
   it('FINANCEIRO/ADMIN (as duas permissões): todas as abas; faixas abre primeiro', async () => {
     permissions.set(['COST_VIEW', 'COST_MANAGE', 'COST_RATE_MANAGE', 'CASE_VIEW']);
     const fixture = await render();
-    expect(tabs(fixture)).toEqual(['Faixas de custo de pessoas', 'Tarifas de canal', 'Câmbio da IA', 'Custos fixos']);
+    expect(tabs(fixture)).toEqual(['Faixas de custo de pessoas', 'Tarifas de canal', 'Câmbio da IA', 'Custos fixos', 'Faturas']);
     expect(text(el(fixture))).toContain('Nova faixa');
   });
 
   it('só COST_MANAGE: sem a aba de faixas de pessoas (oculta, não negada)', async () => {
     permissions.set(['COST_VIEW', 'COST_MANAGE']);
     const fixture = await render();
-    expect(tabs(fixture)).toEqual(['Tarifas de canal', 'Câmbio da IA', 'Custos fixos']);
+    expect(tabs(fixture)).toEqual(['Tarifas de canal', 'Câmbio da IA', 'Custos fixos', 'Faturas']);
     expect(text(el(fixture))).toContain('WhatsApp — marketing');
     expect(text(el(fixture))).toContain('R$ 0,0625');
     expect(text(el(fixture))).toContain('Nova tarifa');
@@ -192,6 +219,56 @@ describe('configuração de custos operacionais', () => {
     expect(el(fixed).querySelector('button[aria-label="Excluir o custo fixo Aluguel"]')).not.toBeNull();
   });
 
+  it('faturas: cada canal do mês com o uso, a estimativa, a fatura e a diferença; mês e atalho para a margem conciliada', async () => {
+    permissions.set(['COST_VIEW', 'COST_MANAGE']);
+    query.next(convertToParamMap({ aba: 'faturas', mes: '2026-10-01' }));
+    const fixture = await render();
+    const table = el(fixture).querySelector('table')!;
+    const rows = [...table.querySelectorAll('tbody tr')].map((r) => text(r));
+    expect(rows.length).toBe(5);
+    expect(rows[0]).toContain('Telefonia');
+    expect(rows[0]).toContain('Operadora fictícia');
+    expect(rows[0]).toContain('1.500 minutos');
+    expect(rows[0]).toContain('R$ 150,00');
+    expect(rows[0]).toContain('R$ 180,00');
+    expect(rows[0]).toContain('+R$ 30,00');
+    expect(rows[1]).toContain('WhatsApp');
+    expect(rows[1]).toContain('100 conversas');
+    expect(rows[1]).toContain('Sem fatura');
+    expect(rows[2]).toContain('sem uso');
+    expect(rows[4]).toContain('US$');
+    // sem códigos internos na tela
+    expect(text(table)).not.toMatch(/TELEPHONY|WHATSAPP|MINUTES|UNITS/);
+    // escrita com COST_MANAGE: informar, corrigir e excluir
+    expect(text(el(fixture))).toContain('Informar fatura');
+    expect(el(fixture).querySelector('button[aria-label="Corrigir a fatura de Telefonia"]')).not.toBeNull();
+    expect(el(fixture).querySelector('button[aria-label="Excluir a fatura de Telefonia"]')).not.toBeNull();
+    expect(el(fixture).querySelector('button[aria-label="Informar a fatura de WhatsApp"]')).not.toBeNull();
+    const link = el(fixture).querySelector<HTMLAnchorElement>('a[href*="/paineis/margem"]')!;
+    expect(link.getAttribute('href')).toContain('base=conciliado');
+    expect(link.getAttribute('href')).toContain('de=2026-10-01');
+    expect(link.getAttribute('href')).toContain('ate=2026-10-31');
+  });
+
+  it('faturas só leitura (COST_VIEW): sem informar, corrigir nem excluir', async () => {
+    permissions.set(['COST_VIEW', 'COST_RATE_MANAGE']);
+    query.next(convertToParamMap({ aba: 'faturas', mes: '2026-10-01' }));
+    const fixture = await render();
+    expect(text(el(fixture).querySelector('table'))).toContain('R$ 180,00');
+    expect(text(el(fixture))).not.toContain('Informar fatura');
+    expect(el(fixture).querySelector('button[aria-label^="Corrigir a fatura"]')).toBeNull();
+    expect(el(fixture).querySelector('button[aria-label^="Excluir a fatura"]')).toBeNull();
+  });
+
+  it('faturas com escopo restrito: a aba não existe (nem pela URL), pois a fatura é da assessoria', async () => {
+    permissions.set(['COST_VIEW', 'COST_MANAGE']);
+    allCreditors.set(false);
+    query.next(convertToParamMap({ aba: 'faturas' }));
+    const fixture = await render();
+    expect(tabs(fixture)).not.toContain('Faturas');
+    expect(text(el(fixture))).toContain('WhatsApp — marketing');
+  });
+
   it('faixa sem valor-hora (quem não gerencia as faixas recebe só o nome): mostra o traço', async () => {
     permissions.set(['COST_RATE_MANAGE']);
     const fixture = TestBed.createComponent(CostSettings);
@@ -251,6 +328,49 @@ describe('diálogos de custos', () => {
     expect(options).toEqual(['Direto a um credor']);
     const form = (fixture.componentInstance as unknown as { form: { controls: { creditor: { valid: boolean } } } }).form;
     expect(form.controls.creditor.valid).toBe(false);
+  });
+
+  it('fatura: mostra a estimativa do mês do canal e a diferença; envia o mês AAAA-MM', async () => {
+    const fixture = dialog(InvoiceDialog, { month: '2026-10-01', item: 'TELEPHONY', invoice: null });
+    const http = TestBed.inject(HttpTestingController);
+    await tick();
+    const req = http.expectOne((r) => r.url === '/api/v1/costing/invoices/estimates');
+    expect(req.request.params.get('from')).toBe('2026-10');
+    req.flush(estimates('2026-10').map((e) => ({ ...e, invoiceId: null, invoiced: null })));
+    await tick();
+    const form = (fixture.componentInstance as unknown as { form: { patchValue(v: object): void } }).form;
+    form.patchValue({ amount: 120, supplier: '  Operadora  ' });
+    fixture.detectChanges();
+    const hint = text((fixture.nativeElement as HTMLElement).querySelector('[data-testid="invoice-estimate"]'));
+    expect(hint).toContain('Estimativa do mês: R$ 150,00 (1.500 minutos)');
+    expect(hint).toContain('Diferença de −R$ 30,00');
+    // canal fixo ao informar a partir da linha
+    const options = [...(fixture.nativeElement as HTMLElement).querySelectorAll('select[formcontrolname="item"] option')].map((o) => text(o).trim());
+    expect(options).toEqual(['Telefonia']);
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    const save = http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/costing/invoices');
+    expect(save.request.body).toEqual({ month: '2026-10', item: 'TELEPHONY', amount: 120, supplier: 'Operadora', note: null });
+    save.flush({});
+    http.verify();
+  });
+
+  it('fatura de canal sem uso no mês avisa que o valor fica sem credor; mês já faturado avisa que substitui', async () => {
+    const fixture = dialog(InvoiceDialog, { month: '2026-10-01', item: null, invoice: null });
+    const http = TestBed.inject(HttpTestingController);
+    await tick();
+    http.expectOne((r) => r.url === '/api/v1/costing/invoices/estimates').flush(estimates('2026-10'));
+    await tick();
+    const form = (fixture.componentInstance as unknown as { form: { patchValue(v: object): void } }).form;
+    // telefonia já tem fatura no mês: salvar substitui
+    fixture.detectChanges();
+    expect(text(fixture.nativeElement as Element)).toContain('salvar substitui o valor');
+    form.patchValue({ item: 'SMS', amount: 10 });
+    fixture.detectChanges();
+    expect(text((fixture.nativeElement as HTMLElement).querySelector('[data-testid="invoice-estimate"]'))).toContain('fica em "Sem credor"');
+    // meses: só os já começados (o servidor recusa mês futuro)
+    const months = (fixture.nativeElement as HTMLElement).querySelectorAll('select[formcontrolname="month"] option');
+    expect(months.length).toBe(25);
+    http.verify();
   });
 
   it('custo fixo com todos os credores: as quatro regras, horas por padrão', () => {
