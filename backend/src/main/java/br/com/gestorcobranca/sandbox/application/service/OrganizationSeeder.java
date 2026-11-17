@@ -55,49 +55,74 @@ class OrganizationSeeder {
                 seed.spec.tradeName(), LocalTime.of(8, 0), LocalTime.of(20, 0), true, false)));
         for (int c = 0; c < seed.spec.creditors().size(); c++) {
             CreditorSpec spec = seed.spec.creditors().get(c);
-            String document = new FictitiousData(seed.spec.seed() * 7 + c).cnpj();
-            String contact = "recuperacao@" + FictitiousData.slug(spec.tradeName()) + ".exemplo.test";
-            UUID creditorId = rt.as(admin, () -> creditors.search(spec.prefix(), null, PageQuery.of(0, 20)).content()
-                    .stream().filter(v -> spec.prefix().equals(v.externalCode())).findFirst()
-                    .orElseGet(() -> creditors.create(new CreditorCommand(spec.legalName(), spec.tradeName(), document,
-                            spec.prefix(), contact)))).id();
-            seed.creditors.put(spec.prefix(), creditorId);
-            // canal formal das contestações: equipe de contestações (principal) e jurídico do credor (cópia)
-            String slug = FictitiousData.slug(spec.tradeName());
-            rt.as(admin, () -> {
-                if (disputeContacts.list(creditorId).isEmpty()) {
-                    disputeContacts.create(creditorId, new DisputeContactCommand(null, "Equipe de contestações "
-                            + spec.tradeName(), "contestacoes@" + slug + ".exemplo.test", "(11) 4000-0000", "PRIMARY"));
-                    disputeContacts.create(creditorId, new DisputeContactCommand(null, "Jurídico " + spec.tradeName(),
-                            "juridico@" + slug + ".exemplo.test", null, "COPY"));
-                }
-                return null;
-            });
-
-            LocalDate start = seed.today.minusYears(1).withDayOfMonth(1);
-            String number = "CPS-" + spec.prefix() + "-" + start.getYear();
-            ContractView contract = rt.as(admin, () -> contracts.listByCreditor(creditorId).stream()
-                    .filter(v -> number.equals(v.number())).findFirst()
-                    .orElseGet(() -> contracts.create(new CreateContractCommand(creditorId, number,
-                            new ContractTermsCommand(start, null, 180, 10,
-                                    "Contrato de prestação de serviços de cobrança extrajudicial e judicial (fictício)")))));
-            seed.contracts.put(spec.prefix(), contract.id());
-            seed.contractStarts.put(spec.prefix(), contract.startDate());
-
+            ContractView contract = creditorAndContract(seed, spec, c);
             for (int p = 0; p < spec.portfolios().size(); p++) {
-                PortfolioSpec portfolio = spec.portfolios().get(p);
-                String code = portfolio.code(spec);
                 LocalDate receivedOn = contract.startDate().plusDays(20L * (p + 1));
-                PortfolioView view = rt.as(admin, () -> portfolios.search(creditorId, null, code, PageQuery.of(0, 20))
-                        .content().stream().filter(v -> code.equals(v.code())).findFirst()
-                        .orElseGet(() -> portfolios.create(new CreatePortfolioCommand(creditorId, contract.id(), code,
-                                portfolio.name(), "Carteira fictícia de demonstração — " + portfolio.product(),
-                                receivedOn, seed.today.plusYears(1)))));
-                if (!"ACTIVE".equals(view.status())) {
-                    rt.as(admin, () -> portfolios.changeStatus(view.id(), "ACTIVE", "Início da operação (sandbox)", null));
-                }
-                seed.portfolios.put(code, view.id());
+                portfolio(seed, seed.creditors.get(spec.prefix()), contract, spec, spec.portfolios().get(p), receivedOn);
             }
         }
+        if (seed.hasHistory()) {
+            // credores do histórico desde o primeiro dia (as carteiras chegam mês a mês, na etapa do histórico)
+            for (int c = 0; c < seed.history.creditors().size(); c++) {
+                creditorAndContract(seed, seed.history.creditors().get(c).spec(), 100 + c);
+            }
+        }
+    }
+
+    /**
+     * Credor (pelo código externo = prefixo), contatos de contestação e contrato de prestação de serviço com vigência
+     * desde o 1º dia de 12 meses atrás. Idempotente.
+     *
+     * @param documentIndex posição do credor para o CNPJ fictício (determinístico)
+     */
+    ContractView creditorAndContract(TenantSeed seed, CreditorSpec spec, int documentIndex) {
+        Actor admin = seed.actor("admin");
+        String document = new FictitiousData(seed.spec.seed() * 7 + documentIndex).cnpj();
+        String contact = "recuperacao@" + FictitiousData.slug(spec.tradeName()) + ".exemplo.test";
+        // lista inteira (até 200 credores) e filtro pelo código externo: a busca textual não procura pelo código
+        UUID creditorId = rt.as(admin, () -> creditors.search(null, null, PageQuery.of(0, 200)).content()
+                .stream().filter(v -> spec.prefix().equals(v.externalCode())).findFirst()
+                .orElseGet(() -> creditors.create(new CreditorCommand(spec.legalName(), spec.tradeName(), document,
+                        spec.prefix(), contact)))).id();
+        seed.creditors.put(spec.prefix(), creditorId);
+        // canal formal das contestações: equipe de contestações (principal) e jurídico do credor (cópia)
+        String slug = FictitiousData.slug(spec.tradeName());
+        rt.as(admin, () -> {
+            if (disputeContacts.list(creditorId).isEmpty()) {
+                disputeContacts.create(creditorId, new DisputeContactCommand(null, "Equipe de contestações "
+                        + spec.tradeName(), "contestacoes@" + slug + ".exemplo.test", "(11) 4000-0000", "PRIMARY"));
+                disputeContacts.create(creditorId, new DisputeContactCommand(null, "Jurídico " + spec.tradeName(),
+                        "juridico@" + slug + ".exemplo.test", null, "COPY"));
+            }
+            return null;
+        });
+
+        LocalDate start = seed.historyStart;
+        String number = "CPS-" + spec.prefix() + "-" + start.getYear();
+        ContractView contract = rt.as(admin, () -> contracts.listByCreditor(creditorId).stream()
+                .filter(v -> number.equals(v.number())).findFirst()
+                .orElseGet(() -> contracts.create(new CreateContractCommand(creditorId, number,
+                        new ContractTermsCommand(start, null, 180, 10,
+                                "Contrato de prestação de serviços de cobrança extrajudicial e judicial (fictício)")))));
+        seed.contracts.put(spec.prefix(), contract.id());
+        seed.contractStarts.put(spec.prefix(), contract.startDate());
+        return contract;
+    }
+
+    /** Carteira ativa do credor (pelo código), recebida na data informada e válida até um ano depois de hoje. */
+    UUID portfolio(TenantSeed seed, UUID creditorId, ContractView contract, CreditorSpec creditor, PortfolioSpec portfolio,
+                   LocalDate receivedOn) {
+        Actor admin = seed.actor("admin");
+        String code = portfolio.code(creditor);
+        PortfolioView view = rt.as(admin, () -> portfolios.search(creditorId, null, code, PageQuery.of(0, 20))
+                .content().stream().filter(v -> code.equals(v.code())).findFirst()
+                .orElseGet(() -> portfolios.create(new CreatePortfolioCommand(creditorId, contract.id(), code,
+                        portfolio.name(), "Carteira fictícia de demonstração — " + portfolio.product(),
+                        receivedOn, seed.today.plusYears(1)))));
+        if (!"ACTIVE".equals(view.status())) {
+            rt.as(admin, () -> portfolios.changeStatus(view.id(), "ACTIVE", "Início da operação (sandbox)", null));
+        }
+        seed.portfolios.put(code, view.id());
+        return view.id();
     }
 }

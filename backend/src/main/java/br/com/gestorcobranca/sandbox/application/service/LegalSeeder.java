@@ -97,8 +97,20 @@ class LegalSeeder {
         if (collectionCase.isEmpty() || openMatter(seed, collectionCase.get()).isPresent()) {
             return;
         }
+        fileLawsuit(seed, collectionCase.get(), debtorIndex, seed.today, "CREDITOR", true);
+    }
+
+    /**
+     * Caso ajuizado e citado, do encaminhamento à execução com custas iniciais, atribuído ao escritório parceiro.
+     * Usado também no histórico (custas adiantadas pela assessoria e não reembolsáveis entram na margem).
+     *
+     * @param today      dia do ajuizamento no relógio da carga (datas do processo relativas a ele)
+     * @param advancedBy quem adiantou as custas iniciais (CREDITOR, AGENCY ou LAW_FIRM)
+     */
+    void fileLawsuit(TenantSeed seed, CaseView collectionCase, int debtorIndex, java.time.LocalDate today,
+                     String advancedBy, boolean reimbursable) {
         Actor juridico = seed.actor("juridico");
-        MatterView matter = refer(seed, collectionCase.get(), "Atraso relevante, título executivo e veículo em garantia");
+        MatterView matter = refer(seed, collectionCase, "Atraso relevante, título executivo e veículo em garantia");
         UUID id = matter.id();
         rt.as(juridico, () -> matters.transition(id, new TransitionCommand("UNDER_REVIEW", "Indicação aceita", null, null)));
 
@@ -124,7 +136,7 @@ class LegalSeeder {
                 new FileUpload("autorizacao-credor.pdf", "application/pdf", EVIDENCE.length,
                         new ByteArrayInputStream(EVIDENCE)))).id();
         rt.as(juridico, () -> authorizations.decide(pending.id(), new DecisionCommand("GRANTED",
-                Set.copyOf(pending.requestedRoutes()), new BigDecimal("2500.00"), seed.today, "EMAIL",
+                Set.copyOf(pending.requestedRoutes()), new BigDecimal("2500.00"), today, "EMAIL",
                 "Gerente de recuperação do credor (fictício)", evidence, "Aprovado conforme política do credor")));
 
         // ajuizamento (número CNJ fictício e válido) e citação com prazo para embargos
@@ -132,16 +144,16 @@ class LegalSeeder {
                 : pending.requestedRoutes().stream().filter(r -> !Set.of("PROTEST", "CREDIT_BUREAU_LISTING",
                 "EXTRAJUDICIAL_COLLATERAL_ENFORCEMENT").contains(r)).findFirst().orElse("EXECUTION");
         long sequential = Math.floorMod(seed.spec.seed() + debtorIndex * 7919L, 9_000_000L) + 1_000_000L;
-        String cnj = CnjNumbers.format(sequential, seed.today.getYear(), 8, 26, 100);
+        String cnj = CnjNumbers.format(sequential, today.getYear(), 8, 26, 100);
         LawsuitView lawsuit = rt.as(juridico, () -> lawsuits.register(id, new LawsuitCommand(cnj, route,
-                "Execução de título extrajudicial", null, Set.of(), matter.debtAmount(), seed.today.minusDays(20), "TJSP",
+                "Execução de título extrajudicial", null, Set.of(), matter.debtAmount(), today.minusDays(20), "TJSP",
                 "1ª Vara Cível do Foro Central (fictícia)")));
-        rt.as(juridico, () -> lawsuits.recordMovement(lawsuit.id(), new MovementCommand(seed.today.minusDays(3),
+        rt.as(juridico, () -> lawsuits.recordMovement(lawsuit.id(), new MovementCommand(today.minusDays(3),
                 "CITATION", "Citação positiva do executado (fictício)", null, null, null, new DeadlineCommand("RESPONSE",
-                "Prazo para embargos à execução", null, null, seed.today.minusDays(3), null, 15, null, null,
+                "Prazo para embargos à execução", null, null, today.minusDays(3), null, 15, null, null,
                 seed.user("juridico")))));
         rt.as(juridico, () -> expenses.record(id, new ExpenseCommand("COURT_FEES", "Custas iniciais (fictício)",
-                new BigDecimal("780.00"), seed.today.minusDays(20), "CREDITOR", true, lawsuit.id(), null)));
+                new BigDecimal("780.00"), today.minusDays(20), advancedBy, reimbursable, lawsuit.id(), null)));
         // acompanhamento pelo escritório parceiro (o advogado parceiro só vê os casos atribuídos ao escritório)
         rt.as(juridico, () -> matters.assign(id, new AssignCommand("LAW_FIRM", null, seed.lawFirmId)));
     }
@@ -151,7 +163,7 @@ class LegalSeeder {
                 reason + " (cenário fictício)")));
     }
 
-    private Optional<MatterView> openMatter(TenantSeed seed, CaseView c) {
+    Optional<MatterView> openMatter(TenantSeed seed, CaseView c) {
         return rt.as(seed.actor("juridico"), () -> matters.search(new MatterFilter(null, null, null, c.id(), null, null,
                 null, null, true), PageQuery.of(0, 1))).content().stream().findFirst();
     }

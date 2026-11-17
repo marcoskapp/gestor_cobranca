@@ -127,7 +127,10 @@ class IdentitySeeder {
         register(seed, admin, view, byCode);
     }
 
-    /** Um usuário ativo para cada perfil padrão da assessoria (e o segundo operador, de escopo restrito). */
+    /**
+     * Um usuário ativo para cada perfil padrão da assessoria (e o segundo operador, de escopo restrito) e, com histórico,
+     * os supervisores e negociadores fictícios das equipes. Sempre no tempo real (senha e ativação de hoje).
+     */
     void seedUsers(TenantSeed seed) {
         Map<String, RoleView> byCode = roles(seed.tenantId);
         Set<String> systemRoles = byCode.values().stream().filter(RoleView::systemRole).map(RoleView::code)
@@ -139,7 +142,7 @@ class IdentitySeeder {
             throw new IllegalStateException("catálogo do sandbox sem pessoa para os perfis padrão " + missing
                     + " (DemoCatalog)");
         }
-        for (Person person : seed.spec.people()) {
+        for (Person person : seed.people()) {
             if (seed.actors.containsKey(person.key())) {
                 continue;
             }
@@ -147,7 +150,7 @@ class IdentitySeeder {
             String email = person.email(seed.spec);
             boolean all = person.scope() == DemoCatalog.Scope.ALL_CREDITORS;
             Set<UUID> creditorIds = all ? Set.of() : Set.of(seed.creditorId(0));
-            Instant before = rt.now();
+            Instant before = rt.realNow();
             UserView view = findUser(seed.tenantId, email).orElseGet(() -> rt.system(seed.tenantId, () -> users.create(
                     new CreateUserCommand(person.name(), email, null, Set.of(role.id()), all, creditorIds))));
             activate(seed.tenantId, view, email, before);
@@ -167,7 +170,7 @@ class IdentitySeeder {
     }
 
     private void activate(UUID tenantId, UserView view, String email) {
-        activate(tenantId, view, email, view.createdAt() == null ? rt.now() : view.createdAt());
+        activate(tenantId, view, email, view.createdAt() == null ? rt.realNow() : view.createdAt());
     }
 
     /**
@@ -178,20 +181,38 @@ class IdentitySeeder {
         if ("ACTIVE".equals(view.status())) {
             return;
         }
+        if (rt.shifted()) {
+            // senha definida no passado expiraria antes da demonstração (90 dias): usuários sempre no tempo real
+            throw new IllegalStateException("ativação de usuário de demonstração só no tempo real");
+        }
         if (!"PENDING_ACTIVATION".equals(view.status())) {
             throw new IllegalStateException("usuário de demonstração em situação inesperada: " + view.status());
         }
         Instant sentAfter = createdOrBefore;
-        if (view.createdAt() != null && view.createdAt().isBefore(rt.now().minusSeconds(60))) {
-            // carga anterior interrompida: novo link (o anterior é invalidado pelo próprio fluxo)
-            sentAfter = rt.now();
+        String previous = null;
+        if (view.createdAt() != null && view.createdAt().isBefore(rt.realNow().minusSeconds(60))) {
+            // carga anterior interrompida ou usuário criado no passado (provisionamento no relógio de demonstração):
+            // novo link (o anterior é invalidado pelo próprio fluxo). Antes, espera o e-mail original chegar ao
+            // Mailpit, para não lê-lo no lugar do novo.
+            try {
+                previous = mailbox.awaitCredentialToken(email, Instant.EPOCH, java.time.Duration.ofSeconds(30));
+            } catch (IllegalStateException e) {
+                LOG.atInfo().addKeyValue("userId", view.id()).log("E-mail de ativação anterior não encontrado; reenviando");
+            }
+            sentAfter = rt.realNow();
             rt.system(tenantId, () -> {
                 users.sendCredentialLink(view.id());
                 return null;
             });
         }
-        String token = mailbox.awaitCredentialToken(email, sentAfter, properties.seed().activationTimeout());
-        authentication.completeCredentialAction(token, properties.seed().demoPassword());
+        String old = previous;
+        Instant after = sentAfter;
+        String[] token = {null};
+        rt.await("e-mail de ativação de " + view.id(), properties.seed().activationTimeout(), () -> {
+            token[0] = mailbox.awaitCredentialToken(email, after, properties.seed().activationTimeout());
+            return !token[0].equals(old);
+        });
+        authentication.completeCredentialAction(token[0], properties.seed().demoPassword());
         LOG.atInfo().addKeyValue("tenantId", tenantId).addKeyValue("userId", view.id())
                 .log("Usuário de demonstração ativado pelo link de ativação");
     }

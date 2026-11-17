@@ -547,6 +547,47 @@ class CostingMarginIT extends IntegrationTest {
         assertThat(cost(all.totals(), CostCategory.HUMAN_IDLE)).isZero();
     }
 
+    @Test
+    void comissaoVariavelEOValorDoExtratoRateadoPeloCreditadoEEstimadaSemExtrato() {
+        seedTenantAndCreditors();
+        UUID u1 = Ids.newId();
+        UUID u2 = Ids.newId();
+        run(() -> {
+            UUID attrA = attribution(creditorA, portfolioA);
+            UUID attrB = attribution(creditorB, portfolioB);
+            UUID period = commissionPeriod(LocalDate.of(2026, 10, 1));
+            // extrato de outubro do U1: R$ 200 a pagar sobre R$ 10.000 creditados → 2%, rateado A 6.000 / B 4.000
+            UUID statement = statement(period, u1, LocalDate.of(2026, 10, 1), "200.00", "10000.00");
+            UUID first = ledger(u1, attrA, creditorA, portfolioA, "6000.00", LocalDate.of(2026, 10, 5), "CLEARED", statement);
+            ledger(u1, attrB, creditorB, portfolioB, "4000.00", LocalDate.of(2026, 10, 12), "CLEARED", statement);
+            // ainda sem extrato: estimado pela última taxa do U1 (2%) → B 20
+            ledger(u1, attrB, creditorB, portfolioB, "1000.00", LocalDate.of(2026, 10, 20), "PENDING", null);
+            // U2 sem extrato algum: taxa do último período da assessoria (200 / 10.000) → A 100
+            ledger(u2, attrA, creditorA, portfolioA, "5000.00", LocalDate.of(2026, 10, 25), "PENDING", null);
+            // dispensado não é custo
+            ledger(u2, attrA, creditorA, portfolioA, "9999.00", LocalDate.of(2026, 10, 26), "WAIVED", null);
+            // estorno de 1.000 do 1º lançamento, no dia em que foi lançado → A −20
+            reversal(u1, attrA, creditorA, portfolioA, first, "-1000.00", at(28, 10));
+            // equipe: 100% da base creditada à equipe nunca recebe extrato; o pool dos membros já está no extrato
+            // deles — só o extrato SEM lançamento pessoal (supervisor, R$ 30) é rateado pelo creditado de equipe
+            UUID team = Ids.newId();
+            ledger(team, "TEAM", attrA, creditorA, portfolioA, "2000.00", LocalDate.of(2026, 10, 5), "CLEARED", null);
+            ledger(team, "TEAM", attrB, creditorB, portfolioB, "1000.00", LocalDate.of(2026, 10, 12), "CLEARED", null);
+            statement(period, Ids.newId(), LocalDate.of(2026, 10, 1), "30.00", "0.00");
+        });
+        asRole(finance, DefaultRoles.FINANCEIRO, null, () -> refresh.refresh(FROM, TO));
+        MarginReport all = asRole(manager, DefaultRoles.GESTOR, null,
+                () -> margins.margin(new MarginFilter(FROM, TO, null, null)));
+        // nunca o recuperado creditado (antes: A 22.999, B 6.000); pool do supervisor: A +20, B +10
+        assertThat(cost(creditor(all, creditorA).line(), CostCategory.VARIABLE_COMMISSION)).isEqualByComparingTo("220.00");
+        assertThat(cost(creditor(all, creditorB).line(), CostCategory.VARIABLE_COMMISSION)).isEqualByComparingTo("110.00");
+        // a view não expõe o beneficiário
+        assertThat(system(() -> jdbc.queryForList("""
+                select column_name from information_schema.columns
+                 where table_schema = 'costing' and table_name = 'src_commission_cost'""", String.class)))
+                .doesNotContain("beneficiary_id", "credited_amount");
+    }
+
     private void seedTenantAndCreditors() {
         String slug = "simultaneo-" + UUID.randomUUID().toString().substring(0, 8);
         tenant = tenantExecution.callInTenant(Ids.newId(), "test.setup", () -> provisioning.provision(
@@ -638,6 +679,80 @@ class CostingMarginIT extends IntegrationTest {
     private UUID user(String name, UUID roleId) {
         return system(() -> userManagement.create(new CreateUserCommand(name, UUID.randomUUID().toString()
                 .substring(0, 8) + "@teste.com", null, Set.of(roleId), true, Set.of())).id());
+    }
+
+    private UUID attribution(UUID creditorId, UUID portfolioId) {
+        UUID id = Ids.newId();
+        Instant now = Instant.now();
+        jdbc.update("""
+                insert into incentive.agreement_attribution (id, tenant_id, version, created_at, updated_at,
+                    source_event_id, agreement_id, creditor_id, portfolio_id, origin, channel, delay_bucket,
+                    agreement_amount, incremental_amount, formalized_at)
+                values (?, ?, 0, ?, ?, ?, ?, ?, ?, 'HUMAN', 'PHONE', 'D31_90', 1000, 1000, ?)""",
+                id, tenant, ts(now), ts(now), Ids.newId(), Ids.newId(), creditorId, portfolioId, ts(now));
+        return id;
+    }
+
+    private UUID commissionPeriod(LocalDate start) {
+        UUID id = Ids.newId();
+        Instant now = Instant.now();
+        jdbc.update("""
+                insert into incentive.commission_period (id, tenant_id, version, created_at, updated_at, period_start,
+                    period_end, status, closed_at, close_trigger) values (?, ?, 0, ?, ?, ?, ?, 'CLOSED', ?, 'MANUAL')""",
+                id, tenant, ts(now), ts(now), start, start.plusMonths(1).minusDays(1), ts(now));
+        return id;
+    }
+
+    private UUID statement(UUID periodId, UUID beneficiary, LocalDate start, String payable, String credited) {
+        UUID id = Ids.newId();
+        Instant now = Instant.now();
+        jdbc.update("""
+                insert into incentive.commission_statement (id, tenant_id, version, created_at, updated_at, period_id,
+                    period_start, beneficiary_id, status, outcome, calculated_amount, adjustments_amount, payable_amount,
+                    withheld_amount, credited_recovery, calculation, calculation_schema, calculated_at)
+                values (?, ?, 0, ?, ?, ?, ?, ?, 'CALCULATED', 'PAYABLE', ?, 0, ?, 0, ?, '{}'::jsonb, 1, ?)""",
+                id, tenant, ts(now), ts(now), periodId, start, beneficiary, new BigDecimal(payable),
+                new BigDecimal(payable), new BigDecimal(credited), ts(now));
+        return id;
+    }
+
+    private UUID ledger(UUID beneficiary, UUID attributionId, UUID creditorId, UUID portfolioId, String credited,
+                        LocalDate paidOn, String status, UUID statementId) {
+        return ledger(beneficiary, "USER", attributionId, creditorId, portfolioId, credited, paidOn, status, statementId);
+    }
+
+    private UUID ledger(UUID beneficiary, String beneficiaryType, UUID attributionId, UUID creditorId, UUID portfolioId,
+                        String credited, LocalDate paidOn, String status, UUID statementId) {
+        UUID id = Ids.newId();
+        Instant now = Instant.now();
+        boolean cleared = status.equals("CLEARED");
+        jdbc.update("""
+                insert into incentive.commission_ledger_entry (id, tenant_id, version, created_at, updated_at, kind,
+                    status, beneficiary_type, beneficiary_id, attribution_id, agreement_id, payment_id, creditor_id,
+                    portfolio_id, delay_bucket, origin, channel, base_amount, credit_weight, renegotiation_factor,
+                    credited_amount, credit_note, paid_on, confirmed_on, clears_on, cleared_at, period_start,
+                    statement_id)
+                values (?, ?, 0, ?, ?, 'ACCRUAL', ?, ?, ?, ?, ?, ?, ?, ?, 'D31_90', 'HUMAN', 'PHONE', ?, 100, 100,
+                        ?, 'teste', ?, ?, ?, ?, ?, ?)""",
+                id, tenant, ts(now), ts(now), status, beneficiaryType, beneficiary, attributionId, Ids.newId(), Ids.newId(),
+                creditorId,
+                portfolioId, new BigDecimal(credited), new BigDecimal(credited), paidOn, paidOn, paidOn,
+                cleared ? ts(now) : null, cleared ? LocalDate.of(2026, 10, 1) : null, statementId);
+        return id;
+    }
+
+    private void reversal(UUID beneficiary, UUID attributionId, UUID creditorId, UUID portfolioId, UUID reverses,
+                          String credited, Instant at) {
+        jdbc.update("""
+                insert into incentive.commission_ledger_entry (id, tenant_id, version, created_at, updated_at, kind,
+                    status, beneficiary_type, beneficiary_id, attribution_id, agreement_id, payment_id, reversal_id,
+                    reverses_entry_id, creditor_id, portfolio_id, delay_bucket, origin, channel, base_amount,
+                    credit_weight, renegotiation_factor, credited_amount, credit_note, paid_on, confirmed_on, clears_on)
+                values (?, ?, 0, ?, ?, 'REVERSAL', 'PENDING', 'USER', ?, ?, ?, ?, ?, ?, ?, ?, 'D31_90', 'HUMAN',
+                        'PHONE', ?, 100, 100, ?, 'teste', ?, ?, ?)""",
+                Ids.newId(), tenant, ts(at), ts(at), beneficiary, attributionId, Ids.newId(), Ids.newId(), Ids.newId(),
+                reverses, creditorId, portfolioId, new BigDecimal(credited), new BigDecimal(credited),
+                LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 5));
     }
 
     private <T> T system(Supplier<T> action) {

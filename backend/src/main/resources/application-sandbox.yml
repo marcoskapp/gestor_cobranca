@@ -28,6 +28,10 @@ management:
 
 app:
   environment: ${APP_ENV:sandbox}
+  jobs:
+    # ciclo da fila de jobs mais curto que o padrão (PT1S): a carga do histórico fictício espera os jobs de cada dia
+    # simulado antes de avançar o relógio de demonstração (decisão 1356); um só nó, carga pequena
+    poll-interval: PT0.2S
   logging:
     dir: ${LOG_DIR:/var/lib/gestor-cobranca/logs}
   storage:

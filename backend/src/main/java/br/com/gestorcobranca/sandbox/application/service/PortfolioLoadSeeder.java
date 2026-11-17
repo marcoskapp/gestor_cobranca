@@ -48,9 +48,19 @@ class PortfolioLoadSeeder {
     }
 
     void seed(TenantSeed seed) {
+        load(seed, seed.data.byPortfolio(), seed.today);
+    }
+
+    /**
+     * Importa as carteiras informadas (código → dívidas) que ainda não têm lote, espera o fim de cada importação e a
+     * abertura dos casos de cobrança.
+     *
+     * @param appraisalDate data-base das avaliações de garantia (relativa ao dia da carga)
+     */
+    void load(TenantSeed seed, Map<String, List<Debt>> byPortfolio, java.time.LocalDate appraisalDate) {
         Actor analyst = seed.actor("analista");
         Map<String, UUID> submitted = new LinkedHashMap<>();
-        for (Map.Entry<String, List<Debt>> entry : seed.data.byPortfolio().entrySet()) {
+        for (Map.Entry<String, List<Debt>> entry : byPortfolio.entrySet()) {
             String code = entry.getKey();
             UUID portfolioId = seed.portfolios.get(code);
             List<ImportBatchView> existing = rt.as(analyst, () -> batches.search(
@@ -62,7 +72,7 @@ class PortfolioLoadSeeder {
             BigDecimal principal = BigDecimal.ZERO;
             for (Debt debt : entry.getValue()) {
                 for (Title title : debt.contract().titles()) {
-                    records.add(record(debt.debtor(), debt.contract(), title, seed));
+                    records.add(record(debt.debtor(), debt.contract(), title, appraisalDate));
                     principal = principal.add(title.principal());
                 }
             }
@@ -87,7 +97,7 @@ class PortfolioLoadSeeder {
                     .log("Carteira do sandbox importada");
         }
         // casos de cobrança abertos pela sincronização (evento de fim de carga → job do collection)
-        for (Map.Entry<String, List<Debt>> entry : seed.data.byPortfolio().entrySet()) {
+        for (Map.Entry<String, List<Debt>> entry : byPortfolio.entrySet()) {
             UUID portfolioId = seed.portfolios.get(entry.getKey());
             long expected = entry.getValue().stream().map(d -> d.debtor().document()).distinct().count();
             rt.await("casos de cobrança da carteira " + entry.getKey(), () -> rt.system(seed.tenantId, () -> cases.search(
@@ -97,7 +107,8 @@ class PortfolioLoadSeeder {
     }
 
     /** Linha no layout canônico de importação (docs/negocio/layout-importacao.md). */
-    private static Map<String, Object> record(Debtor debtor, Contract contract, Title title, TenantSeed seed) {
+    private static Map<String, Object> record(Debtor debtor, Contract contract, Title title,
+                                              java.time.LocalDate appraisalDate) {
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("documento", debtor.document());
         r.put("nome", debtor.name());
@@ -133,7 +144,7 @@ class PortfolioLoadSeeder {
             r.put("garantia_gravame_numero", "GRV-" + contract.number());
             r.put("garantia_gravame_data", contract.signedAt().toString());
             r.put("avaliacao_valor", contract.vehicle().appraisal());
-            r.put("avaliacao_data", seed.today.minusDays(30).toString());
+            r.put("avaliacao_data", appraisalDate.minusDays(30).toString());
             r.put("avaliacao_fonte", "FIPE");
         }
         return r;

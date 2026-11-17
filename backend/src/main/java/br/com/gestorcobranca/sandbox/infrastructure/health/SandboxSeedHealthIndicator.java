@@ -34,6 +34,9 @@ class SandboxSeedHealthIndicator implements HealthIndicator {
         if (status.finishedAt() != null) {
             builder.withDetail("finishedAt", status.finishedAt().toString());
         }
+        if (status.demoClock() != null) {
+            builder.withDetail("demoClock", status.demoClock().toString());
+        }
         if (status.failure() != null) {
             builder.withDetail("failure", status.failure());
         }

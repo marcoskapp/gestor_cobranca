@@ -174,6 +174,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 | `AgreementRecorder` | `application.service` | formalização, renegociação e publicação de eventos/auditoria/negócio/métricas |
 | `AgreementPaymentService`, `LedgerPostingJob` | `application.service` | baixa por `PaymentConfirmed`/`PaymentReversed`; lançamentos no razão (job `negotiation.ledger_posting`) |
 | `NegotiationMaintenance` + `NegotiationJobs.daily` | `application.service` | expiração de propostas; parcelas vencidas; quebra (00:20, fuso de operação, ShedLock `negotiation.daily`) |
+| `NegotiationScheduling` (`port/in`) | `NegotiationSchedulingService` | a mesma rotina diária sob demanda, na assessoria do **ator de sistema** (sem rota HTTP; usuário comum recebe `IllegalStateException`); usada pela carga do sandbox para quebrar acordos no dia simulado do histórico (decisão 1355) |
 | `NegotiationAnonymizer`, `NegotiationReactions` | `application.service` | consumidores `negotiation.payment-confirmed`, `negotiation.payment-reversed`, `negotiation.debtor-anonymized` |
 | `TermIssuer` + `AgreementTermRenderer` / `PdfAgreementTermRenderer` | `application.service`, `port.out`, `infrastructure.term` | termo em PDF (PDFBox), `FileStorage` (`AGREEMENT_TERM`) com SHA-256 |
 | `CollectionCaseEligibilityAdapter` | `infrastructure.eligibility` | elegibilidade sobre `CaseUseCases`/`DisputeUseCases` (collection), `DebtTitleUseCases`, `PortfolioUseCases` |

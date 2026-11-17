@@ -1,6 +1,6 @@
 # Sandbox de demonstração
 
-Ambiente completo do Gestor de Cobrança que sobe com **um comando**, já com dados **fictícios** em todas as telas principais: duas assessorias, três credores por assessoria, quatro carteiras por credor, um usuário ativo para cada perfil e casos em vários estágios da operação. Serve para demonstração, treinamento e testes exploratórios. **Nunca** use com dados reais nem como base para produção.
+Ambiente completo do Gestor de Cobrança que sobe com **um comando**, já com dados **fictícios** em todas as telas principais: duas assessorias, um usuário ativo para cada perfil e casos em vários estágios da operação. A `aurora` tem **30 credores, 80 carteiras, 20 negociadores em 4 equipes e 12 meses de histórico** (§3a); a `boreal`, três credores com quatro carteiras cada e só o presente. Serve para demonstração, treinamento e testes exploratórios. **Nunca** use com dados reais nem como base para produção.
 
 > Tudo aqui é inventado: nomes, empresas, CPFs/CNPJs (dígitos verificadores válidos, números gerados ao acaso), e-mails no domínio reservado `exemplo.test` e telefones que só chegam aos simuladores. Nenhuma mensagem, ligação, Pix ou chamada de IA sai do ambiente.
 
@@ -18,7 +18,7 @@ Pré-requisitos (detalhes, versões mínimas, memória, disco e portas no [READM
 ./scripts/sandbox/reset.sh         # apaga os volumes do sandbox e recria do zero (pede confirmação; --yes dispensa)
 ```
 
-O `up.sh` só termina quando a aplicação está no ar **e** a carga de dados foi concluída (grupo de prontidão `/actuator/health/readiness`, que inclui `sandboxSeed`). A carga leva de 2 a 3 minutos; o progresso aparece no terminal e em `docker compose -p gestor-cobranca-sandbox logs -f app`.
+O `up.sh` só termina quando a aplicação está no ar **e** a carga de dados foi concluída (grupo de prontidão `/actuator/health/readiness`, que inclui `sandboxSeed`). A carga leva **cerca de 6 a 7 minutos** (antes do histórico, ~45 s), dos quais ~5,5 min são o histórico de 12 meses da `aurora`; com o cache do build pronto, o `reset.sh` completo levou ~7 min; o progresso aparece no terminal (`carga do sandbox: aurora: histórico 2026-03`…) e em `docker compose -p gestor-cobranca-sandbox logs -f app`. Durante o histórico, `components.sandboxSeed.details.demoClock` mostra a data simulada. **Não use o sandbox enquanto a carga roda**: o relógio da aplicação está deslocado para o passado e um login feito nesse intervalo nasce com a data simulada (a sessão expira ao fim da carga; basta entrar de novo).
 
 | Serviço | Endereço | Observação |
 | --- | --- | --- |
@@ -96,15 +96,15 @@ O túnel é o serviço `tunnel` do próprio Compose (perfil `tunnel`, imagem `cl
 
 | Área | Conteúdo |
 | --- | --- |
-| Assessorias | `aurora` (Banco Horizonte, Varejo Estrela, Vale Conecta) e `boreal` (Coop Sertão, Energia Litoral, Monte Claro), com janela de contato 8h–20h, segunda a sábado |
-| Credores | 3 por assessoria, com contrato de prestação de serviço (vigência desde o 1º dia de 12 meses atrás, repasse no dia 10), base legal (LGPD) e regra de comissão publicada |
-| Carteiras | 4 por credor (cartão, veículos, crédito pessoal, cheque especial; crediário, boletos; telefonia; energia; mensalidades…), ativas, carregadas pela **importação via API** (lotes visíveis em Importações) |
-| Devedores e títulos | ~220 devedores, ~460 títulos e ~235 casos de cobrança por assessoria, atrasos de 10 a 720 dias **relativos ao dia em que o sandbox subiu**, valores variados, pessoas físicas e jurídicas, 10 devedores com títulos em mais de um credor, contratos com garantia de veículo (alienação fiduciária) e títulos executivos |
+| Assessorias | `aurora` (Banco Horizonte, Varejo Estrela, Vale Conecta + 27 credores do histórico) e `boreal` (Coop Sertão, Energia Litoral, Monte Claro), com janela de contato 8h–20h, segunda a sábado |
+| Credores | `aurora`: **30** (os 3 do catálogo principal e 27 do histórico: 3 grandes, 6 médios e 18 pequenos, de bancos, varejo, saneamento, saúde, educação, energia…); `boreal`: 3. Todos com contrato de prestação de serviço (vigência desde o 1º dia de 12 meses atrás, repasse no dia 10), base legal (LGPD), política de negociação e regra de comissão publicadas |
+| Carteiras | `aurora`: **80** (4 por credor do catálogo principal; de 1 a 6 nos do histórico, com 3 a 30 devedores cada, algumas chegando no meio do ano); `boreal`: 12. Ativas, carregadas pela **importação via API** (lotes visíveis em Importações) |
+| Devedores e títulos | ~220 devedores, ~460 títulos e ~235 casos de cobrança por assessoria no catálogo principal (mais ~590 devedores das carteiras do histórico na `aurora`), atrasos de 10 a 720 dias **relativos ao dia em que o sandbox subiu**, valores variados, pessoas físicas e jurídicas, 10 devedores com títulos em mais de um credor, contratos com garantia de veículo (alienação fiduciária) e títulos executivos |
 | Políticas de negociação | uma por credor, por segmento: juros, multa, honorários, desconto máximo por forma de pagamento, entrada mínima, parcelas máximas e escada de concessões; sobreposição de "atraso longo" no banco |
 | Alçadas | operador pleno, supervisor e gestor com perfis de alçada; `operador2` no padrão júnior (propostas acima vão para a fila de aprovação) |
 | Comissionamento | regras da assessoria por contrato (percentual padrão, faixa de atraso, à vista, renegociação, valor fixo por acordo, honorários) e plano de remuneração variável dos negociadores com metas do mês |
 | Política de contato | por canal (WhatsApp, SMS, e-mail, telefone): janela, dias, limites por dia/semana e intervalo mínimo; o 1º credor restringe o telefone a dias úteis |
-| Operação | equipe "Mesa de negociação", fila por credor (a do 1º credor em rodízio, já distribuída), tabulações padrão, ramais de telefonia |
+| Operação | equipe "Mesa de negociação", fila por credor (a do 1º credor em rodízio, já distribuída), tabulações padrão, ramais de telefonia; na `aurora`, mais 3 equipes (Bancos e Financeiras, Varejo, Serviços e Utilidades), 2 supervisores e 18 negociadores (`negociador01`…`negociador18`), filas dos três maiores credores do histórico (a do Banco Meridional **por nível de desempenho**) |
 | Canais e provedores | WhatsApp e SMS pelo **simulador**, e-mail pelo SMTP da plataforma (**Mailpit**), Pix pelo **PSP simulado**, telefonia pelo **simulador**, assistente de IA e chat de suporte com **modelo simulado**; templates de mensagem publicados (aprovação da Meta simulada) |
 | Portal do devedor | portal do 1º credor (`/portal/<assessoria>-<credor>`, ex.: `/portal/aurora-banco-horizonte`) com desafio por data de nascimento |
 | Réguas | régua de atraso inicial (abertura → retomada → tarefa de ligação) e régua de lembrete de parcela de acordo, ativas no 1º credor |
@@ -120,6 +120,34 @@ O túnel é o serviço `tunnel` do próprio Compose (perfil `tunnel`, imagem `cl
 | API pública | 8 tokens de demonstração (um completo por credor, inclusive com a posição do faturamento e do repasse, e um só de leitura da carteira no 1º credor de cada assessoria) e condições de cobrança das integrações em cada contrato (§4a) |
 
 A carga também deixa e-mails no Mailpit: os links de ativação usados para ativar cada usuário e as mensagens de e-mail da operação.
+
+## 3a. Histórico de 12 meses (aurora)
+
+A carga registra, **pelos casos de uso** e com o **relógio de demonstração** (§5), um ano de operação fictícia da `aurora`: do 1º dia do mês de 12 meses atrás até ontem. Volumes de uma carga limpa (variam pouco: os sorteios têm semente fixa e as datas são relativas ao dia da carga):
+
+| Conteúdo | Volume e como foi gerado |
+| --- | --- |
+| Credores e carteiras | 27 credores novos com perfis de **tendência** (crescendo: Banco Meridional, Lojas Cidade Viva; caindo: Financeira Atlântica, Móveis Lar Feliz; estável; sazonal: saúde e educação; credores que começam no meio do ano: TeleConecta, Sol Nascente, Pet Center) e **econômicos** (rende e escala, custoso, eficiente, prejuízo — contatos longos e pouco cumprimento). As carteiras chegam no mês do catálogo (`DemoHistory`) pela importação via API |
+| Pessoas | 18 negociadores (faixas trainee, júnior, pleno e sênior; 6 ligam pelo discador) e 2 supervisores, criados e ativados **no tempo real** (senha de hoje) |
+| Contatos | ~3.700 interações tabuladas (tentativas, contato efetivo, recusa, promessa) em 8 dias de operação por mês, com sazonalidade (dezembro e janeiro fortes, fevereiro e junho fracos) |
+| Acordos | ~360: cumpridos e quitados (~170), quebrados pela rotina diária no dia simulado (~75), em pagamento, formalizados e cancelados pela supervisão; propostas acima da alçada aprovadas pela supervisão |
+| Pagamentos | ~600 parcelas pagas (Pix ou transferência informados pelo negociador e aprovados pelo financeiro), com a comissão da assessoria (receita da margem) e os lançamentos da remuneração variável |
+| Mensagens e chat | templates de WhatsApp, SMS e alguns e-mails (Mailpit); respostas dos devedores e respostas escritas dos negociadores no chat; sugestões do assistente em copiloto nos credores com assistente (Banco Meridional, Lojas Cidade Viva, Vitalis Saúde) |
+| Ligações | 3 por mês nos grandes credores, atendidas no discador simulado, com conversa (2,5 a 7 min) e pós-atendimento; no meio de algumas, o negociador responde no chat de outro credor (**atendimento simultâneo**, margem §4.1) |
+| Pessoas e metas | metas mensais por negociador, monitoria (1 avaliação por pessoa por mês, 2 nos últimos meses, com notas diferentes por pessoa), remuneração variável **fechada mês a mês** (extratos aprovados até 3 meses atrás; os recentes ficam calculados), classificação por desempenho publicada nos 3 últimos meses (a do mês corrente fica em revisão) |
+| Tempo logado | sessões reais (login e renovação a cada 20 min, turnos de 6h20) nos **20 últimos dias úteis** (decisão 1357) |
+| Jurídico e atenção especial | 3 casos ajuizados no histórico com custas iniciais adiantadas pela assessoria (não reembolsáveis: custo jurídico da margem) e uma empresa cliente da Gás Serrano em **recuperação judicial** |
+| Custos e margem | faixas de custo de todas as pessoas, tarifas, câmbio dos 13 meses, 4 custos fixos por mês (rateio por horas, recuperado, casos e o Banco Meridional), apuração de todo o período e faturas de canal do 6º ao 2º mês anteriores ("Conciliado") e do mês anterior só telefonia e WhatsApp ("Parcialmente conciliado") |
+
+**Roteiro para ver o histórico** (entre como `gestor@aurora…`, salvo indicação):
+
+1. **Margem por carteira** (*Painéis → Margem*, `/paineis/margem`): período do mês anterior (padrão) e dos últimos meses; tabela com 30 credores, busca e "Mostrar mais"; coluna **Tendência** (6 meses: TeleConecta Fibra e Banco Meridional subindo, Financeira Atlântica caindo, Vitalis Saúde e Faculdade Ponte Nova sazonais); **mapa de dispersão** (volume × margem); base **Conciliado** (troque a base: meses do 6º ao 2º anteriores conciliados, o anterior parcial); "Mostrar o custo por categoria" (pessoas, ociosidade nos últimos 20 dias úteis, telefonia, mensagens, IA, jurídico, custos fixos e comissão variável). Como `financeiro`: *Organização → Custos operacionais* (faixas, tarifas, câmbio, custos fixos e faturas).
+2. **Painéis** operacional, recuperação e conversão (*Painéis*): escolha 12 meses e agrupe por mês (séries com sazonalidade) e por credor (ranking dos 10 primeiros + **"Outros (N credores)"**, "Ver todos (30)", busca e "Mostrar mais"); produtividade com 20+ pessoas (últimos 30 dias: tempo logado e acordos por hora logada); contestações e confiabilidade.
+3. **Distribuição por nível**: *Remuneração variável → Classificação por desempenho* (rodadas publicadas e a do mês em revisão; ajuste com motivo); *Cobrança → Filas → Fila Banco Meridional → Distribuir* (prévia por nível e faixa de potencial). Ver a pendência da eficiência na decisão 1360.
+4. **Remuneração variável** (`gestor` fecha, `financeiro` aprova): extratos mês a mês dos negociadores, metas e monitoria (como `qualidade`).
+5. **Histórico de acordos**: abra um caso de um credor do histórico (ex.: Banco Meridional) → aba **Acordos** (quitados, quebrados, cancelados e o resumo com a taxa de cumprimento); a ficha do devedor traz o resumo de todos os acordos dele.
+6. **Atenção especial jurídica**: *Devedores* → busque a empresa da carteira `GSN-INDUSTRIAL` com processo em curso (selo **Recuperação judicial** no cabeçalho; cobrança suspensa). Como `juridico`: os casos ajuizados do histórico com custas da assessoria.
+7. **Ligações e chat**: *Telefonia → Chamadas* (conversa e pós-atendimento) e *Caixa de entrada* (conversas antigas com respostas dos negociadores e sugestões do assistente).
 
 ## 4. Roteiro sugerido de demonstração (30–40 min)
 
@@ -298,6 +326,8 @@ A carga é o módulo `sandbox` do backend (`br.com.gestorcobranca.sandbox`). Ela
 - **Usuários:** criados pela administração de usuários e ativados pelo fluxo de um usuário real: o link de ativação chega ao Mailpit, a carga lê o link pela API do Mailpit e define a senha de demonstração (política de senha, histórico, auditoria e log de acesso normais). O administrador da plataforma é criado pelo bootstrap padrão (`APP_BOOTSTRAP_PLATFORM_*`).
 - **Ações de negócio:** cada uma é feita pelo perfil que a faria na operação (o analista importa, o gestor publica políticas, o operador negocia, o financeiro estorna, o compliance registra o pedido de titular…), com as permissões e o escopo de credores daquele perfil. Sem sessão HTTP, a trilha de auditoria registra o usuário com sessão vazia e nome marcado "(carga do sandbox)".
 - **Datas relativas a hoje:** vencimentos, atrasos e vigências são calculados a partir do dia da primeira subida; os devedores são gerados de forma determinística (mesma semente → mesmos documentos e nomes).
+- **Relógio de demonstração (histórico, decisão 1351):** com a carga ligada, o `Clock` da aplicação é um relógio deslocável (`ShiftableClock`, `@Primary`, só no perfil `sandbox` com `app.sandbox.seed.enabled=true`; em qualquer outro perfil o bean não existe). A carga o desloca para o passado e registra cada dia simulado pelos casos de uso — entidades, consumidores de eventos, jobs e o registro de eventos do Spring Modulith veem a mesma data, porque o deslocamento é **global**. Antes de virar o dia simulado, a carga espera consumidores e jobs terminarem (decisão 1356), para os efeitos assíncronos ficarem com a data do fato. Rotinas agendadas disparam pela hora real (cron); as que importam no histórico são chamadas no dia simulado por portas de sistema: rotina diária de acordos (`NegotiationScheduling`) e recálculo do tempo logado (`LoggedTimeMaintenance`, decisão 1355); fechamento da remuneração variável, classificação por desempenho e apuração de custos já tinham casos de uso. O relógio volta ao tempo real ao fim de cada etapa e da carga, inclusive em falha; o deslocamento é só em memória (reiniciar a aplicação volta ao tempo real). Usuários, senhas, ativação e tokens ficam sempre no tempo real (a senha expiraria em 90 dias). O deslocamento vale só para a hora da aplicação (JVM): o `now()` do banco continua no presente (fila de jobs, `default now()` de colunas técnicas, ShedLock com `usingDbTime()`). Jobs agendados para "agora + atraso" no dia simulado caem no passado real e rodam no ciclo seguinte; código novo que compare a hora da aplicação com a do banco precisa considerar isso para não quebrar a carga.
+- **Histórico tolerante (decisão 1358):** recusas de regra de negócio nos fatos do histórico são resumidas em `warnings` ("histórico: N× cenário: código"); falha inesperada vira aviso e só interrompe a carga depois de 40. Numa nova subida, meses já fechados na remuneração variável são dispensados.
 - **Idempotente:** cada etapa confere o que já existe antes de agir. Subir de novo (`down.sh` + `up.sh`) não duplica nada; o `verify.sh` dá os mesmos números.
 - **Cenários opcionais:** se uma regra de negócio recusar um cenário (ex.: mudança futura de regra), ele vira aviso em `/actuator/health/readiness` (`components.sandboxSeed.details.warnings`) e no log técnico, e a carga segue. Falha de infraestrutura (banco, tempo esgotado) interrompe a carga e deixa o sandbox fora de prontidão (`state: FAILED`).
 - **Chaves:** o entrypoint da imagem gera, na primeira subida, o par RSA do JWT e as chaves de criptografia no volume `sandbox-secrets` (nada versionado; [`infra/docker/app/entrypoint.sh`](../../../infra/docker/app/entrypoint.sh)).
@@ -337,4 +367,5 @@ Etapa `PdfImportDemoSeeder` ("importação PDF de demonstração", depois da car
 | Login recusado com a senha certa | usuário bloqueado por tentativas erradas (desbloqueie como `admin`) ou senha expirada após 90 dias (`reset.sh`) |
 | Build interrompido ou a aplicação para sozinha (código 137) | Docker sem memória: reserve ao menos 6 GB e rode `up.sh` de novo |
 | Painéis vazios logo após subir | os snapshots do analytics são atualizados pelo agendamento a cada 15 min: aguarde até 15 min |
+| Sessão cai logo depois de entrar, durante a carga | o relógio está deslocado para o passado pelo histórico (§5): espere o `up.sh` terminar e entre de novo |
 | Mensagens da régua "adiadas" | fora da janela da política de contato (8h–20h; SMS 9h–19h) — comportamento esperado |

@@ -57,10 +57,75 @@ create view costing.src_logged_time with (security_invoker = true) as
 select l.tenant_id, l.fact_date, l.user_id, l.seconds
 from incentive.logged_time_daily l;
 
--- Comissão variável dos negociadores (pessoa ou equipe), sem o beneficiário.
-create view costing.src_commission_ledger with (security_invoker = true) as
-select e.tenant_id, e.creditor_id, e.portfolio_id, e.kind, e.status, e.credited_amount, e.paid_on, e.created_at
-from incentive.commission_ledger_entry e;
+-- Comissão variável dos negociadores em R$ por lançamento do razão, sem o beneficiário (margem-por-carteira.md §4.2).
+-- O razão guarda o RECUPERADO creditado (base × peso × fator); a comissão em R$ só existe no extrato do período, que
+-- é por pessoa e só recebe os lançamentos PESSOAIS dela (os de equipe nunca recebem extrato: o pool entra no valor a
+-- pagar de membros e supervisores). Taxa efetiva de cada lançamento:
+--   * pessoal, no extrato: valor a pagar ÷ creditado líquido dos lançamentos dele (só com creditado líquido positivo;
+--     estornos que superam os acúmulos não geram taxa negativa);
+--   * pessoal, sem extrato (pendente ou período aberto): a do último extrato do mesmo beneficiário; sem nenhum, a do
+--     último período da assessoria; sem extrato na assessoria, zero;
+--   * de equipe: só o valor a pagar dos extratos SEM lançamento pessoal (participação no pool, ex.: supervisor),
+--     rateado pelo creditado de equipe liberado no mesmo período; pendente: a última dessas taxas; sem, zero.
+--     O pool de quem também tem lançamento pessoal já está no extrato dela e segue o rateio pessoal.
+-- `settled` diz se o valor já é o do extrato (senão é estimativa). O valor por pessoa não sai da view.
+create view costing.src_commission_cost with (security_invoker = true) as
+with statement_rate as (
+    select s.tenant_id, s.id as statement_id, s.beneficiary_id, s.period_start, s.payable_amount,
+           sum(e.credited_amount) as credited,
+           case when sum(e.credited_amount) > 0 then s.payable_amount / sum(e.credited_amount) end as rate
+    from incentive.commission_statement s
+    join incentive.commission_ledger_entry e on e.tenant_id = s.tenant_id and e.statement_id = s.id
+    group by s.tenant_id, s.id, s.beneficiary_id, s.period_start, s.payable_amount
+),
+beneficiary_rate as (
+    select distinct on (r.tenant_id, r.beneficiary_id) r.tenant_id, r.beneficiary_id, r.rate
+    from statement_rate r
+    where r.rate is not null
+    order by r.tenant_id, r.beneficiary_id, r.period_start desc
+),
+tenant_rate as (
+    select distinct on (r.tenant_id) r.tenant_id,
+           case when sum(r.credited) > 0 then sum(r.payable_amount) / sum(r.credited) end as rate
+    from statement_rate r
+    group by r.tenant_id, r.period_start
+    order by r.tenant_id, r.period_start desc
+),
+pool_payable as (
+    select s.tenant_id, s.period_start, sum(s.payable_amount) as payable
+    from incentive.commission_statement s
+    where not exists (select 1 from incentive.commission_ledger_entry e
+                      where e.tenant_id = s.tenant_id and e.statement_id = s.id)
+    group by s.tenant_id, s.period_start
+),
+pool_rate as (
+    select p.tenant_id, p.period_start,
+           case when sum(e.credited_amount) > 0 then p.payable / sum(e.credited_amount) end as rate
+    from pool_payable p
+    join incentive.commission_ledger_entry e on e.tenant_id = p.tenant_id and e.period_start = p.period_start
+                                            and e.beneficiary_type = 'TEAM' and e.status = 'CLEARED'
+    group by p.tenant_id, p.period_start, p.payable
+),
+latest_pool_rate as (
+    select distinct on (r.tenant_id) r.tenant_id, r.rate
+    from pool_rate r
+    where r.rate is not null
+    order by r.tenant_id, r.period_start desc
+)
+select e.tenant_id, e.creditor_id, e.portfolio_id, e.kind, e.status, e.paid_on, e.created_at,
+       round(e.credited_amount * case when e.beneficiary_type = 'TEAM'
+                                      then coalesce(pool.rate, case when e.period_start is null then lp.rate end, 0)
+                                      when e.statement_id is not null then coalesce(own.rate, 0)
+                                      else coalesce(latest.rate, t.rate, 0) end, 2) as commission_amount,
+       (own.rate is not null or pool.rate is not null) as settled
+from incentive.commission_ledger_entry e
+left join statement_rate own on own.statement_id = e.statement_id
+left join beneficiary_rate latest on e.statement_id is null and e.beneficiary_type = 'USER'
+                                 and latest.tenant_id = e.tenant_id and latest.beneficiary_id = e.beneficiary_id
+left join tenant_rate t on e.statement_id is null and e.beneficiary_type = 'USER' and t.tenant_id = e.tenant_id
+left join pool_rate pool on e.beneficiary_type = 'TEAM' and pool.tenant_id = e.tenant_id
+                        and pool.period_start = e.period_start
+left join latest_pool_rate lp on e.beneficiary_type = 'TEAM' and lp.tenant_id = e.tenant_id;
 
 -- ------------------------------------------------------------------ IA (USD)
 create view costing.src_assistant_cost with (security_invoker = true) as
@@ -111,6 +176,6 @@ from communication.message m
 join communication.conversation c on c.id = m.conversation_id;
 
 grant select on costing.src_creditor, costing.src_portfolio, costing.src_interaction, costing.src_call,
-    costing.src_provider_account, costing.src_logged_time, costing.src_commission_ledger, costing.src_assistant_cost,
+    costing.src_provider_account, costing.src_logged_time, costing.src_commission_cost, costing.src_assistant_cost,
     costing.src_pdf_import_cost, costing.src_message, costing.src_legal_expense, costing.src_receipt,
     costing.src_commission_entry, costing.src_agreement, costing.src_chat_message to app_runtime;

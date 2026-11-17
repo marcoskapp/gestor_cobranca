@@ -3,7 +3,9 @@ package br.com.gestorcobranca.incentive.application.service;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
 import br.com.gestorcobranca.identity.application.port.in.WorkforceQueries;
 import br.com.gestorcobranca.identity.application.port.in.WorkforceQueries.DailyLoggedTime;
+import br.com.gestorcobranca.incentive.application.port.in.LoggedTimeMaintenance;
 import br.com.gestorcobranca.incentive.application.port.out.FactStore;
+import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,22 +21,34 @@ import java.util.stream.Collectors;
 
 /**
  * Materializa o tempo logado por dia (§2.1) a partir das sessões do identity, para quem trabalha
- * casos ({@code CASE_WORK}). Recalcula os dias informados por inteiro (idempotente).
+ * casos ({@code CASE_WORK}). Recalcula os dias informados por inteiro (idempotente). O recálculo de um período
+ * informado ({@link LoggedTimeMaintenance}) é só do ator de sistema.
  */
 @Service
 @Transactional
-class LoggedTimeSync {
+class LoggedTimeSync implements LoggedTimeMaintenance {
 
     private final WorkforceQueries workforce;
     private final UserDirectory directory;
     private final FactStore facts;
     private final Clock clock;
+    private final CurrentActor currentActor;
 
-    LoggedTimeSync(WorkforceQueries workforce, UserDirectory directory, FactStore facts, Clock clock) {
+    LoggedTimeSync(WorkforceQueries workforce, UserDirectory directory, FactStore facts, Clock clock,
+                   CurrentActor currentActor) {
         this.workforce = workforce;
         this.directory = directory;
         this.facts = facts;
         this.clock = clock;
+        this.currentActor = currentActor;
+    }
+
+    @Override
+    public int resyncLoggedTime(LocalDate from, LocalDate to) {
+        if (!currentActor.get().isSystem()) {
+            throw new IllegalStateException("recálculo do tempo logado: somente o ator de sistema da assessoria");
+        }
+        return sync(from, to);
     }
 
     /** Ontem e hoje (sessões que atravessam a meia-noite e o dia corrente). */

@@ -46,7 +46,7 @@ cd gestor_cobranca
 ./scripts/sandbox/up.sh
 ```
 
-O `up.sh` constrói a imagem, sobe PostgreSQL, Mailpit e aplicação e **espera a carga dos dados fictícios terminar**, mostrando as etapas (`carga do sandbox: aurora: usuários de demonstração`…). A primeira subida costuma levar **10 a 20 minutos** (estimativa: depende da rede e da máquina, porque baixa as imagens base e as dependências de Maven e npm e compila tudo); as seguintes usam o cache do build — numa máquina de 2 CPUs e 8 GB, com o cache pronto, o build levou ~1 min. A carga dos dados leva de 2 a 3 minutos.
+O `up.sh` constrói a imagem, sobe PostgreSQL, Mailpit e aplicação e **espera a carga dos dados fictícios terminar**, mostrando as etapas (`carga do sandbox: aurora: usuários de demonstração`…). A primeira subida costuma levar **10 a 20 minutos** (estimativa: depende da rede e da máquina, porque baixa as imagens base e as dependências de Maven e npm e compila tudo); as seguintes usam o cache do build — numa máquina de 2 CPUs e 8 GB, com o cache pronto, o build levou ~1 min. A carga dos dados leva cerca de 6 a 7 minutos (a assessoria `aurora` traz 30 credores, 80 carteiras, 20 negociadores e 12 meses de histórico fictício; detalhes em [`sandbox.md` §3a](docs/tecnico/operacao/sandbox.md)).
 
 **Terminou quando** o terminal mostra o quadro `Sandbox do Gestor de Cobrança no ar (dados FICTÍCIOS)` com os endereços e o comando volta ao prompt com sucesso. A qualquer momento, `curl -s http://localhost:58080/actuator/health/readiness` responde `"status":"UP"` só depois da carga concluída.
 

@@ -43,7 +43,11 @@ public interface UsageReader {
      */
     void templateSends(LocalDate from, LocalDate to, Consumer<TemplateSend> consumer);
 
-    /** Comissão variável dos negociadores (fora as dispensadas): acúmulo na data do pagamento, estorno na data dele. */
+    /**
+     * Comissão variável dos negociadores em R$ (fora as dispensadas): do extrato do período, rateada pelo recuperado
+     * creditado de cada lançamento; sem extrato, estimada pela última taxa efetiva (margem-por-carteira.md §4.2).
+     * Acúmulo na data do pagamento, estorno na data dele.
+     */
     List<Posted> variableCommission(LocalDate from, LocalDate to);
 
     /** Custas jurídicas adiantadas pela assessoria e não reembolsáveis (fora as canceladas). */

@@ -23,6 +23,8 @@ public class SeedStatus {
     private volatile Instant startedAt;
     private volatile Instant finishedAt;
     private volatile String failure;
+    /** Instante para o qual o relógio de demonstração está deslocado (nulo = tempo real). */
+    private volatile Instant demoClock;
     private final List<String> warnings = new CopyOnWriteArrayList<>();
 
     SeedStatus(@Value("${app.sandbox.seed.enabled:false}") boolean enabled) {
@@ -39,6 +41,10 @@ public class SeedStatus {
 
     void phase(String description) {
         phase = description;
+    }
+
+    void clock(Instant shiftedTo) {
+        demoClock = shiftedTo;
     }
 
     void warn(String warning) {
@@ -76,6 +82,10 @@ public class SeedStatus {
 
     public Instant finishedAt() {
         return finishedAt;
+    }
+
+    public Instant demoClock() {
+        return demoClock;
     }
 
     public String failure() {

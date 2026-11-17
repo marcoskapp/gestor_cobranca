@@ -30,6 +30,7 @@ import br.com.gestorcobranca.organization.application.port.in.ContractIntegratio
 import br.com.gestorcobranca.sandbox.application.service.catalog.IntegrationPricingCatalog;
 import br.com.gestorcobranca.sandbox.application.service.catalog.NegotiationCatalog;
 import br.com.gestorcobranca.sandbox.domain.model.DemoCatalog.CreditorSpec;
+import br.com.gestorcobranca.sandbox.domain.model.DemoHistory;
 import br.com.gestorcobranca.sandbox.domain.service.FictitiousData;
 import br.com.gestorcobranca.settlement.application.port.in.CommissionRuleUseCases;
 import br.com.gestorcobranca.settlement.application.port.in.CommissionRuleUseCases.RuleSetCommand;
@@ -99,9 +100,50 @@ class ConfigurationSeeder {
         compliance(seed);
         negotiation(seed);
         commission(seed);
-        integrationPricing(seed);
         teamAndQueues(seed);
         legal(seed);
+        if (seed.hasHistory()) {
+            history(seed);
+        }
+    }
+
+    /**
+     * Credores do histórico (no primeiro dia dele): base legal, política de negociação e comissionamento de cada um;
+     * alçada pleno para os negociadores sênior e pleno; filas dos três maiores credores — a do maior por nível de
+     * desempenho (TIERED), as outras em rodízio.
+     */
+    private void history(TenantSeed seed) {
+        for (DemoHistory.HistoryCreditor creditor : seed.history.creditors()) {
+            CreditorSpec spec = creditor.spec();
+            UUID creditorId = seed.creditors.get(spec.prefix());
+            legalBasis(seed, spec, creditorId);
+            negotiationPolicy(seed, spec, creditorId);
+            commissionRules(seed, spec, creditorId);
+        }
+        for (DemoHistory.Negotiator n : seed.history.negotiators()) {
+            if (n.band().endsWith("sênior") || n.band().endsWith("pleno")) {
+                assignAuthority(seed, n.key(), "PLENO");
+            }
+        }
+        Actor supervisor = seed.actor("supervisor");
+        Map<String, QueueView> existing = rt.as(supervisor, queues::list).stream()
+                .collect(Collectors.toMap(QueueView::code, q -> q));
+        historyQueue(seed, supervisor, existing, "MRD", "BANCOS", "TIERED", "HIGHEST_BALANCE", 30, 20);
+        historyQueue(seed, supervisor, existing, "ATL", "BANCOS", "ROUND_ROBIN", "OLDEST_OVERDUE", 40, 21);
+        historyQueue(seed, supervisor, existing, "CDV", "VAREJO", "ROUND_ROBIN", "OLDEST_OVERDUE", 40, 22);
+    }
+
+    private void historyQueue(TenantSeed seed, Actor supervisor, Map<String, QueueView> existing, String prefix,
+                              String team, String strategy, String ordering, int maxCases, int priority) {
+        String code = "FILA_" + prefix;
+        UUID creditorId = seed.creditors.get(prefix);
+        String tradeName = seed.history.creditors().stream().filter(c -> c.prefix().equals(prefix)).findFirst()
+                .orElseThrow().tradeName();
+        UUID id = Optional.ofNullable(existing.get(code)).map(QueueView::id).orElseGet(() -> rt.as(supervisor,
+                () -> queues.create(new QueueCommand(code, "Fila " + tradeName, "Casos do credor " + tradeName
+                        + " (sandbox)", priority, creditorId, null, null, null, null, null, null, null, ordering,
+                        strategy, maxCases, Set.of(seed.teams.get(team)), null, null, null, null))).id());
+        seed.queues.put(prefix, id);
     }
 
     /** Metas do mês corrente para os negociadores (depois dos usuários existirem). */
@@ -140,14 +182,7 @@ class ConfigurationSeeder {
                             true)))));
         }
         for (int c = 0; c < seed.spec.creditors().size(); c++) {
-            CreditorSpec spec = seed.creditor(c);
-            UUID creditorId = seed.creditorId(c);
-            if (rt.as(compliance, () -> legalBases.listByCreditor(creditorId)).isEmpty()) {
-                rt.as(compliance, () -> legalBases.register(new RegisterLegalBasisCommand(creditorId, null,
-                        "EXERCICIO_REGULAR_DIREITOS", "OPERADOR", "CPS-" + spec.prefix(),
-                        seed.contractStarts.get(spec.prefix()), null, "Encarregado de dados (fictício)", 60,
-                        "Cobrança em nome do credor, conforme contrato de prestação de serviços (sandbox)")));
-            }
+            legalBasis(seed, seed.creditor(c), seed.creditorId(c));
         }
         // o primeiro credor restringe o horário do telefone (regra própria sobre a da assessoria)
         UUID first = seed.creditorId(0);
@@ -158,24 +193,22 @@ class ConfigurationSeeder {
         }
     }
 
+    /** Base legal (LGPD) do tratamento para o credor, desde o início do contrato (compliance). */
+    void legalBasis(TenantSeed seed, CreditorSpec spec, UUID creditorId) {
+        Actor compliance = seed.actor("compliance");
+        if (rt.as(compliance, () -> legalBases.listByCreditor(creditorId)).isEmpty()) {
+            rt.as(compliance, () -> legalBases.register(new RegisterLegalBasisCommand(creditorId, null,
+                    "EXERCICIO_REGULAR_DIREITOS", "OPERADOR", "CPS-" + spec.prefix(),
+                    seed.contractStarts.get(spec.prefix()), null, "Encarregado de dados (fictício)", 60,
+                    "Cobrança em nome do credor, conforme contrato de prestação de serviços (sandbox)")));
+        }
+    }
+
     // ------------------------------------------------------------------------------------------------ negociação
 
     private void negotiation(TenantSeed seed) {
-        Actor gestor = seed.actor("gestor");
         for (int c = 0; c < seed.spec.creditors().size(); c++) {
-            CreditorSpec spec = seed.creditor(c);
-            UUID creditorId = seed.creditorId(c);
-            List<PolicyView> existing = rt.as(gestor, () -> policies.search(creditorId, null, PageQuery.of(0, 20)))
-                    .content();
-            if (existing.stream().anyMatch(p -> "PUBLISHED".equals(p.status()))) {
-                continue;
-            }
-            UUID draft = existing.stream().filter(p -> "DRAFT".equals(p.status())).map(PolicyView::id).findFirst()
-                    .orElseGet(() -> rt.as(gestor, () -> policies.createDraft(new CreatePolicyCommand(creditorId,
-                            "Política de negociação — " + spec.tradeName(),
-                            "Alçadas, descontos máximos, entrada mínima e parcelamento do credor (sandbox)",
-                            NegotiationCatalog.policy(spec.segment())))).id());
-            rt.as(gestor, () -> policies.publish(draft, seed.today));
+            negotiationPolicy(seed, seed.creditor(c), seed.creditorId(c));
         }
         // alçadas: operador principal pleno, supervisor e gestor com os perfis de mesmo nome; o segundo operador fica
         // no padrão (júnior) — as propostas acima da alçada dele vão para a fila de aprovação
@@ -185,6 +218,33 @@ class ConfigurationSeeder {
         assignAuthority(seed, admin, "operador", profiles.get("PLENO"));
         assignAuthority(seed, admin, "supervisor", profiles.get("SUPERVISOR"));
         assignAuthority(seed, admin, "gestor", profiles.get("GESTOR"));
+    }
+
+    /**
+     * Política de negociação do credor pelo segmento, publicada pelo gestor com vigência a partir de hoje no relógio da
+     * aplicação (no histórico, o primeiro dia dele).
+     */
+    void negotiationPolicy(TenantSeed seed, CreditorSpec spec, UUID creditorId) {
+        Actor gestor = seed.actor("gestor");
+        List<PolicyView> existing = rt.as(gestor, () -> policies.search(creditorId, null, PageQuery.of(0, 20)))
+                .content();
+        if (existing.stream().anyMatch(p -> "PUBLISHED".equals(p.status()))) {
+            return;
+        }
+        UUID draft = existing.stream().filter(p -> "DRAFT".equals(p.status())).map(PolicyView::id).findFirst()
+                .orElseGet(() -> rt.as(gestor, () -> policies.createDraft(new CreatePolicyCommand(creditorId,
+                        "Política de negociação — " + spec.tradeName(),
+                        "Alçadas, descontos máximos, entrada mínima e parcelamento do credor (sandbox)",
+                        NegotiationCatalog.policy(spec.segment())))).id());
+        rt.as(gestor, () -> policies.publish(draft, rt.today()));
+    }
+
+    /** Alçada do perfil informado para o usuário (administrador), se ele ainda não tiver alçada. */
+    void assignAuthority(TenantSeed seed, String key, String profileCode) {
+        Actor admin = seed.actor("admin");
+        Map<String, UUID> profiles = rt.as(admin, authority::listProfiles).stream()
+                .collect(Collectors.toMap(ProfileView::code, ProfileView::id));
+        assignAuthority(seed, admin, key, profiles.get(profileCode));
     }
 
     private void assignAuthority(TenantSeed seed, Actor admin, String key, UUID profileId) {
@@ -197,29 +257,35 @@ class ConfigurationSeeder {
     // ------------------------------------------------------------------------------------------------ comissão
 
     private void commission(TenantSeed seed) {
+        for (int c = 0; c < seed.spec.creditors().size(); c++) {
+            commissionRules(seed, seed.creditor(c), seed.creditorId(c));
+        }
+    }
+
+    /** Comissionamento do contrato do credor: o financeiro edita e o administrador publica desde o início do contrato. */
+    void commissionRules(TenantSeed seed, CreditorSpec spec, UUID creditorId) {
         Actor financeiro = seed.actor("financeiro");
         Actor admin = seed.actor("admin");
-        for (int c = 0; c < seed.spec.creditors().size(); c++) {
-            CreditorSpec spec = seed.creditor(c);
-            UUID creditorId = seed.creditorId(c);
-            UUID contractId = seed.contracts.get(spec.prefix());
-            List<RuleSetView> existing = rt.as(financeiro, () -> commissionRules.list(creditorId, contractId));
-            if (existing.stream().anyMatch(r -> "PUBLISHED".equals(r.status()))) {
-                continue;
-            }
-            UUID draft = existing.stream().filter(r -> "DRAFT".equals(r.status())).map(RuleSetView::id).findFirst()
-                    .orElseGet(() -> rt.as(financeiro, () -> commissionRules.createDraft(new RuleSetCommand(contractId,
-                            NegotiationCatalog.commission(spec.segment()),
-                            "Comissionamento do contrato de prestação de serviços (sandbox)"))).id());
-            // quem edita as regras não publica: o administrador publica (segregação de funções)
-            rt.as(admin, () -> commissionRules.publish(draft, seed.contractStarts.get(spec.prefix())));
+        UUID contractId = seed.contracts.get(spec.prefix());
+        List<RuleSetView> existing = rt.as(financeiro, () -> commissionRules.list(creditorId, contractId));
+        if (existing.stream().anyMatch(r -> "PUBLISHED".equals(r.status()))) {
+            return;
         }
+        UUID draft = existing.stream().filter(r -> "DRAFT".equals(r.status())).map(RuleSetView::id).findFirst()
+                .orElseGet(() -> rt.as(financeiro, () -> commissionRules.createDraft(new RuleSetCommand(contractId,
+                        NegotiationCatalog.commission(spec.segment()),
+                        "Comissionamento do contrato de prestação de serviços (sandbox)"))).id());
+        // quem edita as regras não publica: o administrador publica (segregação de funções)
+        rt.as(admin, () -> commissionRules.publish(draft, seed.contractStarts.get(spec.prefix())));
     }
 
     // ------------------------------------------------------------------------------------------------ preço da API pública
 
-    /** Condições de cobrança das integrações no contrato de cada credor (organization), definidas pelo gestor. */
-    private void integrationPricing(TenantSeed seed) {
+    /**
+     * Condições de cobrança das integrações no contrato de cada credor do catálogo principal (organization), definidas
+     * pelo gestor no tempo real: o primeiro cadastro vale para o ciclo em andamento (decisões 608 e 624).
+     */
+    void integrationPricing(TenantSeed seed) {
         Actor gestor = seed.actor("gestor");
         for (int c = 0; c < seed.spec.creditors().size(); c++) {
             CreditorSpec spec = seed.creditor(c);
@@ -236,10 +302,29 @@ class ConfigurationSeeder {
     private void teamAndQueues(TenantSeed seed) {
         Actor supervisor = seed.actor("supervisor");
         String teamName = "Mesa de negociação";
+        Set<UUID> members = new java.util.HashSet<>(Set.of(seed.user("operador"), seed.user("operador2")));
+        if (seed.hasHistory()) {
+            seed.history.team(DemoHistory.MAIN_TEAM).forEach(n -> members.add(seed.user(n.key())));
+        }
         seed.teamId = rt.as(supervisor, teams::list).stream().filter(t -> teamName.equals(t.name())).findFirst()
                 .map(TeamUseCases.TeamView::id)
                 .orElseGet(() -> rt.as(supervisor, () -> teams.create(new TeamCommand(teamName, null, seed.user("supervisor"),
-                        Set.of(seed.user("operador"), seed.user("operador2"))))).id());
+                        Set.copyOf(members)))).id());
+        seed.teams.put(DemoHistory.MAIN_TEAM, seed.teamId);
+        if (seed.hasHistory()) {
+            for (DemoHistory.Team team : seed.history.teams()) {
+                if (DemoHistory.MAIN_TEAM.equals(team.code())) {
+                    continue;
+                }
+                Set<UUID> ids = seed.history.team(team.code()).stream().map(n -> seed.user(n.key()))
+                        .collect(Collectors.toSet());
+                UUID id = rt.as(supervisor, teams::list).stream().filter(t -> team.name().equals(t.name())).findFirst()
+                        .map(TeamUseCases.TeamView::id)
+                        .orElseGet(() -> rt.as(supervisor, () -> teams.create(new TeamCommand(team.name(), null,
+                                seed.user(team.supervisorKey()), ids))).id());
+                seed.teams.put(team.code(), id);
+            }
+        }
         Map<String, QueueView> existing = rt.as(supervisor, queues::list).stream()
                 .collect(Collectors.toMap(QueueView::code, q -> q));
         for (int c = 0; c < seed.spec.creditors().size(); c++) {
@@ -262,8 +347,9 @@ class ConfigurationSeeder {
     private void legal(TenantSeed seed) {
         Actor gestor = seed.actor("gestor");
         Actor juridico = seed.actor("juridico");
-        // escritórios parceiros liberados; credor ou escritório adiantam custas; demais padrões conservadores
-        rt.as(gestor, () -> legalSettings.update(new SettingsCommand("BOTH", Set.of("CREDITOR", "LAW_FIRM"), "BLOCK",
+        // escritórios parceiros liberados; credor, escritório ou a própria assessoria adiantam custas (as da assessoria,
+        // não reembolsáveis, entram no custo jurídico da margem); demais padrões conservadores
+        rt.as(gestor, () -> legalSettings.update(new SettingsCommand("BOTH", Set.of("CREDITOR", "LAW_FIRM", "AGENCY"), "BLOCK",
                 "EXCLUDE", "AUTHORIZATION", List.of(5, 2, 0), true, 5, 5, 10, 180, 180)));
         String firmCnpj = new FictitiousData(seed.spec.seed() * 13).cnpj();
         seed.lawFirmId = rt.as(juridico, lawFirms::list).stream().filter(f -> f.cnpj() != null && firmCnpj.equals(f.cnpj().replaceAll("\\D", ""))).findFirst()

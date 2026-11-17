@@ -71,7 +71,7 @@ import java.util.UUID;
 class CostRefreshService implements CostRefreshUseCases {
 
     /** Versão das regras de apuração gravada no estado (sobe quando uma regra muda e o histórico pede reapuração). */
-    static final int RULES_VERSION = 2;
+    static final int RULES_VERSION = 3;
 
     private static final Logger LOG = LoggerFactory.getLogger(CostRefreshService.class);
 

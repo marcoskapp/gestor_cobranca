@@ -101,7 +101,7 @@ fatura". O ajuste é um fato à parte: a estimativa continua guardada e o painel
 | `AI` | Custo do assistente e da Importação PDF × câmbio do mês |
 | `TELEPHONY` | Minutos tarifados × tarifa da conta usada na chamada |
 | `MESSAGING` | Conversas de WhatsApp (por categoria) e mensagens de SMS/e-mail × tarifa |
-| `VARIABLE_COMMISSION` | Comissão variável dos negociadores (`commission_ledger_entry`) |
+| `VARIABLE_COMMISSION` | Comissão variável dos negociadores em R$: a do extrato do período, rateada pelo recuperado creditado de cada lançamento (§4.2) |
 | `LEGAL` | Custas adiantadas pela assessoria e **não reembolsáveis** (as reembolsáveis voltam na prestação de contas) |
 | `OVERHEAD` | Custos fixos rateados pela regra do item |
 
@@ -128,6 +128,28 @@ Exemplo: ligação do credor A das 9h às 10h e, no meio dela, respostas no chat
 A mudança sobe `RULES_VERSION` para 2. Com a versão do estado menor que a das regras, o job diário refaz **uma vez** os
 6 meses da janela da tendência (gatilho `rules_upgrade`; a versão gravada só sobe quando a apuração cobre essa janela),
 para a série do painel não misturar regras (decisão 1328). Meses anteriores mudam só com "Reapurar o período".
+
+### 4.2 Comissão variável: o valor do extrato, não o recuperado creditado (decisão 1362)
+
+O razão de comissão (`commission_ledger_entry`) guarda o **recuperado creditado** à pessoa ou equipe (base × peso ×
+fator); a comissão em R$ só é apurada no **extrato** do período (faixas, metas e travas dependem do total do período,
+remuneracao-variavel.md, decisão 5 do módulo). A primeira versão somava o creditado como se fosse comissão — com um ano
+de dados, a "comissão" passava de 7× a receita. A apuração lê agora a view `costing.src_commission_cost`, que dá a cada
+lançamento não dispensado a **taxa efetiva** do beneficiário:
+
+* lançamento **pessoal** já num extrato: valor a pagar do extrato (`payable_amount`) ÷ creditado líquido dos
+  lançamentos desse extrato — a soma por credor/carteira fecha com o extrato (a menos de centavos do arredondamento por
+  lançamento; estornos entram negativos); creditado líquido zero ou negativo não gera taxa (custo zero);
+* lançamento **pessoal** ainda sem extrato (pendente de liberação ou período aberto): estimativa pela taxa do último
+  extrato do mesmo beneficiário; sem nenhum, pela taxa do último período da assessoria; sem extrato, zero;
+* lançamento de **equipe** (`TEAM`, 100% da base creditado ao pool): nunca recebe extrato, e o pool já entra no valor a
+  pagar de quem participa dele. Para não contá-lo duas vezes, só o valor a pagar dos extratos **sem lançamento pessoal**
+  (participação só no pool, ex.: supervisor) é rateado pelo creditado de equipe liberado no mesmo período; pendente usa
+  a última dessas taxas. O pool de quem também tem lançamento pessoal segue o rateio pelos lançamentos pessoais dele.
+
+O dia continua o do pagamento (estorno: o do lançamento). O valor por pessoa não sai da view (só credor, carteira,
+data e valor). A estimativa de dias fora da janela de 35 dias só passa ao valor do extrato com "Reapurar o período".
+Mudança de regra: `RULES_VERSION` 3 (o job refaz uma vez os 6 meses da tendência, como na 4.1). Teste: `CostingMarginIT.comissaoVariavel…`.
 
 ## 5. Indicadores (catálogo de informação contextual, ux.md §8.6)
 
@@ -290,8 +312,9 @@ migrations em `db/migration/costing/` (faixa V2500–V2599).
     do período para conhecer as janelas já abertas. SMS e e-mail: por mensagem saída enviada ao provedor (`sent_at`),
     mesmo que a entrega falhe depois. Sem tarifa vigente: zero e aviso `MISSING_TARIFF` (em unidades). Tarifa sempre
     por unidade (e-mail por mensagem, não por mil).
-  * **VARIABLE_COMMISSION**: `credited_amount` dos lançamentos não dispensados (`WAIVED`), acúmulo na data do
-    pagamento, estorno na data em que foi lançado (pessoa e equipe).
+  * **VARIABLE_COMMISSION**: comissão em R$ dos lançamentos não dispensados (`WAIVED`) — do extrato, rateada pelo
+    creditado, ou estimada pela última taxa efetiva (§4.2) —, acúmulo na data do pagamento, estorno na data em que foi
+    lançado (equipe: só o pool de quem não tem lançamento pessoal, §4.2).
   * **LEGAL**: custas com `advanced_by = AGENCY`, não reembolsáveis e não canceladas, na data em que incorreram.
   * **OVERHEAD**: todo mês que toca o período é rateado de novo por inteiro, depois de gravados os fatos que servem de
     base: `HOURS` = horas diretas + ociosas com credor; `RECOVERED` = recuperado bruto (pagamentos, sem estornos, para
@@ -570,7 +593,11 @@ reconciliation: {
 ### 13.5 Sandbox e pendências
 
 * `CostingSeeder` informa faturas fictícias de telefonia (R$ 180) e WhatsApp (R$ 95) do mês anterior, depois da
-  apuração: a base conciliada do mês anterior abre como "Parcialmente conciliado".
+  apuração: a base conciliada do mês anterior abre como "Parcialmente conciliado". Na assessoria `aurora`, com o
+  histórico de 12 meses do sandbox (decisões 1351–1354), a apuração cobre o período inteiro, há quatro custos fixos por
+  mês (um por regra de rateio) e faturas de todos os itens do 6º ao 2º mês anteriores ("Conciliado").
+* O histórico do sandbox revelou que `VARIABLE_COMMISSION` somava o recuperado creditado como comissão (decisão
+  1361); corrigido pela §4.2 (decisão 1362).
 * Pendências: versão das telas em `content/screens.ts`, nota de versão e base do chat (`npm run knowledge`) ficam para
   a integração; a apuração antiga de mensagens sem item (antes da V2501) só concilia depois de reapurada; a fatura em
   dólar da IA não é convertida pelo sistema (a gestão informa em reais; a PTAX automática segue como issue).

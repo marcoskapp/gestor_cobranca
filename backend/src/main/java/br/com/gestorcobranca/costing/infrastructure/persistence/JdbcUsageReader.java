@@ -163,11 +163,11 @@ class JdbcUsageReader implements UsageReader {
     @Override
     public List<Posted> variableCommission(LocalDate from, LocalDate to) {
         return jdbc.query("""
-                select x.day, x.creditor_id, x.portfolio_id, sum(x.credited_amount) as amount, count(*) as entries
+                select x.day, x.creditor_id, x.portfolio_id, sum(x.commission_amount) as amount, count(*) as entries
                   from (select case when e.kind = 'REVERSAL' then (e.created_at at time zone :zone)::date
                                     else e.paid_on end as day,
-                               e.creditor_id, e.portfolio_id, e.credited_amount
-                          from costing.src_commission_ledger e
+                               e.creditor_id, e.portfolio_id, e.commission_amount
+                          from costing.src_commission_cost e
                          where e.status <> 'WAIVED'
                            and ((e.kind = 'REVERSAL' and e.created_at >= :fromTs and e.created_at < :toTs)
                                 or (e.kind <> 'REVERSAL' and e.paid_on between :from and :to))) x

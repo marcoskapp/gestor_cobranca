@@ -50,8 +50,40 @@ public final class DemoPortfolioData {
     }
 
     private final Map<String, List<Debt>> byPortfolio = new LinkedHashMap<>();
+    /** Carteiras do histórico (decisão 1352), na ordem do catálogo; ficam fora de {@link #byPortfolio()}. */
+    private final Map<String, List<Debt>> historyByPortfolio = new LinkedHashMap<>();
+    private final Set<String> documents = new HashSet<>();
+    private final int[] sequence = {0};
 
     private DemoPortfolioData() {
+    }
+
+    /** Dívidas das carteiras do histórico por código de carteira (vazio sem histórico). */
+    public Map<String, List<Debt>> historyByPortfolio() {
+        return historyByPortfolio;
+    }
+
+    /**
+     * Gera os devedores das carteiras do histórico: datas relativas ao dia em que cada carteira chega
+     * ({@code receivedOn.apply(carteira)}), não a hoje — a carteira recebida há 11 meses chegou com os atrasos daquela
+     * época. Semente própria (o catálogo principal não muda) e documentos sem repetir os do catálogo principal.
+     */
+    public void addHistory(DemoHistory.HistorySpec history, long seed,
+                           java.util.function.Function<DemoHistory.HistoryPortfolio, LocalDate> receivedOn) {
+        FictitiousData random = new FictitiousData(seed);
+        for (DemoHistory.HistoryCreditor creditor : history.creditors()) {
+            CreditorSpec spec = creditor.spec();
+            for (int p = 0; p < creditor.portfolios().size(); p++) {
+                DemoHistory.HistoryPortfolio portfolio = creditor.portfolios().get(p);
+                LocalDate received = receivedOn.apply(portfolio);
+                List<Debt> debts = new ArrayList<>();
+                for (int i = 0; i < portfolio.spec().debtors(); i++) {
+                    Debtor debtor = newDebtor(random, documents, sequence, received, companyPortfolio(portfolio.spec()));
+                    debts.add(new Debt(debtor, contract(random, received, spec, portfolio.spec(), i, false)));
+                }
+                historyByPortfolio.put(portfolio.spec().code(spec), debts);
+            }
+        }
     }
 
     /** Dívidas por código de carteira, na ordem do catálogo. */
@@ -66,8 +98,8 @@ public final class DemoPortfolioData {
     public static DemoPortfolioData generate(TenantSpec tenant, LocalDate today) {
         DemoPortfolioData data = new DemoPortfolioData();
         FictitiousData random = new FictitiousData(tenant.seed());
-        Set<String> documents = new HashSet<>();
-        int[] sequence = {0};
+        Set<String> documents = data.documents;
+        int[] sequence = data.sequence;
         for (CreditorSpec creditor : tenant.creditors()) {
             for (int p = 0; p < creditor.portfolios().size(); p++) {
                 PortfolioSpec spec = creditor.portfolios().get(p);
@@ -101,8 +133,11 @@ public final class DemoPortfolioData {
         data.byPortfolio.put(spec.code(creditor), debts);
     }
 
+    private static final Set<String> COMPANY_PORTFOLIOS = Set.of("EMPRESAS", "COMERCIAL", "INDUSTRIAL", "EMPRESARIAL",
+            "CAPITALGIRO");
+
     private static boolean companyPortfolio(PortfolioSpec spec) {
-        return spec.suffix().equals("EMPRESAS") || spec.suffix().equals("COMERCIAL");
+        return COMPANY_PORTFOLIOS.contains(spec.suffix());
     }
 
     private static Debtor newDebtor(FictitiousData random, Set<String> documents, int[] sequence, LocalDate today,

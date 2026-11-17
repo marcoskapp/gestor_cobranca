@@ -2,7 +2,9 @@
 # =============================================================================
 # Verificação de fumaça do sandbox no ar (pela API, como um cliente):
 #   1. login de todos os usuários de demonstração (um por perfil em cada assessoria) e do administrador da plataforma;
-#   2. 2 assessorias × 3 credores × 4 carteiras, com casos, acordos e pagamentos;
+#   2. aurora com 30 credores e 80 carteiras (os 3 do catálogo principal com 4 carteiras cada) e boreal com 3 × 4,
+#      com casos, acordos e pagamentos; na aurora, o histórico de 12 meses (acordos cumpridos e quebrados, pagamentos,
+#      negociadores, classificação publicada, margem apurada mês a mês e faturas de canal);
 #   3. isolamento entre assessorias: o usuário de uma assessoria não enxerga credores, carteiras, casos, devedores
 #      nem usuários da outra (listagens e consulta direta por id → 404);
 #   4. escopo por credor: o segundo operador só enxerga o primeiro credor;
@@ -97,31 +99,65 @@ log INFO "2. volumes por assessoria"
 for tenant in aurora boreal; do
   token="$(token "${tenant}" gestor)"
   [[ -n "${token}" ]] || { fail "${tenant}: sem token do gestor"; continue; }
-  creditors="$(get "${token}" '/api/v1/creditors?size=50')"
+  creditors="$(get "${token}" '/api/v1/creditors?size=200')"
   ncred="$(jq '.totalElements' <<<"${creditors}")"
   kv_set "creditor_ids:${tenant}" "$(jq -r '[.content[].id] | join(" ")' <<<"${creditors}")"
-  portfolios="$(get "${token}" '/api/v1/portfolios?size=50')"
+  portfolios="$(get "${token}" '/api/v1/portfolios?size=200')"
   nport="$(jq '.totalElements' <<<"${portfolios}")"
   kv_set "portfolio_ids:${tenant}" "$(jq -r '.content[0].id' <<<"${portfolios}")"
-  per_creditor="$(jq -r '[.content | group_by(.creditorId)[] | length] | map(tostring) | join(",")' <<<"${portfolios}")"
+  # carteiras dos 3 credores do catálogo principal (os primeiros cadastrados), que os cenários e o audit usam
+  main_ids="$(jq -c '[.content[] | select(.externalCode as $c | ["HZN","EST","TVC","CSR","ELT","UMC"] | index($c)) | .id]' <<<"${creditors}")"
+  per_creditor="$(jq -r --argjson ids "${main_ids}" '[.content[] | select(.creditorId as $c | $ids | index($c))]
+    | group_by(.creditorId) | map(length | tostring) | join(",")' <<<"${portfolios}")"
   cases="$(get "${token}" '/api/v1/collection/cases?size=1')"
   ncases="$(jq '.totalElements' <<<"${cases}")"
   kv_set "case_ids:${tenant}" "$(jq -r '.content[0].id' <<<"${cases}")"
   kv_set "debtor_ids:${tenant}" "$(jq -r '.content[0].debtorId' <<<"${cases}")"
-  agreements="$(get "${token}" '/api/v1/negotiation/agreements?size=50' | jq -r '[.content[].status] | group_by(.) | map("\(.[0])=\(length)") | join(" ")')"
+  summary="$(get "${token}" '/api/v1/negotiation/agreements/summary')"
+  agreements="$(jq -r '"total=\(.total) em vigor=\(.active) quitados=\(.settled) quebrados=\(.broken) cancelados=\(.cancelled) renegociados=\(.renegotiated)"' <<<"${summary}")"
+  kv_set "agreements:${tenant}" "${summary}"
   fin="$(token "${tenant}" financeiro)"
-  payments="$(get "${fin}" '/api/v1/payment/payments?size=50' | jq -r '[.content[].status] | group_by(.) | map("\(.[0])=\(length)") | join(" ")')"
-  users="$(get "$(token "${tenant}" admin)" '/api/v1/users?size=50')"
+  payments="$(get "${fin}" '/api/v1/payment/payments?size=200' | jq -r '"\(.totalElements) (amostra: \([.content[].status] | group_by(.) | map("\(.[0])=\(length)") | join(" ")))"')"
+  kv_set "payments:${tenant}" "$(get "${fin}" '/api/v1/payment/payments?size=1' | jq '.totalElements')"
+  users="$(get "$(token "${tenant}" admin)" '/api/v1/users?size=200')"
   kv_set "user_ids:${tenant}" "$(jq -r '.content[0].id' <<<"${users}")"
   active="$(jq '[.content[] | select(.status == "ACTIVE")] | length' <<<"${users}")"
   matters="$(get "$(token "${tenant}" juridico)" '/api/v1/legal/matters?size=20' | jq -r '[.content[].stage] | join(",")')"
-  if [[ "${ncred}" == 3 && "${nport}" == 12 && "${per_creditor}" == "4,4,4" && "${ncases}" -gt 0 ]]; then
-    ok "${tenant}: ${ncred} credores × ${per_creditor} carteiras = ${nport}; ${ncases} casos; ${active} usuários ativos"
+  case "${tenant}" in
+    aurora) expected_cred=30; expected_port=80; expected_users=34 ;;
+    *) expected_cred=3; expected_port=12; expected_users=14 ;;
+  esac
+  if [[ "${ncred}" == "${expected_cred}" && "${nport}" == "${expected_port}" && "${per_creditor}" == "4,4,4" \
+        && "${ncases}" -gt 0 && "${active}" -ge "${expected_users}" ]]; then
+    ok "${tenant}: ${ncred} credores, ${nport} carteiras (catálogo principal ${per_creditor}); ${ncases} casos; ${active} usuários ativos"
   else
-    fail "${tenant}: esperado 3 credores × 4 carteiras; obtido ${ncred} credores, ${nport} carteiras (${per_creditor}), ${ncases} casos"
+    fail "${tenant}: esperado ${expected_cred} credores, ${expected_port} carteiras (4,4,4 no catálogo principal) e ${expected_users}+ usuários; obtido ${ncred} credores, ${nport} carteiras (${per_creditor}), ${ncases} casos, ${active} usuários ativos"
   fi
   log INFO "${tenant}: acordos [${agreements}] · pagamentos [${payments}] · jurídico [${matters}]"
 done
+
+log INFO "2b. histórico de 12 meses (aurora)"
+gestor_aurora="$(token aurora gestor)"
+summary="$(kv_get agreements:aurora)"
+total="$(jq '.total' <<<"${summary}")"; settled="$(jq '.settled' <<<"${summary}")"; broken="$(jq '.broken' <<<"${summary}")"
+if [[ "${total}" -ge 150 && "${settled}" -ge 40 && "${broken}" -ge 10 && "$(kv_get payments:aurora)" -ge 200 ]]; then
+  ok "aurora: ${total} acordos (${settled} quitados, ${broken} quebrados) e $(kv_get payments:aurora) pagamentos no histórico"
+else
+  fail "aurora: histórico de acordos e pagamentos abaixo do esperado (${total} acordos, ${settled} quitados, ${broken} quebrados, $(kv_get payments:aurora) pagamentos)"
+fi
+month_end="$(date -u -v-1m +%Y-%m-01 2>/dev/null || date -u -d "$(date +%Y-%m-01) -1 month" +%Y-%m-%d)"
+month_last="$(date -u -v1d -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "$(date +%Y-%m-01) -1 day" +%Y-%m-%d)"
+trend="$(get "${gestor_aurora}" "/api/v1/costing/margin/trend?from=${month_end}&to=${month_last}")"
+complete="$(jq '[.months[] | select(.status == "COMPLETE")] | length' <<<"${trend}" 2>/dev/null || echo 0)"
+with_points="$(jq '[.creditors[] | select([.points[] | select(.netMargin != null)] | length >= 5)] | length' <<<"${trend}" 2>/dev/null || echo 0)"
+if [[ "${complete}" -ge 5 && "${with_points}" -ge 10 ]]; then
+  ok "margem: ${complete} meses apurados na tendência de 6 meses; ${with_points} credores com 5+ pontos"
+else
+  fail "margem: tendência com ${complete} meses apurados e ${with_points} credores com 5+ pontos"
+fi
+rounds="$(get "${gestor_aurora}" '/api/v1/incentive/tiers/rounds' | jq '[.[] | select(.status == "PUBLISHED")] | length' 2>/dev/null || echo 0)"
+[[ "${rounds}" -ge 1 ]] && ok "classificação por desempenho: ${rounds} rodada(s) publicada(s)" \
+  || fail "classificação por desempenho: nenhuma rodada publicada"
 
 log INFO "3. isolamento entre assessorias"
 check_isolation() {
@@ -139,7 +175,7 @@ check_isolation() {
   get "${admin}" "/api/v1/users/$(kv_get "user_ids:${other}")" >/dev/null
   [[ "${HTTP_STATUS}" == 404 ]] || fail "${from} consultou usuário de ${other} (HTTP ${HTTP_STATUS})"
   local seen
-  seen="$(get "${token}" '/api/v1/creditors?size=50' | jq -r '[.content[].id] | join(" ")')"
+  seen="$(get "${token}" '/api/v1/creditors?size=200' | jq -r '[.content[].id] | join(" ")')"
   for id in $(kv_get "creditor_ids:${other}"); do
     [[ " ${seen} " != *" ${id} "* ]] || fail "${from} lista credor de ${other}"
   done
@@ -150,7 +186,7 @@ check_isolation boreal aurora
 
 log INFO "4. escopo por credor (segundo operador, só o primeiro credor)"
 for tenant in aurora boreal; do
-  n="$(get "$(token "${tenant}" operador2)" '/api/v1/creditors?size=50' | jq '.totalElements')"
+  n="$(get "$(token "${tenant}" operador2)" '/api/v1/creditors?size=200' | jq '.totalElements')"
   [[ "${n}" == 1 ]] && ok "${tenant}/operador2 enxerga ${n} credor" || fail "${tenant}/operador2 enxerga ${n} credores (esperado 1)"
 done
 
@@ -180,11 +216,11 @@ OTHER_CREDITOR="$(token_line aurora sandbox-est-completo)"
 OTHER_TENANT="$(token_line boreal sandbox-csr-completo)"
 
 gestor="$(token aurora gestor)"
-hzn="$(get "${gestor}" '/api/v1/creditors?size=50' | jq -r '.content[] | select(.externalCode == "HZN") | .id')"
-portfolios="$(get "${gestor}" '/api/v1/portfolios?size=50')"
+hzn="$(get "${gestor}" '/api/v1/creditors?size=200' | jq -r '.content[] | select(.externalCode == "HZN") | .id')"
+portfolios="$(get "${gestor}" '/api/v1/portfolios?size=200')"
 HZN_PORTFOLIO="$(jq -r '.content[] | select(.code == "HZN-CARTAO") | .id' <<<"${portfolios}")"
 EST_PORTFOLIO="$(jq -r '.content[] | select(.code == "EST-CREDIARIO") | .id' <<<"${portfolios}")"
-BOREAL_PORTFOLIO="$(get "$(token boreal gestor)" '/api/v1/portfolios?size=50' | jq -r '.content[] | select(.code == "CSR-CARTAO") | .id')"
+BOREAL_PORTFOLIO="$(get "$(token boreal gestor)" '/api/v1/portfolios?size=200' | jq -r '.content[] | select(.code == "CSR-CARTAO") | .id')"
 
 papi GET /portfolios "${FULL}" >/dev/null; expect "listar carteiras com o token do credor" 200
 papi GET "/portfolios/${HZN_PORTFOLIO}" "${FULL}" >/dev/null; expect "consultar carteira do próprio credor" 200

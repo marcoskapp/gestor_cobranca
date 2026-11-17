@@ -21,11 +21,16 @@ import java.util.function.Consumer;
  * ({@code /actuator/health/readiness}) só fica UP quando a carga termina.
  * <p>
  * Ordem: administrador da plataforma → para cada assessoria: provisionamento → administrador → credores, contratos e
- * carteiras → usuários de todos os perfis → configuração operacional → canais e provedores simulados → tokens de
- * integração (ponto de extensão) → carga das carteiras → importação PDF de demonstração (PDFs fictícios e mapa salvo
- * do 1º credor) → cenários operacionais e jurídicos → réguas → distribuição,
- * demonstrativo e painéis → custos operacionais (margem). Cada etapa confere o que já existe: subir de novo não
- * duplica nada.
+ * carteiras → usuários de todos os perfis → configuração operacional → canais e provedores simulados → metas →
+ * condições das integrações → tokens de integração (ponto de extensão) → histórico de 12 meses (só a {@code aurora})
+ * → carga das carteiras → importação PDF de demonstração (PDFs fictícios e mapa salvo do 1º credor) → cenários
+ * operacionais e jurídicos → réguas → distribuição, demonstrativo e painéis → custos operacionais (margem). Cada etapa
+ * confere o que já existe: subir de novo não duplica nada.
+ * <p>
+ * Assessoria com histórico (decisão 1351): provisionamento, credores, configuração e canais rodam com o relógio de
+ * demonstração no primeiro dia do histórico (vigências, políticas e plano de comissão valem desde então); usuários,
+ * senhas, tokens, carteiras e cenários do presente, no tempo real. O relógio sempre volta ao presente ao fim de cada
+ * etapa e da carga (inclusive em falha).
  * <p>
  * Ativação: perfil {@code sandbox} e {@code app.sandbox.seed.enabled=true} ({@code SandboxSeedGuard} recusa outras
  * combinações).
@@ -47,6 +52,7 @@ class SandboxSeeder {
     private final LegalSeeder legal;
     private final CampaignSeeder campaigns;
     private final CostingSeeder costing;
+    private final HistorySeeder history;
     private final SeedStatus status;
     private final SeedRuntime rt;
     private final MeterRegistry meters;
@@ -54,8 +60,8 @@ class SandboxSeeder {
     SandboxSeeder(IdentitySeeder identity, OrganizationSeeder organization, ConfigurationSeeder configuration,
                   ChannelSeeder channels, IntegrationTokensSeeder integrationTokens, PortfolioLoadSeeder portfolioLoad,
                   PdfImportDemoSeeder pdfImportDemo, OperationSeeder operations, ConformitySeeder conformity,
-                  LegalSeeder legal, CampaignSeeder campaigns, CostingSeeder costing, SeedStatus status, SeedRuntime rt,
-                  MeterRegistry meters) {
+                  LegalSeeder legal, CampaignSeeder campaigns, CostingSeeder costing, HistorySeeder history,
+                  SeedStatus status, SeedRuntime rt, MeterRegistry meters) {
         this.identity = identity;
         this.organization = organization;
         this.configuration = configuration;
@@ -68,6 +74,7 @@ class SandboxSeeder {
         this.legal = legal;
         this.campaigns = campaigns;
         this.costing = costing;
+        this.history = history;
         this.status = status;
         this.rt = rt;
         this.meters = meters;
@@ -80,21 +87,25 @@ class SandboxSeeder {
 
     void run() {
         long started = System.nanoTime();
-        status.started(rt.now());
+        status.started(rt.realNow());
         LOG.warn("Carga de dados FICTÍCIOS do sandbox iniciada (perfil sandbox; nunca usar em produção)");
         try {
             step("administrador da plataforma", null, t -> identity.activatePlatformAdmin());
             LocalDate today = LocalDate.now(rt.clock().withZone(TimeConfig.BUSINESS_ZONE));
             for (TenantSpec spec : DemoCatalog.tenants()) {
                 TenantSeed seed = new TenantSeed(spec, today);
-                step("provisionamento", seed, identity::provisionTenant);
+                // com histórico, a configuração nasce no primeiro dia dele (relógio de demonstração); usuários,
+                // senhas, tokens e as carteiras do presente ficam no tempo real
+                step("provisionamento", seed, inThePast(identity::provisionTenant, 0));
                 step("administrador da assessoria", seed, identity::prepareAdmin);
-                step("credores, contratos e carteiras", seed, organization::seed);
+                step("credores, contratos e carteiras", seed, inThePast(organization::seed, 5));
                 step("usuários de demonstração", seed, identity::seedUsers);
-                step("configuração operacional", seed, configuration::seed);
+                step("configuração operacional", seed, inThePast(configuration::seed, 10));
+                step("canais e provedores simulados", seed, inThePast(channels::seed, 15));
                 step("metas dos negociadores", seed, configuration::goals);
-                step("canais e provedores simulados", seed, channels::seed);
+                step("condições de cobrança das integrações", seed, configuration::integrationPricing);
                 step("tokens de integração", seed, integrationTokens::seed);
+                step("histórico de 12 meses", seed, history::seed);
                 step("carga das carteiras", seed, portfolioLoad::seed);
                 step("importação PDF de demonstração", seed, pdfImportDemo::seed);
                 step("cenários operacionais", seed, operations::seed);
@@ -104,16 +115,33 @@ class SandboxSeeder {
                 step("distribuição, prestação de contas e painéis", seed, operations::finish);
                 step("custos operacionais e margem", seed, costing::seed);
             }
-            status.completed(rt.now());
+            status.completed(rt.realNow());
             record("completed", started);
             LOG.atInfo().addKeyValue("durationMs", Duration.ofNanos(System.nanoTime() - started).toMillis())
                     .addKeyValue("warnings", status.warnings().size())
                     .log("Carga do sandbox concluída");
         } catch (RuntimeException e) {
-            status.failed(rt.now(), e.getClass().getSimpleName() + ": " + e.getMessage());
+            status.failed(rt.realNow(), e.getClass().getSimpleName() + ": " + e.getMessage());
             record("failed", started);
             LOG.error("Carga do sandbox falhou na etapa '{}'", status.phase(), e);
+        } finally {
+            // nunca deixa o relógio da aplicação deslocado
+            rt.abortTravel();
         }
+    }
+
+    /**
+     * Etapa executada com o relógio de demonstração no primeiro dia do histórico (mais {@code minutes}) quando a
+     * assessoria tem histórico; senão, no tempo real.
+     */
+    private Consumer<TenantSeed> inThePast(Consumer<TenantSeed> action, int minutes) {
+        return seed -> {
+            if (seed.hasHistory()) {
+                rt.inThePast(seed.historyOrigin().plusMinutes(minutes), () -> action.accept(seed));
+            } else {
+                action.accept(seed);
+            }
+        };
     }
 
     private void step(String name, TenantSeed seed, Consumer<TenantSeed> action) {

@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.sandbox.application.service;
 
+import br.com.gestorcobranca.sandbox.domain.model.DemoHistory;
 import br.com.gestorcobranca.sandbox.application.SandboxSeedComponent;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCases;
 import br.com.gestorcobranca.assistant.application.port.in.AssistantPolicyUseCases.CreatePolicyCommand;
@@ -144,7 +145,13 @@ class ChannelSeeder {
         Set<UUID> configured = new java.util.HashSet<>();
         rt.as(gestor, agents::list).forEach(a -> configured.add(a.userId()));
         int extension = 1001;
-        for (String key : List.of("operador", "operador2", "supervisor")) {
+        List<String> keys = new java.util.ArrayList<>(List.of("operador", "operador2", "supervisor"));
+        if (seed.hasHistory()) {
+            // negociadores do histórico que ligam pelo discador (ramais 1004 em diante)
+            seed.history.negotiators().stream().filter(DemoHistory.Negotiator::caller)
+                    .forEach(n -> keys.add(n.key()));
+        }
+        for (String key : keys) {
             UUID userId = seed.user(key);
             String ext = String.valueOf(extension++);
             if (!configured.contains(userId)) {
@@ -171,14 +178,22 @@ class ChannelSeeder {
     }
 
     private void assistant(TenantSeed seed) {
+        assistant(seed, seed.creditor(0).prefix(), seed.creditorId(0), seed.creditor(0).tradeName());
+        if (seed.hasHistory()) {
+            seed.history.creditors().stream().filter(DemoHistory.HistoryCreditor::assistant).forEach(c ->
+                    assistant(seed, c.prefix(), seed.creditors.get(c.prefix()), c.tradeName()));
+        }
+    }
+
+    private void assistant(TenantSeed seed, String prefix, UUID creditorId, String tradeName) {
         Actor gestor = seed.actor("gestor");
-        String code = "assistente-" + seed.creditor(0).prefix().toLowerCase();
+        String code = "assistente-" + prefix.toLowerCase();
         if (rt.as(gestor, assistantPolicies::list).stream().anyMatch(p -> code.equals(p.code()))) {
             return;
         }
         // copiloto: o assistente sugere respostas ao negociador; modelo simulado (nenhum dado sai do ambiente)
-        UUID policyId = rt.as(gestor, () -> assistantPolicies.createDraft(new CreatePolicyCommand(seed.creditorId(0), null,
-                code, "Assistente — " + seed.creditor(0).tradeName(), assistantPolicies.template("COPILOT")))).id();
+        UUID policyId = rt.as(gestor, () -> assistantPolicies.createDraft(new CreatePolicyCommand(creditorId, null,
+                code, "Assistente — " + tradeName, assistantPolicies.template("COPILOT")))).id();
         rt.as(gestor, () -> assistantPolicies.publish(policyId));
     }
 
