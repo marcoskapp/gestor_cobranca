@@ -68,6 +68,25 @@
   justify-content: space-between;
   gap: 8px;
 }
+.mp__search {
+  width: 100%;
+  max-width: 360px;
+  margin-top: 8px;
+  .form-label {
+    margin-bottom: 4px;
+    font-size: var(--app-text-sm);
+  }
+}
+.mp__search-count {
+  margin: 8px 0 0;
+  font-size: var(--app-text-sm);
+}
+.mp__no-match {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .mp__table-wrap {
   margin-top: 8px;
   overflow-x: auto;
@@ -83,11 +102,13 @@
     text-align: left;
     vertical-align: top;
   }
+  // cabeçalhos quebram em 2 linhas (rótulo + ordenação + "i"): a tabela padrão cabe a partir de 1280 px sem rolagem
   thead th {
+    min-width: 72px;
     font-size: var(--app-text-xs);
     font-weight: var(--app-weight-semibold);
     color: var(--bs-secondary-color);
-    white-space: nowrap;
+    white-space: normal;
   }
   .num {
     text-align: right;
@@ -95,9 +116,24 @@
   }
   .sub {
     display: block;
+    white-space: normal;
     font-size: var(--app-text-xs);
     font-weight: normal;
     color: var(--bs-secondary-color);
+  }
+}
+// nome do credor em 1–2 linhas naturais (não "Credor / Fictício Cedro")
+.mp__table tbody th,
+.mp__table tfoot th {
+  min-width: 160px;
+}
+.mp__order {
+  display: none;
+  max-width: 320px;
+  margin-top: 8px;
+  .form-label {
+    margin-bottom: 2px;
+    font-size: var(--app-text-sm);
   }
 }
 .mp__sort {
@@ -151,4 +187,75 @@
 }
 .mp__scatter {
   margin-bottom: var(--app-gap);
+}
+
+// celular: cada credor vira um bloco (nome como título; valores com o rótulo) — sem rolagem lateral; a ordenação vai
+// para o seletor "Ordenar por"
+@media (max-width: 575.98px) {
+  .mp__order {
+    display: block;
+  }
+  .mp__table-wrap {
+    overflow-x: visible;
+  }
+  .mp__table {
+    thead {
+      display: none;
+    }
+    tbody,
+    tfoot,
+    tr {
+      display: block;
+    }
+    tr {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--bs-border-color);
+    }
+    th,
+    td {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0 12px;
+      min-width: 0;
+      padding: 2px 0;
+      border: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    // linha de baixo (taxa, "1 carteira") ocupa a largura toda, alinhada ao valor
+    td .sub {
+      flex-basis: 100%;
+      text-align: right;
+    }
+    th .sub {
+      flex-basis: 100%;
+    }
+    tbody th,
+    tfoot th {
+      min-width: 0;
+      flex-wrap: wrap;
+      font-weight: var(--app-weight-semibold);
+    }
+    td[data-label]::before {
+      content: attr(data-label);
+      flex: none;
+      color: var(--bs-secondary-color);
+      text-align: left;
+    }
+    td.num {
+      text-align: right;
+    }
+    .mp__trend {
+      width: auto;
+      text-align: right;
+    }
+  }
+  .mp__negative > th:first-child {
+    box-shadow: none;
+  }
+  .mp__negative {
+    box-shadow: inset 3px 0 0 var(--bs-danger);
+    padding-left: 8px;
+  }
 }

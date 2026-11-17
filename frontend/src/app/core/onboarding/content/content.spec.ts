@@ -173,11 +173,21 @@ describe('conteúdo do onboarding', () => {
 
   it('classificação de desempenho registrada com tour e nota de versão (com a distribuição por nível nas filas)', () => {
     expect(findScreen('/remuneracao/classificacao?rodada=r-1')?.tourId).toBe('incentive.tiers');
-    expect(findScreen('/remuneracao/desempenho')?.version).toBe(5);
+    expect(findScreen('/remuneracao/desempenho')?.version).toBeGreaterThanOrEqual(5);
     const note = RELEASE_NOTES.find((n) => n.version === 31)!;
     expect(note.title).toBe('Distribuição por desempenho');
     expect(note.date).toBe('2026-11-12');
     expect(note.items.map((i) => i.route)).toEqual(['/remuneracao/classificacao', '/remuneracao/desempenho', '/cobranca/filas', '/cobranca/filas']);
+  });
+
+  it('rankings dos painéis com muitos itens registrados nas telas e na nota de versão', () => {
+    for (const path of ['/paineis', '/paineis/conversao', '/paineis/produtividade', '/paineis/confiabilidade', '/paineis/margem', '/remuneracao/desempenho']) {
+      const screen = findScreen(path)!;
+      expect(screen.changes?.some((c) => c.version === screen.version), screen.key).toBe(true);
+    }
+    const note = RELEASE_NOTES.find((n) => n.version === 33)!;
+    expect(note.title).toBe('Painéis com muitos credores');
+    expect(note.items.map((i) => i.route)).toEqual(['/paineis', '/paineis', '/paineis/margem']);
   });
 
   it('margem por carteira e custos operacionais registrados com tour e nota de versão', () => {

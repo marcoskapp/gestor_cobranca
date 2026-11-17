@@ -184,6 +184,19 @@ describe('painéis de analytics', () => {
     expect(el(fixture).querySelectorAll('app-bar-chart .bc__bar-line')).toHaveLength(2);
   });
 
+  it('produtividade com muitas pessoas: 25 primeiras na tabela e "Mostrar mais 25" com a contagem', async () => {
+    permissions.set(['REPORT_VIEW', 'PERFORMANCE_VIEW_ALL', 'DASHBOARD_VIEW']);
+    const ids = Array.from({ length: 47 }, (_, i) => `u-${i + 1}`);
+    const fixture = await render(ProductivityPanel, { '/api/v1/analytics/productivity': productivity(ids, false) });
+    const table = el(fixture).querySelector('section[aria-labelledby="pd-table"]')!;
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(25);
+    expect(text(table.querySelector('app-show-more')).replace(/\s+/g, ' ')).toContain('Mostrando 25 de 47 pessoas');
+    table.querySelector<HTMLButtonElement>('app-show-more button')!.click();
+    fixture.detectChanges();
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(47);
+    expect(table.querySelector('app-show-more .show-more')).toBeNull();
+  });
+
   it('contestações: prazo, procedência e retorno do credor com a base; fila por responsável com atalho para a supervisão', async () => {
     permissions.set(['DISPUTE_MANAGE']);
     const row = { opened: 4, resolved: 2, upheld: 1, upheldRate: ratio(0.5, 1, 2), withinDeadline: ratio(1, 2, 2), averageResolutionDays: 3.5, openNow: 2, overdueNow: 1, creditorRequestsAnswered: 1, averageCreditorResponseHours: 30 };

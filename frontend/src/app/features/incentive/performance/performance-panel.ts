@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject, untracked } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { debounceTime, map, of, startWith } from 'rxjs';
@@ -8,15 +8,18 @@ import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { EntityPicker } from '../../../shared/components/entity-picker/entity-picker';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
+import { ShowMoreButton } from '../../../shared/components/show-more/show-more';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { showMore } from '../../../shared/util/show-more';
 import { sameValue } from '../../../shared/data/same-value';
+import { injectUrlStateWriter } from '../../../shared/data/url-state';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { UserLookup } from '../../admin/data/user.lookup';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { BarChart } from '../../analytics/components/bar-chart';
-import { ChartRow } from '../../analytics/components/chart.models';
+import { ChartRow, ChartSeries } from '../../analytics/components/chart.models';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { count, fixed2, seconds } from '../../analytics/data/analytics.format';
 import { TeamLookup } from '../../collection/data/collection.lookups';
@@ -61,7 +64,7 @@ export function monthRange(month: string, today: string): { from: string; to: st
  */
 @Component({
   selector: 'app-incentive-performance-panel',
-  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, Amount, BarChart, EmptyState, EntityPicker, Icon, KpiCard, MyTierCard, PageHeader, Skeleton, InfoHint],
+  imports: [ReactiveFormsModule, RouterLink, ...FORM_FIELD, Amount, BarChart, EmptyState, EntityPicker, Icon, KpiCard, MyTierCard, PageHeader, Skeleton, InfoHint, ShowMoreButton],
   template: `
     <app-page-header [title]="title()" subtitle="Indicadores dos negociadores humanos a partir dos fatos de cobrança, negociação e pagamento, com as bases sempre visíveis." />
     @if (scope() === 'OWN') {
@@ -147,13 +150,14 @@ export function monthRange(month: string, today: string): { from: string; to: st
         @if (rows.length) {
           <section class="app-card" data-tour="performance-chart">
             <app-bar-chart [title]="'Recuperado ' + groupLabels[groupBy()].toLowerCase()" info="incentive.performance.recovered" [categoryHeader]="groupHeader()" [summary]="chartSummary()"
-                           [series]="[{ name: 'Recuperado', color: '--app-chart-1' }]" [rows]="chartRows()" noteHeader="Acordos" />
+                           [series]="series" [rows]="chartRows()" noteHeader="Acordos"
+                           [limit]="15" [noun]="groupNoun()" shareOf="do recuperado" tableKey="grupos" [searchInUrl]="groupBy() !== 'USER'" />
           </section>
         }
         <section class="app-card" aria-labelledby="pf-table">
           <h2 class="app-card__title" id="pf-table">{{ groupLabels[groupBy()] }}</h2>
           <div class="in-scroll">
-            <table class="in-table">
+            <table class="in-table" #tableEl>
               <caption class="visually-hidden">Indicadores {{ groupLabels[groupBy()].toLowerCase() }}</caption>
               <thead>
                 <tr>
@@ -169,7 +173,7 @@ export function monthRange(month: string, today: string): { from: string; to: st
                 </tr>
               </thead>
               <tbody>
-                @for (r of rows; track r.groupKey) {
+                @for (r of table.visible(); track r.groupKey) {
                   <tr>
                     <th scope="row">{{ label(r.groupKey) }}</th>
                     <td class="in-end">{{ count(r.effort.workedCases) }}</td>
@@ -203,6 +207,7 @@ export function monthRange(month: string, today: string): { from: string; to: st
               </tbody>
             </table>
           </div>
+          <app-show-more [list]="table" [table]="tableEl" [singular]="groupNoun().one" [plural]="groupNoun().many" />
         </section>
       }
       @if (unavailable().length) {
@@ -261,6 +266,19 @@ export class PerformancePanel {
     equal: sameValue,
   });
   protected readonly groupBy = computed(() => this.query().groupBy);
+  private readonly urlWriter = injectUrlStateWriter();
+
+  constructor() {
+    // como nos painéis de analytics: trocar o mês, o agrupamento ou os filtros fecha a lista completa do gráfico
+    let previous: unknown = undefined;
+    effect(() => {
+      const q = this.query();
+      if (previous !== undefined && !sameValue(previous, q)) {
+        untracked(() => this.urlWriter.write({ tabela: null, 'grupos-busca': null, 'grupos-ordem': null }));
+      }
+      previous = q;
+    });
+  }
   protected readonly totalData = rxResource({ params: () => ({ ...this.query(), groupBy: 'NONE' as const }), stream: ({ params }) => this.api.indicators(params) });
   private readonly groupData = rxResource({
     params: () => (this.query().groupBy === 'NONE' ? undefined : this.query()),
@@ -270,6 +288,8 @@ export class PerformancePanel {
   protected readonly total = computed(() => this.totalReport()?.rows[0] ?? null);
   private readonly groupReport = valueOr(this.groupData, undefined);
   protected readonly grouped = computed<IndicatorRow[] | null>(() => (this.query().groupBy === 'NONE' ? null : (this.groupReport()?.rows ?? null)));
+  /** Tabela agrupada em passos de 25 (na ordem do servidor); mês, agrupamento ou filtro novos voltam a 25. */
+  protected readonly table = showMore(() => this.grouped() ?? [], { resetOn: () => this.query() });
   protected readonly unavailable = computed(() => (this.totalReport()?.unavailableMetrics ?? []).map((m) => UNAVAILABLE_METRIC_LABELS[m] ?? m));
 
   /**
@@ -299,16 +319,28 @@ export class PerformancePanel {
   protected readonly groupHeader = computed(
     () => ({ NONE: 'Total', USER: 'Negociador', TEAM: 'Equipe', CREDITOR: 'Credor', PORTFOLIO: 'Carteira', DELAY_BUCKET: 'Faixa de atraso', CHANNEL: 'Canal' })[this.groupBy()],
   );
+  protected readonly series: ChartSeries[] = [{ name: 'Recuperado', color: '--app-chart-1', format: (v) => formatAmount(v) }];
+  protected readonly groupNoun = computed(
+    () =>
+      ({
+        NONE: { one: 'linha', many: 'linhas' },
+        USER: { one: 'negociador', many: 'negociadores' },
+        TEAM: { one: 'equipe', many: 'equipes' },
+        CREDITOR: { one: 'credor', many: 'credores' },
+        PORTFOLIO: { one: 'carteira', many: 'carteiras' },
+        DELAY_BUCKET: { one: 'faixa', many: 'faixas' },
+        CHANNEL: { one: 'canal', many: 'canais' },
+      })[this.groupBy() as string] ?? { one: 'grupo', many: 'grupos' },
+  );
   protected readonly chartRows = computed<ChartRow[]>(() =>
     [...(this.grouped() ?? [])]
       .sort((a, b) => (b.financial.recoveredAmount ?? 0) - (a.financial.recoveredAmount ?? 0))
-      .slice(0, 15)
       .map((r) => ({
         key: r.groupKey,
         label: this.label(r.groupKey),
-        values: [Math.max(0, r.financial.recoveredAmount ?? 0)],
+        values: [r.financial.recoveredAmount ?? 0],
         display: [formatAmount(r.financial.recoveredAmount ?? 0)],
-        note: `${count(r.conversion.agreements)} acordos`,
+        note: count(r.conversion.agreements),
       })),
   );
   protected readonly chartSummary = computed(() => {

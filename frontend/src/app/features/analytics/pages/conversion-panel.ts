@@ -4,19 +4,22 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { ShowMoreButton } from '../../../shared/components/show-more/show-more';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
+import { showMore } from '../../../shared/util/show-more';
 import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
-import { ChartRow } from '../components/chart.models';
+import { ChartRow, ChartSeries } from '../components/chart.models';
+import { FocusChip } from '../components/focus-chip';
 import { FunnelChart, FunnelStage } from '../components/funnel-chart';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, num, percent, ratioDetail } from '../data/analytics.format';
-import { GROUP_BY_LABELS, groupLabel } from '../data/analytics.labels';
+import { GROUP_BY_LABELS, GROUP_NOUNS, groupLabel } from '../data/analytics.labels';
 import { Ratio } from '../data/analytics.models';
-import { urlFilter } from '../data/url-filter';
+import { focusFilter, focusable, focusableKey, unfocusFilter, urlFilter } from '../data/url-filter';
 import { peopleGroupBy } from './people-scope';
 
 const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL', 'MONTH'];
@@ -28,13 +31,14 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
  */
 @Component({
   selector: 'app-conversion-panel',
-  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, FunnelChart, InfoHint, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, FocusChip, FunnelChart, InfoHint, KpiCard, PanelFrame, ShowMoreButton],
   template: `
     <app-panel-frame title="Conversão" subtitle="Do contato efetivo ao pagamento da 1ª parcela; acordo não pago não é recuperação."
                      report="conversion" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()" (refreshed)="data.reload()">
       <app-analytics-filters panel-filters [filter]="state.filter()"
                              [options]="{ period: true, creditor: true, portfolio: true, people: true, channel: true, groupBy: groups() }"
                              (changed)="state.update($event)" />
+      <app-focus-chip [label]="state.focused()" (removed)="state.update(unfocus())" />
       @if (data.error()) {
         <app-empty-state tone="error" icon="exclamation-circle" title="Não foi possível carregar a conversão" message="Verifique os filtros e tente novamente.">
           <button class="btn btn-primary" type="button" (click)="data.reload()">Tentar novamente</button>
@@ -91,18 +95,20 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
         </div>
         <section class="app-card">
           <app-bar-chart [title]="'Acordado × pago por ' + groupName().toLowerCase()" info="analytics.conversion.agreed-vs-paid" [categoryHeader]="groupName()" [summary]="rowsSummary()"
-                         [series]="[{ name: 'Valor acordado', color: '--app-chart-1' }, { name: 'Valor pago', color: '--app-chart-2' }]"
-                         [rows]="rows()" noteHeader="Pago / acordado" />
+                         [series]="series" [rows]="rows()" noteHeader="Pago / acordado"
+                         [limit]="timeGroup() ? null : 15" [noun]="groupNoun()" shareOf="do valor acordado"
+                         tableKey="grupos" [searchInUrl]="groupBy() !== 'OPERATOR'" [selectable]="canFocus()" [selectableRow]="focusableRow" [selectHint]="'Filtrar o painel por ' + groupNoun().this + ' ' + groupNoun().one + '.'"
+                         (selected)="focusOn($event)" />
         </section>
         <section class="app-card" aria-labelledby="cv-table">
           <h2 class="app-card__title" id="cv-table">Detalhe por {{ groupName().toLowerCase() }}</h2>
           <div class="pn__table-wrap">
-            <table class="pn__table">
+            <table class="pn__table" #tableEl>
               <thead>
                 <tr><th scope="col">{{ groupName() }}</th><th scope="col" class="num">Contatos efetivos <app-info-hint indicator="analytics.conversion.effective-contacts" label="Contatos efetivos" /></th><th scope="col" class="num">Propostas <app-info-hint indicator="analytics.conversion.proposals" label="Propostas" /></th><th scope="col" class="num">Acordos <app-info-hint indicator="analytics.conversion.agreements" label="Acordos" /></th><th scope="col" class="num">Contato → acordo <app-info-hint indicator="analytics.conversion.contact-to-agreement" label="Contato → acordo" /></th><th scope="col" class="num">1ª parcela <app-info-hint indicator="analytics.conversion.first-installment" label="1ª parcela" /></th><th scope="col" class="num">Acordado <app-info-hint indicator="analytics.conversion.agreed" label="Acordado" /></th><th scope="col" class="num">Pago <app-info-hint indicator="analytics.conversion.paid" label="Pago" /></th></tr>
               </thead>
               <tbody>
-                @for (row of r.rows; track row.key) {
+                @for (row of table.visible(); track row.key) {
                   <tr>
                     <th scope="row">{{ label(row.key, row.label) }}</th>
                     <td class="num app-numeric">{{ row.effectiveContacts === null ? '—' : count(row.effectiveContacts) }}</td>
@@ -119,6 +125,7 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
               </tbody>
             </table>
           </div>
+          <app-show-more [list]="table" [table]="tableEl" [singular]="groupNoun().one" [plural]="groupNoun().many" />
         </section>
       }
     </app-panel-frame>
@@ -139,6 +146,8 @@ export class ConversionPanel {
   protected readonly report = valueOr(this.data, undefined);
   protected readonly groupBy = computed(() => this.state.filter().groupBy ?? 'ORIGIN');
   protected readonly groupName = computed(() => GROUP_BY_LABELS[this.groupBy()] ?? 'Grupo');
+  /** Tabela por grupo em passos de 25 (na ordem do servidor); filtro ou agrupamento novos voltam a 25. */
+  protected readonly table = showMore(() => this.report()?.rows ?? [], { resetOn: () => this.state.filter() });
 
   protected readonly stages = computed<FunnelStage[]>(() => {
     const f = this.report()?.funnel;
@@ -159,13 +168,39 @@ export class ConversionPanel {
       ? `${count(f.effectiveContacts)} contatos efetivos, ${count(f.proposals)} propostas, ${count(f.agreements)} acordos e ${count(f.firstInstallmentsPaid)} com a 1ª parcela paga.`
       : '';
   });
+  protected readonly series: ChartSeries[] = [
+    { name: 'Valor acordado', color: '--app-chart-1', format: (v) => formatAmount(v) },
+    { name: 'Valor pago', color: '--app-chart-2', format: (v) => formatAmount(v) },
+  ];
+  /** Agrupamento por tempo fica em ordem cronológica e sem corte (não é ranking). */
+  protected readonly timeGroup = computed(() => ['DAY', 'WEEK', 'MONTH'].includes(this.groupBy()));
+  protected readonly canFocus = computed(() => focusable(this.groupBy()));
+  protected readonly groupNoun = computed(() => GROUP_NOUNS[this.groupBy()] ?? { one: 'grupo', this: 'este', many: 'grupos' });
+
+  /** Clique numa barra: filtra o painel pelo item (entra no histórico; o chip e o "voltar" desfazem). */
+  protected focusOn(row: ChartRow): void {
+    const next = focusFilter(this.state.filter(), this.groupBy(), row.key);
+    if (next) {
+      this.state.focus(next, `${this.groupName()}: ${row.label}`, this.groupBy());
+    }
+  }
+
+  protected readonly focusableRow = (r: ChartRow) => focusableKey(r.key);
+
+  protected unfocus() {
+    return unfocusFilter(this.state.filter(), this.groupBy());
+  }
+
   protected readonly rows = computed<ChartRow[]>(() =>
-    (this.report()?.rows ?? []).slice(0, 12).map((r) => ({
+    [...(this.report()?.rows ?? [])]
+      // ranking pelo valor acordado (tempo: na ordem do período)
+      .sort((a, b) => (this.timeGroup() ? 0 : num(b.agreedAmount) - num(a.agreedAmount)))
+      .map((r) => ({
       key: r.key,
       label: this.label(r.key, r.label),
-      values: [num(r.agreedAmount), Math.max(0, num(r.paidAmount))],
+      values: [num(r.agreedAmount), num(r.paidAmount)],
       display: [formatAmount(r.agreedAmount), formatAmount(r.paidAmount)],
-      note: `${percent(r.paidShare)} pago`,
+      note: percent(r.paidShare),
     })),
   );
   protected readonly rowsSummary = computed(() => {

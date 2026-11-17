@@ -855,5 +855,69 @@ canais, as contas Pix) obrigavam a pessoa a sair do formulário, achar a tela no
 | `app-config-link` (`shared/components/config-link`) | Link pequeno ("Gerenciar perfis de alçada ↗") logo abaixo do campo ou no bloco que usa o item; abre a tela de configuração **em nova aba** (`target="_blank"`, `rel="noopener"`), com "(abre em nova aba)" para o leitor de tela; só aparece com as permissões da tela de destino (as mesmas do menu). |
 | Uso atual | Política do assistente: perfil de alçada e perfil exigido na fila (`/negociacao/alcadas`, `AUTHORITY_MANAGE`), canais (`/conversas/canais`, `CHANNEL_MANAGE`) e contas Pix (`/pagamentos/contas-pix`, `INTEGRATION_MANAGE`). Resposta sugerida ao titular e cadastro de operadores: cadastrar operador e registrar base legal (com `queryParams`: `?chave=`, `?credor=`) e a configuração de cada provedor (conformidade.md §8.4). O prompt não tem atalho: versões imutáveis, entram com a atualização do sistema (a dica explica). |
 
+## 21. Tabelas longas nos painéis: "Mostrar mais" (17/11/2026)
+
+**Problema:** com 40 a 500 credores, carteiras ou pessoas, as tabelas completas dos painéis ficavam longas demais.
+Padrão aprovado pelo PO e pelo parecer de UX (decisões 1335–1339):
+
+| Peça | Contrato |
+| --- | --- |
+| `showMore(rows, { resetOn })` (`shared/util/show-more.ts`) | Mostra as primeiras **25** linhas e acrescenta 25 a cada pedido. `rows` chega já ordenada e filtrada (a ordenação com `aria-sort` vale sobre a lista inteira; o corte vem depois). Quantidade na URL (`qtd`, `replaceUrl`, demais parâmetros preservados; 25 não vai para a URL; inválido → 25); `resetOn` (filtro, período, agrupamento, busca) volta para 25. Sob `appUrlStateEmbedded`, só em memória. Expõe `visible`, `shown`, `total`, `remaining`, `next`, `more()` e `reset()`. |
+| `app-show-more` (`shared/components/show-more`) | Abaixo da tabela: "Mostrando 25 de 47 credores" (`role="status"`) e o botão "Mostrar mais 25" (no último passo, o que falta), com o substantivo para o leitor de tela. Some quando tudo está visível. Depois do pedido, o foco vai para a célula de cabeçalho da primeira linha nova (`rowSelector` exclui linhas de detalhe, como as carteiras abertas). |
+| Regras | Sem paginação e **sem altura máxima com rolagem interna** (a página rola). As contagens falam só do que a lista da tela tem (o escopo do usuário): nunca "ocultos" nem total da assessoria. Sem rolagem lateral da página (375 px inclusive). |
+| Busca local (`shared/util/text-search.ts`) | `normalizeSearch`/`matchesSearch`: sem acento, maiúscula nem espaços repetidos. Na margem: campo "Buscar credor ou carteira" (espera de 250 ms, termo em `busca`); o credor que contém a carteira encontrada abre expandido, com a carteira destacada; "N credores encontrados" (`aria-live="polite"`); sem resultado, a orientação e "Limpar busca". O rodapé "Total" continua o do período. |
+| Uso atual | Margem por carteira (tabela por credor, com busca), Produtividade ("Por pessoa/Por equipe"), Conversão (detalhe por grupo) e Desempenho dos negociadores (tabela agrupada). |
+
+## 22. Rankings nos gráficos dos painéis: muitos credores, carteiras ou pessoas (17/11/2026, decisões 1329–1334)
+
+Pedido do responsável: com muitos credores, os cartões de ranking (ex.: "Carteira por credor" do painel operacional)
+cortavam a lista em silêncio (10, 12 ou 15 itens) e a soma das barras não fechava com o total. Padrão único, no
+componente `app-bar-chart` (`features/analytics/components/bar-chart.ts`, regras puras em `ranking.ts`), validado por
+parecer de UX:
+
+* **Os primeiros e "Outros".** Com `limit`, o gráfico mostra os N primeiros na ordem do critério do cartão (10 nos
+  cartões lado a lado; 15 nos gráficos de largura total com tabela completa abaixo) e a barra **"Outros (37 credores)"**
+  com a soma do resto — sempre a **última**, separada por um fio, em cinza neutro (`--app-chart-other`/`-2`, ≥ 3:1
+  nos dois temas, também sobre o fundo de foco) e com o valor escrito. Não aparece quando sobraria 1 item (mostra-se o item) nem quando o resto soma
+  zero. Clicar em "Outros" abre a lista completa (nunca filtra).
+* **Aviso** abaixo do resumo, ligado ao `aria-describedby` do gráfico (não é `aria-live`): "Mostrando 10 de 47 credores,
+  que somam 62% da carteira." A participação só aparece com a 1ª série sem valores negativos.
+* **Rótulos** em até 2 linhas antes do "…" (coluna de 38%); a dica aparece logo abaixo da linha sob o ponteiro ou o foco
+  (não cobre o aviso) e traz a observação com o cabeçalho ("Vencido / carteira: 30,0%"), que não se repete na célula.
+  O cabeçalho do gráfico tem altura fixa (com ou sem botão), para os títulos dos cartões vizinhos alinharem.
+* **"Ver todos (N)"** substitui o "Ver tabela" (um botão só) quando o gráfico cortou a lista; sem corte, continua "Ver
+  tabela": a tabela equivalente passa a ser a **lista completa**, no
+  próprio cartão (sem modal, painel lateral nem altura máxima com rolagem interna): busca pelo nome (sem acento nem
+  maiúscula, 250 ms; "N credores encontrados" em `aria-live`), colunas ordenáveis (`button` no `th` + `aria-sort`;
+  padrão: o critério do gráfico, do maior para o menor), 25 linhas por vez com "Mostrar mais 25" (o foco vai para a
+  primeira linha nova) e rodapé "Total (47 credores)" (com busca: "Total dos encontrados"). No celular as linhas viram
+  blocos com rótulo e valor, e a ordenação vai para o seletor "Ordenar por" (o cabeçalho some).
+* **Estado na URL** pela chave do cartão (`tableKey`): `tabela=<chave>` entra no histórico (o "voltar" fecha a lista);
+  `<chave>-busca` e `<chave>-ordem` substituem a entrada (sem uma entrada por tecla), pelo escritor coalescido
+  (`injectUrlStateWriter`). Trocar o filtro do painel fecha a lista. **Busca por nome de pessoa** (gráficos de pessoas)
+  fica só na tela (`searchInUrl=false`, decisão 1341). A lista completa usa o mesmo `showMore`/`app-show-more` da §21.
+* **Valores negativos** entram como são nas somas, no total e na ordenação (a barra fica vazia); "Outros" só some
+  quando todo o resto é zero (decisão 1342). O grupo "sem carteira/sem negociador" (chave `-`) não filtra (1343).
+* **Clique na barra filtra o painel** (`selectable`): a linha de barras vira um `button` (um por linha; foco visível,
+  fundo `--app-chart-track` e funil discreto no foco/ponteiro); o nome à esquerda continua sendo o link para a lista
+  com a base (drill-down) — duas ações separadas, nunca aninhadas. Só onde a dimensão existe na barra de filtros
+  (credor, carteira, pessoa, equipe, canal — `focusable` em `data/url-filter.ts`); causas e períodos não filtram.
+  O filtro entra no histórico (`UrlFilter.focus`) e aparece no chip **"Credor: Banco X ×"** (`app-focus-chip`, com
+  "Painel filtrado por …" ao leitor de tela); remover o chip ou "voltar" desfaz.
+* **Escopo**: o total, "Outros" e o aviso contam só as linhas que o servidor devolveu ao usuário (já no escopo dele);
+  nenhum texto fala em itens ocultos ou no total da assessoria.
+* **Onde está**: operacional (carteira por credor, 10, filtra por credor), conversão (acordado × pago, 15, filtra pelo
+  agrupamento; por dia/semana/mês fica em ordem cronológica, sem corte), produtividade (recuperado por pessoa ou equipe,
+  15, filtra), confiabilidade (causas de falha, 10, sem filtro) e desempenho da remuneração variável (15, sem filtro:
+  a tela tem filtros próprios).
+
+**Revisão visual (17/11/2026, capturas com 47 e 30 credores fictícios simulados):** além do acima, a tabela da margem
+por carteira passou a: mostrar "Custo direto" só com "Mostrar o custo por categoria" (a tabela padrão — com a coluna
+"Tendência" — voltava a ter rolagem lateral e cortava "Margem líquida"); dar ao nome do credor largura mínima de 160 px e deixar cabeçalhos e a linha da taxa quebrarem em 2 linhas (sem
+rolagem lateral a partir de 1280 px);
+trazer o sinal na margem e a palavra "negativa" na linha de baixo ("−R$ 1.800,00" / "−3,2% da receita · negativa");
+com busca, esconder "Sem credor", chamar o total de "Total do período (todos os credores)" e não repetir a mensagem de
+"nenhum encontrado" acima do cabeçalho; e, no celular (< 576 px), virar blocos por credor com "Ordenar por".
+
 Premissas gerais de navegabilidade, usabilidade, segurança e conformidade: `CLAUDE.md` ("Premissas de toda tela e
 funcionalidade").

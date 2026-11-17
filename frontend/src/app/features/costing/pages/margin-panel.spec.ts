@@ -92,7 +92,8 @@ describe('painel de margem por carteira', () => {
     // tabela: menor margem líquida primeiro; margem negativa escrita, não só na cor
     const rows = [...el(fixture).querySelectorAll('tbody tr.mp__creditor')].map((r) => text(r));
     expect(rows[0]).toContain('Loja Beta Ltda.');
-    expect(rows[0]).toContain('−R$ 150,00 (negativa)');
+    expect(rows[0]).toContain('−R$ 150,00');
+    expect(rows[0]).toContain('· negativa');
     expect(rows[1]).toContain('Banco Alfa');
     expect(el(fixture).querySelector('tbody tr.mp__creditor.mp__negative')).not.toBeNull();
     // sem avisos, sem bloco de avisos; sem REPORT_EXPORT, sem exportar; sem COST_MANAGE, sem reapurar
@@ -357,5 +358,91 @@ describe('painel de margem por carteira', () => {
     const links = [...map.querySelectorAll('tbody a')].map((a) => decodeURIComponent(a.getAttribute('href') ?? ''));
     expect(links.length).toBe(2);
     expect(links.some((h) => h.includes(`carteira=${P2}`) && h.includes(`credor=${CREDITOR_A}`))).toBe(true);
+  });
+
+  async function type(fixture: ComponentFixture<MarginPanel>, value: string): Promise<void> {
+    const box = el(fixture).querySelector<HTMLInputElement>('#mp-search')!;
+    box.value = value;
+    box.dispatchEvent(new Event('input'));
+    await tick(300); // espera da busca (250 ms)
+    fixture.detectChanges();
+  }
+
+  it('busca por carteira mostra o credor que a contém, já aberto; sem acento nem maiúscula; total do rodapé é o do período', async () => {
+    permissions.set(['COST_VIEW', 'CREDITOR_VIEW', 'PORTFOLIO_VIEW']);
+    const fixture = await render(marginReport());
+    expect(el(fixture).querySelector('label[for="mp-search"]')?.textContent).toContain('Buscar credor ou carteira');
+    expect(el(fixture).querySelector('#mp-search')?.getAttribute('placeholder')).toBe('Nome do credor ou da carteira');
+    const totalBefore = text(el(fixture).querySelector('tr.mp__total'));
+
+    await type(fixture, 'CARTAO');
+    const creditors = [...el(fixture).querySelectorAll('tbody tr.mp__creditor')].map((r) => text(r));
+    expect(creditors.length).toBe(1);
+    expect(creditors[0]).toContain('Banco Alfa');
+    // aberto pela busca, com a carteira encontrada destacada
+    expect(el(fixture).querySelector('button.mp__expand')?.getAttribute('aria-expanded')).toBe('true');
+    expect(text(el(fixture).querySelector('tr.mp__portfolio mark'))).toBe('Cartão 2026');
+    expect(text(el(fixture).querySelector('.mp__search-count'))).toContain('1 credor encontrado');
+    expect(el(fixture).querySelector('.mp__search-count')?.getAttribute('aria-live')).toBe('polite');
+    // os valores do total continuam os do período; o rótulo avisa que é o de todos os credores
+    expect(text(el(fixture).querySelector('tr.mp__total'))).toBe(totalBefore.replace(/^Total/, 'Total do período (todos os credores)'));
+    expect(el(fixture).querySelector('tr.mp__unallocated')).toBeNull();
+
+    // busca pelo nome do credor: não abre as carteiras
+    await type(fixture, 'loja');
+    expect([...el(fixture).querySelectorAll('tbody tr.mp__creditor')].map((r) => text(r))[0]).toContain('Loja Beta Ltda.');
+    expect(el(fixture).querySelectorAll('tbody tr.mp__creditor').length).toBe(1);
+  });
+
+  it('busca sem resultado orienta e "Limpar busca" volta à lista inteira', async () => {
+    permissions.set(['COST_VIEW', 'CREDITOR_VIEW', 'PORTFOLIO_VIEW']);
+    const fixture = await render(marginReport());
+    await type(fixture, 'xyz');
+    expect(el(fixture).querySelector('tbody tr.mp__creditor')).toBeNull();
+    expect(text(el(fixture).querySelector('tbody'))).toContain('Nenhum credor ou carteira com "xyz". Confira a grafia ou limpe a busca.');
+    [...el(fixture).querySelectorAll<HTMLButtonElement>('tbody button')].find((b) => b.textContent?.includes('Limpar busca'))!.click();
+    fixture.detectChanges();
+    expect(el(fixture).querySelectorAll('tbody tr.mp__creditor').length).toBe(2);
+    expect(el(fixture).querySelector('.mp__search-count')).toBeNull();
+    expect(document.activeElement?.id).toBe('mp-search');
+  });
+
+  it('termo da busca vem da URL (busca=) ao abrir', async () => {
+    permissions.set(['COST_VIEW', 'CREDITOR_VIEW', 'PORTFOLIO_VIEW']);
+    query.next(convertToParamMap({ de: '2026-10-01', ate: '2026-10-31', busca: 'alfa' }));
+    const fixture = await render(marginReport());
+    expect((el(fixture).querySelector('#mp-search') as HTMLInputElement).value).toBe('alfa');
+    expect(el(fixture).querySelectorAll('tbody tr.mp__creditor').length).toBe(1);
+  });
+
+  it('sem permissão para ver os nomes, sem busca', async () => {
+    permissions.set(['COST_VIEW']);
+    const fixture = await render(marginReport());
+    expect(el(fixture).querySelector('#mp-search')).toBeNull();
+  });
+
+  it('muitos credores: 25 primeiros (pior margem primeiro), "Mostrar mais 25" e a contagem; o foco vai ao primeiro credor novo', async () => {
+    permissions.set(['COST_VIEW']);
+    const report = marginReport();
+    report.creditors = Array.from({ length: 30 }, (_, i) => ({
+      ...marginLine({ netMargin: i * 10 }),
+      creditorId: `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`,
+      name: `Credor ${String(i + 1).padStart(2, '0')}`,
+      portfolios: [],
+    }));
+    const fixture = await render(report, marginTrend({ creditors: [] }));
+    const rows = () => [...el(fixture).querySelectorAll('tbody tr.mp__creditor')];
+    expect(rows().length).toBe(25);
+    expect(text(rows()[0])).toContain('Credor 01');
+    const more = el(fixture).querySelector('app-show-more')!;
+    expect(text(more)).toContain('Mostrando 25 de 30 credores');
+    const button = more.querySelector<HTMLButtonElement>('button')!;
+    expect(text(button)).toContain('Mostrar mais 5 credores');
+    button.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(rows().length).toBe(30);
+    expect(el(fixture).querySelector('app-show-more .show-more')).toBeNull();
+    expect(text(document.activeElement)).toContain('Credor 26');
   });
 });

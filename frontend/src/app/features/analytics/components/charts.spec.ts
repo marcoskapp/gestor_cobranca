@@ -29,7 +29,7 @@ describe('gráficos acessíveis', () => {
     expect(el(fixture).querySelector('.bc__legend')!.textContent).toContain('Valor pago');
     const bars = el(fixture).querySelectorAll('.bc__bar-line');
     expect(bars).toHaveLength(2);
-    expect(bars[1].getAttribute('aria-label')).toBe('Negociador, Valor pago: R$ 900,00 (47,4% pago)');
+    expect(bars[1].getAttribute('aria-label')).toBe('Negociador, Valor pago: R$ 900,00 (Observação: 47,4% pago)');
     expect(bars[0].getAttribute('tabindex')).toBe('0');
     (bars[1] as HTMLElement).dispatchEvent(new Event('focus'));
     fixture.detectChanges();
@@ -99,5 +99,46 @@ describe('gráficos acessíveis', () => {
     const stages = el(fixture).querySelectorAll('.fn__stage');
     expect(stages[1].getAttribute('aria-label')).toBe('Propostas: 4, conversão 133,3% · 4 de 3');
     expect(el(fixture).querySelector('.fn__conv')!.textContent).toContain('4 de 3');
+  });
+
+  it('ranking: "Outros" por último abre a lista completa com busca, total e "Mostrar mais"; barra filtra o painel', async () => {
+    const fixture = TestBed.createComponent(BarChart);
+    const rows = Array.from({ length: 30 }, (_, i) => ({ key: 'c' + i, label: 'Credor ' + i, values: [300 - i], display: ['R$ ' + (300 - i)] }));
+    fixture.componentRef.setInput('title', 'Carteira por credor');
+    fixture.componentRef.setInput('summary', 'Resumo');
+    fixture.componentRef.setInput('series', [{ name: 'Carteira', color: '--app-chart-1', format: (v: number) => 'R$ ' + v }]);
+    fixture.componentRef.setInput('rows', rows);
+    fixture.componentRef.setInput('limit', 10);
+    fixture.componentRef.setInput('noun', { one: 'credor', many: 'credores' });
+    fixture.componentRef.setInput('selectable', true);
+    const picked: string[] = [];
+    fixture.componentInstance.selected.subscribe((r) => picked.push(r.key));
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('.bc__notice')!.textContent).toContain('Mostrando 10 de 30 credores');
+    const items = el(fixture).querySelectorAll('.bc__row');
+    expect(items).toHaveLength(11);
+    expect(items[10].textContent).toContain('Outros (20 credores)');
+    expect(el(fixture).querySelector('.bc__toggle')!.textContent).toContain('Ver todos (30)');
+    const first = items[0].querySelector<HTMLButtonElement>('button.bc__select')!;
+    expect(first.getAttribute('aria-label')).toContain('Filtrar o painel por este item.');
+    first.click();
+    expect(picked).toEqual(['c0']);
+    // "Outros" abre a lista completa (não filtra)
+    items[10].querySelector<HTMLButtonElement>('button.bc__select')!.click();
+    fixture.detectChanges();
+    expect(picked).toEqual(['c0']);
+    expect(el(fixture).querySelectorAll('tbody tr')).toHaveLength(25);
+    expect(el(fixture).querySelector('tfoot')!.textContent).toContain('Total (30 credores)');
+    expect(el(fixture).querySelector('app-show-more')!.textContent).toContain('Mostrando 25 de 30 credores');
+    el(fixture).querySelector<HTMLButtonElement>('app-show-more button')!.click();
+    fixture.detectChanges();
+    expect(el(fixture).querySelectorAll('tbody tr')).toHaveLength(30);
+    expect(el(fixture).querySelector('app-show-more button')).toBeNull();
+    // ordem padrão anunciada; o 1º clique na coluna já ordenada inverte (não "não faz nada")
+    const sorted = el(fixture).querySelector<HTMLElement>('th[aria-sort="descending"]')!;
+    expect(sorted.textContent).toContain('Carteira');
+    sorted.querySelector<HTMLButtonElement>('button')!.click();
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('th[aria-sort="ascending"]')!.textContent).toContain('Carteira');
   });
 });

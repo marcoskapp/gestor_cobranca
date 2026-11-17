@@ -31,7 +31,7 @@ export const MANUAL: ModuleManual = {
       title: 'Desempenho dos negociadores',
       objective: 'Indicadores do negociador, da equipe ou de todos, conforme o seu perfil, sempre com a base de cálculo.',
       purpose: [
-        'Escolha mês, agrupamento, faixa de atraso e credor. Recuperado conta só pagamento confirmado, com o peso de crédito de cada acordo.',
+        'Escolha mês, agrupamento, faixa de atraso e credor. Recuperado conta só pagamento confirmado, com o peso de crédito de cada acordo. A tabela agrupada mostra as 25 primeiras linhas; "Mostrar mais" traz mais 25.',
         'Agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês, e "Avaliar chamadas" abre as chamadas atendidas por ela no período, onde "Avaliar" registra a monitoria.',
         'No "Meu desempenho", o negociador vê o cartão "Seu nível de distribuição": o nível publicado, os quartis de qualidade e de eficiência, o que falta de amostra e a matriz com a própria célula destacada.',
       ],

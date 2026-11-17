@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "36cda8b51107277d",
+ "contentVersion": "7daabcf056c981d8",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -4655,7 +4655,7 @@
    "title": "Desempenho dos negociadores",
    "objective": "Indicadores do negociador, da equipe ou de todos, conforme o seu perfil, sempre com a base de cálculo.",
    "purpose": [
-    "Escolha mês, agrupamento, faixa de atraso e credor. Recuperado conta só pagamento confirmado, com o peso de crédito de cada acordo.",
+    "Escolha mês, agrupamento, faixa de atraso e credor. Recuperado conta só pagamento confirmado, com o peso de crédito de cada acordo. A tabela agrupada mostra as 25 primeiras linhas; \"Mostrar mais\" traz mais 25.",
     "Agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês, e \"Avaliar chamadas\" abre as chamadas atendidas por ela no período, onde \"Avaliar\" registra a monitoria.",
     "No \"Meu desempenho\", o negociador vê o cartão \"Seu nível de distribuição\": o nível publicado, os quartis de qualidade e de eficiência, o que falta de amostra e a matriz com a própria célula destacada."
    ],
@@ -6399,7 +6399,8 @@
    "title": "Conversão",
    "objective": "Do contato ao pagamento: contatos efetivos, propostas, acordos, quebras e primeiro pagamento.",
    "purpose": [
-    "Mostra onde o funil perde casos, com cada etapa sobre a sua base."
+    "Mostra onde o funil perde casos, com cada etapa sobre a sua base.",
+    "A tabela por grupo mostra as 25 primeiras linhas; \"Mostrar mais\" traz mais 25, e a quantidade fica no endereço para o \"voltar\"."
    ],
    "profiles": [
     "GESTOR",
@@ -6437,7 +6438,8 @@
    "title": "Produtividade",
    "objective": "Esforço e resultado por pessoa e equipe: tentativas, contatos efetivos, acordos e recuperado.",
    "purpose": [
-    "Operador vê só o próprio; supervisor, a si e às equipes que supervisiona; gestão, todos."
+    "Operador vê só o próprio; supervisor, a si e às equipes que supervisiona; gestão, todos.",
+    "A tabela por pessoa ou equipe mostra as 25 primeiras linhas; \"Mostrar mais\" traz mais 25, e a quantidade fica no endereço para o \"voltar\"."
    ],
    "profiles": [
     "GESTOR",
@@ -6566,7 +6568,7 @@
    "purpose": [
     "Mostra a receita, o custo por categoria (pessoas, inteligência artificial, telefonia, mensagens, comissão dos negociadores, jurídico, ociosidade e custos fixos) e as margens de cada credor e carteira. Abre no último mês fechado. A coluna \"Tendência\" traz a margem líquida em % da receita dos seis meses que terminam no fim do período, com a frase \"subiu\", \"caiu\" ou \"estável\"; mês sem receita ou ainda não apurado fica como lacuna, nunca como zero.",
     "O custo é estimado: uso registrado vezes as faixas, tarifas e câmbio cadastrados em Custos operacionais. Horas sem faixa, mês sem câmbio ou canal sem tarifa entram com custo zero, e o painel avisa com o atalho para corrigir. Com as faturas dos canais informadas, escolha \"Conciliado com a fatura\": telefonia, mensagens e inteligência artificial passam a usar o valor cobrado, com a diferença rateada pelo custo estimado de cada credor e carteira; o selo mostra \"Conciliado\" ou \"Parcialmente conciliado\" e o quadro \"Ajuste pela fatura\" explica cada canal.",
-    "O mapa \"Carteiras: margem × volume recuperado\" põe cada carteira num de quatro quadrantes — rende e escala, rende pouco, consome e revisar contrato — pelos cortes escritos na tela: a mediana do recuperado e a margem do conjunto (ou zero, se negativa). Carteira sem receita fica fora, com a contagem. Clicar no ponto (ou Enter) abre o painel só daquela carteira e o \"voltar\" retorna ao mapa; \"Ver tabela\" mostra o mesmo em lista. Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. Depois de corrigir uma faixa, tarifa ou câmbio, \"Reapurar o período\" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores."
+    "O mapa \"Carteiras: margem × volume recuperado\" põe cada carteira num de quatro quadrantes — rende e escala, rende pouco, consome e revisar contrato — pelos cortes escritos na tela: a mediana do recuperado e a margem do conjunto (ou zero, se negativa). Carteira sem receita fica fora, com a contagem. Clicar no ponto (ou Enter) abre o painel só daquela carteira e o \"voltar\" retorna ao mapa; \"Ver tabela\" mostra o mesmo em lista. Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. A tabela mostra os 25 primeiros credores (\"Mostrar mais\" traz mais 25) e a busca acha o credor pelo nome dele ou de uma carteira, já aberto; a linha \"Total\" continua a do período. Depois de corrigir uma faixa, tarifa ou câmbio, \"Reapurar o período\" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores."
    ],
    "profiles": [
     "GESTOR",

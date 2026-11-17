@@ -54,6 +54,20 @@ export const GROUP_BY_LABELS: Record<string, string> = {
   MONTH: 'Mês',
 };
 
+/** Substantivo de cada agrupamento nos rankings ("Mostrando 15 de 47 credores", "Outros (3 canais)"). */
+export const GROUP_NOUNS: Record<string, { one: string; this: string; many: string }> = {
+  CREDITOR: { one: 'credor', this: 'este', many: 'credores' },
+  PORTFOLIO: { one: 'carteira', this: 'esta', many: 'carteiras' },
+  OPERATOR: { one: 'operador', this: 'este', many: 'operadores' },
+  TEAM: { one: 'equipe', this: 'esta', many: 'equipes' },
+  CHANNEL: { one: 'canal', this: 'este', many: 'canais' },
+  ORIGIN: { one: 'origem', this: 'esta', many: 'origens' },
+  DELAY_BUCKET: { one: 'faixa', this: 'esta', many: 'faixas' },
+  DAY: { one: 'dia', this: 'este', many: 'dias' },
+  WEEK: { one: 'semana', this: 'esta', many: 'semanas' },
+  MONTH: { one: 'mês', this: 'este', many: 'meses' },
+};
+
 /** Motivos de indicador indisponível (texto curto para o cartão e a tabela). */
 export const UNAVAILABLE_LABELS: Record<string, string> = {
   no_denominator: 'sem base no período',

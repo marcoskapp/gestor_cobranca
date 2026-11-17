@@ -11,7 +11,8 @@ import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
-import { ChartRow } from '../components/chart.models';
+import { ChartRow, ChartSeries } from '../components/chart.models';
+import { FocusChip } from '../components/focus-chip';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
@@ -20,7 +21,7 @@ import { CASE_STATUS_LABELS, DELAY_BUCKET_LABELS } from '../data/analytics.label
 import { CaseStatusRow, PortfolioRow, QueueRow } from '../data/analytics.models';
 import { DrillTarget, casesTarget, drillAccess, ledgerTarget } from '../data/drill-down';
 import { DrillLink } from '../components/drill-link';
-import { urlFilter } from '../data/url-filter';
+import { focusFilter, focusableKey, unfocusFilter, urlFilter } from '../data/url-filter';
 
 /**
  * Painel operacional do gestor (F11): carteira, saldo vencido e elegível, casos por estado e fila
@@ -29,13 +30,14 @@ import { urlFilter } from '../data/url-filter';
  */
 @Component({
   selector: 'app-operational-panel',
-  imports: [Amount, EmptyState, Skeleton, AppDatePipe, AnalyticsFilters, BarChart, DrillLink, InfoHint, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AppDatePipe, AnalyticsFilters, BarChart, DrillLink, FocusChip, InfoHint, KpiCard, PanelFrame],
   template: `
     <app-panel-frame title="Painel operacional" subtitle="Carteira, saldos, casos e fila de trabalho da operação."
                      report="portfolio" [filter]="state.filter()" [meta]="report()?.meta" [loading]="data.isLoading()"
                      (refreshed)="reload()">
       <app-analytics-filters panel-filters [filter]="state.filter()" [options]="{ period: canRecovery(), creditor: true, portfolio: true }"
                              (changed)="state.update($event)" />
+      <app-focus-chip [label]="state.focused()" (removed)="state.update(unfocus('CREDITOR'))" />
       @if (data.error()) {
         <app-empty-state tone="error" icon="exclamation-circle" title="Não foi possível carregar o painel" message="Verifique a conexão e tente novamente.">
           <button class="btn btn-primary" type="button" (click)="reload()">Tentar novamente</button>
@@ -73,8 +75,10 @@ import { urlFilter } from '../data/url-filter';
         <div class="pn__grid app-columns">
           <section class="app-card">
             <app-bar-chart title="Carteira por credor" info="analytics.portfolio.by-creditor" data-tour="analytics-chart" categoryHeader="Credor" [summary]="creditorSummary()"
-                           [series]="[{ name: 'Valor da carteira', color: '--app-chart-1' }, { name: 'Saldo vencido', color: '--app-chart-2' }]"
-                           [rows]="creditorRows()" noteHeader="Vencido / carteira" />
+                           [series]="creditorSeries" [rows]="creditorRows()" noteHeader="Vencido / carteira"
+                           [limit]="10" [noun]="{ one: 'credor', many: 'credores' }" shareOf="da carteira"
+                           tableKey="credores" [selectable]="true" [selectableRow]="focusableRow" selectHint="Filtrar o painel por este credor."
+                           (selected)="focusOn('CREDITOR', 'Credor', $event)" />
           </section>
           <section class="app-card">
             <app-bar-chart title="Carteira por faixa de atraso" info="analytics.portfolio.by-delay" categoryHeader="Faixa" [summary]="bucketSummary()"
@@ -175,13 +179,32 @@ export class OperationalPanel {
     }));
   });
 
+  protected readonly creditorSeries: ChartSeries[] = [
+    { name: 'Valor da carteira', color: '--app-chart-1', format: (v) => formatAmount(v) },
+    { name: 'Saldo vencido', color: '--app-chart-2', format: (v) => formatAmount(v) },
+  ];
+
+  /** Clique numa barra: filtra o painel pelo item (entra no histórico; o chip e o "voltar" desfazem). */
+  protected focusOn(dimension: string, dimensionLabel: string, row: ChartRow): void {
+    const next = focusFilter(this.state.filter(), dimension, row.key);
+    if (next) {
+      this.state.focus(next, `${dimensionLabel}: ${row.label}`, dimension);
+    }
+  }
+
+  protected readonly focusableRow = (r: ChartRow) => focusableKey(r.key);
+
+  protected unfocus(dimension: string) {
+    return unfocusFilter(this.state.filter(), dimension);
+  }
+
   protected readonly creditorRows = computed<ChartRow[]>(() =>
-    (this.report()?.byCreditor ?? []).slice(0, 10).map((r) => ({
+    (this.report()?.byCreditor ?? []).map((r) => ({
       key: r.key,
       label: r.label,
       values: [num(r.portfolioAmount), num(r.overdueAmount)],
       display: [formatAmount(r.portfolioAmount), formatAmount(r.overdueAmount)],
-      note: `${percent(r.overdueShare)} vencido`,
+      note: percent(r.overdueShare),
     })),
   );
   protected readonly bucketRows = computed<ChartRow[]>(() =>
@@ -195,7 +218,9 @@ export class OperationalPanel {
   );
   protected readonly creditorSummary = computed(() => {
     const rows = this.creditorRows();
-    return rows.length
+    return rows.length === 1
+      ? `Carteira de ${rows[0].label}: ${rows[0].display[0]}, com ${rows[0].display[1]} vencidos.`
+      : rows.length
       ? `Valor da carteira e saldo vencido por credor. Maior carteira: ${rows[0].label}, ${rows[0].display[0]}.`
       : 'Valor da carteira e saldo vencido por credor.';
   });

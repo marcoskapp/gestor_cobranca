@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 33,
+    date: '2026-11-17',
+    title: 'Painéis com muitos credores',
+    items: [
+      { text: 'Gráficos de ranking mostram os primeiros e a barra "Outros" com a soma do resto, com o aviso de quantos aparecem; "Ver todos" abre a lista completa no próprio cartão, com busca, ordenação e total.', route: '/paineis' },
+      { text: 'Clicar numa barra filtra o painel por aquele credor, carteira, pessoa, equipe ou canal; o chip acima dos cartões e o "voltar" desfazem.', route: '/paineis' },
+      { text: 'Tabelas longas dos painéis mostram 25 linhas por vez, com "Mostrar mais"; na margem por carteira, busca por credor ou carteira.', route: '/paineis/margem' },
+    ],
+  },
+  {
     version: 32,
     date: '2026-11-12',
     title: 'Margem por carteira: fatura, tendência e mapa',

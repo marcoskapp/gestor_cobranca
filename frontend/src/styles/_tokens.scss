@@ -35,6 +35,9 @@
   --app-chart-grid: #e6e9ee;
   --app-chart-axis: #c3cad4;
   --app-chart-track: #eceff3;
+  // barra "Outros" dos rankings (soma do resto): cinzas neutros ≥ 3:1 sobre a superfície; 2ª série mais escura
+  --app-chart-other: #7d8693; // ≥ 3:1 também sobre o fundo de foco (--app-chart-track)
+  --app-chart-other-2: #5d6673;
 
   // notificações (toasts) de tom forte
   --app-snack-bg: #1f2933;
@@ -49,6 +52,8 @@
   --app-chart-grid: #262c34;
   --app-chart-axis: #3a424d;
   --app-chart-track: #262b32;
+  --app-chart-other: #6b7480;
+  --app-chart-other-2: #9aa3af;
   --app-snack-bg: #e2e2e9;
   --app-snack-fg: #1b1f26;
 }

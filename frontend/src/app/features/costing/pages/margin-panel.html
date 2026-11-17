@@ -191,9 +191,34 @@
           <label class="form-check-label" for="mp-categories">Mostrar o custo por categoria</label>
         </div>
       </div>
+      @if (canSearch() && creditorRows().length) {
+        <div class="mp__search" role="search" aria-label="Buscar na tabela por credor ou carteira">
+          <label class="form-label" for="mp-search">Buscar credor ou carteira</label>
+          <input #searchBox id="mp-search" type="search" class="form-control form-control-sm" placeholder="Nome do credor ou da carteira" maxlength="80"
+                 autocomplete="off" [value]="searchInput()" (input)="search(searchBox.value)" />
+        </div>
+      }
       <p class="mp__hint">Abra o credor para ver as carteiras. Margem negativa aparece com "−" e a palavra "negativa".</p>
+      @if (searchTerm()) {
+        <!-- sem resultado: a mensagem visível fica na tabela (com "Limpar busca"); aqui só o anúncio -->
+        <p class="mp__search-count" [class.visually-hidden]="!searchCount()" role="status" aria-live="polite">
+          @if (searchCount()) {
+            {{ count(searchCount()) }} {{ searchCount() === 1 ? 'credor encontrado' : 'credores encontrados' }}. A linha "Total do período" continua com todos os credores.
+          } @else {
+            Nenhum credor encontrado.
+          }
+        </p>
+      }
+      <div class="mp__order">
+        <label class="form-label" for="mp-order">Ordenar por</label>
+        <select id="mp-order" class="form-select form-select-sm" (change)="order($any($event.target).value)">
+          @for (o of orderOptions; track o.value) {
+            <option [value]="o.value" [selected]="o.value === orderValue()">{{ o.label }}</option>
+          }
+        </select>
+      </div>
       <div class="mp__table-wrap">
-        <table class="mp__table">
+        <table class="mp__table" #tableEl>
           <caption class="visually-hidden">Margem por credor e carteira, ordenada por {{ state.sort().key === 'name' ? 'nome' : 'coluna escolhida' }}</caption>
           <thead>
             <tr>
@@ -216,11 +241,16 @@
                     <app-info-hint [indicator]="categoryInfo[cat]" [label]="categoryLabels[cat]" />
                   </th>
                 }
+                <th scope="col" class="num" [attr.aria-sort]="ariaSort('directCost')">
+                  <button type="button" class="mp__sort" (click)="sortBy('directCost')">Custo direto <app-icon [name]="ariaSort('directCost') === null ? 'arrow-down-up' : ariaSort('directCost') === 'descending' ? 'arrow-down' : 'arrow-up'" /></button>
+                  <!-- info-hint: analytics.margin.direct-cost -->
+                  <app-info-hint indicator="analytics.margin.direct-cost" label="Custo direto" />
+                </th>
               }
               @for (c of resultColumns; track c.key) {
                 <th scope="col" class="num" [attr.aria-sort]="ariaSort(c.key)">
                   <button type="button" class="mp__sort" (click)="sortBy(c.key)">{{ c.label }} <app-icon [name]="ariaSort(c.key) === null ? 'arrow-down-up' : ariaSort(c.key) === 'descending' ? 'arrow-down' : 'arrow-up'" /></button>
-                  <!-- info-hint: analytics.margin.direct-cost, analytics.margin.total-cost, analytics.margin.contribution, analytics.margin.net, analytics.margin.roi -->
+                  <!-- info-hint: analytics.margin.total-cost, analytics.margin.contribution, analytics.margin.net, analytics.margin.roi -->
                   <app-info-hint [indicator]="c.info" [label]="c.label" />
                 </th>
               }
@@ -232,7 +262,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (item of creditorRows(); track item.row.creditorId) {
+            @for (item of table.visible(); track item.row.creditorId) {
               @let c = item.row;
               @let open = expanded().has(c.creditorId);
               <tr class="mp__creditor" [class.mp__negative]="negative(c.netMargin)">
@@ -251,17 +281,37 @@
               @if (open) {
                 @for (p of item.portfolios; track p.portfolioId ?? '-'; let first = $first) {
                   <tr class="mp__portfolio" [class.mp__negative]="negative(p.netMargin)" [attr.id]="first ? 'mp-p-' + c.creditorId : null">
-                    <th scope="row"><span class="mp__indent">{{ portfolioName(p) }}</span></th>
+                    <th scope="row">
+                      <span class="mp__indent">
+                        @if (searchMatch(portfolioName(p))) {
+                          <mark>{{ portfolioName(p) }}</mark><span class="visually-hidden"> (encontrada na busca)</span>
+                        } @else {
+                          {{ portfolioName(p) }}
+                        }
+                      </span>
+                    </th>
                     <ng-container *ngTemplateOutlet="cells; context: { $implicit: p, link: portfolioLink(c, p), trend: trendOf(c.creditorId, p.portfolioId) }" />
                   </tr>
                 }
               }
             } @empty {
-              <tr><td [attr.colspan]="columnCount()">Nenhum credor com receita ou custo no período.</td></tr>
+              @if (searchTerm()) {
+                <tr>
+                  <td [attr.colspan]="columnCount()">
+                    <div class="mp__no-match">
+                      <span>Nenhum credor ou carteira com "{{ searchApplied().trim() }}". Confira a grafia ou limpe a busca.</span>
+                      <button type="button" class="btn btn-outline-secondary btn-sm" (click)="clearSearch()">Limpar busca</button>
+                    </div>
+                  </td>
+                </tr>
+              } @else {
+                <tr><td [attr.colspan]="columnCount()">Nenhum credor com receita ou custo no período.</td></tr>
+              }
             }
           </tbody>
           <tfoot>
-            @if (r.unallocated; as u) {
+            @if (r.unallocated && !searchTerm()) {
+              @let u = r.unallocated;
               <tr class="mp__unallocated" [class.mp__negative]="negative(u.netMargin)">
                 <th scope="row">
                   <span>Sem credor</span>
@@ -271,34 +321,35 @@
               </tr>
             }
             <tr class="mp__total">
-              <th scope="row">Total</th>
+              <th scope="row">{{ searchTerm() ? 'Total do período (todos os credores)' : 'Total' }}</th>
               <ng-container *ngTemplateOutlet="cells; context: { $implicit: t, link: totalLink() }" />
             </tr>
           </tfoot>
         </table>
       </div>
+      <app-show-more [list]="table" [table]="tableEl" rowSelector="tbody > tr.mp__creditor" singular="credor" plural="credores" />
     </section>
   }
 }
 
 <ng-template #cells let-line let-link="link" let-trend="trend">
-  <td class="num"><app-drill-link [to]="link"><app-amount [value]="line.recovered" /></app-drill-link></td>
-  <td class="num"><app-drill-link [to]="link"><app-amount [value]="line.revenue" /></app-drill-link></td>
+  <td class="num" data-label="Recuperado"><app-drill-link [to]="link"><app-amount [value]="line.recovered" /></app-drill-link></td>
+  <td class="num" data-label="Receita"><app-drill-link [to]="link"><app-amount [value]="line.revenue" /></app-drill-link></td>
   @if (showCategories()) {
     @for (cat of categories; track cat) {
-      <td class="num app-numeric">{{ cost(line, cat) }}</td>
+      <td class="num app-numeric" [attr.data-label]="categoryLabels[cat]">{{ cost(line, cat) }}</td>
     }
+    <td class="num" data-label="Custo direto"><app-amount [value]="line.directCost" /></td>
   }
-  <td class="num"><app-amount [value]="line.directCost" /></td>
-  <td class="num"><app-amount [value]="line.totalCost" /></td>
-  <td class="num app-numeric" [class.mp__neg-value]="negative(line.contributionMargin)">
-    {{ marginText(line.contributionMargin) }}<span class="sub">{{ rate(line.contributionMarginRate) }} da receita</span>
+  <td class="num" data-label="Custo total"><app-amount [value]="line.totalCost" /></td>
+  <td class="num app-numeric" data-label="Margem de contribuição" [class.mp__neg-value]="negative(line.contributionMargin)">
+    {{ signedMoney(line.contributionMargin) }}<span class="sub">{{ rate(line.contributionMarginRate) }} da receita{{ negative(line.contributionMargin) ? ' · negativa' : '' }}</span>
   </td>
-  <td class="num app-numeric" [class.mp__neg-value]="negative(line.netMargin)">
-    {{ marginText(line.netMargin) }}<span class="sub">{{ rate(line.netMarginRate) }} da receita</span>
+  <td class="num app-numeric" data-label="Margem líquida" [class.mp__neg-value]="negative(line.netMargin)">
+    {{ signedMoney(line.netMargin) }}<span class="sub">{{ rate(line.netMarginRate) }} da receita{{ negative(line.netMargin) ? ' · negativa' : '' }}</span>
   </td>
-  <td class="num app-numeric">{{ rate(line.roi) }}</td>
-  <td class="mp__trend">
+  <td class="num app-numeric" data-label="ROI">{{ rate(line.roi) }}</td>
+  <td class="mp__trend" data-label="Tendência">
     @if (trend === 'loading') {
       <span class="mp__trend-state">Carregando…</span>
     } @else if (trend === 'error') {

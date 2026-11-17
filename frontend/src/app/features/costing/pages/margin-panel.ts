@@ -1,8 +1,9 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { Component, ElementRef, computed, effect, inject, linkedSignal, signal, viewChild } from '@angular/core';
+import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
-import { finalize } from 'rxjs';
+import { debounceTime, finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -13,9 +14,13 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
+import { ShowMoreButton } from '../../../shared/components/show-more/show-more';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
+import { injectUrlStateWriter } from '../../../shared/data/url-state';
+import { showMore } from '../../../shared/util/show-more';
+import { matchesSearch, normalizeSearch } from '../../../shared/util/text-search';
 import { AnalyticsFilters } from '../../analytics/components/analytics-filters';
 import { DrillLink } from '../../analytics/components/drill-link';
 import { AnalyticsFilter } from '../../analytics/data/analytics.models';
@@ -62,6 +67,18 @@ interface SortColumn {
   info: string;
 }
 
+/** Parâmetro da URL com o termo da busca da tabela (nome de credor ou carteira: cadastro, sem dado pessoal). */
+const SEARCH_PARAM = 'busca';
+
+/** Atraso da busca enquanto a pessoa digita. */
+const SEARCH_DEBOUNCE_MS = 250;
+
+/** Linha da tabela: o credor e as carteiras dele, já ordenadas. */
+interface CreditorItem {
+  row: CreditorMargin;
+  portfolios: PortfolioMargin[];
+}
+
 /** Indicadores das categorias de custo no catálogo (um "i" por coluna). */
 const CATEGORY_INFO: Readonly<Record<CostCategory, string>> = {
   HUMAN_DIRECT: 'analytics.margin.cost-human-direct',
@@ -94,6 +111,7 @@ const CATEGORY_INFO: Readonly<Record<CostCategory, string>> = {
     NgbDropdownModule,
     NgTemplateOutlet,
     PageHeader,
+    ShowMoreButton,
     Skeleton,
     MarginScatter,
     TrendSparkline,
@@ -177,7 +195,6 @@ export class MarginPanel {
   protected readonly refreshing = signal(false);
   /** Colunas por categoria de custo (tabela larga) só quando pedidas. */
   protected readonly showCategories = signal(false);
-  protected readonly expanded = signal<ReadonlySet<string>>(new Set());
 
   protected readonly warnings = computed(() => warningViews(this.report()?.warnings));
   protected readonly empty = computed(() => {
@@ -210,13 +227,35 @@ export class MarginPanel {
     { key: 'revenue', label: 'Receita', info: 'analytics.margin.revenue' },
   ];
   protected readonly resultColumns: readonly SortColumn[] = [
-    { key: 'directCost', label: 'Custo direto', info: 'analytics.margin.direct-cost' },
+    // custo direto aparece com "Mostrar o custo por categoria" (a soma das categorias diretas): a tabela padrão cabe
     { key: 'totalCost', label: 'Custo total', info: 'analytics.margin.total-cost' },
     { key: 'contributionMargin', label: 'Margem de contribuição', info: 'analytics.margin.contribution' },
     { key: 'netMargin', label: 'Margem líquida', info: 'analytics.margin.net' },
     { key: 'roi', label: 'ROI', info: 'analytics.margin.roi' },
   ];
-  protected readonly columnCount = computed(() => 2 + this.sortColumns.length + (this.showCategories() ? this.categories.length : 0) + this.resultColumns.length);
+  protected readonly columnCount = computed(() => 2 + this.sortColumns.length + (this.showCategories() ? this.categories.length + 1 : 0) + this.resultColumns.length);
+  /** Margem com sinal, sem "(negativa)" (a palavra vai na linha de baixo, junto da taxa). */
+  protected signedMoney(value: Parameters<typeof marginText>[0]): string {
+    return marginText(value).replace(' (negativa)', '');
+  }
+  /** "Ordenar por" do celular (a tabela vira blocos e o cabeçalho some). */
+  protected readonly orderOptions = [
+    { value: 'netMargin', label: 'Margem líquida (pior primeiro)' },
+    { value: '-netMargin', label: 'Margem líquida (melhor primeiro)' },
+    { value: '-revenue', label: 'Receita (maior primeiro)' },
+    { value: '-recovered', label: 'Recuperado (maior primeiro)' },
+    { value: '-totalCost', label: 'Custo total (maior primeiro)' },
+    { value: '-roi', label: 'ROI (maior primeiro)' },
+    { value: 'name', label: 'Credor (A a Z)' },
+  ];
+  protected orderValue(): string {
+    const s = this.state.sort();
+    return `${s.desc ? '-' : ''}${s.key}`;
+  }
+  protected order(value: string): void {
+    const desc = value.startsWith('-');
+    this.state.setSort({ key: (desc ? value.slice(1) : value) as MarginSortKey, desc });
+  }
 
   protected readonly creditorRows = computed(() => {
     const sort = this.state.sort();
@@ -225,6 +264,79 @@ export class MarginPanel {
       portfolios: sortMarginRows(row.portfolios ?? [], sort, (p) => this.portfolioName(p)),
     }));
   });
+
+  // ------------------------------------------------------------ busca por credor ou carteira e "Mostrar mais"
+  private readonly route = inject(ActivatedRoute);
+  private readonly urlWriter = injectUrlStateWriter();
+  /** A busca só faz sentido com os nomes visíveis (sem a permissão, o nome aparece como "Credor"/"Carteira"). */
+  protected readonly canSearch = computed(() => this.canCreditors() || this.canPortfolios());
+  /** O que está no campo (a cada tecla). */
+  protected readonly searchInput = signal((this.route.snapshot.queryParamMap.get(SEARCH_PARAM) ?? '').slice(0, 80));
+  /** Termo aplicado: o do campo depois da espera (ou na hora, ao limpar). */
+  protected readonly searchApplied = signal(this.searchInput());
+  protected readonly searchTerm = computed(() => (this.canSearch() ? normalizeSearch(this.searchApplied()) : ''));
+  private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
+
+  /**
+   * Credores que casam com a busca pelo nome ou por uma carteira (ordem da tabela preservada), e os que entram pela
+   * carteira (abertos já na busca). Sem busca, a lista inteira.
+   */
+  private readonly searchResult = computed(() => {
+    const term = this.searchTerm();
+    const all: CreditorItem[] = this.creditorRows();
+    if (!term) {
+      return { rows: all, byPortfolio: new Set<string>() };
+    }
+    const rows: CreditorItem[] = [];
+    const byPortfolio = new Set<string>();
+    for (const item of all) {
+      const portfolioHit = item.portfolios.some((p) => matchesSearch(this.portfolioName(p), term));
+      if (portfolioHit || matchesSearch(this.creditorName(item.row), term)) {
+        rows.push(item);
+      }
+      if (portfolioHit) {
+        byPortfolio.add(item.row.creditorId);
+      }
+    }
+    return { rows, byPortfolio };
+  });
+  private readonly searchExpanded = computed(() => this.searchResult().byPortfolio, {
+    equal: (a, b) => a.size === b.size && [...a].every((id) => b.has(id)),
+  });
+  /** Credores abertos: os que a pessoa abriu e os que a busca encontrou pela carteira (que ela ainda pode fechar). */
+  protected readonly expanded = linkedSignal<ReadonlySet<string>, ReadonlySet<string>>({
+    source: this.searchExpanded,
+    computation: (found, previous) => new Set([...(previous?.value ?? []), ...found]),
+  });
+  protected readonly searchCount = computed(() => this.searchResult().rows.length);
+
+  /** Tabela por credor em passos de 25: o corte vem depois da ordenação e da busca; filtro, base ou busca novos voltam a 25. */
+  protected readonly table = showMore(() => this.searchResult().rows, {
+    resetOn: () => [this.state.filter(), this.state.basis(), this.searchTerm()],
+  });
+
+  protected readonly searchMatch = (name: string) => !!this.searchTerm() && matchesSearch(name, this.searchTerm());
+
+  protected search(value: string): void {
+    this.searchInput.set(value.slice(0, 80));
+  }
+
+  protected clearSearch(): void {
+    this.searchInput.set('');
+    this.searchApplied.set('');
+    this.searchBox()?.nativeElement.focus();
+  }
+
+  constructor() {
+    toObservable(this.searchInput)
+      .pipe(debounceTime(SEARCH_DEBOUNCE_MS), takeUntilDestroyed())
+      .subscribe((value) => this.searchApplied.set(value));
+    // termo na URL (`busca`, com replaceUrl e os demais parâmetros preservados): o "voltar" e o recarregar mantêm a busca
+    effect(() => {
+      const term = this.searchApplied().trim();
+      this.urlWriter.write({ [SEARCH_PARAM]: term || null });
+    });
+  }
 
   protected sortBy(key: MarginSortKey): void {
     const current = this.state.sort();

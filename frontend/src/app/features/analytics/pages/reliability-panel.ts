@@ -7,7 +7,7 @@ import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
-import { ChartRow } from '../components/chart.models';
+import { ChartRow, ChartSeries } from '../components/chart.models';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
@@ -51,12 +51,14 @@ import { DrillLink } from '../components/drill-link';
         <div class="pn__grid app-columns">
           <section class="app-card">
             <app-bar-chart title="Falhas de mensagens por causa" info="analytics.reliability.message-failures" categoryHeader="Causa" [summary]="summaryOf(r.messages.failuresByCode, 'falhas de mensagem')"
-                           [series]="[{ name: 'Mensagens', color: '--app-chart-1' }]" [rows]="countRows(r.messages.failuresByCode)" />
+                           [series]="countSeries('Mensagens')" [rows]="countRows(r.messages.failuresByCode)"
+                           [limit]="10" [noun]="causeNoun" shareOf="das falhas" tableKey="causas-mensagens" />
           </section>
           <section class="app-card">
             <app-bar-chart title="Falhas de instruções de pagamento por causa" info="analytics.reliability.instruction-failures" categoryHeader="Causa"
                            [summary]="summaryOf(r.integrations.instructionFailuresByCode, 'falhas de instrução')"
-                           [series]="[{ name: 'Instruções', color: '--app-chart-1' }]" [rows]="countRows(r.integrations.instructionFailuresByCode)" />
+                           [series]="countSeries('Instruções')" [rows]="countRows(r.integrations.instructionFailuresByCode)"
+                           [limit]="10" [noun]="causeNoun" shareOf="das falhas" tableKey="causas-instrucoes" />
           </section>
         </div>
         <div class="pn__grid app-columns">
@@ -140,8 +142,21 @@ export class ReliabilityPanel {
     return this.divergenceLinks().byType.get(type) ?? null;
   }
 
+  protected readonly causeNoun = { one: 'causa', many: 'causas' };
+  private readonly seriesByName = new Map<string, ChartSeries[]>();
+
+  /** Série de contagem (instância estável por nome, para não recriar o gráfico a cada detecção). */
+  protected countSeries(name: string): ChartSeries[] {
+    let s = this.seriesByName.get(name);
+    if (!s) {
+      s = [{ name, color: '--app-chart-1', format: (v) => count(v) }];
+      this.seriesByName.set(name, s);
+    }
+    return s;
+  }
+
   protected countRows(rows: CountRow[]): ChartRow[] {
-    return rows.slice(0, 10).map((r) => ({ key: r.key, label: r.label, values: [r.count], display: [count(r.count)] }));
+    return [...rows].sort((a, b) => b.count - a.count).map((r) => ({ key: r.key, label: r.label, values: [r.count], display: [count(r.count)] }));
   }
 
   protected summaryOf(rows: CountRow[], what: string): string {

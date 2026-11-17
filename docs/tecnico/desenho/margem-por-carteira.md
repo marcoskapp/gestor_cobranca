@@ -398,9 +398,10 @@ padrão simulados em `navigation.spec.ts`: `COST_VIEW` para GESTOR, FINANCEIRO, 
   por mês** (subtotais com sinal; a observação traz receita, custo e % do mês).
 * **Tabela por credor** com linhas expansíveis por carteira (`aria-expanded`/`aria-controls`), cabeçalhos ordenáveis
   (`aria-sort`; padrão: menor margem líquida primeiro; taxa sem base sempre no fim), linha de total, margem negativa com
-  marca lateral e texto "(negativa)". Colunas: recuperado, receita, custo direto, custo total, margem de contribuição
-  (R$ e %), margem líquida (R$ e %) e ROI; **custo por categoria** (8 colunas) sob demanda pelo seletor "Mostrar o custo
-  por categoria", para a tabela padrão caber sem rolagem lateral. Carteira nula = "Sem carteira (custos do credor)".
+  marca lateral e texto "(negativa)". Colunas: recuperado, receita, custo total, margem de contribuição
+  (R$ e %), margem líquida (R$ e %), ROI e tendência; **custo por categoria** (8 colunas) e o **custo direto** sob
+  demanda pelo seletor "Mostrar o custo por categoria", para a tabela padrão caber sem rolagem lateral (decisão 1340).
+  Busca por credor ou carteira e "Mostrar mais" (25 por vez): ux.md §21; no celular, blocos por credor. Carteira nula = "Sem carteira (custos do credor)".
 * **Drill-down**: recuperado e receita (cartão, linhas de credor e de carteira) levam ao Razão de comissão com o mesmo
   credor, carteira e período (`ledgerTarget` + `drillAccess` do analytics); sem a permissão do razão ou com mais de um
   credor/carteira no filtro, ficam como texto. Custos, margens e acordos cumpridos não têm lista que represente a base

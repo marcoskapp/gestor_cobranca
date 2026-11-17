@@ -4,6 +4,8 @@
 }
 .bc__head {
   display: flex;
+  // mesma altura com e sem o botão "Ver tabela/Ver todos": títulos dos cartões vizinhos alinhados
+  min-height: 32px;
   > button {
     flex: none;
     white-space: nowrap;
@@ -17,6 +19,7 @@
   font-weight: var(--app-weight-semibold);
 }
 .bc__summary,
+.bc__notice,
 .bc__empty {
   margin: 0 0 8px;
   font-size: var(--app-text-sm);
@@ -50,15 +53,20 @@
 }
 .bc__row {
   display: grid;
-  grid-template-columns: minmax(96px, 30%) 1fr;
+  grid-template-columns: minmax(96px, 38%) 1fr;
   align-items: center;
   gap: 12px;
 }
+// nome em até 2 linhas antes do "…" (o que diferencia os itens costuma estar no fim do nome)
 .bc__label {
+  display: -webkit-box;
   overflow: hidden;
   font-size: var(--app-text-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 .bc__bars {
   display: grid;
@@ -90,8 +98,10 @@
   font-size: var(--app-text-xs);
   color: var(--bs-body-color);
 }
+// logo abaixo da linha sob o ponteiro ou o foco (top calculado na linha)
 .bc__tip {
   position: absolute;
+  z-index: 2;
   top: 8px;
   right: 8px;
   display: grid;
@@ -125,9 +135,124 @@
     text-align: right;
   }
 }
+// "Outros": sempre a última barra, separada por um fio fino
+.bc__row--others {
+  padding-top: 8px;
+  border-top: 1px solid var(--bs-border-color);
+  .bc__label {
+    color: var(--bs-secondary-color);
+  }
+}
+// linha de barras clicável (filtra o painel; em "Outros", abre a lista completa)
+.bc__select {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  .bc__bars {
+    flex: 1;
+  }
+  .bc__bar {
+    // reserva também o espaço do funil
+    width: calc((100% - 152px) * var(--bc-w, 0));
+  }
+  &:hover,
+  &:focus-visible {
+    background: var(--app-chart-track);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--app-focus-color, var(--bs-primary));
+    outline-offset: 2px;
+  }
+}
+.bc__funnel {
+  flex: none;
+  color: var(--bs-secondary-color);
+  opacity: 0;
+  .bc__select:hover &,
+  .bc__select:focus-visible & {
+    opacity: 1;
+  }
+}
+.bc__search {
+  max-width: 320px;
+  margin-bottom: 8px;
+  .form-label {
+    margin-bottom: 2px;
+    font-size: var(--app-text-sm);
+  }
+}
+.bc__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--app-weight-semibold);
+  text-align: inherit;
+}
+.bc__table tfoot th,
+.bc__table tfoot td {
+  font-weight: var(--app-weight-semibold);
+  border-bottom: 0;
+}
+.bc__order {
+  display: none;
+  max-width: 320px;
+  margin-bottom: 8px;
+  .form-label {
+    margin-bottom: 2px;
+    font-size: var(--app-text-sm);
+  }
+}
+.bc__toggle {
+  text-decoration: none;
+}
 @media (max-width: 599.98px) {
+  .bc__order {
+    display: block;
+  }
   .bc__row {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+  // lista completa empilhada no celular: cada linha vira um bloco com rótulo e valor (sem rolagem lateral)
+  .bc__table--stack {
+    // no celular a ordenação vai para o seletor "Ordenar por" (cabeçalhos soltos pareciam texto quebrado)
+    thead {
+      display: none;
+    }
+    tbody tr,
+    tfoot tr {
+      display: block;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--bs-border-color);
+    }
+    tbody th,
+    tbody td,
+    tfoot th,
+    tfoot td {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 2px 0;
+      border: 0;
+    }
+    td[data-label]::before {
+      content: attr(data-label);
+      color: var(--bs-secondary-color);
+    }
   }
 }

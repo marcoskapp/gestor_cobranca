@@ -24,7 +24,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'analytics.operational',
-    version: 5,
+    version: 6,
     path: '/paineis',
     tourId: 'analytics.operational',
     changes: [
@@ -32,6 +32,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
       { version: 4, items: ['Os painéis saíram das abas e ficam só no menu, em Painéis; o período escolhido acompanha você de um painel para outro.'] },
       { version: 5, items: ['Números sublinhados levam à lista que forma o número, com o mesmo credor, carteira e período (ex.: casos em aberto → Casos; recuperado → Razão de comissão). Sem a lista no seu perfil, ou com um recorte que a lista não tem, o número fica só como texto.'] },
+      { version: 6, items: ['Gráficos com muitos itens mostram os primeiros e a barra "Outros" com a soma do resto; "Ver todos" abre a lista completa no próprio cartão, com busca e ordenação.', 'Clicar numa barra filtra o painel por aquele item; o chip acima dos cartões e o "voltar" desfazem.'] },
     ],
   },
   {
@@ -47,22 +48,24 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'analytics.conversion',
-    version: 3,
+    version: 4,
     path: '/paineis/conversao',
     tourId: 'analytics.conversion',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
       { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+      { version: 4, items: ['Gráficos com muitos itens mostram os primeiros e a barra "Outros" com a soma do resto; "Ver todos" abre a lista completa no próprio cartão, com busca e ordenação.', 'Clicar numa barra filtra o painel por aquele item; o chip acima dos cartões e o "voltar" desfazem.', 'Tabelas longas mostram 25 linhas por vez, com "Mostrar mais".'] },
     ],
   },
   {
     key: 'analytics.productivity',
-    version: 3,
+    version: 4,
     path: '/paineis/produtividade',
     tourId: 'analytics.productivity',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
       { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
+      { version: 4, items: ['Gráficos com muitos itens mostram os primeiros e a barra "Outros" com a soma do resto; "Ver todos" abre a lista completa no próprio cartão, com busca e ordenação.', 'Clicar numa barra filtra o painel por aquele item; o chip acima dos cartões e o "voltar" desfazem.', 'Tabelas longas mostram 25 linhas por vez, com "Mostrar mais".'] },
     ],
   },
   {
@@ -77,21 +80,25 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'analytics.reliability',
-    version: 4,
+    version: 5,
     path: '/paineis/confiabilidade',
     tourId: 'analytics.reliability',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.', 'Tour desta tela refeito: cada passo mostra um indicador e o que fazer quando ele sobe ou cai.'] },
       { version: 3, items: ['Abas sem ícones; no celular, os filtros ficam no botão "Filtros" e os indicadores aparecem logo no início da tela.'] },
       { version: 4, items: ['Divergências em aberto, abertas no período e por tipo levam à lista de divergências com o mesmo credor e período.'] },
+      { version: 5, items: ['Gráficos com muitos itens mostram os primeiros e a barra "Outros" com a soma do resto; "Ver todos" abre a lista completa no próprio cartão, com busca e ordenação.'] },
     ],
   },
   {
     key: 'analytics.margin',
-    version: 2,
+    version: 3,
     path: '/paineis/margem',
     tourId: 'analytics.margin',
-    changes: [{ version: 2, items: ['Base "Conciliado com a fatura", coluna "Tendência" dos últimos 6 meses e mapa das carteiras por margem e volume recuperado.'] }],
+    changes: [
+      { version: 2, items: ['Base "Conciliado com a fatura", coluna "Tendência" dos últimos 6 meses e mapa das carteiras por margem e volume recuperado.'] },
+      { version: 3, items: ['Busca por credor ou carteira na tabela; a carteira encontrada abre o credor já expandido.', 'Tabelas longas mostram 25 linhas por vez, com "Mostrar mais".'] },
+    ],
   },
   { key: 'scoring.models', version: 1, path: '/score/modelos', tourId: 'scoring.models' },
   {
@@ -649,7 +656,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'settlement.transfers', version: 1, path: '/prestacao-de-contas/repasses', tourId: 'settlement.transfers' },
   {
     key: 'incentive.performance',
-    version: 5,
+    version: 6,
     path: '/remuneracao/desempenho',
     tourId: 'incentive.performance',
     changes: [
@@ -657,6 +664,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Para o negociador, "Meu desempenho" reúne os atalhos para a produtividade, os extratos e lançamentos de comissão, a monitoria e as ocorrências, que saíram do menu.'] },
       { version: 4, items: ['Agrupado por negociador, a nota de monitoria abre as avaliações da pessoa no mês, e "Avaliar chamadas" abre as chamadas atendidas por ela no mesmo período.'] },
       { version: 5, items: ['Cartão "Seu nível de distribuição": o seu nível de desempenho (A a D), os quartis de qualidade e de eficiência e o que falta de amostra, sem a posição nem os colegas.'] },
+      { version: 6, items: ['Gráficos com muitos itens mostram os primeiros e a barra "Outros" com a soma do resto; "Ver todos" abre a lista completa no próprio cartão, com busca e ordenação.', 'Tabelas longas mostram 25 linhas por vez, com "Mostrar mais".'] },
     ],
   },
   { key: 'incentive.tiers', version: 1, path: '/remuneracao/classificacao', tourId: 'incentive.tiers' },

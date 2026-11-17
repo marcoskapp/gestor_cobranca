@@ -5,16 +5,19 @@ import { Permission } from '../../../core/auth/permission';
 import { Amount, formatAmount } from '../../../shared/components/amount/amount';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { ShowMoreButton } from '../../../shared/components/show-more/show-more';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
+import { showMore } from '../../../shared/util/show-more';
 import { AnalyticsFilters } from '../components/analytics-filters';
 import { BarChart } from '../components/bar-chart';
-import { ChartRow } from '../components/chart.models';
+import { ChartRow, ChartSeries } from '../components/chart.models';
+import { FocusChip } from '../components/focus-chip';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
 import { count, decimal, fixed2, num, percent, ratioDetail, seconds } from '../data/analytics.format';
-import { urlFilter } from '../data/url-filter';
+import { focusFilter, focusableKey, unfocusFilter, urlFilter } from '../data/url-filter';
 
 const GROUPS = ['OPERATOR', 'TEAM'];
 
@@ -25,7 +28,7 @@ const GROUPS = ['OPERATOR', 'TEAM'];
  */
 @Component({
   selector: 'app-productivity-panel',
-  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, InfoHint, KpiCard, PanelFrame],
+  imports: [Amount, EmptyState, Skeleton, AnalyticsFilters, BarChart, FocusChip, InfoHint, KpiCard, PanelFrame, ShowMoreButton],
   template: `
     <app-panel-frame [title]="ownOnly() ? 'Minha produtividade' : 'Produtividade da equipe'"
                      subtitle="Esforço, contato, tempo de atendimento e resultado por pessoa (negociadores humanos)."
@@ -33,6 +36,7 @@ const GROUPS = ['OPERATOR', 'TEAM'];
       <app-analytics-filters panel-filters [filter]="state.filter()"
                              [options]="{ period: true, creditor: true, portfolio: true, people: !ownOnly(), channel: true, groupBy: ownOnly() ? [] : groups }"
                              (changed)="state.update($event)" />
+      <app-focus-chip [label]="state.focused()" (removed)="state.update(unfocus())" />
       @if (data.error()) {
         <app-empty-state tone="error" icon="exclamation-circle" title="Não foi possível carregar a produtividade" message="Verifique os filtros e tente novamente.">
           <button class="btn btn-primary" type="button" (click)="data.reload()">Tentar novamente</button>
@@ -54,13 +58,16 @@ const GROUPS = ['OPERATOR', 'TEAM'];
         @if (!ownOnly()) {
           <section class="app-card">
             <app-bar-chart title="Recuperado líquido por pessoa" info="analytics.recovery.net" categoryHeader="Pessoa" [summary]="chartSummary()"
-                           [series]="[{ name: 'Recuperado líquido', color: '--app-chart-1' }]" [rows]="chartRows()" noteHeader="Acordos por hora" />
+                           [series]="series" [rows]="chartRows()" noteHeader="Acordos por hora"
+                           [limit]="15" [noun]="personNoun()" shareOf="do recuperado líquido"
+                           tableKey="pessoas" [searchInUrl]="false" [selectable]="!ownOnly()" [selectableRow]="focusableRow" [selectHint]="'Filtrar o painel por ' + (team() ? 'esta equipe.' : 'esta pessoa.')"
+                           (selected)="focusOn($event)" />
           </section>
         }
         <section class="app-card" aria-labelledby="pd-table" data-tour="analytics-table">
           <h2 class="app-card__title" id="pd-table">{{ state.filter().groupBy === 'TEAM' ? 'Por equipe' : 'Por pessoa' }}</h2>
           <div class="pn__table-wrap">
-            <table class="pn__table">
+            <table class="pn__table" #tableEl>
               <thead>
                 <tr>
                   <th scope="col">{{ state.filter().groupBy === 'TEAM' ? 'Equipe' : 'Pessoa' }}</th>
@@ -75,7 +82,7 @@ const GROUPS = ['OPERATOR', 'TEAM'];
                 </tr>
               </thead>
               <tbody>
-                @for (row of r.rows; track row.key) {
+                @for (row of table.visible(); track row.key) {
                   <tr>
                     <th scope="row">{{ row.label }}</th>
                     <td class="num app-numeric">{{ count(row.workedCases) }}</td>
@@ -93,6 +100,8 @@ const GROUPS = ['OPERATOR', 'TEAM'];
               </tbody>
             </table>
           </div>
+          <app-show-more [list]="table" [table]="tableEl" [singular]="state.filter().groupBy === 'TEAM' ? 'equipe' : 'pessoa'"
+                         [plural]="state.filter().groupBy === 'TEAM' ? 'equipes' : 'pessoas'" />
           <p class="pn__hint">Equipe e total somam as pessoas (um caso trabalhado por duas pessoas conta para as duas). Tempo logado não se divide por credor, carteira ou canal.</p>
         </section>
       }
@@ -118,13 +127,36 @@ export class ProductivityPanel {
 
   protected readonly data = rxResource({ params: () => this.state.filter(), stream: ({ params }) => this.api.productivity(params) });
   protected readonly report = valueOr(this.data, undefined);
+  protected readonly series: ChartSeries[] = [{ name: 'Recuperado líquido', color: '--app-chart-1', format: (v) => formatAmount(v) }];
+  protected readonly team = computed(() => this.state.filter().groupBy === 'TEAM');
+  protected readonly personNoun = computed(() => (this.team() ? { one: 'equipe', many: 'equipes' } : { one: 'pessoa', many: 'pessoas' }));
+
+  /** Clique numa barra: filtra o painel pela pessoa ou equipe (entra no histórico; o chip e o "voltar" desfazem). */
+  protected focusOn(row: ChartRow): void {
+    const dimension = this.team() ? 'TEAM' : 'OPERATOR';
+    const next = focusFilter(this.state.filter(), dimension, row.key);
+    if (next) {
+      this.state.focus(next, `${this.team() ? 'Equipe' : 'Pessoa'}: ${row.label}`, dimension);
+    }
+  }
+
+  protected readonly focusableRow = (r: ChartRow) => focusableKey(r.key);
+
+  protected unfocus() {
+    return unfocusFilter(this.state.filter(), this.team() ? 'TEAM' : 'OPERATOR');
+  }
+
+  /** Tabela "Por pessoa/Por equipe" em passos de 25 (na ordem do servidor); filtro ou agrupamento novos voltam a 25. */
+  protected readonly table = showMore(() => this.report()?.rows ?? [], { resetOn: () => this.state.filter() });
   protected readonly chartRows = computed<ChartRow[]>(() =>
-    (this.report()?.rows ?? []).slice(0, 15).map((r) => ({
+    [...(this.report()?.rows ?? [])]
+      .sort((a, b) => num(b.recoveredNet) - num(a.recoveredNet))
+      .map((r) => ({
       key: r.key,
       label: r.label,
-      values: [Math.max(0, num(r.recoveredNet))],
+      values: [num(r.recoveredNet)],
       display: [formatAmount(r.recoveredNet)],
-      note: `${this.rate(r.agreementsPerLoggedHour.value)} acordos/h`,
+      note: this.rate(r.agreementsPerLoggedHour.value),
     })),
   );
   protected readonly chartSummary = computed(() => {

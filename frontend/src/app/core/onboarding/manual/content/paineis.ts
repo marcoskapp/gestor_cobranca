@@ -55,7 +55,10 @@ export const MANUAL: ModuleManual = {
       id: 'analytics.conversion',
       title: 'Conversão',
       objective: 'Do contato ao pagamento: contatos efetivos, propostas, acordos, quebras e primeiro pagamento.',
-      purpose: ['Mostra onde o funil perde casos, com cada etapa sobre a sua base.'],
+      purpose: [
+        'Mostra onde o funil perde casos, com cada etapa sobre a sua base.',
+        'A tabela por grupo mostra as 25 primeiras linhas; "Mostrar mais" traz mais 25, e a quantidade fica no endereço para o "voltar".',
+      ],
       profiles: ['GESTOR', 'ESTRATEGIA', 'AUDITOR'],
       inputs: ['Interações, propostas, acordos e pagamentos.'],
       outputs: ['Insumo para ajustar filas, campanhas e políticas.'],
@@ -66,7 +69,10 @@ export const MANUAL: ModuleManual = {
       id: 'analytics.productivity',
       title: 'Produtividade',
       objective: 'Esforço e resultado por pessoa e equipe: tentativas, contatos efetivos, acordos e recuperado.',
-      purpose: ['Operador vê só o próprio; supervisor, a si e às equipes que supervisiona; gestão, todos.'],
+      purpose: [
+        'Operador vê só o próprio; supervisor, a si e às equipes que supervisiona; gestão, todos.',
+        'A tabela por pessoa ou equipe mostra as 25 primeiras linhas; "Mostrar mais" traz mais 25, e a quantidade fica no endereço para o "voltar".',
+      ],
       profiles: ['GESTOR', 'SUPERVISOR', 'OPERADOR'],
       inputs: ['Interações, acordos e pagamentos atribuídos a cada pessoa.'],
       outputs: ['Acompanhamento da equipe e feedback.'],
@@ -111,7 +117,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Mostra a receita, o custo por categoria (pessoas, inteligência artificial, telefonia, mensagens, comissão dos negociadores, jurídico, ociosidade e custos fixos) e as margens de cada credor e carteira. Abre no último mês fechado. A coluna "Tendência" traz a margem líquida em % da receita dos seis meses que terminam no fim do período, com a frase "subiu", "caiu" ou "estável"; mês sem receita ou ainda não apurado fica como lacuna, nunca como zero.',
         'O custo é estimado: uso registrado vezes as faixas, tarifas e câmbio cadastrados em Custos operacionais. Horas sem faixa, mês sem câmbio ou canal sem tarifa entram com custo zero, e o painel avisa com o atalho para corrigir. Com as faturas dos canais informadas, escolha "Conciliado com a fatura": telefonia, mensagens e inteligência artificial passam a usar o valor cobrado, com a diferença rateada pelo custo estimado de cada credor e carteira; o selo mostra "Conciliado" ou "Parcialmente conciliado" e o quadro "Ajuste pela fatura" explica cada canal.',
-        'O mapa "Carteiras: margem × volume recuperado" põe cada carteira num de quatro quadrantes — rende e escala, rende pouco, consome e revisar contrato — pelos cortes escritos na tela: a mediana do recuperado e a margem do conjunto (ou zero, se negativa). Carteira sem receita fica fora, com a contagem. Clicar no ponto (ou Enter) abre o painel só daquela carteira e o "voltar" retorna ao mapa; "Ver tabela" mostra o mesmo em lista. Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. Depois de corrigir uma faixa, tarifa ou câmbio, "Reapurar o período" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores.',
+        'O mapa "Carteiras: margem × volume recuperado" põe cada carteira num de quatro quadrantes — rende e escala, rende pouco, consome e revisar contrato — pelos cortes escritos na tela: a mediana do recuperado e a margem do conjunto (ou zero, se negativa). Carteira sem receita fica fora, com a contagem. Clicar no ponto (ou Enter) abre o painel só daquela carteira e o "voltar" retorna ao mapa; "Ver tabela" mostra o mesmo em lista. Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. A tabela mostra os 25 primeiros credores ("Mostrar mais" traz mais 25) e a busca acha o credor pelo nome dele ou de uma carteira, já aberto; a linha "Total" continua a do período. Depois de corrigir uma faixa, tarifa ou câmbio, "Reapurar o período" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores.',
       ],
       profiles: ['GESTOR', 'FINANCEIRO', 'ADMIN', 'AUDITOR'],
       inputs: ['Comissão e honorários da assessoria, tempo de atendimento, uso de inteligência artificial, chamadas, mensagens, comissão dos negociadores, custas jurídicas e custos fixos.'],

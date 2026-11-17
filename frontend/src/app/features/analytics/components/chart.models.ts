@@ -5,6 +5,8 @@ export interface ChartSeries {
   name: string;
   /** Variável CSS da cor (ex.: `--app-chart-1`); a cor nunca é o único meio de identificação. */
   color: string;
+  /** Formata somas calculadas pelo gráfico (barra "Outros", total da lista completa); padrão: número pt-BR. */
+  format?: (value: number) => string;
 }
 
 export interface ChartRow {
