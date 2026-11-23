@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -173,6 +174,19 @@ class JdbcUsageReader implements UsageReader {
                                 or (e.kind <> 'REVERSAL' and e.paid_on between :from and :to))) x
                  group by 1, 2, 3
                 """, period(from, to), JdbcUsageReader::posted);
+    }
+
+    @Override
+    public Optional<LocalDate> commissionPeriodFirstDay(LocalDate periodStart) {
+        return Optional.ofNullable(jdbc.queryForObject("""
+                select min(case when e.kind = 'REVERSAL' then (e.created_at at time zone :zone)::date
+                                else e.paid_on end)
+                  from costing.src_commission_cost e
+                 where e.status <> 'WAIVED'
+                   and (e.period_start = :periodStart
+                        or (not e.settled and (e.period_start is null or e.period_start > :periodStart)))
+                """, new MapSqlParameterSource("zone", TimeConfig.BUSINESS_ZONE_ID).addValue("periodStart", periodStart),
+                LocalDate.class));
     }
 
     @Override

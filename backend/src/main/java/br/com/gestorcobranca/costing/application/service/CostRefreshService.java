@@ -150,6 +150,41 @@ class CostRefreshService implements CostRefreshUseCases {
         return run(from, to, outdated ? "rules_upgrade" : "scheduled");
     }
 
+    /**
+     * Extratos de comissão do período mudaram (evento do incentive, via job): reapura <b>só a comissão variável</b> do
+     * primeiro dia com comissão dos lançamentos do período até ontem — a estimativa vira o valor do extrato e as
+     * estimativas posteriores passam a usar a taxa nova (margem-por-carteira.md §4.2). As demais categorias, o rateio
+     * dos custos fixos (nenhuma base de rateio usa a comissão), o ajuste pela fatura (só canais) e o estado da apuração
+     * ficam como estão: transação curta, e a margem de um mês antigo não muda por um motivo que ninguém pediu. Espera a
+     * apuração em andamento, como o job diário. Sem lançamento no período, nada a fazer.
+     *
+     * @return linhas de comissão regravadas (0 = nada a fazer)
+     */
+    long refreshCommissionPeriod(LocalDate periodStart) {
+        LocalDate to = today().minusDays(1);
+        LocalDate from = usage.commissionPeriodFirstDay(periodStart).orElse(null);
+        if (from == null || from.isAfter(to)) {
+            return 0;
+        }
+        String trigger = "commission_statement";
+        long start = System.nanoTime();
+        try {
+            store.lockForRefresh(properties.refreshStatementTimeout());
+            CostAccumulator acc = new CostAccumulator();
+            usage.variableCommission(from, to).forEach(p -> UsageCost.posted(p, CostCategory.VARIABLE_COMMISSION, acc));
+            long rows = store.replaceFacts(from, to, Set.of(CostCategory.VARIABLE_COMMISSION), acc.facts());
+            Duration elapsed = Duration.ofNanos(System.nanoTime() - start);
+            metrics.refreshed(trigger, "ok", elapsed, rows);
+            LOG.atInfo().addKeyValue("process", "costing.refresh").addKeyValue("trigger", trigger)
+                    .addKeyValue("from", from).addKeyValue("to", to).addKeyValue("rows", rows)
+                    .addKeyValue("durationMs", elapsed.toMillis()).log("Comissão variável reapurada pelos extratos");
+            return rows;
+        } catch (RuntimeException e) {
+            metrics.refreshed(trigger, "error", Duration.ofNanos(System.nanoTime() - start), 0);
+            throw e;
+        }
+    }
+
     /** Primeiro dia da janela da tendência (6 meses) que termina no mês de {@code to}. */
     private static LocalDate trendStart(LocalDate to) {
         return YearMonth.from(to).minusMonths(MarginTrendSeries.MONTHS - 1L).atDay(1);

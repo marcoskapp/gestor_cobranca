@@ -148,7 +148,22 @@ lançamento não dispensado a **taxa efetiva** do beneficiário:
   a última dessas taxas. O pool de quem também tem lançamento pessoal segue o rateio pelos lançamentos pessoais dele.
 
 O dia continua o do pagamento (estorno: o do lançamento). O valor por pessoa não sai da view (só credor, carteira,
-data e valor). A estimativa de dias fora da janela de 35 dias só passa ao valor do extrato com "Reapurar o período".
+data e valor).
+
+**Reapuração quando o extrato muda (decisão 1363).** O valor gravado num dia sem extrato é estimativa; o job diário só
+refaz os últimos 35 dias, e o extrato do mês sai depois do fim do mês (e ainda pode ser recalculado ou ajustado). Por
+isso o `incentive` publica `CommissionStatementsChanged` (só o período; nem pessoa, nem extrato, nem valor) quando o
+valor a pagar de extratos do período muda: extratos gerados no fechamento, recálculo e ajuste aplicado (aprovação e
+exportação não mudam o valor e não avisam). O `costing` enfileira o job `costing.commission_refresh` para o fim de uma
+janela de 2 minutos mais 10 s de folga entre o relógio da aplicação e o do banco (avisos do mesmo período na mesma
+janela viram uma reapuração só; a chave leva a janela porque a fila também deduplica contra job em execução) e o job
+reapura **só a comissão variável**, esperando a apuração em andamento, do primeiro dia cuja comissão pode mudar até
+ontem — lançamentos liberados no período e estimativas que usam a última taxa (pendentes ou liberados em período
+posterior ainda sem extrato); dia do pagamento, estorno: o dia do lançamento — a estimativa vira o valor do extrato e as
+estimativas posteriores passam a usar a taxa nova. As outras categorias, o rateio dos custos fixos (nenhuma base usa a
+comissão), o ajuste pela fatura e o estado da apuração ficam como estão: transação curta e nada muda além do que o
+extrato mudou. Teste:
+`CostingMarginIT.extratoNovoDoPeriodoReapura…`.
 Mudança de regra: `RULES_VERSION` 3 (o job refaz uma vez os 6 meses da tendência, como na 4.1). Teste: `CostingMarginIT.comissaoVariavel…`.
 
 ## 5. Indicadores (catálogo de informação contextual, ux.md §8.6)

@@ -62,12 +62,13 @@ class StatementService implements StatementUseCases {
     private final BusinessEventLogger businessEvents;
     private final IncentiveMetrics metrics;
     private final IncentiveProperties properties;
+    private final StatementChangeNotifier statementChanges;
     private final Clock clock;
 
     StatementService(StatementRepository statements, LedgerRepository ledger, StatementCalculator calculator,
                      Workforce workforce, IncentiveAccess access, AccessScope accessScope, AuditTrail auditTrail,
                      BusinessEventLogger businessEvents, IncentiveMetrics metrics, IncentiveProperties properties,
-                     Clock clock) {
+                     StatementChangeNotifier statementChanges, Clock clock) {
         this.statements = statements;
         this.ledger = ledger;
         this.calculator = calculator;
@@ -78,6 +79,7 @@ class StatementService implements StatementUseCases {
         this.businessEvents = businessEvents;
         this.metrics = metrics;
         this.properties = properties;
+        this.statementChanges = statementChanges;
         this.clock = clock;
     }
 
@@ -172,9 +174,11 @@ class StatementService implements StatementUseCases {
                 workforce.members(StatementCalculator.involvedUsers(Set.of(statement.getBeneficiaryId()), teams)));
         Outcome outcome = calculator.calculate(statement.getBeneficiaryId(), ctx, Optional.empty());
         Money before = statement.getCalculatedAmount();
+        Money payableBefore = statement.getPayableAmount();
         String outcomeBefore = statement.getOutcome().name();
         statement.recalculate(outcome.calculation(), access.actor().id(), now());
         statements.save(statement);
+        notifyIfPayableChanged(statement, payableBefore);
         auditTrail.record(AuditEntry.of("commission_statement.recalculated", "commission_statement", statementId)
                 .change("calculatedAmount", before, statement.getCalculatedAmount())
                 .change("outcome", outcomeBefore, statement.getOutcome().name())
@@ -340,10 +344,19 @@ class StatementService implements StatementUseCases {
                 .reduce(Money.ZERO, Money::plus);
         int open = (int) statements.findDisputes(statement.getId()).stream().filter(StatementDispute::isOpen).count();
         String before = statement.getStatus().name();
+        Money payableBefore = statement.getPayableAmount();
         statement.reconcile(open, applied, adjustments.stream().anyMatch(StatementAdjustment::isApplied));
         statements.save(statement);
+        notifyIfPayableChanged(statement, payableBefore);
         if (!before.equals(statement.getStatus().name())) {
             metrics.statementTransition(statement.getStatus().name());
+        }
+    }
+
+    /** O costing reapura a comissão variável da margem quando o valor a pagar muda (margem-por-carteira.md §4.2). */
+    private void notifyIfPayableChanged(CommissionStatement statement, Money payableBefore) {
+        if (payableBefore == null || payableBefore.compareTo(statement.getPayableAmount()) != 0) {
+            statementChanges.payableChanged(statement.getPeriodStart());
         }
     }
 

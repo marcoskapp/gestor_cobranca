@@ -78,7 +78,7 @@ shared ◄── organization ◄── identity
               ├── legal              (→ collection, debt, compliance [feriados], identity, organization; acordos do negotiation e réguas do campaign por evento)
               ├── incentive          (→ identity, organization, compliance [feriados]; fatos por eventos de integração)
               ├── analytics          (→ organization; lê o banco por views próprias)
-              ├── costing            (→ organization, identity [validar a pessoa de uma faixa]; lê o uso por views próprias)
+              ├── costing            (→ organization, identity [validar a pessoa de uma faixa]; lê o uso por views próprias; extratos do incentive por evento)
               ├── pendingwork        (→ só shared; recebe as fontes de pendência dos módulos por injeção)
               │   (o compliance recebe do mesmo jeito as fontes de compartilhamento `shared.privacy.DataSharingSource` de debt, communication, telephony, payment, assistant, legal e publicapi — sem dependência nova)
               ├── helpdesk           (→ identity, organization, debt, collection, negotiation, payment, ingestion, settlement, incentive, pendingwork — só leitura)

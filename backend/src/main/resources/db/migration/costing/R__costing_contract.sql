@@ -68,7 +68,8 @@ from incentive.logged_time_daily l;
 --   * de equipe: só o valor a pagar dos extratos SEM lançamento pessoal (participação no pool, ex.: supervisor),
 --     rateado pelo creditado de equipe liberado no mesmo período; pendente: a última dessas taxas; sem, zero.
 --     O pool de quem também tem lançamento pessoal já está no extrato dela e segue o rateio pessoal.
--- `settled` diz se o valor já é o do extrato (senão é estimativa). O valor por pessoa não sai da view.
+-- `settled` diz se o valor já é o do extrato (senão é estimativa); `period_start` (período em que o lançamento foi
+-- liberado) guia a reapuração quando os extratos do período mudam. O valor por pessoa não sai da view.
 create view costing.src_commission_cost with (security_invoker = true) as
 with statement_rate as (
     select s.tenant_id, s.id as statement_id, s.beneficiary_id, s.period_start, s.payable_amount,
@@ -112,7 +113,7 @@ latest_pool_rate as (
     where r.rate is not null
     order by r.tenant_id, r.period_start desc
 )
-select e.tenant_id, e.creditor_id, e.portfolio_id, e.kind, e.status, e.paid_on, e.created_at,
+select e.tenant_id, e.creditor_id, e.portfolio_id, e.kind, e.status, e.paid_on, e.created_at, e.period_start,
        round(e.credited_amount * case when e.beneficiary_type = 'TEAM'
                                       then coalesce(pool.rate, case when e.period_start is null then lp.rate end, 0)
                                       when e.statement_id is not null then coalesce(own.rate, 0)

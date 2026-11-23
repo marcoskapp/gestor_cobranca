@@ -83,6 +83,8 @@ class CommissionFlowIT extends IncentiveTestSupport {
         PeriodUseCases.PeriodView closed = as(admin, DefaultRoles.ADMIN, () -> periods.close(AUGUST));
         assertThat(closed.status()).isEqualTo("CLOSED");
         assertThat(count("select count(*) from incentive.commission_ledger_entry where status = 'PENDING'")).isZero();
+        // extratos gerados: o costing é avisado para reapurar a comissão da margem (só o período)
+        assertThat(statementsChanged()).isEqualTo(1);
 
         StatementSummary x = statementOf(operatorX);
         // 4.000 líquidos (5.000 − 1.000) × 1,5% × 1,8 = 108,00
@@ -118,6 +120,8 @@ class CommissionFlowIT extends IncentiveTestSupport {
         UUID adjustmentId = afterDispute.adjustments().getFirst().id();
         assertThat(afterDispute.adjustments().getFirst().status()).isEqualTo("PENDING_SECOND_APPROVAL");
         assertThat(afterDispute.summary().payableAmount()).isEqualByComparingTo("108.00");
+        // contestação e ajuste ainda pendente não mudam o valor a pagar: sem aviso
+        assertThat(statementsChanged()).isEqualTo(1);
         assertThatThrownBy(() -> as(finance, DefaultRoles.FINANCEIRO, () -> statements.approve(x.id())))
                 .isInstanceOf(ConflictException.class);
         assertThatThrownBy(() -> as(manager, DefaultRoles.GESTOR, () -> statements.decideAdjustment(x.id(), adjustmentId,
@@ -126,6 +130,7 @@ class CommissionFlowIT extends IncentiveTestSupport {
         StatementSummary adjusted = statementOf(operatorX);
         assertThat(adjusted.status()).isEqualTo("ADJUSTED");
         assertThat(adjusted.payableAmount()).isEqualByComparingTo("708.00");
+        assertThat(statementsChanged()).isEqualTo(2);
 
         // aprovação exige a permissão financeira; quem fechou o período não aprova (mesmo sendo administrador)
         assertThatThrownBy(() -> as(manager2, DefaultRoles.GESTOR, () -> statements.approve(x.id())))
@@ -149,6 +154,8 @@ class CommissionFlowIT extends IncentiveTestSupport {
         assertThat(csv).contains(operatorX.toString()).contains("708.00").contains("12.00");
         assertThat(statementOf(operatorX).status()).isEqualTo("EXPORTED");
         assertThat(accessLogs("DATA_EXPORTED")).isEqualTo(1);
+        // aprovação e exportação não mudam o valor a pagar
+        assertThat(statementsChanged()).isEqualTo(2);
         UUID exportId = as(finance, DefaultRoles.FINANCEIRO, () -> exports.list(AUGUST)).getFirst().id();
         assertThat(read(as(finance, DefaultRoles.FINANCEIRO, () -> exports.download(exportId)).content())).isEqualTo(csv);
         ExportFile xlsx = as(finance, DefaultRoles.FINANCEIRO, () -> exports.export(AUGUST, "XLSX"));
@@ -248,5 +255,13 @@ class CommissionFlowIT extends IncentiveTestSupport {
         try (in) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    /** Avisos {@code CommissionStatementsChanged} desta assessoria (uma publicação por consumidor: só o costing). */
+    private long statementsChanged() {
+        return system(() -> jdbcTemplate.queryForObject("""
+                select count(*) from public.event_publication
+                 where event_type like '%.CommissionStatementsChanged' and serialized_event like ?""", Long.class,
+                "%" + tenant + "%"));
     }
 }

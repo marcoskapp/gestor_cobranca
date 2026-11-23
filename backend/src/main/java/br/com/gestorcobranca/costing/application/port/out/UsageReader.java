@@ -11,6 +11,7 @@ import br.com.gestorcobranca.costing.domain.model.Usage.WorkSpan;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -49,6 +50,13 @@ public interface UsageReader {
      * Acúmulo na data do pagamento, estorno na data dele.
      */
     List<Posted> variableCommission(LocalDate from, LocalDate to);
+
+    /**
+     * Primeiro dia cuja comissão variável pode mudar quando os extratos do período que começa em {@code periodStart}
+     * mudam: lançamentos liberados no período e estimativas que usam a última taxa (pendentes ou liberados em período
+     * posterior ainda sem extrato). Dia do pagamento; estorno: o dia em que foi lançado. Vazio sem lançamentos.
+     */
+    Optional<LocalDate> commissionPeriodFirstDay(LocalDate periodStart);
 
     /** Custas jurídicas adiantadas pela assessoria e não reembolsáveis (fora as canceladas). */
     List<Posted> legalExpenses(LocalDate from, LocalDate to);

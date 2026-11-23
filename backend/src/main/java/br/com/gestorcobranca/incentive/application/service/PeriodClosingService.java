@@ -62,13 +62,14 @@ class PeriodClosingService implements PeriodUseCases {
     private final BusinessEventLogger businessEvents;
     private final IncentiveMetrics metrics;
     private final IncentiveProperties properties;
+    private final StatementChangeNotifier statementChanges;
     private final Clock clock;
 
     PeriodClosingService(LedgerRepository ledger, StatementRepository statements, ClearingService clearing,
                          PeriodCalendar periods, StatementCalculator calculator, PlanResolver planResolver,
                          HolidayCalendar calendar, Workforce workforce, IncentiveAccess access, AuditTrail auditTrail,
                          BusinessEventLogger businessEvents, IncentiveMetrics metrics, IncentiveProperties properties,
-                         Clock clock) {
+                         StatementChangeNotifier statementChanges, Clock clock) {
         this.ledger = ledger;
         this.statements = statements;
         this.clearing = clearing;
@@ -82,6 +83,7 @@ class PeriodClosingService implements PeriodUseCases {
         this.businessEvents = businessEvents;
         this.metrics = metrics;
         this.properties = properties;
+        this.statementChanges = statementChanges;
         this.clock = clock;
     }
 
@@ -175,6 +177,9 @@ class PeriodClosingService implements PeriodUseCases {
         }
         period.close(actorId, trigger, count, now);
         ledger.savePeriod(period);
+        if (count > 0) {
+            statementChanges.payableChanged(period.getPeriodStart());
+        }
         auditTrail.record(AuditEntry.of("commission_period.closed", "commission_period", period.getId())
                 .change("status", "OPEN", "CLOSED")
                 .meta("period", month.toString()).meta("trigger", trigger).meta("statements", count));

@@ -10,6 +10,9 @@
  * ({@code security_invoker}, RLS da assessoria preservado), com o contrato de colunas em
  * {@code db/migration/costing/R__costing_contract.sql}. Do identity usa só o diretório de usuários (validar a pessoa
  * de uma faixa e listar nomes); do organization, a existência do credor de um custo fixo direto.
+ * <p>
+ * Reage a {@code CommissionStatementsChanged} (incentive) reapurando só a comissão variável pelo job
+ * {@code costing.commission_refresh} (margem-por-carteira.md §4.2).
  */
 @ApplicationModule(displayName = "Costing (margem por credor e carteira)",
         allowedDependencies = {"shared", "organization :: usecases", "identity :: usecases"})

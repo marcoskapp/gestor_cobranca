@@ -31,6 +31,9 @@ import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.DomainException;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.events.incentive.CommissionStatementsChanged;
+import br.com.gestorcobranca.shared.jobs.JobContext;
+import br.com.gestorcobranca.shared.jobs.JobHandler;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.ActorAuthentication;
 import br.com.gestorcobranca.shared.security.CreditorScope;
@@ -41,6 +44,7 @@ import br.com.gestorcobranca.support.IntegrationTest;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -51,6 +55,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -67,6 +72,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -101,6 +107,10 @@ class CostingMarginIT extends IntegrationTest {
     UserManagementUseCases userManagement;
     @Autowired
     JdbcTemplate jdbc;
+    @Autowired
+    ApplicationEventPublisher publisher;
+    @Autowired
+    List<JobHandler<?>> jobHandlers;
     @Autowired
     CostSettingsUseCases settings;
     @Autowired
@@ -586,6 +596,110 @@ class CostingMarginIT extends IntegrationTest {
                 select column_name from information_schema.columns
                  where table_schema = 'costing' and table_name = 'src_commission_cost'""", String.class)))
                 .doesNotContain("beneficiary_id", "credited_amount");
+    }
+
+    @Test
+    void extratoNovoDoPeriodoReapuraAComissaoForaDaJanelaSemReapuracaoManual() {
+        seedTenantAndCreditors();
+        LocalDate paidOn = LocalDate.now(ZONE).minusDays(50);
+        LocalDate period = paidOn.withDayOfMonth(1);
+        UUID u1 = Ids.newId();
+        UUID[] entry = new UUID[1];
+        UUID[] currentPeriod = new UUID[1];
+        run(() -> {
+            UUID attrA = attribution(creditorA, portfolioA);
+            // extrato anterior do U1: 1% (R$ 10 sobre R$ 1.000)
+            UUID previousPeriod = commissionPeriod(period.minusMonths(1));
+            UUID previous = statement(previousPeriod, u1, period.minusMonths(1), "10.00", "1000.00");
+            ledger(u1, attrA, creditorA, portfolioA, "1000.00", period.minusMonths(1), "CLEARED", previous);
+            // ainda sem extrato: estimado a 1% → R$ 50
+            entry[0] = ledger(u1, attrA, creditorA, portfolioA, "5000.00", paidOn, "PENDING", null);
+            // U3 sem extrato, pago antes (credor B): estimado pela taxa do último período da assessoria (1% → R$ 10)
+            ledger(Ids.newId(), attrB(), creditorB, portfolioB, "1000.00", paidOn.minusDays(5), "PENDING", null);
+            currentPeriod[0] = commissionPeriod(period);
+        });
+        asRole(finance, DefaultRoles.FINANCEIRO, null, () -> refresh.refresh(paidOn.minusDays(5), paidOn));
+        assertThat(commissionOn(paidOn)).isEqualByComparingTo("50.00");
+        assertThat(commissionOn(paidOn.minusDays(5), creditorB)).isEqualByComparingTo("10.00");
+
+        // o período fecha 50 dias depois do pagamento (fora da janela do job diário): extrato de R$ 150 → 3%
+        run(() -> {
+            UUID statement = statement(currentPeriod[0], u1, period, "150.00", "5000.00");
+            jdbc.update("""
+                    update incentive.commission_ledger_entry set status = 'CLEARED', cleared_at = now(),
+                        period_start = ?, statement_id = ? where id = ?""", period, statement, entry[0]);
+            publisher.publishEvent(new CommissionStatementsChanged(Ids.newId(), tenant, Instant.now(), period));
+        });
+        awaitTrue("reapuração agendada", () -> jobStatus(period) != null);
+        assertThat(system(() -> jdbc.queryForObject("""
+                select run_at > created_at from shared.processing_job
+                 where type = 'costing.commission_refresh' and dedup_key like ?""", Boolean.class,
+                "commission:" + period + ":%")))
+                .as("espera o fim da janela para juntar fechamento, ajustes e recálculos do período").isTrue();
+        // o agendamento fica desligado nos ITs: o teste reivindica e executa o job como o JobWorker, sem esperar a janela
+        runCommissionRefreshJob(period);
+        assertThat(jobStatus(period)).isEqualTo("DONE");
+        assertThat(commissionOn(paidOn)).isEqualByComparingTo("150.00");
+        // a estimativa anterior ao período também passa à taxa nova da assessoria (3% → R$ 30)
+        assertThat(commissionOn(paidOn.minusDays(5), creditorB)).isEqualByComparingTo("30.00");
+    }
+
+    @SuppressWarnings("unchecked")
+    private void runCommissionRefreshJob(LocalDate period) {
+        Map<String, Object> claimed = system(() -> jdbc.queryForMap("""
+                update shared.processing_job set status = 'RUNNING', attempts = attempts + 1, started_at = now()
+                 where type = 'costing.commission_refresh' and dedup_key like ? and status = 'PENDING'
+                returning id, type, payload::text as payload, attempts""", "commission:" + period + ":%"));
+        UUID id = (UUID) claimed.get("id");
+        String type = (String) claimed.get("type");
+        JobHandler<Object> handler = (JobHandler<Object>) jobHandlers.stream()
+                .filter(h -> h.type().equals(type)).findFirst().orElseThrow();
+        Object payload = jsonMapper.readValue((String) claimed.get("payload"), handler.payloadType());
+        run(() -> {
+            handler.handle(new JobContext(id, tenant, type, ((Number) claimed.get("attempts")).intValue()), payload);
+            jdbc.update("update shared.processing_job set status = 'DONE', finished_at = now() where id = ?", id);
+        });
+    }
+
+    private BigDecimal commissionOn(LocalDate day) {
+        return commissionOn(day, creditorA);
+    }
+
+    private BigDecimal commissionOn(LocalDate day, UUID creditorId) {
+        MarginReport report = asRole(manager, DefaultRoles.GESTOR, null,
+                () -> margins.margin(new MarginFilter(day, day, null, null)));
+        return cost(creditor(report, creditorId).line(), CostCategory.VARIABLE_COMMISSION);
+    }
+
+    private UUID attrB() {
+        return attribution(creditorB, portfolioB);
+    }
+
+    private String jobStatus(LocalDate period) {
+        return system(() -> jdbc.query("""
+                select status || coalesce(' (' || attempts || '; ' || run_at || ' x ' || now() || '): ' || last_error, '')
+                  from shared.processing_job where type = 'costing.commission_refresh' and dedup_key like ?
+                 order by created_at desc limit 1""", rs -> rs.next() ? rs.getString(1) : null,
+                "commission:" + period + ":%"));
+    }
+
+    private static void awaitTrue(String what, BooleanSupplier condition) {
+        awaitTrue(what, condition, () -> "");
+    }
+
+    private static void awaitTrue(String what, BooleanSupplier condition, Supplier<String> diagnostics) {
+        long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();
+        while (!condition.getAsBoolean()) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("tempo esgotado esperando: " + what + " " + diagnostics.get());
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+            }
+        }
     }
 
     private void seedTenantAndCreditors() {
