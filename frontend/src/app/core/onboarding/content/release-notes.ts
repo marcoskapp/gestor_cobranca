@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 34,
+    date: '2026-11-23',
+    title: 'Painéis mais enxutos e prévia de template',
+    items: [
+      { text: 'No painel de margem, a tabela por credor mostra só receita, custo total, margem líquida e tendência dos 10 primeiros credores, com "Outros" somando o resto; "Relatório completo" abre em nova aba todas as colunas, o custo por categoria, a busca e todos os credores, com os mesmos filtros.', route: '/paineis/margem' },
+      { text: 'No painel operacional, "Carteira por credor" mostra os 5 maiores credores e a barra "Outros"; "Ver todos" abre a lista completa.', route: '/paineis' },
+      { text: 'Ao iniciar uma conversa com template, a prévia já vem com o primeiro nome do devedor e o credor e muda enquanto você digita os valores; o que falta aparece entre colchetes.', route: '/conversas' },
+    ],
+  },
+  {
     version: 33,
     date: '2026-11-17',
     title: 'Painéis com muitos credores',

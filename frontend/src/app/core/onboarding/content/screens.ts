@@ -24,7 +24,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'analytics.operational',
-    version: 6,
+    version: 7,
     path: '/paineis',
     tourId: 'analytics.operational',
     changes: [
@@ -33,6 +33,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 4, items: ['Os painéis saíram das abas e ficam só no menu, em Painéis; o período escolhido acompanha você de um painel para outro.'] },
       { version: 5, items: ['Números sublinhados levam à lista que forma o número, com o mesmo credor, carteira e período (ex.: casos em aberto → Casos; recuperado → Razão de comissão). Sem a lista no seu perfil, ou com um recorte que a lista não tem, o número fica só como texto.'] },
       { version: 6, items: ['Gráficos com muitos itens mostram os primeiros e a barra "Outros" com a soma do resto; "Ver todos" abre a lista completa no próprio cartão, com busca e ordenação.', 'Clicar numa barra filtra o painel por aquele item; o chip acima dos cartões e o "voltar" desfazem.'] },
+      { version: 7, items: ['"Carteira por credor" mostra os 5 maiores credores e a barra "Outros"; "Ver todos" continua abrindo a lista completa.'] },
     ],
   },
   {
@@ -92,13 +93,26 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'analytics.margin',
-    version: 3,
+    version: 4,
     path: '/paineis/margem',
     tourId: 'analytics.margin',
     changes: [
       { version: 2, items: ['Base "Conciliado com a fatura", coluna "Tendência" dos últimos 6 meses e mapa das carteiras por margem e volume recuperado.'] },
       { version: 3, items: ['Busca por credor ou carteira na tabela; a carteira encontrada abre o credor já expandido.', 'Tabelas longas mostram 25 linhas por vez, com "Mostrar mais".'] },
+      {
+        version: 4,
+        items: [
+          'Tabela "Margem por credor e carteira" mais curta: receita, custo total, margem líquida e tendência dos 10 primeiros credores, com "Outros" somando o resto.',
+          '"Relatório completo" abre em nova aba, com os mesmos filtros, todas as colunas, o custo por categoria, a busca e "Mostrar mais".',
+        ],
+      },
     ],
+  },
+  {
+    key: 'analytics.margin-report',
+    version: 1,
+    path: '/paineis/margem/relatorio',
+    tourId: 'analytics.margin-report',
   },
   { key: 'scoring.models', version: 1, path: '/score/modelos', tourId: 'scoring.models' },
   {
@@ -279,7 +293,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.queue',
-    version: 17,
+    version: 18,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -317,11 +331,12 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 14, items: ['Empresa em recuperação judicial ou falência: o caso fica inelegível e a ficha mostra desde quando, o processo e o atalho para o caso jurídico.'] }, { version: 15, items: ['Cartão "Melhor forma de contato" (para quem vê o score): canal preferido e os contatos do devedor pela taxa de atendimento ou resposta, com a explicação, a confiança e o melhor horário de cada um.'] },
       { version: 16, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
       { version: 17, items: ['Aba "Acordos" (Alt + 8, em "Mais"): histórico de acordos do caso com resumo, situação e parcelas; cada acordo abre numa aba nova, sem interromper o atendimento. A aba Negociação mostra só os acordos em vigor.', 'Ficha do devedor no painel ao lado: contatos, títulos e demais listas em linhas com o resumo e "Mais detalhes", sem rolagem lateral.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial do cabeçalho.'] },
+      { version: 18, items: ['Mensagem (Alt + W): ao escolher o template, o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores (o que ainda falta aparece entre colchetes, como [saldo]); se um valor não for aceito, o motivo aparece abaixo da prévia.'] },
     ],
   },
   {
     key: 'collection.case',
-    version: 16,
+    version: 17,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -362,6 +377,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 14, items: ['Cartão "Melhor forma de contato" (para quem vê o score): canal preferido e os contatos do devedor pela taxa de atendimento ou resposta, com a explicação, a confiança e o melhor horário de cada um.'] },
       { version: 15, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
       { version: 16, items: ['Aba "Acordos" (Alt + 8, em "Mais"): histórico de acordos do caso com resumo, situação e parcelas; cada acordo abre numa aba nova. A aba Negociação mostra só os acordos em vigor.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial do cabeçalho.'] },
+      { version: 17, items: ['Mensagem (Alt + W): ao escolher o template, o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores (o que ainda falta aparece entre colchetes, como [saldo]); se um valor não for aceito, o motivo aparece abaixo da prévia.'] },
     ],
   },
   {
@@ -765,7 +781,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'communication.inbox',
-    version: 6,
+    version: 7,
     path: '/conversas',
     tourId: 'communication.inbox',
     changes: [
@@ -775,7 +791,9 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
       { version: 3, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
       { version: 4, items: ['Conversa que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar atendimento".'] },
-      { version: 5, items: ['Ao escolher o template, o primeiro nome do devedor da conversa já vem preenchido e a prévia aparece pronta.', 'A mensagem com o código de acesso ao portal aparece como "Código de acesso ao portal enviado (oculto por segurança)": o código não fica legível na conversa.'] }, { version: 6, items: ['Atribuir conversa: a lista mostra só quem pode ver e responder na caixa de entrada e, com caso, trabalhar o caso; conversa sem caso também pode ser atribuída.'] }],
+      { version: 5, items: ['Ao escolher o template, o primeiro nome do devedor da conversa já vem preenchido e a prévia aparece pronta.', 'A mensagem com o código de acesso ao portal aparece como "Código de acesso ao portal enviado (oculto por segurança)": o código não fica legível na conversa.'] }, { version: 6, items: ['Atribuir conversa: a lista mostra só quem pode ver e responder na caixa de entrada e, com caso, trabalhar o caso; conversa sem caso também pode ser atribuída.'] },
+      { version: 7, items: ['Mensagem por template: ao escolher o template, o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores (o que ainda falta aparece entre colchetes, como [saldo]). O valor em reais tem máscara, a data abre o calendário e, se um valor não for aceito, o motivo aparece abaixo da prévia.'] },
+    ],
   },
   {
     key: 'communication.templates',
@@ -787,13 +805,14 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'communication.channels', version: 1, path: '/conversas/canais' },
   {
     key: 'communication.conversation',
-    version: 4,
+    version: 5,
     path: '/conversas/:id',
     tourId: 'communication.inbox',
     changes: [
       { version: 2, items: ['"Avaliar atendimento" no cabeçalho da conversa atendida por outra pessoa (para quem avalia a qualidade): a monitoria abre já preenchida.'] },
       { version: 3, items: ['Conversa que você já avaliou mostra "Avaliado por você" com a nota no lugar de "Avaliar atendimento".'] },
       { version: 4, items: ['Ao escolher o template, o primeiro nome do devedor da conversa já vem preenchido e a prévia aparece pronta.', 'A mensagem com o código de acesso ao portal aparece como "Código de acesso ao portal enviado (oculto por segurança)": o código não fica legível na conversa.'] },
+      { version: 5, items: ['Mensagem por template: ao escolher o template, o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores (o que ainda falta aparece entre colchetes, como [saldo]). O valor em reais tem máscara, a data abre o calendário e, se um valor não for aceito, o motivo aparece abaixo da prévia.'] },
     ],
   },
   { key: 'campaign.list', version: 1, path: '/campanhas', tourId: 'campaign.list' },

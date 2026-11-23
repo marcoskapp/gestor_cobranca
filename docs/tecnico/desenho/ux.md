@@ -865,8 +865,20 @@ Padrão aprovado pelo PO e pelo parecer de UX (decisões 1335–1339):
 | `showMore(rows, { resetOn })` (`shared/util/show-more.ts`) | Mostra as primeiras **25** linhas e acrescenta 25 a cada pedido. `rows` chega já ordenada e filtrada (a ordenação com `aria-sort` vale sobre a lista inteira; o corte vem depois). Quantidade na URL (`qtd`, `replaceUrl`, demais parâmetros preservados; 25 não vai para a URL; inválido → 25); `resetOn` (filtro, período, agrupamento, busca) volta para 25. Sob `appUrlStateEmbedded`, só em memória. Expõe `visible`, `shown`, `total`, `remaining`, `next`, `more()` e `reset()`. |
 | `app-show-more` (`shared/components/show-more`) | Abaixo da tabela: "Mostrando 25 de 47 credores" (`role="status"`) e o botão "Mostrar mais 25" (no último passo, o que falta), com o substantivo para o leitor de tela. Some quando tudo está visível. Depois do pedido, o foco vai para a célula de cabeçalho da primeira linha nova (`rowSelector` exclui linhas de detalhe, como as carteiras abertas). |
 | Regras | Sem paginação e **sem altura máxima com rolagem interna** (a página rola). As contagens falam só do que a lista da tela tem (o escopo do usuário): nunca "ocultos" nem total da assessoria. Sem rolagem lateral da página (375 px inclusive). |
-| Busca local (`shared/util/text-search.ts`) | `normalizeSearch`/`matchesSearch`: sem acento, maiúscula nem espaços repetidos. Na margem: campo "Buscar credor ou carteira" (espera de 250 ms, termo em `busca`); o credor que contém a carteira encontrada abre expandido, com a carteira destacada; "N credores encontrados" (`aria-live="polite"`); sem resultado, a orientação e "Limpar busca". O rodapé "Total" continua o do período. |
-| Uso atual | Margem por carteira (tabela por credor, com busca), Produtividade ("Por pessoa/Por equipe"), Conversão (detalhe por grupo) e Desempenho dos negociadores (tabela agrupada). |
+| Busca local (`shared/util/text-search.ts`) | `normalizeSearch`/`matchesSearch`: sem acento, maiúscula nem espaços repetidos. No relatório de margem por carteira: campo "Buscar credor ou carteira" (espera de 250 ms, termo em `busca`); o credor que contém a carteira encontrada abre expandido, com a carteira destacada; "N credores encontrados" (`aria-live="polite"`); sem resultado, a orientação e "Limpar busca". O rodapé "Total" continua o do período. |
+| Uso atual | Relatório de margem por carteira (`/paineis/margem/relatorio`, tabela por credor, com busca), Produtividade ("Por pessoa/Por equipe"), Conversão (detalhe por grupo) e Desempenho dos negociadores (tabela agrupada). |
+
+**Painel resume, relatório detalha (23/11/2026, decisões 1364–1370).** Quando a tabela completa de um painel fica longa
+e larga demais mesmo com "Mostrar mais" (caso da margem por carteira), o cartão do painel mostra só as colunas
+essenciais dos **10 primeiros** na ordem da tabela, a linha **"Outros (N credores)"** com a soma do resto (as colunas
+fecham com o total; nunca "Outros" de um item só) e o aviso "Mostrando 10 de 30 credores, que somam 62% da receita."
+(`aria-describedby` da tabela) — sem busca, sem "Mostrar mais" e sem altura máxima com rolagem interna. O botão
+secundário **"Relatório completo"** no cabeçalho do cartão abre em nova aba (`target="_blank"`, `rel="noopener"`, ícone
+`box-arrow-up-right` e "(abre em nova aba)" para o leitor de tela) uma rota própria com os mesmos filtros, base e ordem
+na URL, a mesma permissão da rota do painel e a tabela inteira (todas as colunas, busca, "Mostrar mais", totais e
+exportação). A rota do relatório não tem item de menu: a trilha passa pelo item do painel, e o relatório tem "Ver o
+painel" com o mesmo recorte (a aba nova não tem o painel no histórico). Tabela larga demais no relatório (ex.: custo
+por categoria): só a tabela rola na horizontal, com a primeira coluna fixa; a página nunca.
 
 ## 22. Rankings nos gráficos dos painéis: muitos credores, carteiras ou pessoas (17/11/2026, decisões 1329–1334)
 
@@ -876,7 +888,8 @@ componente `app-bar-chart` (`features/analytics/components/bar-chart.ts`, regras
 parecer de UX:
 
 * **Os primeiros e "Outros".** Com `limit`, o gráfico mostra os N primeiros na ordem do critério do cartão (10 nos
-  cartões lado a lado; 15 nos gráficos de largura total com tabela completa abaixo) e a barra **"Outros (37 credores)"**
+  cartões lado a lado — 5 em "Carteira por credor" do painel operacional, a pedido do responsável em 23/11/2026; 15
+  nos gráficos de largura total com tabela completa abaixo) e a barra **"Outros (37 credores)"**
   com a soma do resto — sempre a **última**, separada por um fio, em cinza neutro (`--app-chart-other`/`-2`, ≥ 3:1
   nos dois temas, também sobre o fundo de foco) e com o valor escrito. Não aparece quando sobraria 1 item (mostra-se o item) nem quando o resto soma
   zero. Clicar em "Outros" abre a lista completa (nunca filtra).

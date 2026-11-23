@@ -482,3 +482,72 @@ export function listText(items: readonly string[]): string {
   }
   return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
 }
+
+// ------------------------------------------------------------------ painel compacto e relatório completo
+
+/** Credores na tabela compacta do painel (como os cartões de ranking lado a lado, ux.md §22). */
+export const MARGIN_COMPACT_LIMIT = 10;
+
+/**
+ * Parâmetros do relatório completo: o mesmo recorte do painel (período, credor, carteira), a base dos custos e a
+ * ordem — só ids e códigos, nada de busca nem de dado pessoal (ux.md §16). Valores padrão não vão para a URL.
+ */
+export function marginReportParams(filter: MarginFilter, basis: MarginBasis, sort: MarginSort): Params {
+  const params: Params = {
+    ...marginFilterParams(filter),
+    [MARGIN_BASIS_QUERY]: formatMarginBasis(basis),
+    [MARGIN_QUERY.sort]: formatMarginSort(sort),
+  };
+  return Object.fromEntries(Object.entries(params).filter(([, v]) => v !== null && v !== undefined));
+}
+
+/** Corte da tabela compacta: os primeiros e o resto (linha "Outros"). */
+export interface CompactCut<T> {
+  visible: T[];
+  rest: T[];
+}
+
+/**
+ * Os `limit` primeiros (lista já ordenada) e o resto. Como nos rankings (ux.md §22), não corta quando sobraria um item
+ * só: mostra-se o item em vez de "Outros (1 credor)".
+ */
+export function compactCut<T>(rows: readonly T[], limit = MARGIN_COMPACT_LIMIT): CompactCut<T> {
+  if (rows.length <= limit + 1) {
+    return { visible: [...rows], rest: [] };
+  }
+  return { visible: rows.slice(0, limit), rest: rows.slice(limit) };
+}
+
+/** Soma das colunas da tabela compacta (linha "Outros"): recuperado, receita, custo total e margem líquida com a taxa. */
+export type MarginSum = Pick<MarginLine, 'recovered' | 'revenue' | 'totalCost' | 'netMargin' | 'netMarginRate'>;
+
+export function sumMarginLines(lines: readonly MarginLine[]): MarginSum {
+  const sum = (pick: (l: MarginLine) => Money) => Math.round(lines.reduce((acc, l) => acc + num(pick(l)), 0) * 100) / 100;
+  const revenue = sum((l) => l.revenue);
+  const netMargin = sum((l) => l.netMargin);
+  return {
+    recovered: sum((l) => l.recovered),
+    revenue,
+    totalCost: sum((l) => l.totalCost),
+    netMargin,
+    // sem receita, sem base para a taxa (como o servidor: nula, nunca zero)
+    netMarginRate: revenue > 0 ? netMargin / revenue : null,
+  };
+}
+
+const WHOLE_PERCENT = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 0 });
+
+/**
+ * Aviso da tabela compacta, no estilo dos rankings (ux.md §22): "Mostrando 10 de 30 credores, que somam 62% da
+ * receita." A participação só aparece com receita total positiva e sem credor de receita negativa (estorno); a
+ * contagem fala só do que a lista tem (o escopo da pessoa), nunca de itens ocultos.
+ */
+export function compactNotice(visible: readonly MarginLine[], all: readonly MarginLine[]): string {
+  const base = `Mostrando ${countText(visible.length)} de ${countText(all.length)} credores`;
+  const total = all.reduce((acc, l) => acc + num(l.revenue), 0);
+  if (total <= 0 || all.some((l) => num(l.revenue) < 0)) {
+    return `${base}.`;
+  }
+  const share = visible.reduce((acc, l) => acc + num(l.revenue), 0) / total;
+  return `${base}, que somam ${WHOLE_PERCENT.format(share)} da receita.`;
+}

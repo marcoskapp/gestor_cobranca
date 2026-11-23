@@ -194,7 +194,11 @@ export class TemplatesApi {
     return this.http.post<TemplateView>(`${this.base}/${id}/retire`, null);
   }
 
-  preview(id: string, values: Record<string, string>): Observable<TemplatePreview> {
-    return this.http.post<TemplatePreview>(`${this.base}/${id}/preview`, values);
+  /**
+   * Prévia com os valores preenchidos até agora (o servidor formata como no envio e marca as variáveis ainda sem valor
+   * como `[nome]`). `context` permite silenciar o aviso global quando a tela mostra o erro junto da prévia.
+   */
+  preview(id: string, values: Record<string, string>, context?: HttpContext): Observable<TemplatePreview> {
+    return this.http.post<TemplatePreview>(`${this.base}/${id}/preview`, values, { context });
   }
 }

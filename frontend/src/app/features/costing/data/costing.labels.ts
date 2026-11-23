@@ -87,3 +87,6 @@ export const COST_SETTINGS_ROUTE = '/organizacao/custos';
 
 /** Painel "Margem por carteira" (`COST_VIEW`). */
 export const MARGIN_ROUTE = '/paineis/margem';
+
+/** Relatório completo da margem (mesma permissão do painel), aberto pelo painel em nova aba com os mesmos filtros. */
+export const MARGIN_REPORT_ROUTE = '/paineis/margem/relatorio';

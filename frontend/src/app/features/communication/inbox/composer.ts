@@ -6,12 +6,15 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { valueOr } from '../../../shared/data/resource-value';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { MessagesApi, TemplatesApi } from '../data/communication.api';
-import { VARIABLE_TYPE_LABELS } from '../data/communication.labels';
 import { ConversationView, MessageView, TemplateView } from '../data/communication.models';
-import { charCount, composerMode, idempotencyKey, prefillVariables, windowText } from '../data/communication.rules';
+import { charCount, composerMode, filledVariables, idempotencyKey, missingKnownValues, prefillVariables, windowText } from '../data/communication.rules';
 import { DebtorNames } from '../../debt/data/debt.lookups';
+import { CreditorNames } from '../../organization/data/organization.lookups';
 import { UNRESOLVED_NAME, nameMap } from '../../../shared/data/name-map';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { AuthService } from '../../../core/auth/auth.service';
+import { Permission } from '../../../core/auth/permission';
+import { TemplateFill } from '../components/template-fill';
 
 /**
  * Templates publicados do canal: o do credor tem precedência sobre o da assessoria (mesmo código). O de autenticação
@@ -37,7 +40,7 @@ export function applicableTemplates(list: readonly TemplateView[], creditorId: s
  */
 @Component({
   selector: 'app-composer',
-  imports: [FormsModule, ...FORM_FIELD, Icon, InfoHint],
+  imports: [FormsModule, ...FORM_FIELD, Icon, InfoHint, TemplateFill],
   template: `
     @let c = conversation();
     <p class="d-flex align-items-center gap-2 mb-2 small" [class]="mode() === 'free-text' ? 'text-success-emphasis' : 'text-body-secondary'">
@@ -63,20 +66,10 @@ export function applicableTemplates(list: readonly TemplateView[], creditorId: s
         </select>
       </app-field>
       @if (template(); as t) {
-        <div class="row g-2 mb-2">
-          @for (v of t.variables; track v.name) {
-            <app-field class="col-sm-6 col-lg-4" [label]="v.name + (v.required ? '' : ' (opcional)')" [hint]="typeLabels[v.type]">
-              <input appInput [ngModel]="values()[v.name] ?? ''" (ngModelChange)="setValue(v.name, $event)" [attr.maxlength]="v.maxLength" />
-            </app-field>
-          }
-        </div>
-        <p class="cp-preview mb-2 ps-3 py-2 small border-start border-3" aria-label="Prévia da mensagem">{{ preview() ?? t.body }}</p>
+        <app-template-fill [template]="t" [(values)]="values" fieldClass="col-sm-6 col-lg-4" (invalid)="invalidValues.set($event)" />
       }
     }
     <div class="d-flex justify-content-end gap-2 mt-2">
-      @if (mode() === 'template' && template()) {
-        <button class="btn btn-link" type="button" (click)="refreshPreview()">Ver prévia</button>
-      }
       <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="send()" [disabled]="!ready() || sending() || c.status !== 'OPEN'">
         <app-icon name="send" />
         Enviar
@@ -87,9 +80,6 @@ export function applicableTemplates(list: readonly TemplateView[], creditorId: s
     :host {
       display: block;
     }
-    .cp-preview {
-      white-space: pre-wrap;
-    }
   `,
 })
 export class Composer {
@@ -98,7 +88,7 @@ export class Composer {
 
   private readonly messagesApi = inject(MessagesApi);
   private readonly templatesApi = inject(TemplatesApi);
-  protected readonly typeLabels = VARIABLE_TYPE_LABELS;
+  private readonly auth = inject(AuthService);
 
   private readonly conversationId = computed(() => this.conversation().id);
   protected readonly mode = computed(() => composerMode(this.conversation()));
@@ -107,7 +97,6 @@ export class Composer {
   protected readonly count = computed(() => charCount(this.conversation().channel, this.text()));
   protected readonly templateId = signal<string>('');
   protected readonly values = signal<Record<string, string>>({});
-  protected readonly preview = signal<string | null>(null);
   protected readonly sending = signal(false);
   /** Chave da tentativa atual: reaproveitada se o envio falhar por rede e o operador repetir. */
   private key = idempotencyKey();
@@ -132,13 +121,28 @@ export class Composer {
     // não resolvido (erro, fora do escopo): não preenche "Indisponível" como nome
     return name && name !== UNRESOLVED_NAME ? name : null;
   });
+  /** Nome do credor da conversa (nome fantasia ou razão social), para a variável `credor`; só com `CREDITOR_VIEW`. */
+  private readonly creditors = nameMap(inject(CreditorNames), () => (this.auth.hasPermission(Permission.CREDITOR_VIEW) ? [this.conversation().creditorId] : []));
+  private readonly creditorName = computed(() => {
+    const id = this.conversation().creditorId;
+    const name = id ? this.creditors.names().get(id) : undefined;
+    return name && name !== UNRESOLVED_NAME ? name : null;
+  });
+  /** O que o sistema já sabe para as variáveis do template escolhido. */
+  private readonly known = computed(() => {
+    const t = this.template();
+    return t ? prefillVariables(t.variables, this.debtorName(), null, this.creditorName()) : {};
+  });
+
+  /** Valor recusado na prévia: a mensagem não sai diferente do que a prévia mostra. */
+  protected readonly invalidValues = signal(false);
 
   protected readonly ready = computed(() => {
     if (this.mode() === 'free-text') {
       return this.text().trim().length > 0;
     }
     const t = this.template();
-    return !!t && t.variables.every((v) => !v.required || !!this.values()[v.name]?.trim());
+    return !!t && t.variables.every((v) => !v.required || !!this.values()[v.name]?.trim()) && !this.invalidValues();
   });
 
   constructor() {
@@ -147,59 +151,23 @@ export class Composer {
       this.conversationId();
       untracked(() => this.reset());
     });
-    // o nome chegou depois da escolha do template: completa o primeiro nome (sem apagar o que o operador digitou)
+    // o que o sistema sabe (primeiro nome, credor) e chegou depois da escolha do template: completa os campos vazios,
+    // sem apagar o que o operador digitou
     effect(() => {
-      const name = this.debtorName();
-      const t = this.template();
-      if (name && t) {
-        untracked(() => this.prefill(t, name));
-      }
+      const known = this.known();
+      untracked(() => {
+        const next = missingKnownValues(this.values(), known);
+        if (next) {
+          this.values.set(next);
+        }
+      });
     });
   }
 
-  /** Escolha do template: o primeiro nome do devedor da conversa já vem preenchido, com a prévia. */
+  /** Escolha do template: o que o sistema já sabe vem preenchido e a prévia acompanha o preenchimento. */
   protected selectTemplate(id: string): void {
     this.templateId.set(id);
-    this.values.set({});
-    this.preview.set(null);
-    this.previewRequest++;
-    const t = this.template();
-    if (t) {
-      this.prefill(t, this.debtorName());
-    }
-  }
-
-  private prefill(t: TemplateView, name: string | null): void {
-    const known = prefillVariables(t.variables, name);
-    const missing = Object.entries(known).filter(([k]) => !this.values()[k]?.trim());
-    if (!missing.length) {
-      return;
-    }
-    this.values.update((v) => ({ ...v, ...Object.fromEntries(missing) }));
-    if (this.ready()) {
-      this.refreshPreview();
-    }
-  }
-
-  /** Pedido de prévia vigente: resposta de pedido anterior (outro template ou valores já mudados) é descartada. */
-  private previewRequest = 0;
-
-  protected setValue(name: string, value: string): void {
-    this.values.update((v) => ({ ...v, [name]: value }));
-    this.preview.set(null);
-    this.previewRequest++;
-  }
-
-  protected refreshPreview(): void {
-    const t = this.template();
-    if (t) {
-      const request = ++this.previewRequest;
-      this.templatesApi.preview(t.id, this.filledValues()).subscribe((p) => {
-        if (request === this.previewRequest) {
-          this.preview.set(p.body);
-        }
-      });
-    }
+    this.values.set({ ...this.known() });
   }
 
   protected send(): void {
@@ -226,15 +194,13 @@ export class Composer {
   }
 
   private filledValues(): Record<string, string> {
-    return Object.fromEntries(Object.entries(this.values()).filter(([, v]) => v.trim() !== '').map(([k, v]) => [k, v.trim()]));
+    return filledVariables(this.values());
   }
 
   private reset(): void {
     this.text.set('');
     this.templateId.set('');
     this.values.set({});
-    this.preview.set(null);
-    this.previewRequest++;
     this.key = idempotencyKey();
   }
 }

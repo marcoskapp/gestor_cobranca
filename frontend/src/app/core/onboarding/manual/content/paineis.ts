@@ -117,7 +117,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Mostra a receita, o custo por categoria (pessoas, inteligência artificial, telefonia, mensagens, comissão dos negociadores, jurídico, ociosidade e custos fixos) e as margens de cada credor e carteira. Abre no último mês fechado. A coluna "Tendência" traz a margem líquida em % da receita dos seis meses que terminam no fim do período, com a frase "subiu", "caiu" ou "estável"; mês sem receita ou ainda não apurado fica como lacuna, nunca como zero.',
         'O custo é estimado: uso registrado vezes as faixas, tarifas e câmbio cadastrados em Custos operacionais. Horas sem faixa, mês sem câmbio ou canal sem tarifa entram com custo zero, e o painel avisa com o atalho para corrigir. Com as faturas dos canais informadas, escolha "Conciliado com a fatura": telefonia, mensagens e inteligência artificial passam a usar o valor cobrado, com a diferença rateada pelo custo estimado de cada credor e carteira; o selo mostra "Conciliado" ou "Parcialmente conciliado" e o quadro "Ajuste pela fatura" explica cada canal.',
-        'O mapa "Carteiras: margem × volume recuperado" põe cada carteira num de quatro quadrantes — rende e escala, rende pouco, consome e revisar contrato — pelos cortes escritos na tela: a mediana do recuperado e a margem do conjunto (ou zero, se negativa). Carteira sem receita fica fora, com a contagem. Clicar no ponto (ou Enter) abre o painel só daquela carteira e o "voltar" retorna ao mapa; "Ver tabela" mostra o mesmo em lista. Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. A tabela mostra os 25 primeiros credores ("Mostrar mais" traz mais 25) e a busca acha o credor pelo nome dele ou de uma carteira, já aberto; a linha "Total" continua a do período. Depois de corrigir uma faixa, tarifa ou câmbio, "Reapurar o período" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores.',
+        'O mapa "Carteiras: margem × volume recuperado" põe cada carteira num de quatro quadrantes — rende e escala, rende pouco, consome e revisar contrato — pelos cortes escritos na tela: a mediana do recuperado e a margem do conjunto (ou zero, se negativa). Carteira sem receita fica fora, com a contagem. Clicar no ponto (ou Enter) abre o painel só daquela carteira e o "voltar" retorna ao mapa; "Ver tabela" mostra o mesmo em lista. Recuperado e receita levam ao Razão de comissão com o mesmo credor, carteira e período. Nenhum valor por pessoa aparece: só somas por credor, carteira e mês. A tabela "Margem por credor e carteira" mostra receita, custo total, margem líquida e tendência dos 10 primeiros credores na ordem escolhida, com a linha "Outros" somando o resto, "Sem credor" e "Total"; "Relatório completo" abre em nova aba a tabela inteira com os mesmos filtros. Depois de corrigir uma faixa, tarifa ou câmbio, "Reapurar o período" refaz os custos do filtro (até ontem, no máximo 93 dias); aparece para quem cuida dos custos e vê todos os credores.',
       ],
       profiles: ['GESTOR', 'FINANCEIRO', 'ADMIN', 'AUDITOR'],
       inputs: ['Comissão e honorários da assessoria, tempo de atendimento, uso de inteligência artificial, chamadas, mensagens, comissão dos negociadores, custas jurídicas e custos fixos.'],
@@ -126,6 +126,24 @@ export const MANUAL: ModuleManual = {
         { screen: 'organization.costs', why: 'Faixas, tarifas, câmbio, custos fixos e faturas de canal usados no cálculo.' },
         { screen: 'settlement.ledger', why: 'Os recebimentos e a comissão que formam a receita.' },
         { screen: 'analytics.recovery', why: 'Valor recuperado por credor e carteira.' },
+      ],
+      terms: ['margem-de-contribuicao', 'margem-liquida', 'custo-estimado', 'custo-conciliado', 'rateio'],
+    },
+    {
+      id: 'analytics.margin-report',
+      title: 'Relatório de margem por carteira',
+      objective: 'Todos os credores e carteiras do período com receita, custo por categoria, margens, ROI e tendência, para analisar e exportar.',
+      purpose: [
+        'Abre pelo botão "Relatório completo" do painel de margem, em nova aba e com o mesmo período, credor, carteira, base dos custos e ordem. Traz as colunas que o painel resume: recuperado, receita, o custo de cada categoria e o custo direto, custo total, margem de contribuição, margem líquida, ROI e a tendência de seis meses. "Mostrar o custo por categoria" esconde ou mostra as categorias; com elas, só a tabela rola para o lado e o nome do credor fica fixo.',
+        'A busca acha o credor pelo nome dele ou de uma carteira, já aberto, com a carteira destacada; a tabela mostra 25 credores por vez ("Mostrar mais" traz mais 25) e as linhas "Sem credor" e "Total" continuam as do período. Ordene por qualquer coluna; recuperado e receita levam ao Razão de comissão. "Exportar" baixa a planilha ou o CSV com os mesmos filtros e fica registrado; "Ver o painel" volta ao painel com o mesmo recorte.',
+      ],
+      profiles: ['GESTOR', 'FINANCEIRO', 'ADMIN', 'AUDITOR'],
+      inputs: ['Os mesmos números do painel de margem por carteira, com o recorte escolhido nele.'],
+      outputs: ['Análise detalhada por credor e carteira; exportação em planilha ou CSV com os mesmos filtros.'],
+      related: [
+        { screen: 'analytics.margin', why: 'O painel que resume a margem e abre este relatório.' },
+        { screen: 'organization.costs', why: 'Faixas, tarifas, câmbio, custos fixos e faturas de canal usados no cálculo.' },
+        { screen: 'settlement.ledger', why: 'Os recebimentos e a comissão que formam a receita.' },
       ],
       terms: ['margem-de-contribuicao', 'margem-liquida', 'custo-estimado', 'custo-conciliado', 'rateio'],
     },

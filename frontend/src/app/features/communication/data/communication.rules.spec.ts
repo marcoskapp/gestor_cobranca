@@ -7,6 +7,9 @@ import {
   firstName,
   ownerText,
   prefillVariables,
+  variableMaxLength,
+  missingKnownValues,
+  filledVariables,
   stationChannels,
   categoryProblems,
   purposeProblems,
@@ -221,6 +224,33 @@ describe('regras da caixa de entrada', () => {
         .toEqual({ nome_fantasia: 'Comercial Fictícia Ltda', saudacao: 'Comercial Fictícia Ltda' });
       expect(prefillVariables(vars, 'Maria Clara', { personType: 'INDIVIDUAL', tradeName: null })).toEqual({ saudacao: 'Maria' });
       expect(prefillVariables(vars, 'Maria Clara')).toEqual({});
+    });
+
+    it('preenche credor com o nome do credor (mesma regra da origem "Nome do credor" da régua)', () => {
+      const vars: VariableInput[] = [
+        { name: 'nome', type: 'FIRST_NAME', required: true, maxLength: null },
+        { name: 'credor', type: 'TEXT', required: true, maxLength: null },
+        { name: 'saldo', type: 'MONEY', required: true, maxLength: null },
+        { name: 'dias', type: 'INTEGER', required: true, maxLength: null },
+      ];
+      expect(prefillVariables(vars, 'Iara Queiroz Albuquerque', null, 'Banco Fictício')).toEqual({ nome: 'Iara', credor: 'Banco Fictício' });
+      // nome do credor desconhecido (sem permissão ou em falha): fica com o operador
+      expect(prefillVariables(vars, 'Iara Queiroz Albuquerque', null, null)).toEqual({ nome: 'Iara' });
+      // credor como outro tipo não é preenchido (o nome só serve a texto)
+      expect(prefillVariables([{ name: 'credor', type: 'CODE', required: true, maxLength: null }], 'Iara', null, 'Banco Fictício')).toEqual({});
+      // sem limite próprio, vale o padrão do servidor (texto: 60): o pré-preenchido nunca nasce recusado
+      const longName = 'Companhia Fictícia de Crédito e Financiamento do Interior Paulista S.A.';
+      expect(prefillVariables([{ name: 'credor', type: 'TEXT', required: true, maxLength: null }], 'Iara', null, longName))
+        .toEqual({ credor: longName.slice(0, 60) });
+      expect(variableMaxLength({ type: 'FIRST_NAME', maxLength: null })).toBe(30);
+      expect(variableMaxLength({ type: 'TEXT', maxLength: 20 })).toBe(20);
+    });
+
+    it('completa os valores conhecidos sem apagar o que o operador digitou', () => {
+      expect(missingKnownValues({ nome: 'Ia', saldo: '10.00' }, { nome: 'Iara', credor: 'Banco' })).toEqual({ nome: 'Ia', saldo: '10.00', credor: 'Banco' });
+      expect(missingKnownValues({ nome: ' ' }, { nome: 'Iara' })).toEqual({ nome: 'Iara' });
+      expect(missingKnownValues({ nome: 'Iara' }, { nome: 'Iara' })).toBeNull();
+      expect(filledVariables({ nome: ' Iara ', saldo: '', dias: '  ' })).toEqual({ nome: 'Iara' });
     });
 
     it('quem atende a conversa', () => {

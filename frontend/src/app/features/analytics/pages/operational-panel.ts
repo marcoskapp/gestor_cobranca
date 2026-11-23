@@ -76,7 +76,7 @@ import { focusFilter, focusableKey, unfocusFilter, urlFilter } from '../data/url
           <section class="app-card">
             <app-bar-chart title="Carteira por credor" info="analytics.portfolio.by-creditor" data-tour="analytics-chart" categoryHeader="Credor" [summary]="creditorSummary()"
                            [series]="creditorSeries" [rows]="creditorRows()" noteHeader="Vencido / carteira"
-                           [limit]="10" [noun]="{ one: 'credor', many: 'credores' }" shareOf="da carteira"
+                           [limit]="5" [noun]="{ one: 'credor', many: 'credores' }" shareOf="da carteira"
                            tableKey="credores" [selectable]="true" [selectableRow]="focusableRow" selectHint="Filtrar o painel por este credor."
                            (selected)="focusOn('CREDITOR', 'Credor', $event)" />
           </section>

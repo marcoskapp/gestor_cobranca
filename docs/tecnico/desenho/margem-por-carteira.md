@@ -191,8 +191,10 @@ dados ou receita zero mostram "—" com o motivo.
 * Linha de indicadores: receita, custo total, margem de contribuição, margem líquida, custo por real recuperado, custo
   por acordo cumprido.
 * **Cascata** receita → cada categoria de custo → margem.
-* **Tabela por credor** (com expansão por carteira): recuperado, receita, custo por categoria, margem (R$ e %), ROI e
-  tendência dos últimos 6 meses; ordenável; margem negativa destacada.
+* **Tabela por credor** (com expansão por carteira): no painel, só as colunas essenciais — receita, custo total, margem
+  líquida (R$ e %) e tendência dos últimos 6 meses — dos 10 primeiros credores; a tabela completa (recuperado, custo
+  por categoria, margem de contribuição, ROI, busca e todos os credores) fica no **relatório completo**
+  (`/paineis/margem/relatorio`, §15), aberto em nova aba com os mesmos filtros; ordenável; margem negativa destacada.
 * **Mapa de dispersão** carteira × margem % × volume recuperado (quadrantes: "rende e escala", "rende pouco",
   "consome", "revisar contrato").
 * Evolução mensal da margem e do mix de custo.
@@ -408,6 +410,7 @@ Frontend em `frontend/src/app/features/costing` (`data/` com modelos do §10.2, 
 | Tela | Rota | Permissão (rota e menu) | Menu |
 | --- | --- | --- | --- |
 | Margem por carteira | `/paineis/margem` (em `analytics.routes.ts`, componente do `costing`) | `COST_VIEW` | Painéis → "Margem por carteira" (ícone `pie-chart`) |
+| Relatório de margem por carteira (§15) | `/paineis/margem/relatorio` (em `analytics.routes.ts`) | `COST_VIEW` | Sem item próprio: abre pelo painel ("Relatório completo"); trilha "Painéis › Margem por carteira › Relatório de margem por carteira" |
 | Custos operacionais | `/organizacao/custos` (em `organization.routes.ts`) | `COST_MANAGE` ou `COST_RATE_MANAGE` | Organização → "Custos operacionais" (ícone `receipt-cutoff`) |
 
 `COST_VIEW`, `COST_MANAGE` e `COST_RATE_MANAGE` entraram em `core/auth/permission.ts` (grupo "Custos e margem"). Perfis
@@ -434,12 +437,14 @@ padrão simulados em `navigation.spec.ts`: `COST_VIEW` para GESTOR, FINANCEIRO, 
   fixos → margem líquida; barras flutuantes sobre um eixo com zero (aceita negativo), valor escrito em cada linha,
   barra focável com rótulo acessível e tabela equivalente ("Ver tabela"). O mesmo componente mostra a **margem líquida
   por mês** (subtotais com sinal; a observação traz receita, custo e % do mês).
-* **Tabela por credor** com linhas expansíveis por carteira (`aria-expanded`/`aria-controls`), cabeçalhos ordenáveis
-  (`aria-sort`; padrão: menor margem líquida primeiro; taxa sem base sempre no fim), linha de total, margem negativa com
-  marca lateral e texto "(negativa)". Colunas: recuperado, receita, custo total, margem de contribuição
-  (R$ e %), margem líquida (R$ e %), ROI e tendência; **custo por categoria** (8 colunas) e o **custo direto** sob
-  demanda pelo seletor "Mostrar o custo por categoria", para a tabela padrão caber sem rolagem lateral (decisão 1340).
-  Busca por credor ou carteira e "Mostrar mais" (25 por vez): ux.md §21; no celular, blocos por credor. Carteira nula = "Sem carteira (custos do credor)".
+* **Tabela por credor** (`components/margin-table.*`, modo **compacto** no painel — §15) com linhas expansíveis por
+  carteira (`aria-expanded`/`aria-controls`), cabeçalhos ordenáveis (`aria-sort`; padrão: menor margem líquida
+  primeiro; taxa sem base sempre no fim), linhas "Sem credor" e "Total", margem negativa com marca lateral e texto
+  "negativa". No painel: Credor/carteira, Receita, Custo total, Margem líquida (R$ e % da receita) e Tendência, dos
+  **10 primeiros credores** na ordem da tabela, com a linha "Outros (N credores)" somando o resto e o aviso "Mostrando
+  10 de 30 credores, que somam 62% da receita."; o botão **"Relatório completo"** abre a tabela inteira em nova aba
+  (decisões 1364–1370). No celular, blocos por credor com "Ordenar por". Carteira nula = "Sem carteira (custos do
+  credor)".
 * **Drill-down**: recuperado e receita (cartão, linhas de credor e de carteira) levam ao Razão de comissão com o mesmo
   credor, carteira e período (`ledgerTarget` + `drillAccess` do analytics); sem a permissão do razão ou com mais de um
   credor/carteira no filtro, ficam como texto. Custos, margens e acordos cumpridos não têm lista que represente a base
@@ -666,7 +671,8 @@ Itens do §6.1 que ficaram fora da primeira entrega (decisão 1253). Decisões 1
   primeiro e o último mês com receita; menos de 1 ponto percentual = "estável"; negativo com "(negativa)"; mês não
   apurado e parcial citados). Dica no ponteiro e no foco com o valor de cada mês (posição fixa, sem ser cortada pela
   rolagem da tabela). Estados: "Carregando…", "Indisponível" (falha só da tendência; o painel segue) e "sem base".
-  A coluna é estreita: a tabela padrão continua sem rolagem lateral. "i": `analytics.margin.trend`.
+  A coluna é estreita: a tabela padrão continua sem rolagem lateral. "i": `analytics.margin.trend`. Aparece nos dois
+  modos da tabela (painel compacto e relatório completo, §15); a linha "Outros" do compacto não tem tendência.
 * **Mapa de dispersão** "Carteiras: margem × volume recuperado" (`components/margin-scatter.ts`, regras em
   `data/margin-scatter.rules.ts`), cartão entre os gráficos e a tabela (`data-tour="margin-scatter"`):
   * cada carteira do período é um ponto: x = recuperado (**escala logarítmica**, marcas em potências de 10), y =
@@ -699,3 +705,21 @@ Itens do §6.1 que ficaram fora da primeira entrega (decisão 1253). Decisões 1
 * A situação do mês só conhece o último dia apurado: meses anteriores ao início da apuração aparecem como completos e
   vazios (decisão 1317).
 * "Evolução mensal do mix de custo" (§6.1) continua fora: o gráfico mensal mostra só a margem líquida.
+
+## 15. Painel compacto e relatório completo (23/11/2026, decisões 1364–1370)
+
+Pedido do responsável: o cartão "Margem por credor e carteira" do painel deixava a página longa (25 credores por vez,
+"Mostrar mais") e larga (8 colunas de valor, mais as categorias). O painel passa a resumir e o detalhe vai para um
+relatório próprio.
+
+| Peça | Contrato |
+| --- | --- |
+| `components/margin-table.{ts,html,scss}` | Tabela única com `mode="compact"` (painel) ou `mode="full"` (relatório). Entradas: relatório, tendência (e erro), filtro, base, ordem e os nomes (`data/margin-names.ts`); a ordem escolhida sai por `sortChange` e o host grava em `ordem` (`margin-url-state.ts`, `replaceUrl`). Expansão por carteira, "Sem credor", "Total", tendência e drill-down para o Razão de comissão nos dois modos. |
+| Modo compacto (painel) | Colunas: Credor/carteira, Receita, Custo total, Margem líquida (valor com sinal + "% da receita" e "· negativa") e Tendência. **10 credores** na ordem da tabela (`compactCut`; com 11 mostra os 11 — "Outros" nunca tem um só, como nos rankings, ux.md §22), linha **"Outros (N credores)"** com a soma de recuperado, receita, custo total e margem (taxa = margem ÷ receita; sem receita, "—") para as colunas fecharem com o total, e o aviso **"Mostrando 10 de 30 credores, que somam 62% da receita."** (`compactNotice`, ligado à tabela por `aria-describedby`; sem a participação quando algum credor tem receita negativa ou a receita total não é positiva). Sem busca, sem custo por categoria e sem "Mostrar mais": a altura fica limitada a ~13 linhas, sem rolagem interna. Cabeçalhos ordenáveis continuam (escolhem quais 10 aparecem); no celular, "Ordenar por" só com as colunas do compacto. |
+| "Relatório completo" | Botão secundário no cabeçalho do cartão: `<a target="_blank" rel="noopener">` com o ícone `box-arrow-up-right` e "(abre em nova aba)" para o leitor de tela; leva `de`, `ate`, `credor`, `carteira`, `base` e `ordem` (`marginReportParams`; valores padrão fora da URL). Sempre visível para quem vê o painel (mesma permissão). |
+| `pages/margin-report.ts` (`/paineis/margem/relatorio`) | Título "Relatório de margem por carteira"; `COST_VIEW` no `permissionGuard` (como o painel); sem item de menu (a trilha passa pelo item do painel). Filtros (`app-analytics-filters`), base dos custos (`app-margin-basis-bar`), aviso de escopo parcial, avisos da apuração (`app-margin-warnings`), "Exportar" (`app-margin-export`, só com `REPORT_EXPORT`) e "Ver o painel" (mesma aba, mesmo recorte — a aba nova não tem o painel no histórico). Tabela em modo completo: recuperado, receita, **custo por categoria ligado por padrão** (o switch "Mostrar o custo por categoria" esconde), custo direto, custo total, margem de contribuição, margem líquida, ROI e tendência; busca (`busca` na URL, só nome de credor ou carteira — cadastro, nunca pessoa), "Mostrar mais" (25, `qtd`), totais. Com as categorias a tabela passa da largura: só ela rola na horizontal, com o nome do credor fixo (`position: sticky`); a página não rola para o lado. "Reapurar", cartões, cascata e mapa ficam só no painel. |
+| Peças extraídas | `app-margin-basis-bar` (seletor da base + selo + "i" + atalho para custos), `app-margin-warnings` (custos incompletos) e `app-margin-export` (menu XLSX/CSV), usadas pelas duas telas; `marginNames()` resolve nomes de credor e carteira pelas permissões de consulta. |
+| Onboarding | Tela `analytics.margin` na versão 4 (novidade), tour `analytics.margin` v3 (passo da tabela fala do relatório), tela e tour novos `analytics.margin-report` (base, tabela, "Ver o painel", "i"), manual rápido das duas telas (`paineis.ts`), nota de versão 34 e base do chat (`npm run knowledge`). |
+| Estado na URL | Painel e relatório: `de`, `ate`, `credor`, `carteira`, `base`, `ordem`; só no relatório: `busca` e `categorias=nao` (decisão 1375). No painel, `ordem` por coluna que o compacto não mostra (ex.: `-roi`) cai na ordem padrão e segue para o relatório (decisão 1365). |
+| Testes | `margin.rules.spec.ts` (parâmetros do relatório, corte, soma de "Outros", aviso), `margin-panel.spec.ts` (só as colunas essenciais, sem busca/categorias/"Mostrar mais", 10 + "Outros" + aviso, 11 sem corte, link com os filtros, `target` e `rel`) e `margin-report.spec.ts` (todas as colunas com categorias, switch, filtros na API, "Ver o painel" com o recorte, exportação por permissão, ordenação, busca e "Mostrar mais"). |
+

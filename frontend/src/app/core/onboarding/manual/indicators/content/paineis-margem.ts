@@ -19,7 +19,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Base do painel em que telefonia, mensagens e inteligência artificial usam o valor das faturas dos provedores informadas pela gestão, no lugar só da estimativa.',
     how: 'Para cada canal com fatura no mês, a diferença entre a fatura e a estimativa é rateada pelos credores e carteiras na proporção do custo estimado de cada um (sem estimativa, pela quantidade de uso). Canal sem fatura continua estimado; pessoas, comissão, jurídico e custos fixos não mudam.',
     use: 'Use para fechar o mês com números que batem com o que a assessoria pagou. "Parcialmente conciliado" indica canais com uso ainda sem fatura no período.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.invoice-adjustment',
@@ -35,7 +35,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Dinheiro efetivamente recebido dos devedores no período, a base sobre a qual a assessoria ganha.',
     how: 'Pagamentos confirmados menos estornos, por credor e carteira, a mesma base da prestação de contas e do painel de recuperação.',
     use: 'Compare com a receita: recuperado alto com receita baixa indica contrato com comissão pequena. Abra o número para ver os recebimentos no Razão de comissão.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.revenue',
@@ -43,7 +43,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'O que a assessoria ganha sobre o recebido no período: comissão, valor fixo e honorários cobrados do devedor.',
     how: 'Soma da comissão, do valor fixo e dos honorários da assessoria lançados no período, por credor e carteira, pelas regras do contrato vigentes na data de cada pagamento.',
     use: 'É o topo da cascata. Receita caindo com o mesmo esforço reduz a margem: confira a recuperação e as regras de comissão do contrato.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.direct-cost',
@@ -51,7 +51,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Custo que existe por causa da cobrança daquele credor: pessoas no tempo de atendimento, inteligência artificial, telefonia, mensagens, comissão dos negociadores e jurídico.',
     how: 'Soma das seis categorias diretas no período. Não inclui a ociosidade das pessoas nem os custos fixos, que entram só na margem líquida.',
     use: 'É o custo que muda com a decisão de operar a carteira. Se ele passa da receita, cada real recuperado ali dá prejuízo antes mesmo dos custos fixos.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.total-cost',
@@ -59,7 +59,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Todo o custo operacional atribuído ao credor ou à carteira no período, direto e indireto.',
     how: 'Custo direto mais a ociosidade das pessoas (rateada pelo tempo direto de cada credor no dia) e os custos fixos rateados pela regra de cada item.',
     use: 'Base do custo por real recuperado e do custo por acordo cumprido. Compare com a receita para saber se o credor paga a operação inteira.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.contribution',
@@ -67,7 +67,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Quanto sobra da receita depois do custo direto da recuperação, em reais e em percentual da receita.',
     how: 'Receita menos custo direto. O percentual divide pela receita; sem receita no período, o percentual fica indisponível.',
     use: 'Positiva: a carteira ajuda a pagar a estrutura. Negativa: cada real recuperado custa mais do que rende; reveja canal, esforço, automação ou o preço do contrato.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.net',
@@ -75,7 +75,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'O resultado depois de todo o custo operacional, inclusive ociosidade e custos fixos rateados.',
     how: 'Margem de contribuição menos a ociosidade e os custos fixos rateados ao credor. O percentual divide pela receita do período.',
     use: 'Negativa por dois meses seguidos pede revisão do contrato ou da forma de operar. Margem de contribuição positiva com líquida negativa indica estrutura grande para o volume.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.roi',
@@ -83,7 +83,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Retorno de cada real gasto na operação daquele credor ou carteira.',
     how: 'Margem líquida dividida pelo custo total, em percentual. Sem custo no período, fica indisponível.',
     use: 'Compara carteiras de tamanhos diferentes: priorize esforço e campanhas onde o retorno é maior e reveja as carteiras com retorno negativo.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.cost-per-recovered',
@@ -91,7 +91,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Quanto a assessoria gasta, em média, para trazer cada real pago pelos devedores.',
     how: 'Custo total dividido pelo valor recuperado no período. Sem valor recuperado, fica indisponível. Inclui todos os custos, e não só a comissão dos negociadores.',
     use: 'Subindo, a recuperação ficou mais cara: veja na cascata qual categoria cresceu. Compare com o percentual de comissão do contrato para saber se ainda há margem.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.cost-per-settled',
@@ -123,7 +123,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'A margem líquida em percentual da receita nos seis meses que terminam no mês do fim do período escolhido, para cada credor e carteira.',
     how: 'A mesma conta da margem líquida, mês a mês. Mês sem receita ou ainda não apurado fica como lacuna, nunca como zero. A frase compara o primeiro e o último mês com receita; menos de 1 ponto de diferença é estável.',
     use: 'Margem caindo mês a mês pede atenção antes de ficar negativa: veja na cascata qual custo cresceu. Dois meses seguidos de margem negativa pedem revisão do contrato.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.scatter',
@@ -139,7 +139,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Custo do tempo que as pessoas dedicaram aos casos do credor: atendimento, pós-atendimento das chamadas e conversa no chat.',
     how: 'Tempo atribuído ao credor vezes o custo por hora da faixa do cargo vigente no dia. Quem atende vários devedores ao mesmo tempo tem o tempo dividido entre os atendimentos, sem contar a mesma hora duas vezes. No chat, cada resposta vale até 3 minutos. Horas sem faixa entram com custo zero, com aviso.',
     use: 'Geralmente o maior custo. Subindo sem mais acordos cumpridos, reveja filas, roteiro e a parte que pode ir para campanhas ou para o assistente.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.cost-ai',
@@ -147,7 +147,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Custo do assistente de negociação e da leitura de PDFs com inteligência artificial para o credor.',
     how: 'Custo de uso estimado pela tabela de preços do provedor, em dólar, vezes o câmbio informado para o mês. Sem câmbio do mês, usa o último informado.',
     use: 'Compare com o tempo de pessoas que o assistente evitou. Custo crescendo sem acordos do assistente indica conversas longas: reveja a política do assistente.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.cost-telephony',
@@ -155,7 +155,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Custo estimado das ligações feitas para os devedores do credor.',
     how: 'Minutos tarifados de cada chamada atendida, arredondados para cima, vezes a tarifa por minuto da conta de telefonia usada na chamada.',
     use: 'Subindo sem mais contatos efetivos, reveja horários, listas e a taxa de atendimento das plataformas na comparação da telefonia.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.cost-messaging',
@@ -163,7 +163,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Custo estimado das mensagens enviadas aos devedores do credor por WhatsApp, SMS e e-mail.',
     how: 'Conversas de WhatsApp iniciadas pela assessoria, por categoria do template, e mensagens de SMS e e-mail, vezes a tarifa de cada canal vigente no dia.',
     use: 'Compare com o resultado das campanhas: canal caro sem retorno pode ser trocado por outro mais barato ou ter a régua encurtada.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.cost-commission',
@@ -171,7 +171,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Remuneração variável paga aos negociadores pelo que recuperaram para o credor.',
     how: 'Soma dos lançamentos de comissão dos negociadores no período, pelos planos de remuneração vigentes.',
     use: 'Acompanha a recuperação. Se cresce mais rápido que a receita, o plano paga mais do que a carteira rende: reveja o plano.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.cost-legal',
@@ -179,7 +179,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Custas jurídicas adiantadas pela assessoria que o credor não reembolsa.',
     how: 'Soma das despesas jurídicas pagas pela assessoria e marcadas como não reembolsáveis. As reembolsáveis voltam na prestação de contas e não entram.',
     use: 'Custo alto indica processos que talvez não compensem. Confira a viabilidade antes de autorizar novas medidas para o credor.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.cost-idle',
@@ -187,7 +187,7 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'Custo do tempo em que as pessoas estavam conectadas sem atender nenhum caso: espera, pausa e intervalo entre atendimentos.',
     how: 'Tempo conectado sem atribuição vezes o custo por hora da faixa, dividido entre os credores na proporção do tempo direto de cada um, para a mesma pessoa e no mesmo dia.',
     use: 'Ociosidade alta indica equipe maior que a demanda das filas. Ajuste escala, distribuição ou campanhas antes de cortar pessoas.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
   {
     id: 'analytics.margin.cost-overhead',
@@ -195,6 +195,6 @@ export const INDICATORS: readonly IndicatorHelp[] = [
     what: 'A parte dos custos fixos do mês, como aluguel, licenças e gestão, que cabe ao credor.',
     how: 'Cada custo fixo é dividido pela regra escolhida no cadastro: por horas trabalhadas (padrão), valor recuperado, casos trabalhados ou direto a um credor.',
     use: 'Entra só na margem líquida. Se a margem de contribuição é positiva e a líquida negativa, o credor não cobre a parte dele da estrutura.',
-    screens: ['analytics.margin'],
+    screens: ['analytics.margin', 'analytics.margin-report'],
   },
 ];

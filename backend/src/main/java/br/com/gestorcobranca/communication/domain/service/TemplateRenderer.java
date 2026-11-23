@@ -85,7 +85,28 @@ public final class TemplateRenderer {
         }
     }
 
+    /** Renderização do envio: toda variável obrigatória precisa de valor. */
     public static Rendered render(String subject, String body, List<TemplateVariable> variables, Map<String, String> values) {
+        return render(subject, body, variables, values, false);
+    }
+
+    /**
+     * Renderização da prévia enquanto a pessoa preenche: os valores informados passam pelas mesmas validações e
+     * formatações do envio; a variável ainda sem valor (obrigatória ou não) aparece marcada como {@code [nome]} no
+     * texto e vazia nos parâmetros. O envio continua exigindo as obrigatórias ({@link #render}).
+     */
+    public static Rendered renderDraft(String subject, String body, List<TemplateVariable> variables,
+                                       Map<String, String> values) {
+        return render(subject, body, variables, values, true);
+    }
+
+    /** Marcador da variável ainda sem valor na prévia. */
+    private static String pendingMarker(String variable) {
+        return "[" + variable + "]";
+    }
+
+    private static Rendered render(String subject, String body, List<TemplateVariable> variables,
+                                   Map<String, String> values, boolean draft) {
         Map<String, String> input = values == null ? Map.of() : values;
         Set<String> declared = new HashSet<>();
         variables.forEach(v -> declared.add(v.name()));
@@ -98,8 +119,10 @@ public final class TemplateRenderer {
             String raw = input.get(v.name());
             String value = raw == null || raw.isBlank() ? null : format(v, raw.trim());
             if (value == null) {
-                Guard.require(!v.required(), "template.variable_required", "Valor obrigatório para " + v.name());
-                value = "";
+                Guard.require(draft || !v.required(), "template.variable_required", "Valor obrigatório para " + v.name());
+                formatted.put(v.name(), draft ? pendingMarker(v.name()) : "");
+                parameters.add("");
+                continue;
             }
             formatted.put(v.name(), value);
             parameters.add(value);
@@ -129,14 +152,14 @@ public final class TemplateRenderer {
         return switch (v.type()) {
             case FIRST_NAME -> {
                 Guard.require(FIRST_NAME.matcher(value).matches(), "template.variable_first_name_invalid",
-                        "%s deve conter apenas o primeiro nome".formatted(v.name()));
+                        "%s: só o primeiro nome, sem sobrenome".formatted(v.name()));
                 yield value;
             }
             case MONEY -> money(v, value);
             case DATE -> date(v, value);
             case INTEGER -> {
                 Guard.require(INTEGER.matcher(value).matches(), "template.variable_integer_invalid",
-                        "%s deve ser um número inteiro".formatted(v.name()));
+                        "%s: use só números, sem ponto nem vírgula".formatted(v.name()));
                 yield value;
             }
             case URL -> url(v, value);
@@ -163,7 +186,7 @@ public final class TemplateRenderer {
             return "R$ " + format.format(amount);
         } catch (NumberFormatException | ArithmeticException e) {
             throw new BusinessRuleException("template.variable_money_invalid",
-                    "%s deve ser um valor com até 2 casas decimais (ex.: 1234.56)".formatted(v.name()));
+                    "%s: informe o valor em reais, com até 2 casas decimais (ex.: 1.234,56)".formatted(v.name()));
         }
     }
 
@@ -172,7 +195,7 @@ public final class TemplateRenderer {
             return LocalDate.parse(value).format(DISPLAY_DATE);
         } catch (DateTimeParseException e) {
             throw new BusinessRuleException("template.variable_date_invalid",
-                    "%s deve ser uma data no formato AAAA-MM-DD".formatted(v.name()));
+                    "%s: escolha uma data válida no calendário".formatted(v.name()));
         }
     }
 

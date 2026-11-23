@@ -16,6 +16,10 @@ import {
   DEFAULT_MARGIN_SORT,
   adjustmentViews,
   basisBadge,
+  compactCut,
+  compactNotice,
+  marginReportParams,
+  sumMarginLines,
   formatMarginBasis,
   listText,
   parseMarginBasis,
@@ -240,5 +244,42 @@ describe('custos operacionais — regras puras', () => {
     expect(rows.map((r) => r.item)).toEqual(['TELEPHONY', 'WHATSAPP', 'SMS', 'EMAIL', 'AI']);
     expect(rows[2].estimate).toBe(estimate);
     expect(rows[0].invoice).toBeNull();
+  });
+});
+
+describe('margem por carteira — painel compacto e relatório completo', () => {
+  const ID = '00000000-0000-0000-0000-00000000000a';
+
+  it('relatório leva o recorte, a base e a ordem; valores padrão ficam fora da URL', () => {
+    const filter = { from: '2026-10-01', to: '2026-10-31', creditorIds: [ID], portfolioIds: [] };
+    expect(marginReportParams(filter, 'RECONCILED', { key: 'revenue', desc: true })).toEqual({
+      de: '2026-10-01',
+      ate: '2026-10-31',
+      credor: [ID],
+      base: 'conciliado',
+      ordem: '-revenue',
+    });
+    expect(marginReportParams(filter, 'ESTIMATED', DEFAULT_MARGIN_SORT)).toEqual({ de: '2026-10-01', ate: '2026-10-31', credor: [ID] });
+  });
+
+  it('corte dos 10 primeiros; sem corte quando sobraria um só', () => {
+    const list = (n: number) => Array.from({ length: n }, (_, i) => i);
+    expect(compactCut(list(11))).toEqual({ visible: list(11), rest: [] });
+    const cut = compactCut(list(12));
+    expect(cut.visible).toEqual(list(10));
+    expect(cut.rest).toEqual([10, 11]);
+  });
+
+  it('"Outros" soma as colunas; taxa sem receita é nula', () => {
+    const sum = sumMarginLines([line({ revenue: 100, netMargin: -30, totalCost: 130 }), line({ revenue: 300, netMargin: 90, totalCost: 210 })]);
+    expect(sum).toEqual({ recovered: 20000, revenue: 400, totalCost: 340, netMargin: 60, netMarginRate: 0.15 });
+    expect(sumMarginLines([line({ revenue: 0, netMargin: -10 })]).netMarginRate).toBeNull();
+  });
+
+  it('aviso com a participação na receita; sem ela quando há receita negativa ou zero', () => {
+    const all = [line({ revenue: 600 }), line({ revenue: 300 }), line({ revenue: 100 })];
+    expect(compactNotice(all.slice(0, 2), all)).toBe('Mostrando 2 de 3 credores, que somam 90% da receita.');
+    expect(compactNotice(all.slice(0, 2), [...all, line({ revenue: -5 })])).toBe('Mostrando 2 de 4 credores.');
+    expect(compactNotice([], [line({ revenue: 0 })])).toBe('Mostrando 0 de 1 credores.');
   });
 });

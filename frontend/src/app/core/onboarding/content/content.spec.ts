@@ -199,6 +199,21 @@ describe('conteúdo do onboarding', () => {
     expect(note.items.map((i) => i.route)).toEqual(['/paineis/margem', '/organizacao/custos']);
   });
 
+  it('painel de margem compacto e relatório completo registrados, com tour e nota de versão', () => {
+    const panel = findScreen('/paineis/margem?de=2026-10-01')!;
+    expect(panel.version).toBe(4);
+    expect(panel.changes?.some((c) => c.version === 4)).toBe(true);
+    expect(findTour('analytics.margin')?.version).toBe(3);
+    // relatório: rota própria, antes do painel não casaria (segmentos diferentes), sem item no menu
+    const report = findScreen('/paineis/margem/relatorio?de=2026-10-01&base=conciliado')!;
+    expect(report.key).toBe('analytics.margin-report');
+    expect(findTour(report.tourId!)!.steps.map((s) => s.anchor)).toContain('info-hint');
+    const note = RELEASE_NOTES.find((n) => n.version === 34)!;
+    expect(note.title).toBe('Painéis mais enxutos e prévia de template');
+    // a novidade da margem aponta para o painel (o relatório não tem item no menu: abre pelo painel)
+    expect(note.items.map((i) => i.route)).toEqual(['/paineis/margem', '/paineis', '/conversas']);
+  });
+
   it('pagamentos, instruções, aprovação, sobras, conciliação e contas Pix registrados com tour (rotas fixas antes de :id)', () => {
     expect(findScreen('/pagamentos?devedor=d-1')?.tourId).toBe('payment.list');
     expect(findScreen('/pagamentos/instrucoes')?.tourId).toBe('payment.instructions');
@@ -246,7 +261,8 @@ describe('conteúdo do onboarding', () => {
     // estação: atendimento guardado por caso, painel lateral e acordo sem sair do caso (revisão de 2026-11); v9: aba "Mais" com seta e contagem
     // v10: endereço único do caso (J9); v11: selo de vulnerabilidade; v12: "Avaliado por você" no histórico; v13: responsável do retorno só entre quem pode trabalhar o caso
     // v14: empresa em recuperação judicial ou falência (cobrança B2B §7); v15: cartão "Melhor forma de contato"; v16: selo "Novo" no contato recebido numa nova carga
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(17);
+    // v17: aba "Acordos"; v18: prévia do template com o nome e o credor preenchidos, acompanhando a digitação
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(18);
     expect(findTour('collection.station')?.version).toBe(4);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(4);
     // aprovações no padrão único (revisão 11/2026, 3.1): decisão da fila antes do detalhe (":id" casaria o caminho)

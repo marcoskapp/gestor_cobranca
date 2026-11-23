@@ -431,6 +431,11 @@ class CommunicationModuleIT extends CommunicationTestSupport {
         // credor A usa a própria versão; o template da assessoria vale para quem não tem
         MessageView sent = asOperator(operatorX, () -> messages.send(template(null, null)));
         assertThat(sent.templateId()).isEqualTo(v2.id());
+        // prévia acompanha o preenchimento: o primeiro nome já aparece com o valor ainda por digitar
+        assertThat(asOperator(operatorX, () -> templates.preview(v2.id(), Map.of("nome", "Iara"))).body())
+                .isEqualTo("Olá Iara, há um débito de [valor]. Responda para negociar.");
+        assertThat(asOperator(operatorX, () -> templates.preview(v2.id(), Map.of("nome", "Iara", "valor", "1500"))).body())
+                .isEqualTo("Olá Iara, há um débito de R$ 1.500,00. Responda para negociar.");
         // rascunho de WhatsApp sem aprovação não publica; variável com dado pessoal é recusada
         var draft = asManager(() -> templates.createDraft(new TemplateUseCasesFixtures().draft(creditorA)));
         assertThatThrownBy(() -> asManager(() -> templates.publish(draft.id())))

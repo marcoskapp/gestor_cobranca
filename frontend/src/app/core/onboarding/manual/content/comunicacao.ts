@@ -29,7 +29,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Conversas com os devedores por dono e tempo de espera, para responder, assumir ou transferir.',
       purpose: [
         'Separe as suas conversas, as que estão na fila, as que estão com o assistente e todas. O número em cada aba indica quantas aguardam resposta. Sem conversas suas aguardando, a caixa abre na Fila; a aba escolhida fica no endereço.',
-        'Na conversa você vê todas as mensagens do devedor, em todos os canais, e revisa as sugestões do assistente antes de enviar.',
+        'Na conversa você vê todas as mensagens do devedor, em todos os canais, e revisa as sugestões do assistente antes de enviar. Fora da janela de 24 h do WhatsApp (e sempre no SMS e no e-mail), a resposta é por template: o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores — o que ainda falta aparece entre colchetes, como [saldo].',
         'Para iniciar um contato com um devedor, use "Mensagem" na estação de cobrança: a conversa nasce vinculada ao caso e com você, e continua aqui quando o devedor responder.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR'],

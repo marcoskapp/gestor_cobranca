@@ -52,6 +52,26 @@ class TemplateRendererTest {
     }
 
     @Test
+    void draftMarksMissingValuesAndValidatesTheInformedOnes() {
+        TemplateRenderer.Rendered partial = TemplateRenderer.renderDraft(null, BODY, VARS, Map.of("nome", "Iara"));
+        assertThat(partial.body()).isEqualTo("Olá Iara, sua parcela de [valor] vence em [vencimento]. [link]");
+        assertThat(partial.parameters()).containsExactly("Iara", "", "", "");
+        // o valor já digitado sai formatado como no envio, enquanto o restante ainda falta
+        assertThat(TemplateRenderer.renderDraft(null, BODY, VARS, Map.of("nome", "Iara", "valor", "250")).body())
+                .isEqualTo("Olá Iara, sua parcela de R$ 250,00 vence em [vencimento]. [link]");
+        assertThat(TemplateRenderer.renderDraft("Aviso a {{nome}}", "{{nome}}", VARS.subList(0, 1), Map.of()).subject())
+                .isEqualTo("Aviso a [nome]");
+        // valor informado continua validado (mesmo erro do envio); variável não prevista também
+        assertThatThrownBy(() -> TemplateRenderer.renderDraft(null, BODY, VARS, Map.of("nome", "Iara Queiroz")))
+                .hasFieldOrPropertyWithValue("code", "template.variable_first_name_invalid");
+        assertThatThrownBy(() -> TemplateRenderer.renderDraft(null, BODY, VARS, Map.of("cpf", "x")))
+                .hasFieldOrPropertyWithValue("code", "template.variable_unknown");
+        // o envio continua exigindo as obrigatórias
+        assertThatThrownBy(() -> TemplateRenderer.render(null, BODY, VARS, Map.of("nome", "Iara")))
+                .hasFieldOrPropertyWithValue("code", "template.variable_required");
+    }
+
+    @Test
     void rejectsPersonalDataAndInvalidFormats() {
         List<TemplateVariable> text = List.of(new TemplateVariable("info", VariableType.TEXT, true, 80));
         for (String pii : List.of("CPF 529.982.247-25", "52998224725", "maria@exemplo.com", "(11) 98765-4321",

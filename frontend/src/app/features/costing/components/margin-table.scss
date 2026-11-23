@@ -1,0 +1,234 @@
+:host {
+  display: block;
+}
+.mp__hint {
+  margin: 8px 0 0;
+  font-size: var(--app-text-xs);
+  color: var(--bs-secondary-color);
+}
+.mp__table-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mp__report-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mp__search {
+  width: 100%;
+  max-width: 360px;
+  margin-top: 8px;
+  .form-label {
+    margin-bottom: 4px;
+    font-size: var(--app-text-sm);
+  }
+}
+.mp__search-count {
+  margin: 8px 0 0;
+  font-size: var(--app-text-sm);
+}
+.mp__no-match {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+// aviso do corte no compacto ("Mostrando 10 de 30 credores…"), como o dos rankings (ux.md §22)
+.mp__notice {
+  margin: 8px 0 0;
+  font-size: var(--app-text-sm);
+  color: var(--bs-secondary-color);
+}
+.mp__table-wrap {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+.mp__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--app-text-sm);
+  th,
+  td {
+    padding: 8px;
+    border-bottom: 1px solid var(--bs-border-color);
+    text-align: left;
+    vertical-align: top;
+  }
+  // cabeçalhos quebram em 2 linhas (rótulo + ordenação + "i"): sem o custo por categoria, a tabela cabe a partir de
+  // 1280 px sem rolagem; com as categorias (relatório), só a tabela rola na horizontal, nunca a página
+  thead th {
+    min-width: 72px;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-semibold);
+    color: var(--bs-secondary-color);
+    white-space: normal;
+  }
+  .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .sub {
+    display: block;
+    white-space: normal;
+    font-size: var(--app-text-xs);
+    font-weight: normal;
+    color: var(--bs-secondary-color);
+  }
+}
+// nome do credor em 1–2 linhas naturais (não "Credor / Fictício Cedro")
+.mp__table tbody th,
+.mp__table tfoot th {
+  min-width: 160px;
+}
+// com o custo por categoria a tabela passa da largura: o nome do credor fica fixo à esquerda enquanto ela rola
+.mp__table-wrap--wide .mp__table tbody th,
+.mp__table-wrap--wide .mp__table tfoot th,
+.mp__table-wrap--wide .mp__table thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--app-surface);
+}
+.mp__order {
+  display: none;
+  max-width: 320px;
+  margin-top: 8px;
+  .form-label {
+    margin-bottom: 2px;
+    font-size: var(--app-text-sm);
+  }
+}
+.mp__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+.mp__expand {
+  margin: -4px 4px 0 -6px;
+  padding: 0 4px;
+}
+.mp__portfolio th {
+  font-weight: normal;
+}
+.mp__indent {
+  display: inline-block;
+  padding-left: 28px;
+}
+.mp__negative > th:first-child {
+  box-shadow: inset 3px 0 0 var(--bs-danger);
+}
+.mp__neg-value {
+  color: var(--bs-danger-text-emphasis);
+}
+// "Outros" (compacto): soma do resto, em texto secundário, separada dos credores por uma linha
+.mp__others th,
+.mp__others td {
+  color: var(--bs-secondary-color);
+  border-top: var(--bs-border-width) solid var(--bs-border-color);
+}
+.mp__total th,
+.mp__total td {
+  font-weight: var(--app-weight-semibold);
+  border-bottom: 0;
+}
+// custos sem credor (só para quem vê todos os credores): separados do total por uma linha, em texto secundário
+.mp__unallocated th,
+.mp__unallocated td {
+  color: var(--bs-secondary-color);
+  border-top: var(--bs-border-width) solid var(--bs-border-color);
+}
+// tendência de 6 meses: coluna estreita (minigráfico de 72 px)
+.mp__table .mp__trend {
+  width: 1%;
+  text-align: center;
+  white-space: nowrap;
+}
+.mp__trend-state {
+  font-size: var(--app-text-xs);
+  color: var(--bs-secondary-color);
+}
+
+// celular: cada credor vira um bloco (nome como título; valores com o rótulo) — sem rolagem lateral; a ordenação vai
+// para o seletor "Ordenar por"
+@media (max-width: 575.98px) {
+  .mp__order {
+    display: block;
+  }
+  .mp__table-wrap {
+    overflow-x: visible;
+  }
+  .mp__table-wrap--wide .mp__table tbody th,
+  .mp__table-wrap--wide .mp__table tfoot th {
+    position: static;
+  }
+  .mp__table {
+    thead {
+      display: none;
+    }
+    tbody,
+    tfoot,
+    tr {
+      display: block;
+    }
+    tr {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--bs-border-color);
+    }
+    th,
+    td {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0 12px;
+      min-width: 0;
+      padding: 2px 0;
+      border: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    // linha de baixo (taxa, "1 carteira") ocupa a largura toda, alinhada ao valor
+    td .sub {
+      flex-basis: 100%;
+      text-align: right;
+    }
+    th .sub {
+      flex-basis: 100%;
+    }
+    tbody th,
+    tfoot th {
+      min-width: 0;
+      flex-wrap: wrap;
+      font-weight: var(--app-weight-semibold);
+    }
+    td[data-label]::before {
+      content: attr(data-label);
+      flex: none;
+      color: var(--bs-secondary-color);
+      text-align: left;
+    }
+    td.num {
+      text-align: right;
+    }
+    .mp__trend {
+      width: auto;
+      text-align: right;
+    }
+  }
+  .mp__negative > th:first-child {
+    box-shadow: none;
+  }
+  .mp__negative {
+    box-shadow: inset 3px 0 0 var(--bs-danger);
+    padding-left: 8px;
+  }
+}

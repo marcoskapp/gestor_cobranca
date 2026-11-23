@@ -4,6 +4,7 @@ import { button, page, render, setup, text } from '../../../../testing/component
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { ConversationView, MessageView, TemplateView } from '../data/communication.models';
 import { StartContact, StartConversationDialog } from './start-conversation-dialog';
+import { TEMPLATE_PREVIEW_DEBOUNCE_MS } from '../components/template-fill';
 
 const contacts: StartContact[] = [
   { contactId: 'ct-1', type: 'PHONE', maskedValue: '(11) 9****-1234', label: 'MOBILE', whatsapp: true, status: 'VALID', priority: 1 },
@@ -122,6 +123,24 @@ describe('StartConversationDialog (mensagem pela estação)', () => {
     expect(req.request.body.variables.valor).toBe('500.00');
     req.flush(message({}));
     expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: 'm-1' }));
+  });
+
+  it('a prévia acompanha o valor digitado, depois da pausa da digitação', async () => {
+    const { http } = create();
+    const fixture = await render(StartConversationDialog, http, respond());
+    await pickTemplate(fixture, http);
+    await typeMoney(fixture, '5');
+    await typeMoney(fixture, '50000');
+    await new Promise((r) => setTimeout(r, TEMPLATE_PREVIEW_DEBOUNCE_MS + 50));
+    fixture.detectChanges();
+    // uma prévia só para a pausa, com o último valor
+    const req = http.expectOne((r) => r.method === 'POST' && r.url.endsWith('/templates/t-1/preview'));
+    expect(req.request.body).toEqual({ nome: 'Ana', valor: '500.00' });
+    req.flush({ subject: null, body: 'Olá Ana, há um débito de R$ 500,00.', parameters: [] });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('Olá Ana, há um débito de R$ 500,00.');
   });
 
   it('negado pelo porteiro no envio: mostra o motivo e não fecha', async () => {

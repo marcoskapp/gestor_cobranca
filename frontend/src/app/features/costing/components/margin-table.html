@@ -1,0 +1,209 @@
+@let r = report();
+@let t = r.totals;
+<section class="app-card" aria-labelledby="mp-table-title" data-tour="margin-table">
+  <div class="mp__table-head">
+    <h2 class="app-card__title mb-0" id="mp-table-title">Margem por credor e carteira</h2>
+    @if (full()) {
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="mp-categories" [checked]="showCategories()" #categoriesBox
+               (change)="showCategories.set(categoriesBox.checked)" />
+        <label class="form-check-label" for="mp-categories">Mostrar o custo por categoria</label>
+      </div>
+    } @else {
+      <a class="btn btn-outline-secondary btn-sm mp__report-link" [routerLink]="reportRoute" [queryParams]="reportParams()" target="_blank" rel="noopener"
+         data-tour="margin-report-link">
+        Relatório completo<app-icon name="box-arrow-up-right" /><span class="visually-hidden"> (abre em nova aba)</span>
+      </a>
+    }
+  </div>
+  @if (canSearch() && creditorRows().length) {
+    <div class="mp__search" role="search" aria-label="Buscar na tabela por credor ou carteira">
+      <label class="form-label" for="mp-search">Buscar credor ou carteira</label>
+      <input #searchBox id="mp-search" type="search" class="form-control form-control-sm" placeholder="Nome do credor ou da carteira" maxlength="80"
+             autocomplete="off" [value]="searchInput()" (input)="search(searchBox.value)" />
+    </div>
+  }
+  <p class="mp__hint">
+    Abra o credor para ver as carteiras. Margem negativa aparece com "−" e a palavra "negativa".
+    @if (!full()) {
+      Recuperado, margem de contribuição, ROI e custo por categoria estão no relatório completo.
+    }
+  </p>
+  @if (searchTerm()) {
+    <!-- sem resultado: a mensagem visível fica na tabela (com "Limpar busca"); aqui só o anúncio -->
+    <p class="mp__search-count" [class.visually-hidden]="!searchCount()" role="status" aria-live="polite">
+      @if (searchCount()) {
+        {{ count(searchCount()) }} {{ searchCount() === 1 ? 'credor encontrado' : 'credores encontrados' }}. A linha "Total do período" continua com todos os credores.
+      } @else {
+        Nenhum credor encontrado.
+      }
+    </p>
+  }
+  <div class="mp__order">
+    <label class="form-label" for="mp-order">Ordenar por</label>
+    <select id="mp-order" class="form-select form-select-sm" (change)="order($any($event.target).value)">
+      @for (o of orderOptions(); track o.value) {
+        <option [value]="o.value" [selected]="o.value === orderValue()">{{ o.label }}</option>
+      }
+    </select>
+  </div>
+  <div class="mp__table-wrap" [class.mp__table-wrap--wide]="withCategories()">
+    <table class="mp__table" [class.mp__table--compact]="!full()" #tableEl [attr.aria-describedby]="notice() ? 'mp-notice' : null">
+      <caption class="visually-hidden">Margem por credor e carteira, ordenada por {{ effectiveSort().key === 'name' ? 'nome' : 'coluna escolhida' }}</caption>
+      <thead>
+        <tr>
+          <th scope="col" [attr.aria-sort]="ariaSort('name')">
+            <button type="button" class="mp__sort" (click)="sortBy('name')">Credor / carteira <app-icon [name]="sortIcon('name')" /></button>
+          </th>
+          @for (c of valueColumns(); track c.key) {
+            <th scope="col" class="num" [attr.aria-sort]="ariaSort(c.key)">
+              <button type="button" class="mp__sort" (click)="sortBy(c.key)">{{ c.label }} <app-icon [name]="sortIcon(c.key)" /></button>
+              <!-- info-hint: analytics.margin.recovered, analytics.margin.revenue -->
+              <app-info-hint [indicator]="c.info" [label]="c.label" />
+            </th>
+          }
+          @if (withCategories()) {
+            @for (cat of categories; track cat) {
+              <th scope="col" class="num">
+                <span [title]="categoryLabels[cat]">{{ categoryShort[cat] }}</span>
+                <!-- info-hint: analytics.margin.cost-human-direct, analytics.margin.cost-ai, analytics.margin.cost-telephony, analytics.margin.cost-messaging -->
+                <!-- info-hint: analytics.margin.cost-commission, analytics.margin.cost-legal, analytics.margin.cost-idle, analytics.margin.cost-overhead -->
+                <app-info-hint [indicator]="categoryInfo[cat]" [label]="categoryLabels[cat]" />
+              </th>
+            }
+            <th scope="col" class="num" [attr.aria-sort]="ariaSort('directCost')">
+              <button type="button" class="mp__sort" (click)="sortBy('directCost')">Custo direto <app-icon [name]="sortIcon('directCost')" /></button>
+              <!-- info-hint: analytics.margin.direct-cost -->
+              <app-info-hint indicator="analytics.margin.direct-cost" label="Custo direto" />
+            </th>
+          }
+          @for (c of resultColumns(); track c.key) {
+            <th scope="col" class="num" [attr.aria-sort]="ariaSort(c.key)">
+              <button type="button" class="mp__sort" (click)="sortBy(c.key)">{{ c.label }} <app-icon [name]="sortIcon(c.key)" /></button>
+              <!-- info-hint: analytics.margin.total-cost, analytics.margin.contribution, analytics.margin.net, analytics.margin.roi -->
+              <app-info-hint [indicator]="c.info" [label]="c.label" />
+            </th>
+          }
+          <th scope="col" class="mp__trend">
+            <span>Tendência</span>
+            <span class="sub">margem, 6 meses</span>
+            <app-info-hint indicator="analytics.margin.trend" label="Tendência da margem líquida" />
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of visibleRows(); track item.row.creditorId) {
+          @let c = item.row;
+          @let open = expanded().has(c.creditorId);
+          <tr class="mp__creditor" [class.mp__negative]="negative(c.netMargin)">
+            <th scope="row">
+              @if (item.portfolios.length) {
+                <button type="button" class="btn btn-link mp__expand" (click)="toggle(c.creditorId)" [attr.aria-expanded]="open"
+                        [attr.aria-controls]="'mp-p-' + c.creditorId" [attr.aria-label]="(open ? 'Fechar' : 'Abrir') + ' as carteiras de ' + creditorName(c)">
+                  <app-icon [name]="open ? 'chevron-down' : 'chevron-right'" />
+                </button>
+              }
+              <span>{{ creditorName(c) }}</span>
+              <span class="sub">{{ count(item.portfolios.length) }} {{ item.portfolios.length === 1 ? 'carteira' : 'carteiras' }}</span>
+            </th>
+            <ng-container *ngTemplateOutlet="cells; context: { $implicit: c, link: creditorLink(c), trend: trendOf(c.creditorId) }" />
+          </tr>
+          @if (open) {
+            @for (p of item.portfolios; track p.portfolioId ?? '-'; let first = $first) {
+              <tr class="mp__portfolio" [class.mp__negative]="negative(p.netMargin)" [attr.id]="first ? 'mp-p-' + c.creditorId : null">
+                <th scope="row">
+                  <span class="mp__indent">
+                    @if (searchMatch(portfolioName(p))) {
+                      <mark>{{ portfolioName(p) }}</mark><span class="visually-hidden"> (encontrada na busca)</span>
+                    } @else {
+                      {{ portfolioName(p) }}
+                    }
+                  </span>
+                </th>
+                <ng-container *ngTemplateOutlet="cells; context: { $implicit: p, link: portfolioLink(c, p), trend: trendOf(c.creditorId, p.portfolioId) }" />
+              </tr>
+            }
+          }
+        } @empty {
+          @if (searchTerm()) {
+            <tr>
+              <td [attr.colspan]="columnCount()">
+                <div class="mp__no-match">
+                  <span>Nenhum credor ou carteira com "{{ searchApplied().trim() }}". Confira a grafia ou limpe a busca.</span>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="clearSearch()">Limpar busca</button>
+                </div>
+              </td>
+            </tr>
+          } @else {
+            <tr><td [attr.colspan]="columnCount()">Nenhum credor com receita ou custo no período.</td></tr>
+          }
+        }
+        @if (others(); as o) {
+          <!-- compacto: o resto somado, para as colunas fecharem com o total (como "Outros" nos rankings, ux.md §22) -->
+          <tr class="mp__others" [class.mp__negative]="negative(o.line.netMargin)">
+            <th scope="row">
+              <span>Outros ({{ count(o.count) }} credores)</span>
+              <span class="sub">soma dos demais; cada um no relatório completo</span>
+            </th>
+            <ng-container *ngTemplateOutlet="cells; context: { $implicit: o.line, link: null }" />
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        @if (r.unallocated && !searchTerm()) {
+          @let u = r.unallocated;
+          <tr class="mp__unallocated" [class.mp__negative]="negative(u.netMargin)">
+            <th scope="row">
+              <span>Sem credor</span>
+              <span class="sub">ociosidade sem atendimento no dia e custos sem base de rateio</span>
+            </th>
+            <ng-container *ngTemplateOutlet="cells; context: { $implicit: u, link: null }" />
+          </tr>
+        }
+        <tr class="mp__total">
+          <th scope="row">{{ searchTerm() ? 'Total do período (todos os credores)' : 'Total' }}</th>
+          <ng-container *ngTemplateOutlet="cells; context: { $implicit: t, link: totalLink() }" />
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  @if (full()) {
+    <app-show-more [list]="table" [table]="tableEl" rowSelector="tbody > tr.mp__creditor" singular="credor" plural="credores" />
+  } @else if (notice()) {
+    <p class="mp__notice" id="mp-notice">{{ notice() }}</p>
+  }
+</section>
+
+<ng-template #cells let-line let-link="link" let-trend="trend">
+  @if (full()) {
+    <td class="num" data-label="Recuperado"><app-drill-link [to]="link"><app-amount [value]="line.recovered" /></app-drill-link></td>
+  }
+  <td class="num" data-label="Receita"><app-drill-link [to]="link"><app-amount [value]="line.revenue" /></app-drill-link></td>
+  @if (withCategories()) {
+    @for (cat of categories; track cat) {
+      <td class="num app-numeric" [attr.data-label]="categoryLabels[cat]">{{ cost(line, cat) }}</td>
+    }
+    <td class="num" data-label="Custo direto"><app-amount [value]="line.directCost" /></td>
+  }
+  <td class="num" data-label="Custo total"><app-amount [value]="line.totalCost" /></td>
+  @if (full()) {
+    <td class="num app-numeric" data-label="Margem de contribuição" [class.mp__neg-value]="negative(line.contributionMargin)">
+      {{ signedMoney(line.contributionMargin) }}<span class="sub">{{ rate(line.contributionMarginRate) }} da receita{{ negative(line.contributionMargin) ? ' · negativa' : '' }}</span>
+    </td>
+  }
+  <td class="num app-numeric" data-label="Margem líquida" [class.mp__neg-value]="negative(line.netMargin)">
+    {{ signedMoney(line.netMargin) }}<span class="sub">{{ rate(line.netMarginRate) }} da receita{{ negative(line.netMargin) ? ' · negativa' : '' }}</span>
+  </td>
+  @if (full()) {
+    <td class="num app-numeric" data-label="ROI">{{ rate(line.roi) }}</td>
+  }
+  <td class="mp__trend" data-label="Tendência">
+    @if (trend === 'loading') {
+      <span class="mp__trend-state">Carregando…</span>
+    } @else if (trend === 'error') {
+      <span class="mp__trend-state">Indisponível</span>
+    } @else if (trend) {
+      <app-trend-sparkline [points]="trend" [months]="trendMonths()" />
+    }
+  </td>
+</ng-template>

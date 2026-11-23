@@ -219,7 +219,7 @@ class TemplateService implements TemplateUseCases {
     @Transactional(readOnly = true)
     public Preview preview(UUID templateId, Map<String, String> values) {
         MessageTemplate template = visible(templateId);
-        TemplateRenderer.Rendered rendered = TemplateRenderer.render(template.getSubject(), template.getBody(),
+        TemplateRenderer.Rendered rendered = TemplateRenderer.renderDraft(template.getSubject(), template.getBody(),
                 variables.parse(template.getVariables()), values);
         return new Preview(rendered.subject(), rendered.body(), rendered.parameters());
     }

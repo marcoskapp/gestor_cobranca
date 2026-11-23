@@ -1,9 +1,6 @@
-import { NgTemplateOutlet } from '@angular/common';
-import { Component, ElementRef, computed, effect, inject, linkedSignal, signal, viewChild } from '@angular/core';
-import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
-import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
-import { debounceTime, finalize } from 'rxjs';
+import { Component, computed, inject, signal } from '@angular/core';
+import { rxResource } from '@angular/core/rxjs-interop';
+import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -14,34 +11,29 @@ import { Icon } from '../../../shared/components/icon/icon';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
-import { ShowMoreButton } from '../../../shared/components/show-more/show-more';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
-import { nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
-import { injectUrlStateWriter } from '../../../shared/data/url-state';
-import { showMore } from '../../../shared/util/show-more';
-import { matchesSearch, normalizeSearch } from '../../../shared/util/text-search';
 import { AnalyticsFilters } from '../../analytics/components/analytics-filters';
 import { DrillLink } from '../../analytics/components/drill-link';
 import { AnalyticsFilter } from '../../analytics/data/analytics.models';
-import { DrillTarget, drillAccess, ledgerTarget } from '../../analytics/data/drill-down';
+import { drillAccess, ledgerTarget } from '../../analytics/data/drill-down';
 import { zonedNow } from '../../collection/data/collection.rules';
-import { CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
+import { MarginBasisBar } from '../components/margin-basis-bar';
+import { MarginExport } from '../components/margin-export';
 import { MarginScatter } from '../components/margin-scatter';
-import { TrendSparkline } from '../components/trend-sparkline';
+import { MarginTable } from '../components/margin-table';
+import { MarginWarnings } from '../components/margin-warnings';
 import { WaterfallChart } from '../components/waterfall-chart';
 import { MarginApi } from '../data/costing.api';
-import { CATEGORY_LABELS, CATEGORY_SHORT_LABELS, CHANNEL_ITEM_LABELS, COST_SETTINGS_ROUTE } from '../data/costing.labels';
-import { COST_CATEGORIES, CostCategory, CreditorMargin, MarginBasis, MarginFilter, MarginLine, PortfolioMargin, TrendPoint } from '../data/costing.models';
+import { CHANNEL_ITEM_LABELS, COST_SETTINGS_ROUTE } from '../data/costing.labels';
+import { MarginFilter, MarginLine } from '../data/costing.models';
+import { marginNames } from '../data/margin-names';
 import { ScatterPoint, scatterModel, scatterSummary } from '../data/margin-scatter.rules';
 import { marginUrlState } from '../data/margin-url-state';
 import {
-  MarginSort,
-  MarginSortKey,
   WaterfallStep,
   adjustmentViews,
   asAnalyticsFilter,
-  basisBadge,
   countText,
   fromAnalyticsFilter,
   hoursText,
@@ -55,47 +47,15 @@ import {
   rateText,
   refreshPeriod,
   signedAmount,
-  sortMarginRows,
-  warningViews,
   waterfallSteps,
 } from '../data/margin.rules';
-
-/** Coluna ordenável da tabela por credor (rótulo, chave e indicador do "i"). */
-interface SortColumn {
-  key: MarginSortKey;
-  label: string;
-  info: string;
-}
-
-/** Parâmetro da URL com o termo da busca da tabela (nome de credor ou carteira: cadastro, sem dado pessoal). */
-const SEARCH_PARAM = 'busca';
-
-/** Atraso da busca enquanto a pessoa digita. */
-const SEARCH_DEBOUNCE_MS = 250;
-
-/** Linha da tabela: o credor e as carteiras dele, já ordenadas. */
-interface CreditorItem {
-  row: CreditorMargin;
-  portfolios: PortfolioMargin[];
-}
-
-/** Indicadores das categorias de custo no catálogo (um "i" por coluna). */
-const CATEGORY_INFO: Readonly<Record<CostCategory, string>> = {
-  HUMAN_DIRECT: 'analytics.margin.cost-human-direct',
-  AI: 'analytics.margin.cost-ai',
-  TELEPHONY: 'analytics.margin.cost-telephony',
-  MESSAGING: 'analytics.margin.cost-messaging',
-  VARIABLE_COMMISSION: 'analytics.margin.cost-commission',
-  LEGAL: 'analytics.margin.cost-legal',
-  HUMAN_IDLE: 'analytics.margin.cost-idle',
-  OVERHEAD: 'analytics.margin.cost-overhead',
-};
 
 /**
  * Painel "Margem por carteira" (margem-por-carteira.md §6.1, fase 1): quanto cada credor e carteira rende para a
  * assessoria depois do custo operacional estimado — pessoas, IA, telefonia, mensagens, comissão variável, jurídico,
  * ociosidade e custos fixos rateados. Filtros e ordenação na URL; período padrão = último mês fechado. Nenhum valor por
- * pessoa: o servidor só devolve agregados por credor, carteira e mês.
+ * pessoa: o servidor só devolve agregados por credor, carteira e mês. A tabela por credor é a compacta (colunas
+ * essenciais, 10 credores); a completa fica no relatório (`/paineis/margem/relatorio`, §15), aberto em nova aba.
  */
 @Component({
   selector: 'app-margin-panel',
@@ -108,13 +68,13 @@ const CATEGORY_INFO: Readonly<Record<CostCategory, string>> = {
     Icon,
     InfoHint,
     KpiCard,
-    NgbDropdownModule,
-    NgTemplateOutlet,
-    PageHeader,
-    ShowMoreButton,
-    Skeleton,
+    MarginBasisBar,
+    MarginExport,
     MarginScatter,
-    TrendSparkline,
+    MarginTable,
+    MarginWarnings,
+    PageHeader,
+    Skeleton,
     WaterfallChart,
   ],
   templateUrl: './margin-panel.html',
@@ -141,23 +101,15 @@ export class MarginPanel {
     stream: ({ params }) => this.api.trend(params.filter, params.basis),
   });
   protected readonly trend = valueOr(this.trendData, undefined);
+  protected readonly names = marginNames(this.report);
 
-  protected readonly categories = COST_CATEGORIES;
-  protected readonly categoryLabels = CATEGORY_LABELS;
-  protected readonly categoryShort = CATEGORY_SHORT_LABELS;
-  protected readonly categoryInfo = CATEGORY_INFO;
   protected readonly settingsRoute = COST_SETTINGS_ROUTE;
-  protected readonly settingsPermissions = [Permission.COST_MANAGE, Permission.COST_RATE_MANAGE];
   protected readonly money = formatAmount;
-  protected readonly rate = rateText;
-  protected readonly marginText = marginText;
   protected readonly marginShort = marginShort;
   protected readonly negative = isNegative;
-  protected readonly count = countText;
   protected readonly hours = hoursText;
   protected readonly monthLabel = monthLabel;
 
-  protected readonly canExport = computed(() => this.auth.hasPermission(Permission.REPORT_EXPORT));
   /** Quem não vê todos os credores recebe ociosidade e fixos só dos próprios credores, sem total da assessoria (§7). */
   protected readonly partialScope = computed(() => this.auth.user()?.allCreditors === false);
   /** Reapurar: o servidor exige `COST_MANAGE` ou `COST_RATE_MANAGE` e todos os credores. */
@@ -165,16 +117,7 @@ export class MarginPanel {
     () => !this.partialScope() && (this.auth.hasPermission(Permission.COST_MANAGE) || this.auth.hasPermission(Permission.COST_RATE_MANAGE)),
   );
   // ------------------------------------------------------------ base dos custos: estimada ou conciliada com a fatura (§13)
-  protected readonly basisOptions: readonly { value: MarginBasis; label: string }[] = [
-    { value: 'ESTIMATED', label: 'Estimado' },
-    { value: 'RECONCILED', label: 'Conciliado com a fatura' },
-  ];
   protected readonly reconciled = computed(() => this.state.basis() === 'RECONCILED');
-  protected readonly badge = computed(() => basisBadge(this.state.basis(), this.report()?.reconciliation));
-  /** Na base estimada, avisa que há faturas para ver a base conciliada. */
-  protected readonly invoicesAvailable = computed(
-    () => !this.reconciled() && !!this.report()?.reconciliation && this.report()!.reconciliation!.status !== 'ESTIMATED',
-  );
   protected readonly adjustments = computed(() => adjustmentViews(this.report()?.totals, this.state.basis(), this.report()?.reconciliation));
   protected readonly adjustmentTotal = computed(() => this.adjustments().reduce((sum, a) => sum + a.adjustment, 0));
   protected readonly pending = computed(() => pendingInvoices(this.report()?.reconciliation));
@@ -187,217 +130,19 @@ export class MarginPanel {
   protected readonly invoiceTab = { aba: 'faturas' };
   protected readonly invoiceLink = computed(() => !this.partialScope());
 
-  protected setBasis(basis: MarginBasis): void {
-    this.state.setBasis(basis);
-  }
-
-  protected readonly exporting = signal(false);
   protected readonly refreshing = signal(false);
-  /** Colunas por categoria de custo (tabela larga) só quando pedidas. */
-  protected readonly showCategories = signal(false);
 
-  protected readonly warnings = computed(() => warningViews(this.report()?.warnings));
   protected readonly empty = computed(() => {
     const r = this.report();
     return !!r && r.creditors.length === 0 && num(r.totals.revenue) === 0 && num(r.totals.totalCost) === 0;
   });
 
-  // ------------------------------------------------------------ nomes (só ids na resposta)
-  private readonly canCreditors = computed(() => this.auth.hasPermission(Permission.CREDITOR_VIEW));
-  private readonly canPortfolios = computed(() => this.auth.hasPermission(Permission.PORTFOLIO_VIEW));
-  private readonly creditorNames = nameMap(inject(CreditorNames), () => (this.canCreditors() ? (this.report()?.creditors ?? []).map((c) => c.creditorId) : []));
-  private readonly portfolioNames = nameMap(inject(PortfolioNames), () =>
-    this.canPortfolios() ? (this.report()?.creditors ?? []).flatMap((c) => c.portfolios.map((p) => p.portfolioId)) : [],
-  );
-
-  protected creditorName(row: CreditorMargin): string {
-    return row.name || (this.canCreditors() ? this.creditorNames.name(row.creditorId) : 'Credor');
-  }
-
-  protected portfolioName(row: PortfolioMargin): string {
-    if (!row.portfolioId) {
-      return 'Sem carteira (custos do credor)';
-    }
-    return this.canPortfolios() ? this.portfolioNames.name(row.portfolioId) : 'Carteira';
-  }
-
-  // ------------------------------------------------------------ tabela
-  protected readonly sortColumns: readonly SortColumn[] = [
-    { key: 'recovered', label: 'Recuperado', info: 'analytics.margin.recovered' },
-    { key: 'revenue', label: 'Receita', info: 'analytics.margin.revenue' },
-  ];
-  protected readonly resultColumns: readonly SortColumn[] = [
-    // custo direto aparece com "Mostrar o custo por categoria" (a soma das categorias diretas): a tabela padrão cabe
-    { key: 'totalCost', label: 'Custo total', info: 'analytics.margin.total-cost' },
-    { key: 'contributionMargin', label: 'Margem de contribuição', info: 'analytics.margin.contribution' },
-    { key: 'netMargin', label: 'Margem líquida', info: 'analytics.margin.net' },
-    { key: 'roi', label: 'ROI', info: 'analytics.margin.roi' },
-  ];
-  protected readonly columnCount = computed(() => 2 + this.sortColumns.length + (this.showCategories() ? this.categories.length + 1 : 0) + this.resultColumns.length);
-  /** Margem com sinal, sem "(negativa)" (a palavra vai na linha de baixo, junto da taxa). */
-  protected signedMoney(value: Parameters<typeof marginText>[0]): string {
-    return marginText(value).replace(' (negativa)', '');
-  }
-  /** "Ordenar por" do celular (a tabela vira blocos e o cabeçalho some). */
-  protected readonly orderOptions = [
-    { value: 'netMargin', label: 'Margem líquida (pior primeiro)' },
-    { value: '-netMargin', label: 'Margem líquida (melhor primeiro)' },
-    { value: '-revenue', label: 'Receita (maior primeiro)' },
-    { value: '-recovered', label: 'Recuperado (maior primeiro)' },
-    { value: '-totalCost', label: 'Custo total (maior primeiro)' },
-    { value: '-roi', label: 'ROI (maior primeiro)' },
-    { value: 'name', label: 'Credor (A a Z)' },
-  ];
-  protected orderValue(): string {
-    const s = this.state.sort();
-    return `${s.desc ? '-' : ''}${s.key}`;
-  }
-  protected order(value: string): void {
-    const desc = value.startsWith('-');
-    this.state.setSort({ key: (desc ? value.slice(1) : value) as MarginSortKey, desc });
-  }
-
-  protected readonly creditorRows = computed(() => {
-    const sort = this.state.sort();
-    return sortMarginRows(this.report()?.creditors ?? [], sort, (r) => this.creditorName(r)).map((row) => ({
-      row,
-      portfolios: sortMarginRows(row.portfolios ?? [], sort, (p) => this.portfolioName(p)),
-    }));
-  });
-
-  // ------------------------------------------------------------ busca por credor ou carteira e "Mostrar mais"
-  private readonly route = inject(ActivatedRoute);
-  private readonly urlWriter = injectUrlStateWriter();
-  /** A busca só faz sentido com os nomes visíveis (sem a permissão, o nome aparece como "Credor"/"Carteira"). */
-  protected readonly canSearch = computed(() => this.canCreditors() || this.canPortfolios());
-  /** O que está no campo (a cada tecla). */
-  protected readonly searchInput = signal((this.route.snapshot.queryParamMap.get(SEARCH_PARAM) ?? '').slice(0, 80));
-  /** Termo aplicado: o do campo depois da espera (ou na hora, ao limpar). */
-  protected readonly searchApplied = signal(this.searchInput());
-  protected readonly searchTerm = computed(() => (this.canSearch() ? normalizeSearch(this.searchApplied()) : ''));
-  private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
-
-  /**
-   * Credores que casam com a busca pelo nome ou por uma carteira (ordem da tabela preservada), e os que entram pela
-   * carteira (abertos já na busca). Sem busca, a lista inteira.
-   */
-  private readonly searchResult = computed(() => {
-    const term = this.searchTerm();
-    const all: CreditorItem[] = this.creditorRows();
-    if (!term) {
-      return { rows: all, byPortfolio: new Set<string>() };
-    }
-    const rows: CreditorItem[] = [];
-    const byPortfolio = new Set<string>();
-    for (const item of all) {
-      const portfolioHit = item.portfolios.some((p) => matchesSearch(this.portfolioName(p), term));
-      if (portfolioHit || matchesSearch(this.creditorName(item.row), term)) {
-        rows.push(item);
-      }
-      if (portfolioHit) {
-        byPortfolio.add(item.row.creditorId);
-      }
-    }
-    return { rows, byPortfolio };
-  });
-  private readonly searchExpanded = computed(() => this.searchResult().byPortfolio, {
-    equal: (a, b) => a.size === b.size && [...a].every((id) => b.has(id)),
-  });
-  /** Credores abertos: os que a pessoa abriu e os que a busca encontrou pela carteira (que ela ainda pode fechar). */
-  protected readonly expanded = linkedSignal<ReadonlySet<string>, ReadonlySet<string>>({
-    source: this.searchExpanded,
-    computation: (found, previous) => new Set([...(previous?.value ?? []), ...found]),
-  });
-  protected readonly searchCount = computed(() => this.searchResult().rows.length);
-
-  /** Tabela por credor em passos de 25: o corte vem depois da ordenação e da busca; filtro, base ou busca novos voltam a 25. */
-  protected readonly table = showMore(() => this.searchResult().rows, {
-    resetOn: () => [this.state.filter(), this.state.basis(), this.searchTerm()],
-  });
-
-  protected readonly searchMatch = (name: string) => !!this.searchTerm() && matchesSearch(name, this.searchTerm());
-
-  protected search(value: string): void {
-    this.searchInput.set(value.slice(0, 80));
-  }
-
-  protected clearSearch(): void {
-    this.searchInput.set('');
-    this.searchApplied.set('');
-    this.searchBox()?.nativeElement.focus();
-  }
-
-  constructor() {
-    toObservable(this.searchInput)
-      .pipe(debounceTime(SEARCH_DEBOUNCE_MS), takeUntilDestroyed())
-      .subscribe((value) => this.searchApplied.set(value));
-    // termo na URL (`busca`, com replaceUrl e os demais parâmetros preservados): o "voltar" e o recarregar mantêm a busca
-    effect(() => {
-      const term = this.searchApplied().trim();
-      this.urlWriter.write({ [SEARCH_PARAM]: term || null });
-    });
-  }
-
-  protected sortBy(key: MarginSortKey): void {
-    const current = this.state.sort();
-    // primeira escolha de uma coluna de valor: maior primeiro; nome: A→Z
-    const next: MarginSort = current.key === key ? { key, desc: !current.desc } : { key, desc: key !== 'name' };
-    this.state.setSort(next);
-  }
-
-  protected ariaSort(key: MarginSortKey): 'ascending' | 'descending' | null {
-    const s = this.state.sort();
-    return s.key === key ? (s.desc ? 'descending' : 'ascending') : null;
-  }
-
-  protected toggle(creditorId: string): void {
-    this.expanded.update((set) => {
-      const next = new Set(set);
-      if (next.has(creditorId)) {
-        next.delete(creditorId);
-      } else {
-        next.add(creditorId);
-      }
-      return next;
-    });
-  }
-
-  protected cost(line: MarginLine, category: CostCategory): string {
-    return formatAmount(line.costs?.[category] ?? 0);
-  }
-
-  // ------------------------------------------------------------ tendência de 6 meses (coluna da tabela)
-  /** Pontos por credor (`creditorId`) e por carteira (`creditorId|portfolioId`; `-` = sem carteira). */
-  private readonly trendIndex = computed(() => {
-    const index = new Map<string, TrendPoint[]>();
-    for (const c of this.trend()?.creditors ?? []) {
-      index.set(c.creditorId, c.points);
-      for (const p of c.portfolios ?? []) {
-        index.set(`${c.creditorId}|${p.portfolioId ?? '-'}`, p.points);
-      }
-    }
-    return index;
-  });
-  protected readonly trendMonths = computed(() => this.trend()?.months ?? []);
-
-  /** Série da linha: `loading`/`error` enquanto a tendência não chega; sem fato nos 6 meses = todos os pontos vazios. */
-  protected trendOf(creditorId: string, portfolioId?: string | null): TrendPoint[] | 'loading' | 'error' {
-    if (this.trendData.error()) {
-      return 'error';
-    }
-    if (!this.trend()) {
-      return 'loading';
-    }
-    const key = portfolioId === undefined ? creditorId : `${creditorId}|${portfolioId ?? '-'}`;
-    return this.trendIndex().get(key) ?? this.trendMonths().map((m) => ({ month: m.month, recovered: null, revenue: null, netMargin: null, netMarginRate: null }));
-  }
-
   // ------------------------------------------------------------ mapa de dispersão (carteiras do período)
   protected readonly scatter = computed(() =>
     scatterModel(
       this.report()?.creditors ?? [],
-      (c) => this.creditorName(c),
-      (_, portfolioId) => (this.canPortfolios() ? this.portfolioNames.name(portfolioId) : 'Carteira'),
+      (c) => this.names.creditorName(c),
+      (_, portfolioId) => this.names.portfolioNameById(portfolioId),
     ),
   );
   protected readonly scatterSummary = computed(() => scatterSummary(this.scatter()));
@@ -412,24 +157,11 @@ export class MarginPanel {
     this.state.open(this.scatterFilter(p));
   }
 
-  // ------------------------------------------------------------ drill-down: recuperado e receita → razão de comissão
+  // ------------------------------------------------------------ drill-down: receita total → razão de comissão
   private readonly access = drillAccess();
-
-  private ledger(filter: MarginFilter, label: string, period?: { from: string; to: string }): DrillTarget | null {
-    return this.access(ledgerTarget(asAnalyticsFilter(filter), {}, label, period));
-  }
-
-  protected readonly totalLink = computed(() => this.ledger(this.state.filter(), 'ver os recebimentos e a comissão no razão'));
-
-  protected creditorLink(row: CreditorMargin): DrillTarget | null {
-    return this.ledger({ ...this.state.filter(), creditorIds: [row.creditorId] }, 'ver os recebimentos e a comissão do credor no razão');
-  }
-
-  protected portfolioLink(creditor: CreditorMargin, row: PortfolioMargin): DrillTarget | null {
-    return row.portfolioId
-      ? this.ledger({ ...this.state.filter(), creditorIds: [creditor.creditorId], portfolioIds: [row.portfolioId] }, 'ver os recebimentos e a comissão da carteira no razão')
-      : null;
-  }
+  protected readonly totalLink = computed(() =>
+    this.access(ledgerTarget(asAnalyticsFilter(this.state.filter()), {}, 'ver os recebimentos e a comissão no razão')),
+  );
 
   // ------------------------------------------------------------ cascata e evolução
   protected readonly steps = computed<WaterfallStep[]>(() => {
@@ -509,14 +241,6 @@ export class MarginPanel {
   // ------------------------------------------------------------ ações
   protected changeFilter(filter: AnalyticsFilter): void {
     this.state.update(fromAnalyticsFilter(filter));
-  }
-
-  protected export(format: 'xlsx' | 'csv'): void {
-    this.exporting.set(true);
-    this.api
-      .export(this.state.filter(), format, this.state.basis())
-      .pipe(finalize(() => this.exporting.set(false)))
-      .subscribe((name) => this.notifications.success(`Relatório exportado: ${name}. A exportação fica registrada no log de acesso.`));
   }
 
   protected refresh(): void {

@@ -56,4 +56,12 @@ export const ANALYTICS_ROUTES: Routes = [
     data: { permissions: [Permission.COST_VIEW] },
     loadComponent: () => import('../costing/pages/margin-panel').then((m) => m.MarginPanel),
   },
+  {
+    // relatório completo da margem, aberto pelo painel em nova aba com os mesmos filtros (sem item de menu próprio)
+    path: 'margem/relatorio',
+    title: 'Relatório de margem por carteira',
+    canActivate: [permissionGuard],
+    data: { permissions: [Permission.COST_VIEW] },
+    loadComponent: () => import('../costing/pages/margin-report').then((m) => m.MarginReportPage),
+  },
 ];

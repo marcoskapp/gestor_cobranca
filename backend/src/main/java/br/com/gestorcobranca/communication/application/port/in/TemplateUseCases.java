@@ -44,7 +44,11 @@ public interface TemplateUseCases {
      */
     Optional<TemplateView> findEffective(UUID creditorId, String code);
 
-    /** Renderiza com valores de exemplo, aplicando as mesmas validações do envio. */
+    /**
+     * Prévia com os valores preenchidos até agora: cada valor informado passa pelas mesmas validações e formatações do
+     * envio (valor inválido → mesmo erro do envio); variável ainda sem valor aparece como {@code [nome]} no texto. Não
+     * exige as obrigatórias, para a prévia acompanhar o preenchimento; o envio continua exigindo.
+     */
     Preview preview(UUID templateId, Map<String, String> values);
 
     /** @param type FIRST_NAME, MONEY, DATE, INTEGER, URL, CODE ou TEXT */

@@ -3,7 +3,7 @@
  * de novo (janela do WhatsApp, porteiro de contato, dono da conversa, escopo).
  */
 import { CHANNEL_LABELS, DENIAL_REASON_LABELS, FAILURE_LABELS, SENDER_LABELS } from './communication.labels';
-import { ChannelType, ConversationView, HandoffView, InboxFilter, MessageView, ProviderCategory, SlaStatus, TemplatePurpose, TemplateView, VariableInput } from './communication.models';
+import { ChannelType, ConversationView, HandoffView, InboxFilter, MessageView, ProviderCategory, SlaStatus, TemplatePurpose, TemplateView, VariableInput, VariableType } from './communication.models';
 
 export type InboxTab = 'mine' | 'queue' | 'assistant' | 'all';
 
@@ -316,28 +316,48 @@ export interface DebtorProfile {
   tradeName: string | null;
 }
 
+/** Limite padrão do valor por tipo, quando a variável não define o seu (espelho de `TemplateVariable#effectiveMaxLength`). */
+const DEFAULT_VARIABLE_MAX: Readonly<Record<VariableType, number>> = {
+  FIRST_NAME: 30,
+  URL: 300,
+  CODE: 60,
+  TEXT: 60,
+  MONEY: 40,
+  DATE: 40,
+  INTEGER: 40,
+};
+
+/** Limite efetivo do valor da variável: o pré-preenchimento corta nele e o campo não deixa passar dele. */
+export function variableMaxLength(v: Pick<VariableInput, 'type' | 'maxLength'>): number {
+  return v.maxLength ?? DEFAULT_VARIABLE_MAX[v.type];
+}
+
 /**
- * Valores iniciais das variáveis do template no contato ativo: só o que a ficha já sabe sem
- * ambiguidade — primeiro nome do devedor e, com o perfil, `nome_fantasia` (empresa: nome fantasia ou razão social)
- * e `saudacao` (pessoa física: primeiro nome; empresa: o nome da empresa), como nas réguas. Valores, datas e links
- * ficam com o operador, que confere na prévia antes de enviar.
+ * Valores iniciais das variáveis do template no envio manual (estação e conversa): só o que o sistema já sabe sem
+ * ambiguidade, com as mesmas regras das origens da régua (`VariableResolver`) — primeiro nome do devedor (tipo
+ * `FIRST_NAME`); `credor` (texto) com o nome do credor do caso/conversa (nome fantasia ou razão social); e, com o
+ * perfil, `nome_fantasia` (empresa: nome fantasia ou razão social) e `saudacao` (pessoa física: primeiro nome; empresa:
+ * o nome da empresa). Valores, datas e links ficam com o operador, que confere na prévia antes de enviar.
  */
 export function prefillVariables(
   variables: readonly VariableInput[],
   debtorName: string | null | undefined,
   profile?: DebtorProfile | null,
+  creditorName?: string | null,
 ): Record<string, string> {
   const name = firstName(debtorName);
   const companyName = profile?.personType === 'COMPANY' ? (profile.tradeName?.trim() || debtorName?.trim() || null) : null;
   const values: Record<string, string> = {};
-  const put = (v: VariableInput, value: string | null) => {
+  const put = (v: VariableInput, value: string | null | undefined) => {
     if (value) {
-      values[v.name] = v.maxLength ? value.slice(0, v.maxLength) : value;
+      values[v.name] = value.slice(0, variableMaxLength(v));
     }
   };
   for (const v of variables) {
     if (v.type === 'FIRST_NAME') {
       put(v, name);
+    } else if (v.type === 'TEXT' && v.name === 'credor') {
+      put(v, creditorName?.trim());
     } else if (v.type === 'TEXT' && v.name === 'nome_fantasia') {
       put(v, companyName);
     } else if (v.type === 'TEXT' && v.name === 'saudacao' && profile) {
@@ -345,6 +365,24 @@ export function prefillVariables(
     }
   }
   return values;
+}
+
+/**
+ * Valores conhecidos que ainda faltam no preenchimento (campo vazio): completa sem apagar o que o operador digitou.
+ * Nulo quando não há nada a completar.
+ */
+export function missingKnownValues(current: Readonly<Record<string, string>>, known: Readonly<Record<string, string>>): Record<string, string> | null {
+  const missing = Object.entries(known).filter(([k]) => !current[k]?.trim());
+  return missing.length ? { ...current, ...Object.fromEntries(missing) } : null;
+}
+
+/** Valores preenchidos, sem espaços nas pontas e sem os vazios (o que vai ao servidor na prévia e no envio). */
+export function filledVariables(values: Readonly<Record<string, string>>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(values)
+      .filter(([, v]) => v.trim() !== '')
+      .map(([k, v]) => [k, v.trim()]),
+  );
 }
 
 /** Quem atende a conversa, em linguagem da estação. */

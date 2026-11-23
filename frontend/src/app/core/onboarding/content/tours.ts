@@ -78,7 +78,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'analytics.margin',
-    version: 2,
+    version: 3,
     title: 'Margem por carteira',
     summary: 'Quanto cada credor e carteira rende depois do custo operacional estimado da recuperação.',
     steps: [
@@ -86,7 +86,19 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'kpi-net-margin', title: 'Margem líquida', body: 'Receita menos todo o custo, inclusive ociosidade e custos fixos rateados. Negativa: a carteira consome margem.' },
       { anchor: 'kpi-cost-per-settled', title: 'Custo por acordo cumprido', body: 'Quanto custa cada acordo que o devedor pagou até o fim: o resultado que importa, não só o fechamento.' },
       { anchor: 'margin-scatter', title: 'Margem × volume', body: 'Cada carteira é um ponto, nos quadrantes de rende e escala a revisar contrato. Clique para ver só a carteira.' },
-      { anchor: 'margin-table', title: 'Por credor e carteira', body: 'Ordene, abra o credor para ver as carteiras e veja a tendência de seis meses. Margem negativa vem escrita.' },
+      { anchor: 'margin-table', title: 'Por credor e carteira', body: 'Os 10 primeiros credores com a tendência de seis meses. "Relatório completo" abre todas as colunas e credores em nova aba.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
+    ],
+  },
+  {
+    id: 'analytics.margin-report',
+    version: 1,
+    title: 'Relatório de margem por carteira',
+    summary: 'Todos os credores e carteiras do período, com todas as colunas, o custo por categoria e a busca.',
+    steps: [
+      { anchor: 'margin-basis', title: 'Base dos custos', body: 'Estimado pelo uso registrado ou conciliado com as faturas dos canais. A escolha vale para a tabela e a exportação.' },
+      { anchor: 'margin-table', title: 'Tabela completa', body: 'Busque o credor ou a carteira, ordene por qualquer coluna e esconda o custo por categoria para ler só as margens.' },
+      { anchor: 'margin-report-panel', title: 'Ver o painel', body: 'Volta ao painel de margem com o mesmo período, credor, carteira e base.' },
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },

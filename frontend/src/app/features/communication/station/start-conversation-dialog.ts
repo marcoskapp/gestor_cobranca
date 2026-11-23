@@ -10,7 +10,7 @@ import { toApiError, userMessage } from '../../../core/http/problem';
 import { Icon } from '../../../shared/components/icon/icon';
 import { IconName } from '../../../shared/components/icon/icon-names';
 import { InfoHint } from '../../../shared/components/info-hint/info-hint';
-import { nameMap } from '../../../shared/data/name-map';
+import { UNRESOLVED_NAME, nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
@@ -20,11 +20,13 @@ import { CasesApi } from '../../collection/data/collection.api';
 import { AvailabilityState, availabilityState } from '../../collection/data/collection.rules';
 import { CONTACT_LABEL_LABELS } from '../../debt/data/debt.labels';
 import { ConversationsApi, MessagesApi, TemplatesApi } from '../data/communication.api';
-import { CHANNEL_ICONS, CHANNEL_LABELS, START_ERROR_LABELS, VARIABLE_TYPE_LABELS } from '../data/communication.labels';
+import { CHANNEL_ICONS, CHANNEL_LABELS, START_ERROR_LABELS } from '../data/communication.labels';
 import { ChannelType, ConversationView, MessageView, TemplateView } from '../data/communication.models';
-import { DebtorProfile, StationContact, blockText, channelContacts, idempotencyKey, ownerText, prefillVariables, stationChannels } from '../data/communication.rules';
+import { DebtorProfile, StationContact, blockText, channelContacts, filledVariables, idempotencyKey, missingKnownValues, ownerText, prefillVariables, stationChannels } from '../data/communication.rules';
 import { DebtorsApi } from '../../debt/data/debt.api';
 import { applicableTemplates } from '../inbox/composer';
+import { TemplateFill } from '../components/template-fill';
+import { CreditorNames } from '../../organization/data/organization.lookups';
 
 /** Contato da ficha com o valor mascarado (o valor completo nunca chega a este diálogo). */
 export interface StartContact extends StationContact {
@@ -68,7 +70,7 @@ const STATE_ICON: Record<AvailabilityState['kind'], IconName> = {
  */
 @Component({
   selector: 'app-start-conversation-dialog',
-  imports: [FormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Icon, InfoHint],
+  imports: [FormsModule, ...DIALOG_DIRECTIVES, ...FORM_FIELD, Icon, InfoHint, TemplateFill],
   template: `
     <div class="modal-header">
       <h2 appDialogTitle class="h5 mb-0">Mensagem para {{ data.debtorName }}</h2>
@@ -164,41 +166,7 @@ const STATE_ICON: Record<AvailabilityState['kind'], IconName> = {
         </div>
 
         @if (template(); as t) {
-          @if (t.variables.length) {
-            <div class="row g-2">
-              @for (v of t.variables; track v.name) {
-                <app-field class="col-sm-6" [label]="v.name + (v.required ? '' : ' (opcional)')" [hint]="typeLabels[v.type]">
-                  @switch (v.type) {
-                    @case ('MONEY') {
-                      <div class="input-group">
-                        <span class="input-group-text" aria-hidden="true">R$</span>
-                        <input appInput appMoney moneyValue="string" [ngModel]="values()[v.name] ?? null" (ngModelChange)="setValue(v.name, $event)" />
-                      </div>
-                    }
-                    @case ('DATE') {
-                      <input appInput type="date" [ngModel]="values()[v.name] ?? ''" (ngModelChange)="setValue(v.name, $event)" />
-                    }
-                    @case ('INTEGER') {
-                      <input appInput inputmode="numeric" pattern="[0-9]*" [ngModel]="values()[v.name] ?? ''" (ngModelChange)="setValue(v.name, $event)" />
-                    }
-                    @default {
-                      <input appInput [ngModel]="values()[v.name] ?? ''" (ngModelChange)="setValue(v.name, $event)" [attr.maxlength]="v.maxLength" />
-                    }
-                  }
-                </app-field>
-              }
-            </div>
-          }
-          <div>
-            <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
-              <span class="form-label mb-0">Prévia</span>
-              <button class="btn btn-link btn-sm p-0" type="button" (click)="refreshPreview()" [disabled]="previewing()">Atualizar prévia</button>
-            </div>
-            @if (previewSubject(); as subject) {
-              <p class="small mb-1"><strong>Assunto:</strong> {{ subject }}</p>
-            }
-            <p class="sc-preview mb-0 ps-3 py-2 small border-start border-3" aria-label="Prévia da mensagem" aria-live="polite">{{ previewBody() ?? t.body }}</p>
-          </div>
+          <app-template-fill [template]="t" [(values)]="values" (invalid)="invalidValues.set($event)" />
         }
       }
 
@@ -219,11 +187,6 @@ const STATE_ICON: Record<AvailabilityState['kind'], IconName> = {
         Enviar
       </button>
     </div>
-  `,
-  styles: `
-    .sc-preview {
-      white-space: pre-wrap;
-    }
   `,
 })
 export class StartConversationDialog {
@@ -252,7 +215,6 @@ export class StartConversationDialog {
   protected readonly channelLabels = CHANNEL_LABELS;
   protected readonly channelIcons = CHANNEL_ICONS;
   protected readonly contactLabels = CONTACT_LABEL_LABELS;
-  protected readonly typeLabels = VARIABLE_TYPE_LABELS;
   protected readonly stateClass = STATE_CLASS;
   protected readonly stateIcon = STATE_ICON;
 
@@ -262,9 +224,6 @@ export class StartConversationDialog {
   protected readonly contactId = signal<string | null>(null);
   protected readonly templateId = signal<string>('');
   protected readonly values = signal<Record<string, string>>({});
-  protected readonly previewBody = signal<string | null>(null);
-  protected readonly previewSubject = signal<string | null>(null);
-  protected readonly previewing = signal(false);
   protected readonly sending = signal(false);
   protected readonly denied = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
@@ -323,13 +282,39 @@ export class StartConversationDialog {
   protected readonly templates = computed(() => applicableTemplates(this.allTemplates(), this.data.creditorId));
   protected readonly template = computed(() => this.templates().find((t) => t.id === this.templateId()) ?? null);
 
+  /** Nome do credor do caso (nome fantasia ou razão social), para a variável `credor`; só com `CREDITOR_VIEW`. */
+  private readonly creditors = nameMap(inject(CreditorNames), () => (this.auth.hasPermission(Permission.CREDITOR_VIEW) ? [this.data.creditorId] : []));
+  private readonly creditorName = computed(() => {
+    const name = this.creditors.names().get(this.data.creditorId);
+    return name && name !== UNRESOLVED_NAME ? name : null;
+  });
+  /** O que o sistema já sabe para as variáveis do template escolhido (devedor, perfil e credor). */
+  private readonly known = computed(() => {
+    const t = this.template();
+    return t ? prefillVariables(t.variables, this.data.debtorName, this.profile.value() ?? null, this.creditorName()) : {};
+  });
+
+  /** Valor recusado na prévia: a mensagem não sai diferente do que a prévia mostra. */
+  protected readonly invalidValues = signal(false);
+
   protected readonly ready = computed(() => {
     const t = this.template();
     const row = this.rows().find((r) => r.contact.contactId === this.contactId());
-    return !!t && !!row && !this.unusable(row) && t.variables.every((v) => !v.required || !!this.values()[v.name]?.trim());
+    return !!t && !!row && !this.unusable(row) && t.variables.every((v) => !v.required || !!this.values()[v.name]?.trim()) && !this.invalidValues();
   });
 
   constructor() {
+    // o que o sistema sabe e chegou depois da escolha do template (perfil, nome do credor): completa os campos vazios,
+    // sem apagar o que o operador digitou
+    effect(() => {
+      const known = this.known();
+      untracked(() => {
+        const next = missingKnownValues(this.values(), known);
+        if (next) {
+          this.values.set(next);
+        }
+      });
+    });
     // primeiro contato utilizável do canal (por prioridade), depois que o porteiro responde
     effect(() => {
       const rows = this.rows();
@@ -354,38 +339,14 @@ export class StartConversationDialog {
     this.channel.set(ch);
     this.templateId.set('');
     this.values.set({});
-    this.clearPreview();
     this.denied.set(null);
     this.error.set(null);
   }
 
+  /** Escolha do template: o que o sistema já sabe vem preenchido e a prévia acompanha o preenchimento. */
   protected pickTemplate(id: string): void {
     this.templateId.set(id);
-    const t = this.template();
-    this.values.set(t ? prefillVariables(t.variables, this.data.debtorName, this.profile.value() ?? null) : {});
-    this.clearPreview();
-    this.refreshPreview();
-  }
-
-  protected setValue(name: string, value: string | null): void {
-    this.values.update((v) => ({ ...v, [name]: value ?? '' }));
-    this.clearPreview();
-  }
-
-  protected refreshPreview(): void {
-    const t = this.template();
-    if (!t) {
-      return;
-    }
-    this.previewing.set(true);
-    this.templatesApi.preview(t.id, this.filledValues()).subscribe({
-      next: (p) => {
-        this.previewBody.set(p.body);
-        this.previewSubject.set(p.subject);
-        this.previewing.set(false);
-      },
-      error: () => this.previewing.set(false),
-    });
+    this.values.set({ ...this.known() });
   }
 
   protected openConversation(c: ConversationView): void {
@@ -438,11 +399,6 @@ export class StartConversationDialog {
   }
 
   private filledValues(): Record<string, string> {
-    return Object.fromEntries(Object.entries(this.values()).filter(([, v]) => v.trim() !== '').map(([k, v]) => [k, v.trim()]));
-  }
-
-  private clearPreview(): void {
-    this.previewBody.set(null);
-    this.previewSubject.set(null);
+    return filledVariables(this.values());
   }
 }

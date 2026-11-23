@@ -147,10 +147,24 @@ O servidor reaproveita a conversa aberta do contato na conta do credor (ou abre 
 operador passa a ser o dono (passo 1). Conversa nova não tem janela do WhatsApp aberta, então o diálogo só oferece
 template; texto livre continua na caixa de entrada depois da resposta do devedor. Antes do envio o diálogo mostra, por
 contato do canal, a decisão de `GET /collection/cases/{id}/contact-availability` (sem registrar tentativa) e as
-conversas abertas do caso no canal, com atalho para a caixa de entrada. Variáveis: o cliente pré-preenche só
-`FIRST_NAME` com o primeiro nome do devedor (mesma regra das campanhas); valores usam a máscara monetária e o operador
-confere na prévia. Abertura de conversa → `conversation.started` (`initiatorType`) e
+conversas abertas do caso no canal, com atalho para a caixa de entrada. Variáveis e prévia: ver "Preenchimento e
+prévia no envio manual" abaixo. Abertura de conversa → `conversation.started` (`initiatorType`) e
 `communication.conversations.started{channel,initiator}`.
+
+**Preenchimento e prévia no envio manual** (componente `app-template-fill`, usado na resposta da caixa de entrada e no
+contato ativo da estação; decisões 1371 a 1373) — ao escolher o template, o cliente preenche o que o sistema já sabe,
+com as regras das origens da régua (`VariableResolver`): `FIRST_NAME` com o primeiro nome do devedor; `credor` (`TEXT`)
+com o nome do credor da conversa/caso (nome fantasia ou razão social; só com `CREDITOR_VIEW`, sem ela fica com o
+operador); e, com o perfil do devedor, `nome_fantasia` e `saudacao`. O que chega depois da escolha completa só campo
+vazio, sem apagar o que o operador digitou. Saldo, dias, datas e links ficam com o operador (no envio manual o nome da
+variável não diz qual saldo ou data usar). Campos por tipo: `MONEY` com `appMoney` (envia `1234.56`), `DATE` com
+calendário, `INTEGER` numérico. A **prévia** vem de `POST /templates/{id}/preview`, que renderiza em modo rascunho
+(`TemplateRenderer#renderDraft`): cada valor informado passa pelas mesmas validações e formatações do envio e a
+variável ainda sem valor aparece como `[nome]`; o envio continua exigindo as obrigatórias (`render`). O cliente pede a
+prévia na hora ao escolher o template e 300 ms depois da última tecla ao digitar (pedido superado é cancelado); valor
+recusado mostra o motivo abaixo da prévia, que mantém a última versão válida esmaecida ("última versão aceita"), sem
+aviso global, e bloqueia "Enviar" até a correção (decisão 1374). A prévia não é gravada
+nem registrada em log (os valores digitados só voltam na resposta a quem tem `MESSAGE_SEND`/`TEMPLATE_MANAGE`).
 
 **Mensagem transacional (`MessageService#queueTransactional`)** — resposta da contestação ao devedor, pela porta
 `collection :: spi` `DisputeDebtorMessenger` (implementação `DisputeNoticeMessenger`): e-mail ou WhatsApp com **texto
@@ -342,6 +356,7 @@ templates sem `DELETE`.
 | 25 | `TemplateUseCases#findEffective` para quem envia montar só as variáveis declaradas | variáveis opcionais ignoradas pelo renderizador | o renderizador continua recusando variável não prevista (erro de configuração aparece); o portal decide pelo template (decisão 512) |
 | 26 | Contato ativo da estação usa o envio existente (`POST /messages` com caso, canal e contato) | endpoint novo "iniciar conversa" | o envio já resolve conta, contato, caso, dono, porteiro e idempotência; um segundo caminho duplicaria regras (decisão 837) |
 | 27 | `conversation.started` com `initiatorType` (USER, ASSISTANT, CAMPAIGN, SYSTEM, DEBTOR) | inferir do primeiro `message.*` | separa contato ativo do operador, receptivo e automático nos painéis sem cruzar eventos (decisão 838) |
+| 28 | Prévia do envio manual renderizada no servidor em modo rascunho (`renderDraft`: falta → `[nome]`), pedida com espera de 300 ms | renderizar no cliente; prévia só com todas as obrigatórias | uma regra só de validação e formatação (a do envio); a prévia acompanha a digitação desde o primeiro nome (decisões 1371 e 1372) |
 
 ## 9. Pendências
 
