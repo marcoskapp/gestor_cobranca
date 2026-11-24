@@ -126,7 +126,7 @@ class CreditorAuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void resetPassword(@Valid @RequestBody ResetPasswordRequest request, HttpServletRequest http) {
         guard(http, "creditor_password");
-        authentication.completePasswordReset(request.token(), request.newPassword());
+        authentication.completePasswordReset(request.token(), request.newPassword(), client(http));
     }
 
     @GetMapping(ApiPaths.CREDITOR + "/me")

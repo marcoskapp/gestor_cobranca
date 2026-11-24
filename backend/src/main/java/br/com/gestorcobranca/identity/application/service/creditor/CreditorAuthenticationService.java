@@ -425,12 +425,17 @@ class CreditorAuthenticationService implements CreditorAuthentication {
     }
 
     @Override
-    public void completePasswordReset(String resetToken, String newPassword) {
+    public void completePasswordReset(String resetToken, String newPassword, CreditorClient client) {
         OpaqueToken token = OpaqueToken.parse(resetToken).orElseThrow(CreditorAuthenticationService::invalidLink);
         TenantView tenant = tenants.findById(token.tenantId()).filter(TenantView::active)
                 .orElseThrow(CreditorAuthenticationService::invalidLink);
         UUID userId = tenantExecution.callInTenant(tenant.id(), "identity.creditor_password_reset_complete", () -> {
             Instant now = Instant.now(clock);
+            String ipKey = ipKey(tenant, client);
+            ThrottlePolicy.State ip = throttle.update(ipKey, now, s -> ThrottlePolicy.onRequest(s, ipLimits(), now));
+            if (ip.lockedAt(now)) {
+                throw new LoginThrottledException(ip.lockedUntil());
+            }
             CreditorActionToken action = credentials.usableToken(token, CreditorActionToken.Purpose.PASSWORD_RESET)
                     .orElseThrow(CreditorAuthenticationService::invalidLink);
             CreditorUser user = accounts.findUserForUpdate(action.getUserId())

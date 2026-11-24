@@ -79,4 +79,20 @@ class CreditorUserTest {
         assertThat(CreditorRole.JURIDICO.permissions()).doesNotContain(Permission.CREDITOR_STATEMENT_RESPOND,
                 Permission.CREDITOR_PAYMENT_REPORT);
     }
+
+    @Test
+    void trocarASenhaNaoZeraOContadorNemOBloqueio() {
+        CreditorUser user = invited();
+        user.startActivation("SEGREDO");
+        user.activate("hash", 1L, now);
+        for (int i = 0; i < 5; i++) {
+            user.registerFailure(now, POLICY);
+        }
+        assertThat(user.isLocked(now)).isTrue();
+        // redefinir a senha (quem controla o e-mail) não devolve tentativas do código
+        user.definePassword("novo-hash", now);
+        assertThat(user.isLocked(now)).isTrue();
+        user.registerSuccessfulLogin(now.plus(Duration.ofHours(2)));
+        assertThat(user.isLocked(now.plus(Duration.ofHours(2)))).isFalse();
+    }
 }

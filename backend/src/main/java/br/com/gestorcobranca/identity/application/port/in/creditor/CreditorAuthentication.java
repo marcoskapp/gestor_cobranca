@@ -42,7 +42,8 @@ public interface CreditorAuthentication {
     /** Sempre a mesma resposta; link de redefinição só para conta ativa. */
     void requestPasswordReset(String tenantSlug, String email, CreditorClient client);
 
-    void completePasswordReset(String resetToken, String newPassword);
+    /** Nova senha pelo link; não zera o bloqueio por tentativas (só o login completo com MFA zera). */
+    void completePasswordReset(String resetToken, String newPassword, CreditorClient client);
 
     record CreditorClient(String ip, String userAgent) {
     }

@@ -153,12 +153,16 @@ public class CreditorUser extends TenantScopedEntity {
 
     // ---------------------------------------------------------------- credenciais
 
+    /**
+     * Nova senha (redefinição ou senha vencida). <b>Não</b> zera o contador nem o bloqueio: quem controla o e-mail não
+     * pode redefinir a senha para ganhar novas tentativas do código do autenticador — só o login completo (senha + MFA)
+     * zera.
+     */
     public void definePassword(String newHash, Instant now) {
         Guard.requireState(status == CreditorUserStatus.ACTIVE, "creditor_user.not_active", "Conta inativa");
         Guard.require(newHash != null, "creditor_user.password_required", "Senha obrigatória");
         this.passwordHash = newHash;
         this.passwordChangedAt = now;
-        unlock();
     }
 
     public void rehashPassword(String newHash) {
