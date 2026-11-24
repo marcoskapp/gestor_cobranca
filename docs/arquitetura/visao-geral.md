@@ -29,7 +29,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | --- | --- | --- |
 | `shared` | Kernel compartilhado (aberto): tipos de valor, tenancy, segurança base, auditoria, logs, eventos de integração, criptografia, armazenamento de arquivos, jobs, cliente de modelo de linguagem (`shared.ai`, Amazon Bedrock) | transversal |
 | `organization` | Tenant (assessoria), unidades, credores, contratos de serviço, carteiras, regras contratuais versionadas | F03 |
-| `identity` | Usuários, perfis, permissões, equipes, escopo por credor/carteira, autenticação, MFA, sessões, log de acesso | F01, F02 |
+| `identity` | Usuários, perfis, permissões, equipes, escopo por credor/carteira, autenticação, MFA, sessões, log de acesso; identidade da pessoa do credor no portal do credor (interface `identity :: creditor`, ADR 0011) | F01, F02 |
 | `debt` | Devedor, contatos, contratos de origem, títulos, parcelas, saldos, histórico de titularidade, garantias, partes da obrigação e prescrição | F05 |
 | `ingestion` | Lotes de importação (CSV/XLSX/API), validação, erros por linha, reimportação idempotente | F04 |
 | `compliance` | Restrições de contato, opt-out, bases legais, solicitações de titulares (LGPD), retenção e descarte | M09 |

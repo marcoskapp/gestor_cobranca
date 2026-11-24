@@ -16,9 +16,9 @@ import br.com.gestorcobranca.portal.domain.model.PortalConfiguration;
 import br.com.gestorcobranca.portal.domain.repository.AccessChallengeRepository;
 import br.com.gestorcobranca.portal.domain.repository.AccessLinkRepository;
 import br.com.gestorcobranca.portal.domain.service.AccessSecrets;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.KeyType;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.State;
+import br.com.gestorcobranca.shared.security.ThrottlePolicy;
+import br.com.gestorcobranca.portal.domain.service.ThrottleKeyType;
+import br.com.gestorcobranca.shared.security.ThrottlePolicy.State;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.crypto.BlindIndex;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
@@ -185,8 +185,8 @@ class PortalAccessService implements PortalAccessUseCases {
             }
             Instant locked = lockedUntil(now, ipKey, docKey);
             if (locked == null) {
-                State ipState = throttle.update(KeyType.IP, ipKey, now, s -> ThrottlePolicy.onRequest(s, ipLimits(), now));
-                State docState = throttle.update(KeyType.DOCUMENT, docKey, now,
+                State ipState = throttle.update(ThrottleKeyType.IP, ipKey, now, s -> ThrottlePolicy.onRequest(s, ipLimits(), now));
+                State docState = throttle.update(ThrottleKeyType.DOCUMENT, docKey, now,
                         s -> ThrottlePolicy.onRequest(s, documentLimits(), now));
                 locked = latest(ipState.lockedAt(now) ? ipState.lockedUntil() : null,
                         docState.lockedAt(now) ? docState.lockedUntil() : null);
@@ -392,8 +392,8 @@ class PortalAccessService implements PortalAccessUseCases {
     /** Falha registrada (IP e, se houver, documento) e devolvida como resultado — a transação confirma. */
     private Outcome fail(Site site, String ipKey, String docKey, AccessChallenge challenge, UUID debtorId, String reason) {
         Instant now = Instant.now(clock);
-        State ipState = throttle.update(KeyType.IP, ipKey, now, s -> ThrottlePolicy.onFailure(s, ipLimits(), now));
-        State docState = docKey == null ? null : throttle.update(KeyType.DOCUMENT, docKey, now,
+        State ipState = throttle.update(ThrottleKeyType.IP, ipKey, now, s -> ThrottlePolicy.onFailure(s, ipLimits(), now));
+        State docState = docKey == null ? null : throttle.update(ThrottleKeyType.DOCUMENT, docKey, now,
                 s -> ThrottlePolicy.onFailure(s, documentLimits(), now));
         Map<String, String> details = new HashMap<>();
         details.put("portal", site.slug());
@@ -415,9 +415,9 @@ class PortalAccessService implements PortalAccessUseCases {
     }
 
     private void succeeded(String ipKey, String docKey, Instant now) {
-        throttle.update(KeyType.IP, ipKey, now, s -> ThrottlePolicy.onSuccess(s, now, false));
+        throttle.update(ThrottleKeyType.IP, ipKey, now, s -> ThrottlePolicy.onSuccess(s, now, false));
         if (docKey != null) {
-            throttle.update(KeyType.DOCUMENT, docKey, now, s -> ThrottlePolicy.onSuccess(s, now, true));
+            throttle.update(ThrottleKeyType.DOCUMENT, docKey, now, s -> ThrottlePolicy.onSuccess(s, now, true));
         }
     }
 
@@ -429,8 +429,8 @@ class PortalAccessService implements PortalAccessUseCases {
 
     /** Fim do bloqueio vigente mais distante entre as chaves informadas (nulo = livre). */
     private Instant lockedUntil(Instant now, String ipKey, String docKey) {
-        Instant ip = ipKey == null ? null : lockOf(throttle.current(KeyType.IP, ipKey, now), now);
-        Instant doc = docKey == null ? null : lockOf(throttle.current(KeyType.DOCUMENT, docKey, now), now);
+        Instant ip = ipKey == null ? null : lockOf(throttle.current(ThrottleKeyType.IP, ipKey, now), now);
+        Instant doc = docKey == null ? null : lockOf(throttle.current(ThrottleKeyType.DOCUMENT, docKey, now), now);
         return latest(ip, doc);
     }
 

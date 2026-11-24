@@ -42,6 +42,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | Telefonia (telephony) | `call.dialed`, `call.blocked`, `call.completed`, `call.abandoned`, `call.tabulated`, `call.recording_stored`, `dialer.campaign_activated`, `dialer.campaign_paused`, `dialer.campaign_finished`, `agent.presence_changed` |
 | Assistente de IA (assistant) | `assistant.replied`, `assistant.handoff` (publicado pelo communication na transferência), `assistant.handoff_triggered`, `assistant.draft_proposed`, `assistant.approval_requested`, `assistant.guardrail_blocked`, `assistant.reply_blocked`, `assistant.turn_failed`, `assistant.policy_retired`, `assistant.portfolio_disabled`, `assistant.review_recorded`, `assistant.pix_issued`, `assistant.pix_denied`, `assistant.pix_suggested`, `assistant.pix_delivery`, `assistant.pix_paid`; `policy.published` com `policyKind = assistant` |
 | Portal de autonegociação (portal) | `portal.accessed`, `portal.simulated`, `portal.agreement_formalized`, `portal.pix_issued`, `portal.payment_confirmed`, `portal.service_requested`, `portal.dispute_registered`, `portal.representative_declared`, `portal.configuration_changed` (§3.10) |
+| Portal do credor (identity) | `creditor_portal.toggled`, `creditor_portal.user_invited`, `creditor_portal.user_activated`, `creditor_portal.user_revoked`, `creditor_portal.login` (§3.16) |
 | Chat de suporte (helpdesk) | `helpdesk.question_answered`, `helpdesk.question_unanswered`, `helpdesk.feedback_recorded`, `helpdesk.ticket_drafted`, `helpdesk.ticket_opened`, `helpdesk.ticket_cancelled` (§3.12) |
 | Score (scoring) | `score.calculated`, `score.batch_completed`, `score.training_completed`, `score.model_promoted`, `score.model_rejected`, `score.drift_detected`, `score.cohort_measured`, `score.reviewed` |
 | Minhas pendências (pendingwork) | `pending_work.observed` (§3.11) |
@@ -517,6 +518,33 @@ fields @timestamp, tenantId, actorId, principal
 | sort tentativas desc
 ```
 
+### 3.16 Portal do credor (identity — ADR 0011)
+
+Sem nome, e-mail ou IP da pessoa do credor: só o credor, o perfil e contagens.
+
+| Evento | Quando | Atributos |
+| --- | --- | --- |
+| `creditor_portal.toggled` | portal do credor liberado ou desativado para um credor | `enabled` |
+| `creditor_portal.user_invited` | pessoa do credor convidada, ou acesso refeito | `role`, `reinvite` |
+| `creditor_portal.user_activated` | convite usado: senha e autenticador cadastrados | `role`, `hoursSinceInvite` |
+| `creditor_portal.user_revoked` | acesso revogado pela assessoria | `role` |
+| `creditor_portal.login` | sessão aberta (depois do MFA) | `role` |
+
+Auditoria: `creditor_portal.enabled`, `creditor_portal.disabled` (`sessionsRevoked`), `creditor_user.invited`,
+`creditor_user.invite_refused` (`reason=internal_user_email`), `creditor_user.invitation_issued`,
+`creditor_user.invitation_resent`, `creditor_user.activated`, `creditor_user.access_reset`, `creditor_user.role_changed`,
+`creditor_user.revoked`, `creditor_user.password_changed`, `creditor_user.password_reset_issued`.
+
+Log de acesso com `actorType=CREDITOR` (os tipos são os do login interno; `detail.portal=creditor` nos anônimos):
+`LOGIN_SUCCESS`, `LOGIN_FAILURE`, `LOGIN_BLOCKED`, `MFA_CHALLENGE`, `MFA_SUCCESS` (com `detail.stepUp=true` na nova
+verificação de uma ação, e `detail.purpose`), `MFA_FAILURE`, `MFA_ENROLLED` (ativação), `TOKEN_REFRESHED`,
+`TOKEN_REUSE_DETECTED`, `SESSION_EXPIRED`, `SESSION_REVOKED`, `LOGOUT`, `PASSWORD_CHANGED`, `PASSWORD_RESET_REQUESTED`,
+`PASSWORD_RESET_COMPLETED`, `RATE_LIMITED` (`operation=creditor_login`); `ACCESS_DENIED` com
+`detail.reason=creditor_auth_without_origin`/`creditor_auth_untrusted_origin` (Origin obrigatório). A gestão pela
+assessoria registra `MFA_RESET` e `SESSION_REVOKED` com `detail.creditorUserId`.
+
+E-mails: `mail.sent{type=creditor_invitation|creditor_password_reset|security_alert}`.
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -594,6 +622,8 @@ fields @timestamp, tenantId, callId, instance, process
 | `publicapi.auth{outcome}`, `publicapi.tokens.lifecycle{operation}` | aceites e recusas de token por motivo (alarme em `secret_mismatch` anômalo; `outcome=paused` = recusas por token pausado pela plataforma); criação, rotação, revogação, e as operações da plataforma `paused_by_platform`, `resumed_by_platform`, `revoked_by_platform`, `resumed_scheduled` |
 | `publicapi.requests.rejected{reason}` | recusas na autenticação de tokens identificados (segredo correto), por motivo (`paused`, `revoked`, `expired`, `tenant_inactive`, `creditor_inactive`, `ip_not_allowed`) — tráfego recusado medido, sem tenant/token nas tags |
 | `publicapi.tokens.resume.duration`, `publicapi.tokens.resume_failures` | job de registro das retomadas agendadas (a cada 5 min): duração e falhas por assessoria (alarme) |
+| `identity.creditor_login_throttle.purged` | estado do limite por IP do login do credor apagado pela retenção de 24 h (decisão 1403) |
+| `identity.creditor_sessions.expired` | sessões do portal do credor expiradas pelo job de limpeza (inatividade ou prazo absoluto) |
 | `identity.platform_token_notices{action}` | e-mails de aviso enviados à assessoria pelo controle de tokens da plataforma (`paused`, `resumed`, `auto_resumed`, `revoked`) |
 | `publicapi.usage.pending_keys`, `publicapi.usage.flushed_rows{outcome}`, `publicapi.usage.flush.duration` | acumulação em memória e gravação em lote do consumo (alarme em `outcome=failed`) |
 | `publicapi.statements.closed{trigger}`, `publicapi.statements.close_failures` | fechamento diário dos ciclos encerrados (alarme em falhas) |

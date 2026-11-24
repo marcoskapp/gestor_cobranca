@@ -28,12 +28,21 @@ class LoginRateLimiter {
         this.clock = clock;
     }
 
+    /** Resultado da tentativa: a primeira recusa do minuto é a única que vale registrar (não lotar o log de acesso). */
+    enum Decision { ALLOWED, REJECTED_FIRST, REJECTED }
+
     /** @return true se a tentativa é permitida */
     public boolean tryAcquire(String key) {
+        return acquire(key) == Decision.ALLOWED;
+    }
+
+    Decision acquire(String key) {
         long minute = Instant.now(clock).getEpochSecond() / 60;
         Window window = windows.compute(key, (k, current) ->
                 current == null || current.minute() != minute ? new Window(minute, new AtomicInteger()) : current);
-        return window.count().incrementAndGet() <= limitPerMinute;
+        int count = window.count().incrementAndGet();
+        return count <= limitPerMinute ? Decision.ALLOWED
+                : count == limitPerMinute + 1 ? Decision.REJECTED_FIRST : Decision.REJECTED;
     }
 
     @Scheduled(fixedDelay = 60_000)

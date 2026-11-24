@@ -1,7 +1,7 @@
-package br.com.gestorcobranca.portal.domain.service;
+package br.com.gestorcobranca.shared.security;
 
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.Limits;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.State;
+import br.com.gestorcobranca.shared.security.ThrottlePolicy.Limits;
+import br.com.gestorcobranca.shared.security.ThrottlePolicy.State;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;

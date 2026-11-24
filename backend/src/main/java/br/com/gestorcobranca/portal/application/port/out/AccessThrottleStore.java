@@ -1,7 +1,7 @@
 package br.com.gestorcobranca.portal.application.port.out;
 
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.KeyType;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.State;
+import br.com.gestorcobranca.portal.domain.service.ThrottleKeyType;
+import br.com.gestorcobranca.shared.security.ThrottlePolicy.State;
 
 import java.time.Instant;
 import java.util.function.UnaryOperator;
@@ -12,10 +12,10 @@ import java.util.function.UnaryOperator;
  */
 public interface AccessThrottleStore {
 
-    State current(KeyType type, String keyHash, Instant now);
+    State current(ThrottleKeyType type, String keyHash, Instant now);
 
     /** Aplica a transição (pura) sob lock e grava; devolve o novo estado. */
-    State update(KeyType type, String keyHash, Instant now, UnaryOperator<State> transition);
+    State update(ThrottleKeyType type, String keyHash, Instant now, UnaryOperator<State> transition);
 
     /**
      * Retenção (LGPD): apaga até {@code limit} contadores sem uso desde o corte e sem bloqueio vigente em

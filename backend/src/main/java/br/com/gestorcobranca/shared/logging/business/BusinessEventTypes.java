@@ -220,6 +220,18 @@ public final class BusinessEventTypes {
     public static final String DIALER_CAMPAIGN_FINISHED = "dialer.campaign_finished";
     public static final String AGENT_PRESENCE_CHANGED = "agent.presence_changed";
 
+    // Portal do credor (ADR 0011): sem nome nem e-mail da pessoa do credor
+    /** Portal do credor liberado ou desativado para um credor ({@code enabled}). */
+    public static final String CREDITOR_PORTAL_TOGGLED = "creditor_portal.toggled";
+    /** Pessoa do credor convidada ou com o acesso refeito ({@code role}, {@code reinvite}). */
+    public static final String CREDITOR_USER_INVITED = "creditor_portal.user_invited";
+    /** Convite usado: senha e autenticador cadastrados ({@code role}, {@code hoursSinceInvite}). */
+    public static final String CREDITOR_USER_ACTIVATED = "creditor_portal.user_activated";
+    /** Acesso da pessoa do credor revogado pela assessoria ({@code role}). */
+    public static final String CREDITOR_USER_REVOKED = "creditor_portal.user_revoked";
+    /** Sessão aberta no portal do credor ({@code role}). */
+    public static final String CREDITOR_PORTAL_LOGIN = "creditor_portal.login";
+
     // Portal, score, IA
     public static final String PORTAL_ACCESSED = "portal.accessed";
     public static final String PORTAL_AGREEMENT_FORMALIZED = "portal.agreement_formalized";

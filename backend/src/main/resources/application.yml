@@ -202,6 +202,19 @@ app:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
     rate-limit:
       login-per-minute-per-ip: 20
+    # portal do credor (ADR 0011): MFA sempre obrigatório; senha e bloqueio por conta como os do usuário interno
+    creditor-portal:
+      idle-timeout: PT30M
+      session-lifetime: PT8H
+      max-sessions: 3
+      invitation-ttl: PT72H
+      password-reset-ttl: PT1H
+      ip:
+        max-failures: 20
+        max-requests: 60
+        window: PT15M
+        base-lock: PT5M
+        max-lock: PT1H
     mfa:
       issuer: Gestor de Cobranca
       # PLATFORM_ADMIN: provisiona assessorias (decisão 521); o cadastro do autenticador é feito no primeiro login

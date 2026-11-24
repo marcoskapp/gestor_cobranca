@@ -1,10 +1,11 @@
-package br.com.gestorcobranca.portal.domain.service;
+package br.com.gestorcobranca.shared.security;
 
 import java.time.Duration;
 import java.time.Instant;
 
 /**
- * Limite e bloqueio progressivo do acesso ao portal, por chave (documento ou IP), puro:
+ * Limite e bloqueio progressivo de acesso, por chave (documento ou IP no portal do devedor; IP no login do portal do
+ * credor — a conta usa {@code LockoutPolicy}), puro — o estado fica em tabela própria de cada módulo:
  * <ul>
  *   <li>contagens numa janela deslizante simples ({@code window}); fora dela recomeçam;</li>
  *   <li>{@code maxFailures} falhas de verificação (código, link, conhecimento) ou mais de
@@ -15,12 +16,6 @@ import java.time.Instant;
  * O mesmo tratamento vale para documento inexistente: o bloqueio não revela existência.
  */
 public final class ThrottlePolicy {
-
-    /**
-     * Chave do contador: documento e IP no acesso; devedor PJ ({@code REP_DEBTOR}) e IP ({@code REP_IP}) na
-     * confirmação do representante (cobrança B2B), contadas à parte do acesso.
-     */
-    public enum KeyType { DOCUMENT, IP, REP_DEBTOR, REP_IP }
 
     public record Limits(int maxFailures, int maxRequests, Duration window, Duration baseLock, Duration maxLock) {
     }

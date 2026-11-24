@@ -72,6 +72,32 @@ class SmtpIdentityMailer implements IdentityMailer {
     }
 
     @Override
+    public void sendCreditorInvitation(String to, String name, String tenantName, String creditorName, String link,
+                                       Instant expiresAt) {
+        String body = """
+                <p>Olá, %s.</p>
+                <p>A assessoria <strong>%s</strong> liberou para você o portal do credor <strong>%s</strong>, onde você
+                acompanha a cobrança das carteiras, a prestação de contas e as contestações.</p>
+                <p><a href="%s">Clique aqui para criar sua senha e cadastrar o autenticador</a>. O link é pessoal, vale
+                uma vez e expira em %s.</p>
+                <p>Se você não esperava este convite, ignore esta mensagem e avise a assessoria.</p>
+                """.formatted(escape(name), escape(tenantName), escape(creditorName), escape(link), FORMAT.format(expiresAt));
+        sendAfterCommit("creditor_invitation", to, "Seu acesso ao portal do credor — " + tenantName, body);
+    }
+
+    @Override
+    public void sendCreditorPasswordReset(String to, String name, String tenantName, String link, Instant expiresAt) {
+        String body = """
+                <p>Olá, %s.</p>
+                <p>Recebemos uma solicitação para redefinir sua senha do portal do credor da assessoria <strong>%s</strong>.</p>
+                <p><a href="%s">Clique aqui para criar uma nova senha</a>. O link expira em %s. O autenticador continua o
+                mesmo.</p>
+                <p>Se você não fez esta solicitação, ignore esta mensagem; sua senha atual continua válida.</p>
+                """.formatted(escape(name), escape(tenantName), escape(link), FORMAT.format(expiresAt));
+        sendAfterCommit("creditor_password_reset", to, "Redefinição de senha — portal do credor", body);
+    }
+
+    @Override
     public void sendSecurityAlert(String to, String name, String subject, String message) {
         String body = "<p>Olá, %s.</p><p>%s</p>".formatted(escape(name), escape(message));
         sendAfterCommit("security_alert", to, "[Segurança] " + subject, body);

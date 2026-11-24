@@ -8,9 +8,9 @@ import br.com.gestorcobranca.portal.application.service.PortalContext.Current;
 import br.com.gestorcobranca.portal.domain.model.PortalSession;
 import br.com.gestorcobranca.portal.domain.repository.PortalSessionRepository;
 import br.com.gestorcobranca.portal.domain.service.DeclaredName;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.KeyType;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.State;
+import br.com.gestorcobranca.shared.security.ThrottlePolicy;
+import br.com.gestorcobranca.portal.domain.service.ThrottleKeyType;
+import br.com.gestorcobranca.shared.security.ThrottlePolicy.State;
 import br.com.gestorcobranca.shared.crypto.BlindIndex;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Document;
@@ -88,8 +88,8 @@ class RepresentativeConfirmation {
         String ipKey = blindIndex.of(c.config().getTenantId(), IP_PURPOSE, ip == null || ip.isBlank() ? "unknown" : ip);
         // trava as duas linhas (empresa e IP, sempre nessa ordem) antes de decidir: declarações simultâneas esperam o
         // commit da anterior e não furam o limite; "|" (não "||") para travar sempre as duas
-        boolean locked = throttle.update(KeyType.REP_DEBTOR, debtorKey, now, s -> s).lockedAt(now)
-                | throttle.update(KeyType.REP_IP, ipKey, now, s -> s).lockedAt(now);
+        boolean locked = throttle.update(ThrottleKeyType.REP_DEBTOR, debtorKey, now, s -> s).lockedAt(now)
+                | throttle.update(ThrottleKeyType.REP_IP, ipKey, now, s -> s).lockedAt(now);
         // confere o CPF e o primeiro e último nome declarados; nome que não confere conta como falha, mesma resposta
         Optional<RepresentativeView> match = locked ? Optional.empty()
                 : representatives.negotiator(companyId, cpf.number())
@@ -100,19 +100,19 @@ class RepresentativeConfirmation {
             metrics.locked("REPRESENTATIVE", "REFUSED");
         } else if (match.isPresent()) {
             outcome = "CONFIRMED";
-            throttle.update(KeyType.REP_DEBTOR, debtorKey, now, s -> ThrottlePolicy.onSuccess(s, now, true));
-            throttle.update(KeyType.REP_IP, ipKey, now, s -> ThrottlePolicy.onSuccess(s, now, false));
+            throttle.update(ThrottleKeyType.REP_DEBTOR, debtorKey, now, s -> ThrottlePolicy.onSuccess(s, now, true));
+            throttle.update(ThrottleKeyType.REP_IP, ipKey, now, s -> ThrottlePolicy.onSuccess(s, now, false));
         } else {
             outcome = "UNCONFIRMED";
-            State debtorState = throttle.update(KeyType.REP_DEBTOR, debtorKey, now,
+            State debtorState = throttle.update(ThrottleKeyType.REP_DEBTOR, debtorKey, now,
                     s -> ThrottlePolicy.onFailure(s, limits(properties.representative().debtorMaxFailures()), now));
-            State ipState = throttle.update(KeyType.REP_IP, ipKey, now,
+            State ipState = throttle.update(ThrottleKeyType.REP_IP, ipKey, now,
                     s -> ThrottlePolicy.onFailure(s, limits(properties.representative().ipMaxFailures()), now));
             if (debtorState.lockedAt(now)) {
-                lockApplied(c, KeyType.REP_DEBTOR, debtorState.lockedUntil());
+                lockApplied(c, ThrottleKeyType.REP_DEBTOR, debtorState.lockedUntil());
             }
             if (ipState.lockedAt(now)) {
-                lockApplied(c, KeyType.REP_IP, ipState.lockedUntil());
+                lockApplied(c, ThrottleKeyType.REP_IP, ipState.lockedUntil());
             }
         }
         session.declareRepresentative(match.map(RepresentativeView::id).orElse(null), name, cpf.masked(), now);
@@ -160,7 +160,7 @@ class RepresentativeConfirmation {
         return new ThrottlePolicy.Limits(maxFailures, Integer.MAX_VALUE, r.window(), r.baseLock(), r.maxLock());
     }
 
-    private void lockApplied(Current c, KeyType key, Instant until) {
+    private void lockApplied(Current c, ThrottleKeyType key, Instant until) {
         accessLogger.log(AccessEvent.forDebtor(AccessEventType.PORTAL_LOCKED, c.config().getTenantId(),
                 c.session().getDebtorId(), null, Map.of("portal", c.config().getSlug(), "key", key.name(),
                         "until", until.toString())));

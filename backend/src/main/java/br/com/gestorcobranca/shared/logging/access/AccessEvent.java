@@ -12,7 +12,7 @@ import java.util.UUID;
  * @param type       tipo do evento
  * @param success    resultado
  * @param tenantId   tenant (pode ser nulo em falhas de login com tenant desconhecido)
- * @param actorType  USER, DEBTOR, SYSTEM, INTEGRATION ou ANONYMOUS
+ * @param actorType  USER, DEBTOR, CREDITOR, SYSTEM, INTEGRATION ou ANONYMOUS
  * @param actorId    usuário/devedor (nulo se desconhecido)
  * @param sessionId  sessão autenticada
  * @param principal  identificador informado, já mascarado (ex.: e-mail mascarado)
@@ -52,6 +52,13 @@ public record AccessEvent(
     public static AccessEvent forDebtor(AccessEventType type, UUID tenantId, UUID debtorId, UUID sessionId,
                                         Map<String, String> details) {
         return new AccessEvent(type, isSuccess(type), tenantId, "DEBTOR", debtorId, sessionId, null, details);
+    }
+
+    /** Evento da pessoa do credor no portal do credor fora de requisição autenticada (ex.: durante o login). */
+    public static AccessEvent forCreditor(AccessEventType type, UUID tenantId, UUID creditorUserId, UUID sessionId,
+                                          String maskedPrincipal, Map<String, String> details) {
+        return new AccessEvent(type, isSuccess(type), tenantId, "CREDITOR", creditorUserId, sessionId, maskedPrincipal,
+                details);
     }
 
     public static AccessEvent anonymous(AccessEventType type, UUID tenantId, String maskedPrincipal, Map<String, String> details) {

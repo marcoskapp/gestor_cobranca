@@ -1,8 +1,8 @@
 package br.com.gestorcobranca.portal.infrastructure.persistence;
 
 import br.com.gestorcobranca.portal.application.port.out.AccessThrottleStore;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.KeyType;
-import br.com.gestorcobranca.portal.domain.service.ThrottlePolicy.State;
+import br.com.gestorcobranca.portal.domain.service.ThrottleKeyType;
+import br.com.gestorcobranca.shared.security.ThrottlePolicy.State;
 import br.com.gestorcobranca.shared.domain.Ids;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -26,7 +26,7 @@ class JdbcAccessThrottleStore implements AccessThrottleStore {
     }
 
     @Override
-    public State current(KeyType type, String keyHash, Instant now) {
+    public State current(ThrottleKeyType type, String keyHash, Instant now) {
         return jdbc.query("""
                         select window_started_at, failures, requests, lock_count, locked_until from portal.access_throttle
                          where tenant_id = shared.current_tenant_id() and key_type = ? and key_hash = ?
@@ -35,7 +35,7 @@ class JdbcAccessThrottleStore implements AccessThrottleStore {
     }
 
     @Override
-    public State update(KeyType type, String keyHash, Instant now, UnaryOperator<State> transition) {
+    public State update(ThrottleKeyType type, String keyHash, Instant now, UnaryOperator<State> transition) {
         jdbc.update("""
                 insert into portal.access_throttle (id, tenant_id, key_type, key_hash, window_started_at, failures, requests,
                                                     lock_count, locked_until, updated_at)

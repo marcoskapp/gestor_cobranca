@@ -20,7 +20,7 @@ avaliação preventiva do `engenheiro-seguranca` de 24/11/2026; decisões autôn
 | # | Conteúdo | Situação |
 | --- | --- | --- |
 | 1 | Fundação de segurança: ator, permissões `CREDITOR_ONLY` e `CREDITOR_PORTAL_MANAGE`, API interna por lista de permissão, audiência por mapa explícito, `bypassesStaffRules()`, frontend sem token interno em `/api/creditor` | feita |
-| 2 | Identidade no backend: V0210, convite, ativação, login, MFA, sessão, refresh, revogação, nova verificação, logs | — |
+| 2 | Identidade no backend: V0210, convite, ativação, login, MFA, sessão, refresh, revogação, nova verificação, logs | feita |
 | 3 | Telas de identidade (`/credor`) e aba interna "Portal do credor" na ficha do credor | — |
 | 4 | `creditorportal` + prestação de contas (lista, ficha, arquivos, aceite, contestação) | — |
 | 5 | Contestações aguardando o credor e resposta com documentos | — |
@@ -45,6 +45,21 @@ avaliação preventiva do `engenheiro-seguranca` de 24/11/2026; decisões autôn
 - Frontend: `isCreditorRequest` — o `authInterceptor` nunca anexa o token interno a `/api/creditor/` nem renova a
   sessão interna num 401 de lá.
 
+## 3a. Identidade do credor (fatia 2)
+
+| Peça | Onde |
+| --- | --- |
+| Tabelas (V0210, todas com RLS) | `identity.creditor_portal_access` (liberação por credor), `creditor_user` (conta ativa sempre com senha e MFA — `check`), `creditor_action_token` (convite e redefinição, só o hash), `creditor_session`, `creditor_refresh_token`, `creditor_password_history`, `creditor_login_throttle` (HMAC do IP) |
+| Perfis | `CreditorRole` (decisão 1396) → permissões `CREDITOR_ONLY`, resolvidas a cada requisição |
+| Portas | `identity :: creditor`: `CreditorAuthentication`, `CreditorStepUp`; `identity :: usecases`: `CreditorPortalAdministration` |
+| Token | `CreditorJwtTokenIssuer` (audiência do credor; etapas `creditor_mfa`, `creditor_pwd`); `CreditorTokenResolver` **sem cache** (sessão, conta, portal liberado com o credor ativo — `CreditorPortalGate` —, assessoria ativa e credor do token conferidos a cada requisição) |
+| Rotas públicas (padrões exatos, Origin obrigatório) | `GET /api/creditor/v1/sites/{slug}`; `POST /api/creditor/v1/auth/{login, mfa, password/expired, activation/start, activation/complete, refresh, password/forgot, password/reset}` |
+| Rotas do credor | `GET /api/creditor/v1/me`, `POST /api/creditor/v1/session/logout` |
+| Rotas da assessoria (`CREDITOR_PORTAL_MANAGE`) | `/api/v1/creditors/{id}/portal` (`GET`, `enable`, `disable`, `users`, `users/{id}/resend-invitation`, `reset-access`, `role`, `revoke`) |
+| Cookie | `gc_creditor_refresh` (`HttpOnly`, `Secure`, `SameSite=Strict`, caminho `/api/creditor/v1/auth`) |
+| Links | `<app.base-url>/credor/<assessoria>/ativar#token=…` (72 h) e `/redefinir-senha#token=…` (1 h), token no fragmento |
+| Testes | `CreditorPortalIdentityIT` (convite, ativação, login em duas etapas, fronteira do token, refresh com reuso, revogação imediata, portal desativado, bloqueio, nova verificação), `CreditorUserTest` |
+
 ## 4. Requisitos de segurança (checklist das próximas fatias)
 
 Da avaliação preventiva (RS-xx). Crítica ou Alta confirmada bloqueia o commit da fatia.
@@ -68,3 +83,4 @@ Da avaliação preventiva (RS-xx). Crítica ou Alta confirmada bloqueia o commit
 | Arquivos externos sem antivírus | Quarentena, tipo pelo conteúdo, recusa de PDF com JavaScript, limites, download como `attachment` | Issue #33 |
 | Mesma origem do app interno | CSP `script-src 'self'`, cookie com nome e caminho próprios, token em memória, Origin obrigatório | Subdomínio próprio (opcional, item C da proposta) |
 | Limite de login em memória por instância | Bloqueio persistido por conta e por IP | WAF (#5, #18) |
+| IP e user agent das sessões do credor (e do usuário interno), tokens vencidos e o limite por IP guardados sem prazo | Volume baixo; nenhum dado de devedor | **Pendente:** job de retenção (anular IP e user agent de sessões encerradas, apagar tokens e limites antigos), com o prazo definido pelo `analista-negocio` e o jurídico — vale também para `auth_session` |
