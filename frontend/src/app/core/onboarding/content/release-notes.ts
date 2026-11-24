@@ -3,6 +3,14 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 36,
+    date: '2026-11-24',
+    title: 'Portal do credor: acesso das pessoas do credor',
+    items: [
+      { text: 'Na ficha do credor, a seção "Portal do credor" libera o portal e convida as pessoas do credor por e-mail, cada uma com o seu perfil. Elas entram com senha e autenticador; você refaz o acesso ou revoga quando precisar.', route: '/organizacao/credores' },
+    ],
+  },
+  {
     version: 35,
     date: '2026-11-24',
     title: 'Relatório de margem mais legível, atalho do Início e rolagem',

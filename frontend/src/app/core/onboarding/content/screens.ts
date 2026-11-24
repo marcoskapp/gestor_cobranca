@@ -1057,9 +1057,15 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'organization.creditors', version: 1, path: '/organizacao/credores', tourId: 'organization.creditors' },
   {
     key: 'organization.creditor-detail',
-    version: 3,
+    version: 4,
     path: '/organizacao/credores/:id',
-    changes: [{ version: 3, items: ['Inativar credor passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] }],
+    changes: [
+      { version: 3, items: ['Inativar credor passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
+      {
+        version: 4,
+        items: ['Nova seção "Portal do credor": liberar o portal e convidar as pessoas do credor por e-mail, com perfil; refazer o acesso de quem perdeu o autenticador e revogar.'],
+      },
+    ],
   },
   {
     key: 'organization.portfolios',

@@ -33,10 +33,10 @@ export class CrossTabCoordinator implements OnDestroy {
   }
 
   /** Executa a operação com exclusão mútua entre abas (quando o navegador suporta). */
-  withRefreshLock<T>(operation: () => Promise<T>): Observable<T> {
+  withRefreshLock<T>(operation: () => Promise<T>, lockName = LOCK_NAME): Observable<T> {
     return defer(() => {
       const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
-      return locks ? locks.request(LOCK_NAME, { mode: 'exclusive' }, () => operation()) : operation();
+      return locks ? locks.request(lockName, { mode: 'exclusive' }, () => operation()) : operation();
     });
   }
 

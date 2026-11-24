@@ -17,6 +17,7 @@ export interface StatusDescriptor {
 export type StatusDomain =
   | 'user'
   | 'creditor'
+  | 'creditorPortalUser'
   | 'tenant'
   | 'contract'
   | 'portfolio'
@@ -112,6 +113,12 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   creditor: {
     ACTIVE: { label: 'Ativo', tone: 'success' },
     INACTIVE: { label: 'Inativo', tone: 'neutral' },
+  },
+  // pessoa do credor no portal do credor (ADR 0011)
+  creditorPortalUser: {
+    INVITED: { label: 'Convite enviado', tone: 'info' },
+    ACTIVE: { label: 'Ativo', tone: 'success' },
+    REVOKED: { label: 'Acesso revogado', tone: 'neutral' },
   },
   tenant: {
     ACTIVE: { label: 'Ativa', tone: 'success' },

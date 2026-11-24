@@ -21,7 +21,7 @@ avaliação preventiva do `engenheiro-seguranca` de 24/11/2026; decisões autôn
 | --- | --- | --- |
 | 1 | Fundação de segurança: ator, permissões `CREDITOR_ONLY` e `CREDITOR_PORTAL_MANAGE`, API interna por lista de permissão, audiência por mapa explícito, `bypassesStaffRules()`, frontend sem token interno em `/api/creditor` | feita |
 | 2 | Identidade no backend: V0210, convite, ativação, login, MFA, sessão, refresh, revogação, nova verificação, logs | feita |
-| 3 | Telas de identidade (`/credor`) e aba interna "Portal do credor" na ficha do credor | — |
+| 3 | Telas de identidade (`/credor`) e seção interna "Portal do credor" na ficha do credor | feita |
 | 4 | `creditorportal` + prestação de contas (lista, ficha, arquivos, aceite, contestação) | — |
 | 5 | Contestações aguardando o credor e resposta com documentos | — |
 | 6 | Pagamento direto informado (sempre revisado) | — |
@@ -59,6 +59,26 @@ avaliação preventiva do `engenheiro-seguranca` de 24/11/2026; decisões autôn
 | Cookie | `gc_creditor_refresh` (`HttpOnly`, `Secure`, `SameSite=Strict`, caminho `/api/creditor/v1/auth`) |
 | Links | `<app.base-url>/credor/<assessoria>/ativar#token=…` (72 h) e `/redefinir-senha#token=…` (1 h), token no fragmento |
 | Testes | `CreditorPortalIdentityIT` (convite, ativação, login em duas etapas, fronteira do token, refresh com reuso, revogação imediata, portal desativado, bloqueio, nova verificação), `CreditorUserTest` |
+
+## 3b. Telas de acesso (fatia 3)
+
+| Peça | Onde |
+| --- | --- |
+| Rotas | `frontend/src/app/creditor/creditor.routes.ts`: `/credor/:slug/{entrar, ativar, esqueci-a-senha, redefinir-senha, inicio}`; `creditorSessionGuard` renova pelo cookie se a memória estiver vazia |
+| Sessão | `CreditorSession` (token só em memória, `restore()` com trava entre abas `gc-creditor-refresh` e resultado `renewed`/`ended`/`unavailable`) |
+| Interceptor | `creditorInterceptor`: token só em `/api/creditor/v1/*` fora de `/auth/` e `/sites/`; renova antes de vencer e uma vez no 401; só sai para a entrada quando o servidor recusa |
+| Link do e-mail | `CreditorLinkToken`: a moldura tira `#token=` da URL ao abrir e a tela o lê uma vez |
+| Moldura | `CreditorLayout`: marca da assessoria, credor e pessoa só da sessão desta assessoria, erro de carregamento com "Tentar novamente" |
+| Assessoria | `features/organization/creditors/creditor-detail/creditor-portal-access.ts` + `creditor-portal.api.ts` |
+| Testes | `creditor.interceptor.spec.ts`, `creditor-session.spec.ts` (memória, link, moldura de outra assessoria), `creditor-login.spec.ts` |
+
+**Pendências de UX da fatia 3** (revisão de 24/11/2026):
+
+- **Antes de convidar um credor real:** ajuda pública curta em `/credor/:slug/ajuda` (ativar, autenticador, código não funciona, perdi o celular), ligada na entrada, na ativação e no rodapé; contato da assessoria na marca (`/sites/{slug}`), mostrado no rodapé; e-mail do convite com o passo a passo do autenticador (UX-08).
+- Convite vencido na lista da assessoria ("Convite vencido em…") — exige `invitationExpiresAt` na resposta (UX-05); explicação do bloqueio por tentativas ao lado do selo.
+- Motivo obrigatório ao desativar o portal (UX-10) — muda o contrato da API.
+- Tour da ficha do credor com o passo do portal; tour leve, "i" dos indicadores e "Ajuda" no menu na fatia 7.
+- Avisar as outras abas na saída (`BroadcastChannel`), junto com as telas que mostram dados do credor (RC-10).
 
 ## 4. Requisitos de segurança (checklist das próximas fatias)
 

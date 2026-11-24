@@ -218,6 +218,11 @@ describe('conteúdo do onboarding', () => {
     expect(report.changes?.some((c) => c.version === 2)).toBe(true);
     expect(findTour('analytics.margin-report')?.version).toBe(2);
     expect(RELEASE_NOTES.find((n) => n.version === 35)?.items.map((i) => i.route)).toEqual(['/paineis/margem', '/', '/paineis']);
+    // v36: portal do credor (acesso) na ficha do credor
+    const creditor = findScreen('/organizacao/credores/c-1')!;
+    expect(creditor.key).toBe('organization.creditor-detail');
+    expect(creditor.changes?.some((c) => c.version === 4)).toBe(true);
+    expect(RELEASE_NOTES.find((n) => n.version === 36)?.items.map((i) => i.route)).toEqual(['/organizacao/credores']);
   });
 
   it('pagamentos, instruções, aprovação, sobras, conciliação e contas Pix registrados com tour (rotas fixas antes de :id)', () => {

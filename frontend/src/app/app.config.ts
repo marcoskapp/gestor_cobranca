@@ -25,6 +25,7 @@ import { GlobalErrorHandler } from './core/http/global-error-handler';
 import { NavigationHistory } from './core/layout/breadcrumbs/navigation-history';
 import { ThemeService } from './core/preferences/theme.service';
 import { portalInterceptor } from './portal/data/portal.interceptor';
+import { creditorInterceptor } from './creditor/data/creditor.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -37,8 +38,9 @@ export const appConfig: ApplicationConfig = {
       withRouterConfig({ paramsInheritanceStrategy: 'always' }),
     ),
     // ordem: authInterceptor trata o 401 (renovação) antes de o errorInterceptor notificar
-    // portalInterceptor só age em /api/portal/v1/me (token do devedor); authInterceptor ignora /api/portal/
-    provideHttpClient(withFetch(), withInterceptors([errorInterceptor, authInterceptor, portalInterceptor])),
+    // portalInterceptor só age em /api/portal/v1/me (token do devedor); creditorInterceptor só em /api/creditor/v1
+    // (token do credor, fora das rotas públicas); authInterceptor ignora os dois
+    provideHttpClient(withFetch(), withInterceptors([errorInterceptor, authInterceptor, portalInterceptor, creditorInterceptor])),
     provideAppLocale(),
     provideBootstrapDefaults(),
     // padrões do Angular Material (transitório) ficam nas rotas do shell e do portal

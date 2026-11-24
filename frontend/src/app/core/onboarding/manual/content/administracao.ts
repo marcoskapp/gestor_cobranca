@@ -41,11 +41,10 @@ export const MANUAL: ModuleManual = {
     {
       id: 'organization.creditor-detail',
       title: 'Credor',
-      objective: 'Ficha do credor: dados, contratos vigentes, carteiras e histórico de alterações.',
+      objective: 'Ficha do credor: dados, contratos, contatos de contestação, carteiras e o acesso do credor ao portal.',
       purpose: [
-        'O contrato de serviço define vigência e o dia de fechamento da prestação de contas.',
-        'No contrato também ficam os preços da integração com os sistemas do credor e o dia de fechamento do consumo, em versões: a primeira vale já no ciclo em andamento e as alterações, a partir do próximo ciclo.',
-        'Os contatos para contestações recebem os pedidos formais de análise, os lembretes e a cobrança do retorno. Contatos de uma carteira substituem os do credor naquela carteira.',
+        'O contrato de serviço define vigência e o dia de fechamento da prestação de contas. Nele também ficam os preços da integração com os sistemas do credor e o dia de fechamento do consumo, em versões: a primeira vale já no ciclo em andamento e as alterações, a partir do próximo ciclo. Os contatos para contestações recebem os pedidos formais de análise, os lembretes e a cobrança do retorno. Contatos de uma carteira substituem os do credor naquela carteira.',
+        'No "Portal do credor", Administrador e Gestor liberam o portal para o credor e convidam as pessoas dele por e-mail, com o perfil de cada uma (Gestão de recuperação, Financeiro, Jurídico, Compliance ou Consulta). A pessoa cria a senha e cadastra o autenticador pelo link do convite. "Refazer acesso" serve para quem perdeu o autenticador; "Revogar" tira o acesso na hora; desativar o portal tira todos. O convite vale 72 horas (depois, "Reenviar convite"), quem erra muitas vezes fica bloqueado por alguns minutos e quem foi revogado não volta com o mesmo e-mail. O convite não vai para e-mail de usuário da assessoria.',
       ],
       profiles: ['ADMIN', 'GESTOR', 'AUDITOR'],
       inputs: ['Cadastro do credor.'],

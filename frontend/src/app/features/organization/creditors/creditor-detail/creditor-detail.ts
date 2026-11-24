@@ -21,6 +21,7 @@ import { ContractsApi, CreditorsApi } from '../../data/organization.api';
 import { ContractView, CreditorView } from '../../data/organization.models';
 import { CreditorForm } from '../creditor-form/creditor-form';
 import { CreditorDisputeContacts } from './creditor-dispute-contacts';
+import { CreditorPortalAccess } from './creditor-portal-access';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
@@ -37,6 +38,7 @@ import { MoreAction, MoreActions } from '../../../../shared/components/more-acti
     AppDatePipe,
     DocumentPipe,
     CreditorDisputeContacts,
+    CreditorPortalAccess,
     MoreActions,
   ],
   templateUrl: './creditor-detail.html',
@@ -56,6 +58,8 @@ export class CreditorDetail {
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.CREDITOR_MANAGE));
   protected readonly canManageContracts = computed(() => this.auth.hasPermission(Permission.CONTRACT_MANAGE));
   protected readonly canViewPortfolios = computed(() => this.auth.hasPermission(Permission.PORTFOLIO_VIEW));
+  /** Portal do credor: a seção só aparece para quem administra (ADMIN e GESTOR — decisão 1394). */
+  protected readonly canManagePortal = computed(() => this.auth.hasPermission(Permission.CREDITOR_PORTAL_MANAGE));
 
   protected readonly creditor = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.creditor, undefined);

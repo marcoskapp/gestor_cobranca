@@ -14,6 +14,11 @@ export const routes: Routes = [
     path: 'portal',
     loadChildren: () => import('./portal/portal.routes').then((m) => m.PORTAL_ROUTES),
   },
+  // portal do credor (ADR 0011): público, sem o shell e sem a sessão interna (carregado sob demanda)
+  {
+    path: 'credor',
+    loadChildren: () => import('./creditor/creditor.routes').then((m) => m.CREDITOR_ROUTES),
+  },
   { path: 'login', loadComponent: authLayout, canActivate: [guestGuard], children: LOGIN_ROUTES },
   ...PUBLIC_AUTH_ROUTES.map((route) => ({
     path: route.path,
