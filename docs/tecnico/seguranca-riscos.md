@@ -79,8 +79,31 @@ evidência, o cenário de exploração e a correção ficam no próprio item, ab
 | SEG-20261124-E07 | Imagens base sem digest | Baixa | aberto | `infra/docker/app/Dockerfile`, Compose | fixar `@sha256:` |
 | SEG-20261124-E08 | Perfil padrão `local` sem guarda (chaves de desenvolvimento versionadas, simuladores) | Baixa | aberto | `application.yml`, `application-local.yml` | `LocalProfileGuard` |
 | SEG-20261124-E09 | Advisories em dependências de desenvolvimento do frontend (vite, minimatch); produção sem achados no `npm audit` | Baixa | aberto | `frontend/package-lock.json` | `npm audit fix` |
+| SEG-20261124-F05 | Respostas de `/api/creditor/v1` sem teste de snapshot de contrato: campo novo nos records do `creditorportal` chega ao credor sem nenhum teste falhar | Baixa | aberto | `creditorportal` (controllers de `/api/creditor/v1`) | snapshot das respostas permitidas (RS-26) |
+| SEG-20261124-F07 | Aceite do demonstrativo pelo portal confia no `mfaVerifiedAt` informado pelo chamador | Baixa | aberto — reforço previsto na fatia 6 | `settlement` (aceite pelo portal), chamado pelo `creditorportal` | comprovante opaco de uso único do `CreditorStepUp` |
+
+### Achados de revisão antes do commit
+
+**SEG-20261124-F05 e F07** — revisão da fatia 4 do portal do credor (prestação de contas), 24/11/2026; F01–F04 e F06
+da mesma revisão foram corrigidos antes do commit (§5).
+
+- **F05.** As respostas da API interna do credor (`/api/creditor/v1`) não têm teste de snapshot, como a API pública já
+  tem. O `ArchitectureTest` já impede que o portal responda com records dos módulos donos, mas um campo acrescentado
+  aos records do próprio `creditorportal` passa a ser enviado ao credor sem que nenhum teste falhe. Correção: snapshot
+  das respostas da API do credor (RS-26, em [portal-credor.md](desenho/portal-credor.md) §4).
+- **F07.** O caso de uso de aceite do `settlement` recebe do chamador o instante da verificação do MFA
+  (`mfaVerifiedAt`) e confia nele. Hoje só o `creditorportal` declara a interface `settlement :: creditor`, e o
+  `ModularityTest` recusa qualquer outro módulo que a use sem declará-la. Por isso a exploração exige uma mudança de
+  código interna (outro módulo passar a declarar a interface e chamar o caso de uso com um instante inventado), que
+  passa pela revisão. Correção prevista com a fatia 6: um comprovante opaco e de uso único emitido pelo
+  `CreditorStepUp`, conferido pelo `settlement`.
 
 ## 5. Histórico de correções
 
 | ID | Título | Severidade | Corrigido em (commit) | Teste que cobre | Validado em |
 | --- | --- | --- | --- | --- | --- |
+| SEG-20261124-F01 | Assessoria registrava aceite por cima de contestação feita pelo credor no portal | Média | e9a9cbbd | `SettlementLifecycleTest#creditorPortalContestationIsOnlyRevertedByTheCreditor`; `CreditorSettlementIT#creditorSeesOnlyItsSentStatementsAcknowledgesWithMfaAndContests` (409 `statement.creditor_portal_response`; decisão 1420) | 24/11/2026, revisão antes do commit |
+| SEG-20261124-F02 | Tentativa sobre demonstrativo de outro credor respondia 404 sem registrar `SCOPE_DENIED` | Média | e9a9cbbd | `CreditorSettlementIT#creditorSeesOnlyItsSentStatementsAcknowledgesWithMfaAndContests` (`SCOPE_DENIED` no demonstrativo e na contestação de outro credor; arquivo de outro demonstrativo → 404; RS-06; decisão 1422) | 24/11/2026, revisão antes do commit |
+| SEG-20261124-F03 | Termo de resposta sem a observação do credor | Baixa | e9a9cbbd | `CreditorSettlementIT#creditorSeesOnlyItsSentStatementsAcknowledgesWithMfaAndContests` (observação gravada no termo do aceite e da contestação; o SHA-256 da observação entra no texto canônico, ainda sem teste próprio) | 24/11/2026, revisão antes do commit |
+| SEG-20261124-F04 | Código do autenticador conferido antes da permissão de responder | Baixa | e9a9cbbd | `CreditorSettlementIT#creditorSeesOnlyItsSentStatementsAcknowledgesWithMfaAndContests` (perfil só de consulta → 403 sem chamar a verificação do código; decisão 1422) | 24/11/2026, revisão antes do commit |
+| SEG-20261124-F06 | Download salvava arquivo com SHA-256 divergente do código de integridade | Baixa | e9a9cbbd | `creditor-statement-detail.spec.ts` › "arquivo que não confere com o código de integridade não é salvo" (decisão 1419) | 24/11/2026, revisão antes do commit |
