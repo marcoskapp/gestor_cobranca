@@ -59,6 +59,8 @@ Regras de negócio que só existem no desenho técnico, por enquanto: remuneraç
 | [convencoes.md](tecnico/convencoes.md) | Convenções de código, pacotes, persistência, testes |
 | [seguranca.md](tecnico/seguranca.md) | Controles de segurança, LGPD, segregação de funções |
 | [seguranca-riscos.md](tecnico/seguranca-riscos.md) | Registro de segurança: vulnerabilidades abertas (até a produção, decisão 1383), riscos aguardando aprovação ou aceitos e histórico de correções |
+| [seguranca-modelo-de-ameacas.md](tecnico/seguranca-modelo-de-ameacas.md) | Modelo de ameaças: arquitetura, ativos, atores, fronteiras de confiança, superfícies e ameaças STRIDE por área |
+| [seguranca-auditorias/](tecnico/seguranca-auditorias/) | Relatórios das auditorias de segurança (um por data; última: [24/11/2026](tecnico/seguranca-auditorias/2026-11-24.md)), com evidência e correção de cada achado |
 | [logs-e-metricas.md](tecnico/logs-e-metricas.md) | Fluxos de log (técnico, negócio, acesso), catálogo de eventos e métricas |
 | [claude-code.md](tecnico/claude-code.md) | Desenvolvimento com o Claude Code no ambiente local: arquivos do projeto, pré-requisitos e roteiro de testes da migração |
 | [operacao/api-publica-publicacao.md](tecnico/operacao/api-publica-publicacao.md) | API pública: fluxo de mudança do contrato, publicação de release com diff (openapi-diff), nova versão e depreciação, segredo do hash dos tokens |
