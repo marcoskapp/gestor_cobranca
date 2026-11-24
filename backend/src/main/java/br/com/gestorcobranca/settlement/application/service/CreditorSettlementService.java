@@ -30,14 +30,10 @@ import br.com.gestorcobranca.shared.storage.FileStorage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -234,14 +230,11 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
         Instant recordedAt = now.truncatedTo(ChronoUnit.MICROS);
         Instant mfaAt = c.mfaVerifiedAt() == null ? null : c.mfaVerifiedAt().truncatedTo(ChronoUnit.MICROS);
         String note = s.getCreditorResponseNote();
-        // texto canônico do termo: o hash prova o que foi decidido, por quem, quando e sobre quais arquivos e valores
-        String canonical = String.join("|", "v1", s.getTenantId().toString(), s.getId().toString(), decision,
-                actor.id().toString(), String.valueOf(actor.sessionId()), recordedAt.toString(),
-                String.valueOf(mfaAt), s.getNetTransferAmount().amount().toPlainString(),
-                note == null ? "-" : sha256(note),
-                String.join(",", fileList.stream().map(m -> (String) m.get("sha256")).toList()));
+        String canonical = StatementTermDigest.canonical(s.getTenantId(), s.getId(), decision, actor.id(),
+                actor.sessionId(), recordedAt, mfaAt, s.getNetTransferAmount().amount(), note,
+                fileList.stream().map(m -> (String) m.get("sha256")).toList());
         return statements.save(new StatementCreditorTerm(s.getId(), decision, actor.id(), actor.sessionId(), recordedAt,
-                c.clientIp(), mfaAt, note, json.toJson(fileList), sha256(canonical)));
+                c.clientIp(), mfaAt, note, json.toJson(fileList), StatementTermDigest.sha256(canonical)));
     }
 
     private BusinessEvent event(String type, SettlementStatement s) {
@@ -272,14 +265,5 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
         return new CreditorStatementSummary(s.getId(), s.getSequenceNumber(), s.getPeriodStart(), s.getPeriodEnd(),
                 s.getStatus().name(), s.totals().recovered().amount(), net.amount(), direction, s.getSentAt(),
                 s.getCreditorResponseAt());
-    }
-
-    private static String sha256(String value) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
     }
 }
