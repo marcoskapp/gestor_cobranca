@@ -82,6 +82,7 @@ export function statement(overrides: Partial<StatementView> = {}): StatementView
     creditorResponseAt: null,
     creditorResponseBy: null,
     creditorResponseNote: null,
+    creditorResponseOrigin: null,
     cancelledReason: null,
     version: 3,
     ...overrides,

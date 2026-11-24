@@ -4,6 +4,7 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -99,6 +100,34 @@ class ArchitectureTest {
                         "java.util.UUID", "java.util.UUID", "java.lang.String", "java.lang.String", "java.time.Instant",
                         "java.lang.String", "java.lang.String", "java.util.UUID", "java.lang.String")
                 .because("categoria fora da cobrança dispensa limites ou horário (decisões 792, 1081 e 1083)")
+                .check(classes);
+    }
+
+    /**
+     * Portal do credor (ADR 0011): a web e a porta do {@code creditorportal} respondem só com os records do próprio módulo (lista
+     * de campos permitidos) — nunca com os de {@code port/in} dos módulos donos, para que um campo novo lá não chegue ao
+     * credor sem decisão.
+     */
+    @Test
+    void creditorPortalWebAnswersOnlyWithItsOwnRecords() {
+        noClasses().that().resideInAnyPackage(ROOT + ".creditorportal.web..", ROOT + ".creditorportal.application.port.in..")
+                .should().dependOnClassesThat(JavaClass.Predicates.resideInAPackage(ROOT + ".(*).application.port.in..")
+                        .and(JavaClass.Predicates.resideOutsideOfPackage(ROOT + ".creditorportal..")))
+                .because("a resposta ao credor é uma lista de campos permitidos (ADR 0011)")
+                .check(classes);
+    }
+
+    /**
+     * A nova verificação do MFA só vale na ação do portal do credor: o {@code sandbox} também declara
+     * {@code identity :: creditor} (carga fictícia), mas não a usa. As portas do credor dos módulos donos
+     * ({@code <modulo> :: creditor}) já são protegidas pelo {@code ModularityTest}.
+     */
+    @Test
+    void onlyTheCreditorPortalUsesCreditorOnlyUseCases() {
+        noClasses().that().resideOutsideOfPackages(ROOT + ".creditorportal..", ROOT + ".identity..")
+                .should().dependOnClassesThat().haveFullyQualifiedName(
+                        ROOT + ".identity.application.port.in.creditor.CreditorStepUp")
+                .because("a nova verificação do MFA só vale na ação do portal do credor (ADR 0011)")
                 .check(classes);
     }
 

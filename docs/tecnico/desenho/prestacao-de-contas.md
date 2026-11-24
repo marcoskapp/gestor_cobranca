@@ -75,7 +75,7 @@ A memória (`statement.calculation`) guarda versões de regras usadas, pendênci
 
 **Aprovação** (`SETTLEMENT_APPROVE`): exige `REVIEWED`, sem ajuste pendente; quem calculou ou pediu ajuste aplicado não aprova (inclusive o administrador; `check` no banco para quem calculou). Aprovado é imutável (gatilho `statement_guard`): estornos, despesas canceladas e correções posteriores entram no período seguinte. Publica `SettlementClosed` e o evento de negócio `settlement.closed`.
 
-**Exportação** (`SETTLEMENT_CLOSE`, só aprovado): CSV/XLSX conciliáveis e PDF resumo (PDFBox) no `FileStorage` (`SETTLEMENT_STATEMENT`) com SHA-256; o conteúdo depende só do demonstrativo aprovado. **Envio** registra canal, referência e os arquivos enviados; **aceite/contestação** do credor são registrados pela assessoria (não há portal do credor).
+**Exportação** (`SETTLEMENT_CLOSE`, só aprovado): CSV/XLSX conciliáveis e PDF resumo (PDFBox) no `FileStorage` (`SETTLEMENT_STATEMENT`) com SHA-256; o conteúdo depende só do demonstrativo aprovado. **Envio** registra canal, referência e os arquivos enviados; **aceite/contestação** do credor são registrados pela assessoria ou feitos pela própria pessoa do credor no portal do credor (`CreditorSettlementUseCases`, interface `settlement :: creditor`, só do `creditorportal`): a mesma máquina de estados, com a origem em `statement.creditor_response_origin` (`AGENCY`/`CREDITOR_PORTAL`, passada na transição; contestação feita no portal só o credor reverte — decisão 1420; na origem portal `creditorResponseBy` vem nulo no `StatementView`) e, no portal, o termo só de inclusão `statement_creditor_term` (pessoa, sessão, IP, instante, nova verificação do MFA no aceite, arquivos com SHA-256 e o SHA-256 do termo canônico) — ver [portal-credor.md](portal-credor.md) §3c.
 
 ### 5.1 Posição em tempo real (simulação do demonstrativo)
 
@@ -166,6 +166,6 @@ Métricas: `settlement.position.duration{cache}`, `settlement.position.requests{
 - **legal**: consumir `SettlementClosed` para marcar como reembolsadas as despesas deduzidas (`reimbursedLegalExpenseIds`).
 - **payment**: honorários de título avulso dependem da distribuição por componente (já publicada); consulta em lote da situação de conciliação (hoje uma leitura por alocação candidata no cálculo).
 - **analytics**: views sobre `receipt`/`commission_entry`/`statement` (custo de comissão por real recuperado, prazo de fechamento e de repasse).
-- **produto**: acesso do credor (portal/API) para aceite e contestação; envio automático por e-mail com o arquivo; configuração do limite de ajuste por assessoria.
+- **produto**: aceite e contestação pela API pública do credor (o portal do credor já faz); envio automático por e-mail com o arquivo; configuração do limite de ajuste por assessoria.
 - ~~**frontend**~~ (24/10/2026): telas de regras, razão, demonstrativo (ciclo, ajustes, custas, exportação com conferência do SHA-256 no download, envio, resposta do credor) e repasses em `/prestacao-de-contas`.
 - Depósito judicial como origem de pagamento (payment) entra automaticamente como recebimento quando existir.

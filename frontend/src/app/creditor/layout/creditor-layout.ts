@@ -10,6 +10,7 @@ import { Icon } from '../../shared/components/icon/icon';
 import { CreditorApi } from '../data/creditor.api';
 import { CreditorSession } from '../data/creditor-session';
 import { CreditorLinkToken } from '../data/creditor-link-token';
+import { CreditorPermission } from '../data/creditor.models';
 import { fragmentToken } from '../pages/creditor-errors';
 
 /**
@@ -50,6 +51,11 @@ import { fragmentToken } from '../pages/creditor-errors';
           <a [routerLink]="['/credor', slug(), 'inicio']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page">
             <app-icon name="house" /> Início
           </a>
+          @if (can(permission.OVERVIEW)) {
+            <a [routerLink]="['/credor', slug(), 'prestacao-de-contas']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page">
+              <app-icon name="file-earmark-text" /> Prestação de contas
+            </a>
+          }
         </nav>
       }
     </header>
@@ -91,6 +97,10 @@ export class CreditorLayout {
     const m = this.session.me();
     return m && m.tenantSlug === this.slug() ? m : null;
   });
+  protected readonly permission = CreditorPermission;
+  protected can(permission: string): boolean {
+    return this.me()?.permissions.includes(permission) ?? false;
+  }
   protected readonly initials = computed(() =>
     (this.site.value()?.name ?? '')
       .split(/\s+/)

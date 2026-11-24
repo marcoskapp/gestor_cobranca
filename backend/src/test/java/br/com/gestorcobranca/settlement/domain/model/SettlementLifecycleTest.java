@@ -50,10 +50,27 @@ class SettlementLifecycleTest {
         assertThatThrownBy(() -> s.calculated(net("1.00"), "{}", CALCULATOR, NOW, TODAY))
                 .isInstanceOf(DomainException.class);
         s.send(CALCULATOR, "EMAIL", "msg-1", NOW);
-        s.contest(CALCULATOR, "Credor não reconhece o recebimento X", NOW);
+        s.contest(CALCULATOR, ResponseOrigin.AGENCY, "Credor não reconhece o recebimento X", NOW);
         assertThat(s.getStatus()).isEqualTo(StatementStatus.CONTESTED);
-        s.acknowledge(CALCULATOR, "Corrigido no demonstrativo seguinte", NOW);
+        s.acknowledge(CALCULATOR, ResponseOrigin.AGENCY, "Corrigido no demonstrativo seguinte", NOW);
         assertThat(s.getStatus()).isEqualTo(StatementStatus.ACKNOWLEDGED);
+    }
+
+    /** Decisão 1420: contestação feita pelo credor no portal só é revertida por ele; aceite não herda o motivo. */
+    @Test
+    void creditorPortalContestationIsOnlyRevertedByTheCreditor() {
+        SettlementStatement s = calculated("855.00");
+        s.review(CALCULATOR, NOW);
+        s.approve(APPROVER, NOW, Set.of());
+        s.send(CALCULATOR, "PORTAL", null, NOW);
+        UUID creditorUser = UUID.randomUUID();
+        s.contest(creditorUser, ResponseOrigin.CREDITOR_PORTAL, "Faltou o pagamento do dia 3", NOW);
+        assertThatThrownBy(() -> s.acknowledge(CALCULATOR, ResponseOrigin.AGENCY, null, NOW))
+                .isInstanceOf(DomainException.class).hasFieldOrPropertyWithValue("code", "statement.creditor_portal_response");
+        s.acknowledge(creditorUser, ResponseOrigin.CREDITOR_PORTAL, " ", NOW);
+        assertThat(s.getStatus()).isEqualTo(StatementStatus.ACKNOWLEDGED);
+        assertThat(s.getCreditorResponseOrigin()).isEqualTo(ResponseOrigin.CREDITOR_PORTAL);
+        assertThat(s.getCreditorResponseNote()).isNull();
     }
 
     @Test

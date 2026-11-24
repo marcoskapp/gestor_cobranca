@@ -16,6 +16,7 @@ import br.com.gestorcobranca.settlement.domain.model.CommissionRuleSet;
 import br.com.gestorcobranca.settlement.domain.model.CreditorTransfer;
 import br.com.gestorcobranca.settlement.domain.model.Receipt;
 import br.com.gestorcobranca.settlement.domain.model.ReimbursableExpense;
+import br.com.gestorcobranca.settlement.domain.model.ResponseOrigin;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement.Totals;
 import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
@@ -98,7 +99,10 @@ class SettlementViews {
                 s.getCalculation() == null ? Map.of() : json.toMap(s.getCalculation()), s.getCalculatedAt(),
                 s.getCalculatedBy(), s.getReviewedAt(), s.getReviewedBy(), s.getApprovedAt(), s.getApprovedBy(),
                 s.getSentAt(), s.getSentBy(), s.getSentChannel(), s.getSentReference(), s.getCreditorResponseAt(),
-                s.getCreditorResponseBy(), s.getCreditorResponseNote(), s.getCancelledReason(),
+                // a pessoa do credor não é usuário da assessoria: o id dela fica no termo, não na ficha interna
+                s.getCreditorResponseOrigin() == ResponseOrigin.CREDITOR_PORTAL ? null : s.getCreditorResponseBy(),
+                s.getCreditorResponseNote(),
+                s.getCreditorResponseOrigin() == null ? null : s.getCreditorResponseOrigin().name(), s.getCancelledReason(),
                 s.getVersion() == null ? 0 : s.getVersion());
     }
 

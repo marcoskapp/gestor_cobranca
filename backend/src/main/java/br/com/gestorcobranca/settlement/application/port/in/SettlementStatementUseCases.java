@@ -115,6 +115,6 @@ public interface SettlementStatementUseCases {
                          UUID calculatedBy, Instant reviewedAt, UUID reviewedBy, Instant approvedAt, UUID approvedBy,
                          Instant sentAt, UUID sentBy, String sentChannel, String sentReference,
                          Instant creditorResponseAt, UUID creditorResponseBy, String creditorResponseNote,
-                         String cancelledReason, long version) {
+                         String creditorResponseOrigin, String cancelledReason, long version) {
     }
 }

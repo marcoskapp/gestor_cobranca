@@ -22,7 +22,7 @@ avaliação preventiva do `engenheiro-seguranca` de 24/11/2026; decisões autôn
 | 1 | Fundação de segurança: ator, permissões `CREDITOR_ONLY` e `CREDITOR_PORTAL_MANAGE`, API interna por lista de permissão, audiência por mapa explícito, `bypassesStaffRules()`, frontend sem token interno em `/api/creditor` | feita |
 | 2 | Identidade no backend: V0210, convite, ativação, login, MFA, sessão, refresh, revogação, nova verificação, logs | feita |
 | 3 | Telas de identidade (`/credor`) e seção interna "Portal do credor" na ficha do credor | feita |
-| 4 | `creditorportal` + prestação de contas (lista, ficha, arquivos, aceite, contestação) | — |
+| 4 | `creditorportal` + prestação de contas (lista, ficha, arquivos, aceite, contestação) | feita |
 | 5 | Contestações aguardando o credor e resposta com documentos | — |
 | 6 | Pagamento direto informado (sempre revisado) | — |
 | 7 | Início (indicadores, "Aguardando você") e Minha atividade | — |
@@ -79,6 +79,27 @@ avaliação preventiva do `engenheiro-seguranca` de 24/11/2026; decisões autôn
 - Motivo obrigatório ao desativar o portal (UX-10) — muda o contrato da API.
 - Tour da ficha do credor com o passo do portal; tour leve, "i" dos indicadores e "Ajuda" no menu na fatia 7.
 - Avisar as outras abas na saída (`BroadcastChannel`), junto com as telas que mostram dados do credor (RC-10).
+
+## 3c. Prestação de contas (fatia 4)
+
+| Peça | Onde | O quê |
+| --- | --- | --- |
+| Porta do dono | `settlement.application.port.in.creditor.CreditorSettlementUseCases` (interface `settlement :: creditor`; `CreditorSettlementService`) | Só o ator `CREDITOR` (outro tipo → `denyActorType`, 403) com `CREDITOR_PORTAL_OVERVIEW` (ler) ou `CREDITOR_STATEMENT_RESPOND` (responder); o credor vem do ator; demonstrativo de outro credor → 404 com `SCOPE_DENIED`; fora de `SENT`/`ACKNOWLEDGED`/`CONTESTED` → 404 |
+| Aceite | mesma porta + `creditorportal` | `requireCanRespond` (sem efeito: permissão e demonstrativo visível), depois `CreditorStepUp.verify(code, "statement_acknowledge")` e o aceite **na mesma transação** (`CreditorStatementService`); o conjunto de SHA-256 que a pessoa viu precisa ser igual ao dos arquivos atuais (senão 409 `statement.files_changed`); a transição é a mesma do domínio (`acknowledge`), com a origem `CREDITOR_PORTAL` passada na transição (`ResponseOrigin`); a assessoria não aceita por cima de contestação feita no portal (decisão 1420) |
+| Contestação | idem | Motivo obrigatório, sem código do autenticador; só de `SENT` (regra do domínio); valores nunca mudam |
+| Termo | `settlement.statement_creditor_term` (V0901, só de inclusão: gatilho e `revoke update, delete`) | Decisão, pessoa, sessão, instante, IP, instante da nova verificação (obrigatório no aceite por `check`), observação ou motivo, arquivos (id, nome, formato, SHA-256) e `term_sha256` do texto canônico `v1\|tenant\|demonstrativo\|decisão\|pessoa\|sessão\|instante\|mfa\|líquido\|sha256(observação)\|hashes` |
+| Download | `GET /statements/{id}/files/{fileId}/content` | Só arquivo do demonstrativo visível; `attachment`, `no-store`, `X-Content-SHA256`; `FILE_DOWNLOADED` com `origin=creditor_portal`; arquivo de outro demonstrativo → 404 (com `SCOPE_DENIED` se for de outro credor); a tela confere o SHA-256 (conteúdo e cabeçalho) e só salva se conferir |
+| API | `creditorportal.web.CreditorStatementController` (`/api/creditor/v1/statements`, `/open-period`, `/{id}`, `/{id}/acknowledge`, `/{id}/contest`) | Records próprios do `creditorportal` (lista de campos permitidos); nenhum id de pessoa da assessoria nem a memória de cálculo |
+| Período em aberto | `SettlementPositionService.positionWithoutAccessCheck` + `SettlementBalances` | Posição estimada do credor (mesmo cache da posição interna); o saldo dos demonstrativos aprovados sai de `SettlementBalances` (só cálculo, também usado pelos repasses), sem as checagens internas |
+| Assessoria | `StatementView.creditorResponseOrigin` | A ficha interna do demonstrativo mostra "Resposta do próprio credor no portal do credor"; nessa origem `creditorResponseBy` vem nulo (a pessoa do credor fica no termo) |
+| Regras | `ModularityTest`, `ArchitectureTest` | Interfaces `<modulo> :: creditor` só declaradas pelo `creditorportal` (e pelo `sandbox`); `creditorPortalWebAnswersOnlyWithItsOwnRecords` (a web e a porta do portal não usam records de `port/in` de outros módulos); `onlyTheCreditorPortalUsesCreditorOnlyUseCases` (`CreditorStepUp` só no `creditorportal`) |
+| Telas | `frontend/src/app/creditor/pages/creditor-statements.ts` e `creditor-statement-detail.ts` | Período em aberto e lista; ficha com valores, arquivos (código de integridade), aceite (código do autenticador) e contestação; item "Prestação de contas" no menu só com `CREDITOR_PORTAL_OVERVIEW`; guarda `creditorAccessGuard(permissão)` (sessão e permissão juntas, sem corrida ao recarregar) |
+| Testes | `CreditorSettlementIT`, `CreditorApiBoundaryIT`, `SettlementLifecycleTest`, `creditor-statement-detail.spec.ts` | Período em aberto sem permissão interna, escopo e 404 com `SCOPE_DENIED`, perfil de consulta sem gastar o código, hash divergente, sem código, termo gravado e imutável (gatilho e privilégio), contestação, aceite da assessoria recusado sobre contestação do portal, download registrado e de outro demonstrativo; na tela, 409 recarrega a ficha e arquivo divergente não é salvo |
+
+**Pendências da fatia 4:** lista dos repasses com comprovante no portal (hoje: já pago e falta pagar); prazo para
+responder ao demonstrativo (entra em "Aguardando você", fatia 7); lista dos arquivos efetivamente enviados (o envio
+grava os ids só na auditoria — o portal mostra todos os arquivos gerados do demonstrativo aprovado, decisão 1414);
+manual e tour das telas do portal do credor (fatia 7); da revisão de 24/11/2026: snapshot do contrato das respostas de `/api/creditor/v1` (RS-26, SEG-F05), comprovante opaco de uso único da nova verificação no lugar do `mfaVerifiedAt` informado pelo chamador (SEG-F07, junto com a fatia 6), um colaborador único para os efeitos da resposta (auditoria, evento, métrica) nos dois caminhos (AQ-04), o nome da pessoa do credor que respondeu na ficha interna e no portal (UX-02, UX-08), retenção do IP do termo no catálogo de retenção e o termo visível na ficha interna.
 
 ## 4. Requisitos de segurança (checklist das próximas fatias)
 

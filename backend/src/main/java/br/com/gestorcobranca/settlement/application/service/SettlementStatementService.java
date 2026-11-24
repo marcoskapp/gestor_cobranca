@@ -7,6 +7,7 @@ import br.com.gestorcobranca.settlement.application.port.out.SettlementLocks;
 import br.com.gestorcobranca.settlement.application.port.out.SettlementSources;
 import br.com.gestorcobranca.settlement.application.port.out.SettlementSources.ContractFacts;
 import br.com.gestorcobranca.settlement.domain.model.ReimbursableExpense;
+import br.com.gestorcobranca.settlement.domain.model.ResponseOrigin;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
 import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
 import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
@@ -308,7 +309,7 @@ class SettlementStatementService implements SettlementStatementUseCases {
         accessScope.requirePermission(Permission.SETTLEMENT_CLOSE);
         SettlementStatement s = loadForCommand(statementId);
         StatementStatus previous = s.getStatus();
-        s.acknowledge(currentActor.actorId(), note, Instant.now(clock));
+        s.acknowledge(currentActor.actorId(), ResponseOrigin.AGENCY, note, Instant.now(clock));
         statements.save(s);
         auditTrail.record(AuditEntry.of("settlement_statement.acknowledged", RESOURCE, s.getId())
                 .creditor(s.getCreditorId()).change("status", previous, s.getStatus()));
@@ -323,7 +324,7 @@ class SettlementStatementService implements SettlementStatementUseCases {
     public StatementView contest(UUID statementId, String reason) {
         accessScope.requirePermission(Permission.SETTLEMENT_CLOSE);
         SettlementStatement s = loadForCommand(statementId);
-        s.contest(currentActor.actorId(), reason, Instant.now(clock));
+        s.contest(currentActor.actorId(), ResponseOrigin.AGENCY, reason, Instant.now(clock));
         statements.save(s);
         auditTrail.record(AuditEntry.of("settlement_statement.contested", RESOURCE, s.getId()).creditor(s.getCreditorId())
                 .change("status", StatementStatus.SENT, StatementStatus.CONTESTED).reason(s.getCreditorResponseNote()));

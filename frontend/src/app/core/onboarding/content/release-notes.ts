@@ -3,6 +3,14 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 37,
+    date: '2026-11-24',
+    title: 'Portal do credor: prestação de contas',
+    items: [
+      { text: 'No portal do credor, a pessoa do credor vê os demonstrativos enviados, baixa os arquivos e aceita (com o código do autenticador) ou contesta. A ficha do demonstrativo mostra quando a resposta veio do próprio credor pelo portal; o registro feito pela assessoria continua valendo.', route: '/prestacao-de-contas/demonstrativos' },
+    ],
+  },
+  {
     version: 36,
     date: '2026-11-24',
     title: 'Portal do credor: acesso das pessoas do credor',

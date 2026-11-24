@@ -18,6 +18,8 @@ export type StatusDomain =
   | 'user'
   | 'creditor'
   | 'creditorPortalUser'
+  | 'creditorStatement'
+  | 'creditorFileCheck'
   | 'tenant'
   | 'contract'
   | 'portfolio'
@@ -119,6 +121,17 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     INVITED: { label: 'Convite enviado', tone: 'info' },
     ACTIVE: { label: 'Ativo', tone: 'success' },
     REVOKED: { label: 'Acesso revogado', tone: 'neutral' },
+  },
+  // demonstrativo visto pelo credor no portal do credor (só os já enviados)
+  creditorStatement: {
+    SENT: { label: 'Aguardando resposta do credor', tone: 'warning' },
+    ACKNOWLEDGED: { label: 'Aceito', tone: 'success' },
+    CONTESTED: { label: 'Contestado', tone: 'info' },
+  },
+  // conferência do código de integridade de um arquivo baixado no portal do credor
+  creditorFileCheck: {
+    OK: { label: 'Conferido no download', tone: 'success' },
+    MISMATCH: { label: 'Não confere', tone: 'danger' },
   },
   tenant: {
     ACTIVE: { label: 'Ativa', tone: 'success' },

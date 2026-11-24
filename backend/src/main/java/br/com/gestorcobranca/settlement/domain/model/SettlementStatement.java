@@ -112,6 +112,10 @@ public class SettlementStatement extends TenantScopedEntity {
     private UUID creditorResponseBy;
     @Column(name = "creditor_response_note", length = 2000)
     private String creditorResponseNote;
+    /** Quem registrou a resposta do credor: a assessoria ({@code AGENCY}) ou a própria pessoa do credor no portal. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "creditor_response_origin", length = 20)
+    private ResponseOrigin creditorResponseOrigin;
     @Column(name = "cancelled_reason", length = 500)
     private String cancelledReason;
 
@@ -206,27 +210,44 @@ public class SettlementStatement extends TenantScopedEntity {
         this.status = StatementStatus.SENT;
     }
 
-    public void acknowledge(UUID by, String note, Instant at) {
+    /**
+     * Aceite do credor, de {@code SENT} ou {@code CONTESTED}. A observação é a do aceite (sem ela, fica vazia: o motivo
+     * de uma contestação anterior continua na auditoria e no termo). Contestação feita pelo próprio credor no portal só
+     * é revertida por ele no portal (decisão 1420): a assessoria não registra aceite por cima.
+     *
+     * @param by     usuário da assessoria ou pessoa do credor, conforme a origem
+     */
+    public void acknowledge(UUID by, ResponseOrigin origin, String note, Instant at) {
         Guard.requireState(status == StatementStatus.SENT || status == StatementStatus.CONTESTED,
                 "statement.not_sent", "Somente demonstrativo enviado (ou contestado) recebe o aceite do credor");
+        Guard.requireState(!(origin == ResponseOrigin.AGENCY && status == StatementStatus.CONTESTED
+                        && creditorResponseOrigin == ResponseOrigin.CREDITOR_PORTAL), "statement.creditor_portal_response",
+                "O credor contestou pelo portal do credor: o aceite precisa vir do próprio credor, pelo portal");
         Guard.require(note == null || note.length() <= 2000, "statement.note_too_long", "Observação até 2000 caracteres");
-        respond(by, note, at);
+        respond(by, origin, note == null || note.isBlank() ? null : note.trim(), at);
         this.status = StatementStatus.ACKNOWLEDGED;
     }
 
-    public void contest(UUID by, String reason, Instant at) {
+    public void contest(UUID by, ResponseOrigin origin, String reason, Instant at) {
         Guard.requireState(status == StatementStatus.SENT, "statement.not_sent",
                 "Somente demonstrativo enviado pode ser contestado");
         Guard.require(reason != null && !reason.isBlank() && reason.length() <= 2000, "statement.contest_reason_required",
                 "Informe o motivo da contestação do credor (até 2000 caracteres)");
-        respond(by, reason.trim(), at);
+        respond(by, origin, reason.trim(), at);
         this.status = StatementStatus.CONTESTED;
     }
 
-    private void respond(UUID by, String note, Instant at) {
+    /** Quem registrou a resposta do credor ({@code null} enquanto não houver resposta). */
+    public ResponseOrigin getCreditorResponseOrigin() {
+        return creditorResponseOrigin;
+    }
+
+    private void respond(UUID by, ResponseOrigin origin, String note, Instant at) {
+        Guard.require(origin != null, "statement.response_origin_required", "Origem da resposta obrigatória");
         this.creditorResponseBy = by;
+        this.creditorResponseOrigin = origin;
         this.creditorResponseAt = at;
-        this.creditorResponseNote = note == null || note.isBlank() ? creditorResponseNote : note.trim();
+        this.creditorResponseNote = note;
     }
 
     public void cancel(String reason) {

@@ -217,6 +217,8 @@ export interface StatementView {
   creditorResponseAt: string | null;
   creditorResponseBy: string | null;
   creditorResponseNote: string | null;
+  /** `AGENCY` (registrada pela assessoria) ou `CREDITOR_PORTAL` (a própria pessoa do credor, no portal do credor). */
+  creditorResponseOrigin: 'AGENCY' | 'CREDITOR_PORTAL' | null;
   cancelledReason: string | null;
   version: number;
 }

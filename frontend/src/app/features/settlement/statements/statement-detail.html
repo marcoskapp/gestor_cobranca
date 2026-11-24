@@ -296,7 +296,11 @@
               <app-icon name="send" />
               <span>Enviado por {{ channels[s.sentChannel!] || s.sentChannel }} em {{ s.sentAt | appDate }} por {{ userName(s.sentBy) }}{{ s.sentReference ? ' · ' + s.sentReference : '' }}.
                 @if (s.creditorResponseAt) {
-                  Resposta registrada em {{ s.creditorResponseAt | appDate }} por {{ userName(s.creditorResponseBy) }}{{ s.creditorResponseNote ? ': ' + s.creditorResponseNote : '' }}.
+                  @if (s.creditorResponseOrigin === 'CREDITOR_PORTAL') {
+                    Resposta do próprio credor no portal do credor em {{ s.creditorResponseAt | appDate }}{{ s.creditorResponseNote ? ': ' + s.creditorResponseNote : '' }}.
+                  } @else {
+                    Resposta registrada em {{ s.creditorResponseAt | appDate }} por {{ userName(s.creditorResponseBy) }}{{ s.creditorResponseNote ? ': ' + s.creditorResponseNote : '' }}.
+                  }
                 }
               </span>
             </div>

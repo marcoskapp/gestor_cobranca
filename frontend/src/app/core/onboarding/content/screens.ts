@@ -670,13 +670,14 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'settlement.statements', version: 1, path: '/prestacao-de-contas/demonstrativos', tourId: 'settlement.statements' },
   {
     key: 'settlement.statement',
-    version: 4,
+    version: 5,
     path: '/prestacao-de-contas/demonstrativos/:id',
     tourId: 'settlement.statement',
     changes: [
       { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
       { version: 3, items: ['Cancelar demonstrativo passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
       { version: 4, items: ['Na aba de recebimentos, a data de cada recebimento abre o pagamento de origem.'] },
+      { version: 5, items: ['Com o portal do credor liberado, o próprio credor aceita ou contesta o demonstrativo enviado; a ficha mostra quando a resposta veio dele pelo portal.'] },
     ],
   },
   { key: 'settlement.transfers', version: 1, path: '/prestacao-de-contas/repasses', tourId: 'settlement.transfers' },

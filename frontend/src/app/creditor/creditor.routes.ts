@@ -3,22 +3,30 @@ import { CanActivateFn, Router, Routes } from '@angular/router';
 import { map } from 'rxjs';
 import { provideBootstrapComponentDefaults } from '../core/config/bootstrap-components.config';
 import { CreditorSession } from './data/creditor-session';
+import { CreditorPermission } from './data/creditor.models';
 
 /**
  * Telas da pessoa do credor exigem a sessão do portal do credor desta assessoria. Sem ela na memória (recarregou a
- * página), tenta renovar pelo cookie; sem sessão, volta à entrada.
+ * página), tenta renovar pelo cookie; sem sessão, volta à entrada. Com `permission`, a tela também exige a permissão do
+ * portal — sem ela, volta ao Início (o menu já esconde o item).
  */
-export const creditorSessionGuard: CanActivateFn = (route) => {
-  const slug = route.parent?.paramMap.get('slug') ?? route.paramMap.get('slug') ?? '';
-  const session = inject(CreditorSession);
-  const router = inject(Router);
-  if (session.isActiveFor(slug)) {
-    return true;
-  }
-  return session.restore().pipe(
-    map((outcome) => (outcome === 'renewed' && session.isActiveFor(slug) ? true : router.createUrlTree(['/credor', slug, 'entrar']))),
-  );
-};
+export function creditorAccessGuard(permission?: string): CanActivateFn {
+  return (route) => {
+    const slug = route.parent?.paramMap.get('slug') ?? route.paramMap.get('slug') ?? '';
+    const session = inject(CreditorSession);
+    const router = inject(Router);
+    const decide = () =>
+      !permission || session.me()?.permissions.includes(permission) ? true : router.createUrlTree(['/credor', slug, 'inicio']);
+    if (session.isActiveFor(slug)) {
+      return decide();
+    }
+    return session.restore().pipe(
+      map((outcome) => (outcome === 'renewed' && session.isActiveFor(slug) ? decide() : router.createUrlTree(['/credor', slug, 'entrar']))),
+    );
+  };
+}
+
+export const creditorSessionGuard: CanActivateFn = creditorAccessGuard();
 
 /**
  * Portal do credor (`/credor/:slug/...`, ADR 0011): aplicação separada do app interno e do portal do devedor —
@@ -56,6 +64,18 @@ export const CREDITOR_ROUTES: Routes = [
         title: 'Início',
         canActivate: [creditorSessionGuard],
         loadComponent: () => import('./pages/creditor-home').then((m) => m.CreditorHome),
+      },
+      {
+        path: 'prestacao-de-contas',
+        title: 'Prestação de contas',
+        canActivate: [creditorAccessGuard(CreditorPermission.OVERVIEW)],
+        loadComponent: () => import('./pages/creditor-statements').then((m) => m.CreditorStatements),
+      },
+      {
+        path: 'prestacao-de-contas/:id',
+        title: 'Demonstrativo',
+        canActivate: [creditorAccessGuard(CreditorPermission.OVERVIEW)],
+        loadComponent: () => import('./pages/creditor-statement-detail').then((m) => m.CreditorStatementDetailPage),
       },
       { path: '**', redirectTo: 'inicio' },
     ],

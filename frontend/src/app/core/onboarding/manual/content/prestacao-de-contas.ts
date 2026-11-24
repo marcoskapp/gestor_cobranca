@@ -61,7 +61,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Totais, ajustes, arquivos, envio ao credor e repasses de um demonstrativo, etapa por etapa.',
       purpose: [
         'Calcule depois do fim do período, revise e aprove. A conferência da soma mostra como se chega ao líquido.',
-        'Aprovado, exporte os arquivos conciliáveis, registre o envio e o aceite ou a contestação do credor.',
+        'Aprovado, exporte os arquivos conciliáveis e registre o envio. O aceite ou a contestação vem do próprio credor pelo portal do credor, ou é registrado aqui quando chega por outro canal.',
         'Na aba de recebimentos, a data de cada recebimento abre o pagamento de origem para conferir.',
       ],
       profiles: ['FINANCEIRO', 'GESTOR', 'AUDITOR'],

@@ -35,9 +35,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -60,12 +58,15 @@ class TransferService implements TransferUseCases {
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final SettlementMetrics metrics;
+    private final SettlementBalances balances;
     private final Clock clock;
 
     TransferService(SettlementStatementRepository statements, TransferEvidenceStore evidenceStore, FileStorage storage,
                     IdempotencyService idempotency, SettlementAccess access, AccessScope accessScope,
                     CurrentActor currentActor, AccessLogger accessLogger, AuditTrail auditTrail,
-                    BusinessEventLogger businessEvents, SettlementMetrics metrics, Clock clock) {
+                    BusinessEventLogger businessEvents, SettlementMetrics metrics, SettlementBalances balances,
+                    Clock clock) {
+        this.balances = balances;
         this.statements = statements;
         this.evidenceStore = evidenceStore;
         this.storage = storage;
@@ -171,25 +172,7 @@ class TransferService implements TransferUseCases {
         } else {
             filter = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());
         }
-        Map<UUID, List<StatementBalance>> byCreditor = new LinkedHashMap<>();
-        Map<UUID, Money[]> totals = new LinkedHashMap<>();
-        for (SettlementStatement s : statements.findClosed(filter)) {
-            Money outstanding = s.outstanding();
-            if (!outstanding.isPositive()) {
-                continue;
-            }
-            byCreditor.computeIfAbsent(s.getCreditorId(), k -> new ArrayList<>()).add(new StatementBalance(s.getId(),
-                    s.getSequenceNumber(), s.getPeriodStart(), s.getPeriodEnd(), s.getStatus().name(),
-                    s.getNetTransferAmount().amount(), s.getTransferredAmount().amount(), outstanding.amount()));
-            Money[] t = totals.computeIfAbsent(s.getCreditorId(), k -> new Money[]{Money.ZERO, Money.ZERO});
-            if (s.getNetTransferAmount().isPositive()) {
-                t[0] = t[0].plus(outstanding);
-            } else {
-                t[1] = t[1].plus(outstanding);
-            }
-        }
-        return byCreditor.entrySet().stream().map(e -> new BalanceView(e.getKey(), totals.get(e.getKey())[0].amount(),
-                totals.get(e.getKey())[1].amount(), List.copyOf(e.getValue()))).toList();
+        return balances.of(filter);
     }
 
     private CreditorTransfer load(UUID id) {

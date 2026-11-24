@@ -366,7 +366,7 @@ Comissão da assessoria junto ao credor (não é remuneração de pessoa): os ev
 | `settlement.closed` | demonstrativo aprovado (fechado e imutável) | `recovered`, `reversed`, `commission`, `fixedFees`, `agencyHonorarium`, `expenses`, `adjustments`, `receipts`, `effectiveRate` (comissão + fixos ÷ recuperado, %), `negotiated`, `forecastCommission`, `pendingReconciliation`, `openDivergences`, `daysAfterPeriod`; `amount` = líquido a repassar |
 | `settlement.exported` | arquivo do demonstrativo gerado | `format`, `rows`, `sequenceNumber` |
 | `settlement.sent` | demonstrativo enviado ao credor | `channel`, `exports`, `hoursAfterApproval` |
-| `settlement.acknowledged` / `settlement.contested` | resposta do credor registrada | `daysAfterSent`; aceite: `afterContestation`; contestação: `amount` = líquido |
+| `settlement.acknowledged` / `settlement.contested` | resposta do credor registrada (pela assessoria ou pela própria pessoa do credor no portal do credor) | `daysAfterSent`; aceite: `afterContestation`; contestação: `amount` = líquido; `origin` = `creditor_portal` quando a resposta veio do portal (sem o atributo: registrada pela assessoria) |
 | `settlement.transfer_recorded` | repasse (ou recebimento do credor) registrado com comprovante | `statementId`, `direction`, `outstandingAfter`, `daysAfterApproval`; `amount` |
 
 ### 3.8 Atributos dos eventos do score (scoring)
@@ -544,6 +544,14 @@ verificação de uma ação, e `detail.purpose`), `MFA_FAILURE`, `MFA_ENROLLED` 
 assessoria registra `MFA_RESET` e `SESSION_REVOKED` com `detail.creditorUserId`.
 
 E-mails: `mail.sent{type=creditor_invitation|creditor_password_reset|security_alert}`.
+
+**Prestação de contas no portal** (creditorportal → settlement, fatia 4): os eventos de negócio são os do settlement
+(`settlement.acknowledged`, `settlement.contested`) com `origin=creditor_portal`. Auditoria
+`settlement_statement.acknowledged`/`settlement_statement.contested` com `actor_type=CREDITOR` e `origin`, `termId` e
+`termSha256` (o termo fica em `settlement.statement_creditor_term`). Log de acesso: `FILE_DOWNLOADED`
+(`resource=statement_export`, `origin=creditor_portal`), `MFA_SUCCESS`/`MFA_FAILURE` com `detail.purpose=statement_acknowledge`
+`SCOPE_DENIED` (`resource=settlement_statement` ou `statement_export`) quando a pessoa tenta um demonstrativo ou arquivo de outro credor (a resposta é 404) e `ACCESS_DENIED` (`resource=settlement_statement`, `actorType`) quando outro tipo de ator chama os casos de uso do credor.
+Sem métrica nova: `settlement.statements.transitions{status}` conta as respostas dos dois caminhos.
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 

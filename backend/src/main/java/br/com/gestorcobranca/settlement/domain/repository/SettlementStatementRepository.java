@@ -4,6 +4,7 @@ import br.com.gestorcobranca.settlement.domain.model.CreditorTransfer;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
 import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
 import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
+import br.com.gestorcobranca.settlement.domain.model.StatementCreditorTerm;
 import br.com.gestorcobranca.settlement.domain.model.StatementStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +43,8 @@ public interface SettlementStatementRepository {
     Optional<SettlementExport> findExport(UUID id);
 
     List<SettlementExport> findExports(UUID statementId);
+
+    StatementCreditorTerm save(StatementCreditorTerm term);
 
     CreditorTransfer save(CreditorTransfer transfer);
 

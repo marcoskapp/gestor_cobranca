@@ -50,6 +50,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 | `pendingwork` | "Minhas pendências": agrega o que o usuário da sessão pode fazer agora (aprovações, prazos, filas) a partir das fontes que cada módulo dono implementa (`shared.pendingwork.PendingWorkSource`) — ver `docs/tecnico/desenho/pendencias.md` | pendências |
 | `helpdesk` | Chat de suporte com IA para o usuário interno: manual contextual como base de conhecimento, consultas somente leitura como o próprio usuário (permissão, escopo e trilha de acesso), chamado no GitHub com texto mascarado e confirmação; parâmetros da configuração citados no manual (`GET /helpdesk/manual-parameters`, agregados de `shared.manual.ManualParameterSource` que cada módulo dono implementa) — ver `docs/tecnico/desenho/chat-suporte.md` e `ux.md` §8.7 | suporte |
 | `publicapi` | API pública de integração dos credores: tokens por credor com escopos, cadeia de segurança própria em `/public-api/**`, endpoints v1 que chamam os casos de uso dos módulos donos, medição de consumo e extrato por ciclo com os preços do contrato do credor, cobrança da plataforma às assessorias pelo consumo de todos os seus tokens (política da plataforma por assessoria, independente), contrato OpenAPI versionado e changelog — ver `docs/tecnico/desenho/api-publica.md` | integração |
+| `creditorportal` | API de negócio do portal do credor (`/api/creditor/v1`, ADR 0011): o que a pessoa do credor vê e responde — por ora a prestação de contas (demonstrativos enviados, arquivos, aceite com nova verificação do MFA e contestação) —, sempre por métodos próprios do credor nos módulos donos e com DTOs de lista de campos permitidos — ver `docs/tecnico/desenho/portal-credor.md` | integração |
 | `legal` | Workflow jurídico: elegibilidade, viabilidade, autorização do credor, medidas extrajudiciais, processos, prazos, audiências, custas, escritórios parceiros — ver `docs/tecnico/desenho/juridico.md` | jurídico |
 
 ### 2.1 Grafo de dependências permitido (acíclico)
@@ -82,12 +83,15 @@ shared ◄── organization ◄── identity
               ├── pendingwork        (→ só shared; recebe as fontes de pendência dos módulos por injeção)
               │   (o compliance recebe do mesmo jeito as fontes de compartilhamento `shared.privacy.DataSharingSource` de debt, communication, telephony, payment, assistant, legal e publicapi — sem dependência nova)
               ├── helpdesk           (→ identity, organization, debt, collection, negotiation, payment, ingestion, settlement, incentive, pendingwork — só leitura)
-              └── publicapi          (→ organization, debt, ingestion, collection, negotiation, payment — usecases; registros assíncronos por PortfolioLoaded)
+              ├── publicapi          (→ organization, debt, ingestion, collection, negotiation, payment — usecases; registros assíncronos por PortfolioLoaded)
+              └── creditorportal     (→ identity e settlement — só as interfaces `creditor` [<modulo> :: creditor]: nova verificação do MFA e métodos da pessoa do credor; nunca as portas da assessoria)
 ```
 
 Todo módulo pode depender de `shared`. A dependência é declarada em `package-info.java` com `@ApplicationModule(allowedDependencies = …)` e verificada por teste (`ModularityTest`).
 
 **Portas declaradas pelo dono da regra** (`<modulo> :: spi`, ADR-0010): quando um módulo precisa, *de forma síncrona*, de um dado que só um módulo acima dele no grafo tem, ele declara a porta em `application.port.spi` (`@NamedInterface("spi")`) e esse módulo — que já depende dele — a implementa. Exemplo: `negotiation.application.port.spi.PaymentReviewHolds`, implementada pelo payment, para suspender a quebra do acordo enquanto há pagamento em revisão; `collection.application.port.spi.DisputeDebtorMessenger`, implementada pelo communication, para a resposta da contestação ao devedor (mensagem transacional). `compliance.application.port.spi.RetentionDefaults`, implementada pelo portal e pelo scoring, para o prazo padrão do sistema das categorias de retenção que eles descartam (exibido na tela de Retenção e usado enquanto a assessoria não configura).
+
+**Portas da pessoa do credor** (`<modulo> :: creditor`, ADR 0011, decisão 1413): o que o portal do credor lê ou faz num módulo dono fica em `application.port.in.creditor` (`@NamedInterface("creditor")`), com métodos que exigem o ator `CREDITOR` e uma permissão `CREDITOR_*`. Só o `creditorportal` (e o `sandbox`, para a carga fictícia) declara essas interfaces; ele nunca depende das portas `usecases` da assessoria. Exemplos: `identity :: creditor` (autenticação e nova verificação do MFA), `settlement :: creditor` (prestação de contas).
 
 **Reações no sentido contrário ao grafo** (ex.: `collection` precisa saber que um pagamento foi confirmado) acontecem **somente** por *eventos de integração* definidos em `shared.events` (linguagem publicada). Nunca se cria dependência cíclica para isso.
 
@@ -199,7 +203,7 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V2300–V2399 | ingestion — importação PDF inteligente |
 | V2400–V2499 | complaint — reclamações de canais externos |
 | V2500–V2599 | costing — custos operacionais e margem por credor e carteira (contrato de leitura em `R__costing_contract.sql`) |
-| V2600–V2699 | creditorportal — API de negócio do portal do credor (ADR 0011; reservada: o MVP não tem tabela própria — a identidade do credor fica no `identity`, V0210+) |
+| V2600–V2699 | creditorportal — API de negócio do portal do credor (ADR 0011; sem tabela própria até aqui: a identidade do credor fica no `identity`, V0210+, e o termo do aceite no `settlement`, V0901) |
 
 Como as faixas são por módulo, uma migration nova de faixa baixa pode chegar depois de versões maiores já aplicadas; o Flyway roda com `out-of-order: true` (a validação de checksum continua ativa) — ver `MigrationOrderIT`.
 

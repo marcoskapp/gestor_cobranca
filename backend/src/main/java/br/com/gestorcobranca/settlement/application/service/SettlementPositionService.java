@@ -3,7 +3,6 @@ package br.com.gestorcobranca.settlement.application.service;
 import br.com.gestorcobranca.settlement.application.port.in.SettlementPositionUseCases;
 import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.StatementView;
 import br.com.gestorcobranca.settlement.application.port.in.SettlementStatementUseCases.TotalsView;
-import br.com.gestorcobranca.settlement.application.port.in.TransferUseCases;
 import br.com.gestorcobranca.settlement.application.port.in.TransferUseCases.BalanceView;
 import br.com.gestorcobranca.settlement.application.port.out.SettlementPositionFingerprints;
 import br.com.gestorcobranca.settlement.application.port.out.SettlementSources;
@@ -81,7 +80,7 @@ class SettlementPositionService implements SettlementPositionUseCases {
     private final SettlementFactRepository facts;
     private final SettlementSources sources;
     private final SettlementPositionFingerprints fingerprints;
-    private final TransferUseCases transfers;
+    private final SettlementBalances balances;
     private final SettlementViews views;
     private final SettlementAccess access;
     private final AccessScope accessScope;
@@ -100,7 +99,7 @@ class SettlementPositionService implements SettlementPositionUseCases {
     SettlementPositionService(SettlementStatementCalculator calculator, SettlementStatementRepository statements,
                               ReceiptRepository receipts, CommissionEntryRepository entries,
                               SettlementFactRepository facts, SettlementSources sources,
-                              SettlementPositionFingerprints fingerprints, TransferUseCases transfers,
+                              SettlementPositionFingerprints fingerprints, SettlementBalances balances,
                               SettlementViews views, SettlementAccess access, AccessScope accessScope,
                               CurrentActor currentActor, MeterRegistry meterRegistry, Clock clock) {
         this.calculator = calculator;
@@ -110,7 +109,7 @@ class SettlementPositionService implements SettlementPositionUseCases {
         this.facts = facts;
         this.sources = sources;
         this.fingerprints = fingerprints;
-        this.transfers = transfers;
+        this.balances = balances;
         this.views = views;
         this.access = access;
         this.accessScope = accessScope;
@@ -123,6 +122,14 @@ class SettlementPositionService implements SettlementPositionUseCases {
     public PositionView position(UUID creditorId) {
         access.requireAny(Permission.SETTLEMENT_VIEW);
         accessScope.requireVisible("creditor", creditorId, creditorId);
+        return positionWithoutAccessCheck(creditorId);
+    }
+
+    /**
+     * Posição com o cache, <b>sem</b> conferir permissão nem escopo: quem chama já conferiu ({@link #position} e o
+     * portal do credor, que leva o credor do ator). Público só pelo proxy transacional; a classe é do pacote.
+     */
+    public PositionView positionWithoutAccessCheck(UUID creditorId) {
         Instant started = Instant.now(clock);
         CacheKey key = new CacheKey(currentActor.tenantId(), creditorId);
         String fingerprint = fingerprints.of(creditorId);
@@ -203,7 +210,7 @@ class SettlementPositionService implements SettlementPositionUseCases {
                     p.getStatus().name(), p.totals().recovered().amount(), p.totals().netTransfer().amount());
         }
 
-        List<BalanceView> balances = transfers.balances(creditorId);
+        List<BalanceView> balances = this.balances.of(Set.of(creditorId));
         BigDecimal toTransfer = balances.stream().map(BalanceView::toTransfer).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal toReceive = balances.stream().map(BalanceView::toReceive).reduce(BigDecimal.ZERO, BigDecimal::add);
         String direction = t.netTransfer().isPositive() ? "AGENCY_TO_CREDITOR"

@@ -247,16 +247,8 @@ export function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-/** SHA-256 em hexadecimal minúsculo (Web Crypto). */
-export async function sha256Hex(data: ArrayBuffer): Promise<string> {
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-/** Impressão digital em grupos de 8 (leitura e conferência em voz alta). */
-export function groupedHash(hash: string | null | undefined): string {
-  return (hash ?? '').replace(/(.{8})(?=.)/g, '$1 ');
-}
+// SHA-256 e impressão digital ficam em shared/util/hash (também usados no portal do credor)
+export { groupedHash, sha256Hex } from '../../../shared/util/hash';
 
 /** Período "01/09/2026 a 30/09/2026". */
 export function periodText(start: string, end: string): string {

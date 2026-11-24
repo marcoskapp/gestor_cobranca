@@ -4,6 +4,7 @@ import br.com.gestorcobranca.settlement.domain.model.CreditorTransfer;
 import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
 import br.com.gestorcobranca.settlement.domain.model.SettlementAdjustment;
 import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
+import br.com.gestorcobranca.settlement.domain.model.StatementCreditorTerm;
 import br.com.gestorcobranca.settlement.domain.model.StatementStatus;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementStatementRepository;
 import org.springframework.data.domain.Page;
@@ -22,10 +23,12 @@ class JpaSettlementStatementRepository implements SettlementStatementRepository 
     private final SettlementStatementJpa statements;
     private final SettlementAdjustmentJpa adjustments;
     private final SettlementExportJpa exports;
+    private final StatementCreditorTermJpa terms;
     private final CreditorTransferJpa transfers;
 
     JpaSettlementStatementRepository(SettlementStatementJpa statements, SettlementAdjustmentJpa adjustments,
-                           SettlementExportJpa exports, CreditorTransferJpa transfers) {
+                           SettlementExportJpa exports, CreditorTransferJpa transfers, StatementCreditorTermJpa terms) {
+        this.terms = terms;
         this.statements = statements;
         this.adjustments = adjustments;
         this.exports = exports;
@@ -96,6 +99,11 @@ class JpaSettlementStatementRepository implements SettlementStatementRepository 
     @Override
     public SettlementExport save(SettlementExport export) {
         return exports.save(export);
+    }
+
+    @Override
+    public StatementCreditorTerm save(StatementCreditorTerm term) {
+        return terms.save(term);
     }
 
     @Override
