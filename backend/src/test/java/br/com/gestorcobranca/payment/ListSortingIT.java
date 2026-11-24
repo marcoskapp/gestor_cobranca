@@ -44,7 +44,7 @@ class ListSortingIT extends PaymentTestSupport {
         provision("sort");
         MockMvc mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
         ActorAuthentication all = ActorAuthentication.of(new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(),
-                "TODAS", EnumSet.allOf(Permission.class), CreditorScope.ALL));
+                "TODAS", EnumSet.complementOf(EnumSet.copyOf(Permission.CREDITOR_ONLY)), CreditorScope.ALL));
 
         for (Map.Entry<String, String[]> endpoint : SORTABLE.entrySet()) {
             for (String field : endpoint.getValue()) {

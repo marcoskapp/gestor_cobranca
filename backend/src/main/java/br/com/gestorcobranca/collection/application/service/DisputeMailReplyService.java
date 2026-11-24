@@ -215,7 +215,7 @@ class DisputeMailReplyService implements DisputeMailReplyUseCases {
     public EvidenceContent original(UUID disputeId, UUID replyId) {
         Dispute d = disputeAccess.visible(disputeId);
         Actor actor = currentActor.get();
-        if (actor.isUser() && !actor.has(br.com.gestorcobranca.shared.security.Permission.DISPUTE_MANAGE)) {
+        if (!actor.bypassesStaffRules() && !actor.has(br.com.gestorcobranca.shared.security.Permission.DISPUTE_MANAGE)) {
             accessScope.requirePermission(br.com.gestorcobranca.shared.security.Permission.DISPUTE_WORK);
         }
         DisputeMailReply reply = load(d, replyId);

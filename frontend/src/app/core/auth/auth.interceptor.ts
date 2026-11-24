@@ -7,7 +7,7 @@ import {
 } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Observable, catchError, switchMap, throwError } from 'rxjs';
-import { isApiRequest, isPortalRequest } from '../config/api';
+import { isApiRequest, isCreditorRequest, isPortalRequest } from '../config/api';
 import { SKIP_AUTH } from '../http/http-context';
 import { AuthService } from './auth.service';
 
@@ -19,7 +19,7 @@ import { AuthService } from './auth.service';
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   // o portal do devedor tem sessão e token próprios: o token interno nunca vai para /api/portal/
-  if (!isApiRequest(req.url) || isPortalRequest(req.url) || req.context.get(SKIP_AUTH)) {
+  if (!isApiRequest(req.url) || isPortalRequest(req.url) || isCreditorRequest(req.url) || req.context.get(SKIP_AUTH)) {
     return next(req);
   }
   const auth = inject(AuthService);

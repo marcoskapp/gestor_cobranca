@@ -58,6 +58,10 @@ class UserAccessTokenResolver implements TokenActorResolver {
 
     @Override
     public Optional<Actor> resolve(Jwt jwt) {
+        // defesa em profundidade: além do decodificador, só a audiência da API interna (ADR 0011)
+        if (jwt.getAudience() == null || !jwt.getAudience().equals(List.of(TokenClaims.AUDIENCE))) {
+            return Optional.empty();
+        }
         UUID userId = UUID.fromString(jwt.getSubject());
         UUID tenantId = UUID.fromString(jwt.getClaimAsString(TokenClaims.TENANT));
         UUID sessionId = UUID.fromString(jwt.getClaimAsString(TokenClaims.SESSION));
@@ -69,7 +73,11 @@ class UserAccessTokenResolver implements TokenActorResolver {
         if (permissionClaims != null) {
             for (String name : permissionClaims) {
                 try {
-                    permissions.add(Permission.valueOf(name));
+                    Permission permission = Permission.valueOf(name);
+                    // permissão do portal do credor nunca vale para o usuário interno (ADR 0011)
+                    if (!permission.isCreditorOnly()) {
+                        permissions.add(permission);
+                    }
                 } catch (IllegalArgumentException ignored) {
                     // permissão removida do catálogo após a emissão do token: simplesmente não é concedida
                 }

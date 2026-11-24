@@ -66,7 +66,10 @@ class DefaultRolesIT extends IntegrationTest {
         Role admin = in(tenant, () -> roles.findByCode(DefaultRoles.ADMIN).orElseThrow());
         Set<Permission> all = EnumSet.allOf(Permission.class);
         all.removeAll(Permission.PLATFORM_ONLY);
-        assertThat(admin.getPermissions()).isEqualTo(all).contains(Permission.TENANT_BILLING_VIEW);
+        // as permissões do portal do credor são só da pessoa do credor: nem o administrador as recebe (ADR 0011)
+        all.removeAll(Permission.CREDITOR_ONLY);
+        assertThat(admin.getPermissions()).isEqualTo(all).contains(Permission.TENANT_BILLING_VIEW,
+                Permission.CREDITOR_PORTAL_MANAGE);
         assertThat(admin.isSystemRole()).isTrue();
 
         // segunda execução não muda nada

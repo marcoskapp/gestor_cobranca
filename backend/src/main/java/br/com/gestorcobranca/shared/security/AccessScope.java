@@ -91,6 +91,17 @@ public class AccessScope {
         }
     }
 
+    /**
+     * Recusa (403), com registro no log de acesso, o tipo do ator corrente numa operação que esse tipo nunca executa
+     * (ex.: a pessoa do credor no trabalho do caso — ADR 0011). Devolve a exceção para o chamador lançar.
+     */
+    public ScopeAccessDeniedException denyActorType(String resource) {
+        Actor actor = currentActor.get();
+        accessLogger.log(AccessEvent.of(AccessEventType.ACCESS_DENIED, actor,
+                Map.of("resource", resource, "actorType", actor.type().name())));
+        return new ScopeAccessDeniedException();
+    }
+
     public void requirePermission(Permission permission) {
         Actor actor = currentActor.get();
         if (!actor.has(permission)) {

@@ -263,6 +263,16 @@ class PortalAccessIT extends PortalTestSupport {
                 .isEqualTo(401);
         assertThat(get("/api/v1/creditors", forged(TokenClaims.TYPE_ACCESS, TokenClaims.PORTAL_AUDIENCE)).status())
                 .isEqualTo(401);
+        // lista de permissão (ADR 0011): o devedor também fica fora do portal do credor e da documentação da API interna
+        assertThat(get("/api/creditor/v1/overview", token).status()).isEqualTo(403);
+        assertThat(get("/v3/api-docs", token).status()).isEqualTo(403);
+        // token do credor assinado pela chave real: sem resolvedor nesta fatia, não autentica em nenhuma API
+        String creditorToken = forged(TokenClaims.TYPE_CREDITOR, TokenClaims.CREDITOR_AUDIENCE);
+        assertThat(get("/api/v1/creditors", creditorToken).status()).isEqualTo(401);
+        assertThat(get("/api/portal/v1/me/session", creditorToken).status()).isEqualTo(401);
+        // tipo do credor com a audiência interna e tipo desconhecido: recusados pelo decodificador
+        assertThat(get("/api/v1/creditors", forged(TokenClaims.TYPE_CREDITOR, TokenClaims.AUDIENCE)).status()).isEqualTo(401);
+        assertThat(get("/api/v1/creditors", forged("foo", TokenClaims.AUDIENCE)).status()).isEqualTo(401);
 
         // revogação pela gestão encerra a sessão (o resolvedor revalida no servidor)
         UUID sessionId = UUID.fromString(get("/api/portal/v1/me/session", token).json().get("sessionId").asString());

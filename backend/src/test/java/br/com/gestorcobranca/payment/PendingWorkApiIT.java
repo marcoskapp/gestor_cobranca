@@ -123,7 +123,7 @@ class PendingWorkApiIT extends PaymentTestSupport {
         // todas as fontes reais executam sob RLS para quem tem todas as permissões, sem indisponibilidade
         UUID everyone = Ids.newId();
         ActorAuthentication all = ActorAuthentication.of(new Actor(Actor.ActorType.USER, everyone, tenant, Ids.newId(),
-                "TODAS", EnumSet.allOf(Permission.class), CreditorScope.ALL));
+                "TODAS", EnumSet.complementOf(EnumSet.copyOf(Permission.CREDITOR_ONLY)), CreditorScope.ALL));
         String full = fetch(mvc, all);
         assertThat(JsonPath.<List<Object>>read(full, "$.unavailable")).isEmpty();
         assertThat(items(full, "payment.external_review")).hasSize(1);

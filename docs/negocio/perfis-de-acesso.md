@@ -109,6 +109,16 @@ contagens.
 
 Exportar consumo ou extrato exige também `REPORT_EXPORT`. Ver [`api-publica.md`](api-publica.md).
 
+## Portal do credor
+
+O portal do credor ([portal-credor.md](portal-credor.md)) tem usuários próprios, **fora** dos perfis da assessoria: a
+pessoa do credor recebe só as permissões do portal (`CREDITOR_PORTAL_OVERVIEW`, `CREDITOR_STATEMENT_RESPOND`,
+`CREDITOR_DISPUTE_RESPOND`, `CREDITOR_PAYMENT_REPORT`, `CREDITOR_ACTIVITY_VIEW`), e **nenhum perfil da assessoria** —
+nem o administrador — pode recebê-las (o cadastro de perfis recusa). Liberar o portal para um credor e convidar,
+mudar o perfil ou revogar os usuários do credor exige `CREDITOR_PORTAL_MANAGE`, que vem nos perfis **Administrador** e
+**Gestor**; o Financeiro não a recebe, porque quem envia a prestação de contas não deve criar quem a aceita
+(decisão 1394).
+
 ## Criar perfis
 
 Quem gerencia perfis só pode conceder permissões que o próprio perfil possui (proteção contra escalada de privilégio). A tela mostra bloqueadas, com o aviso "fora do seu perfil", as permissões que o usuário não pode conceder, e o botão "Marcar todas que posso conceder" seleciona o restante. O administrador da assessoria tem todas as permissões e pode criar um perfil com acesso total.

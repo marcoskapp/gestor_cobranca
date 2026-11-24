@@ -232,7 +232,7 @@ class ConversationService implements ConversationUseCases {
         if (actor.isAssistant()) {
             Guard.requireState(c.getOwnerType() == OwnerType.ASSISTANT, "conversation.not_with_assistant",
                     "O assistente só transfere conversas que conduz");
-        } else if (actor.isUser()) {
+        } else if (!actor.bypassesStaffRules()) {
             boolean owner = c.getOwnerType() == OwnerType.USER && actor.id().equals(c.getOwnerUserId());
             if (!owner && !actor.has(Permission.INBOX_MANAGE)) {
                 throw new ConflictException("conversation.not_assigned_to_user",
@@ -252,7 +252,7 @@ class ConversationService implements ConversationUseCases {
     public ConversationView close(UUID conversationId, String reason) {
         Conversation c = open(conversationId);
         Actor actor = access.actor();
-        if (actor.isUser() && !actor.has(Permission.INBOX_MANAGE)) {
+        if (!actor.bypassesStaffRules() && !actor.has(Permission.INBOX_MANAGE)) {
             boolean owner = c.getOwnerType() == OwnerType.USER && actor.id().equals(c.getOwnerUserId());
             if (!owner) {
                 throw new ConflictException("conversation.not_assigned_to_user",

@@ -6,6 +6,7 @@ import br.com.gestorcobranca.collection.domain.model.OwnerType;
 import br.com.gestorcobranca.collection.domain.repository.CollectionCaseRepository;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -65,8 +66,11 @@ class CaseAccess {
      */
     boolean requireWorkable(CollectionCase c) {
         Actor actor = currentActor.get();
-        if (!actor.isUser()) {
+        if (actor.bypassesStaffRules()) {
             return false;
+        }
+        if (!actor.isUser()) {
+            throw accessScope.denyActorType("collection_case");
         }
         if (c.isAssignedTo(actor.id())) {
             return false;

@@ -1,8 +1,8 @@
-# Portal do credor — proposta (em análise)
+# Portal do credor
 
-> **Situação:** proposta de 24/11/2026, **aguardando as decisões do responsável** (§10). Nada implementado.
-> Montada a partir da análise de negócio (`analista-negocio`) e do desenho de experiência (`revisor-ux`). Quando as
-> decisões forem tomadas, o desenho técnico vai para `tecnico/desenho/portal-credor.md` (com o `arquiteto`).
+> **Situação:** proposta de 24/11/2026, **aprovada pelo responsável em 24/11/2026** com todas as recomendações da §10.
+> MVP (§8) em implementação. Desenho técnico em [`tecnico/desenho/portal-credor.md`](../tecnico/desenho/portal-credor.md).
+> Montada a partir da análise de negócio (`analista-negocio`) e do desenho de experiência (`revisor-ux`).
 
 ## 1. Objetivo
 
@@ -178,7 +178,7 @@ Alternativa menor (**MVP-a**): identidade + prestação de contas + posição do
 | Pagamentos §5: até R$ 500 confirma sozinho | No portal, proposta de revisão sempre | Regra por canal (decisão 3) |
 | Decisões 816 e 819: antivírus desligado por padrão | Mais arquivos externos chegando | Issue B (§11) |
 
-## 10. Decisões do responsável
+## 10. Decisões do responsável (aprovadas em 24/11/2026: vale a coluna "Recomendação")
 
 | # | Decisão | Opções | Recomendação |
 | --- | --- | --- | --- |
@@ -196,15 +196,15 @@ Alternativa menor (**MVP-a**): identidade + prestação de contas + posição do
 | 12 | Marca | assessoria / credor / as duas | **Assessoria**, com o nome do credor no contexto |
 | 13 | Prazos de inatividade, recertificação e retenção | premissas: 90 dias, semestral | Validar com jurídico e compliance |
 
-## 11. Itens que dependem de aprovação (viram issue após as decisões)
+## 11. Itens que dependem de aprovação
 
 | Issue | Para quê | Alternativa sem custo |
 | --- | --- | --- |
-| A. E-mail transacional (convites, senha, avisos) — comentar na #9 (SES) | Entregar convites e avisos | Convite gerado na tela e entregue pela assessoria; sem avisos automáticos |
-| B. Antivírus para documentos de credores (ClamAV nas EC2 ou serviço gerenciado — ver #11) | Comprovantes, contratos e respostas vindos de fora | Quarentena só com tipo e limites (risco aceito) |
-| C. Subdomínio próprio (`credor.<domínio>`) — ver #3 e #4 | Separar cookies e marca | Mesma origem, rota `/credor` |
-| D. WAF com limite de taxa no login — ver #5 e #18 | Proteção de borda | Limite por instância + bloqueio por conta |
-| E. Assinatura eletrônica no aceite | Se o jurídico exigir mais que login + MFA + hash | Aceite eletrônico autenticado (MP 2.200-2, art. 10 §2º) |
+| A. E-mail transacional (convites, senha, avisos) — usa o SMTP existente; registrado na #9 (SES) | Entregar convites e avisos | Convite gerado na tela e entregue pela assessoria; sem avisos automáticos |
+| B. Antivírus para documentos de credores — **issue #33** | Comprovantes, contratos e respostas vindos de fora | Quarentena só com tipo e limites (risco aceito) |
+| C. (não aberta; mesma origem no MVP) Subdomínio próprio (`credor.<domínio>`) — ver #3 e #4 | Separar cookies e marca | Mesma origem, rota `/credor` |
+| D. (não aberta; limite na aplicação no MVP) WAF com limite de taxa no login — ver #5 e #18 | Proteção de borda | Limite por instância + bloqueio por conta |
+| E. (não aberta; aceite eletrônico autenticado no MVP) Assinatura eletrônica no aceite | Se o jurídico exigir mais que login + MFA + hash | Aceite eletrônico autenticado (MP 2.200-2, art. 10 §2º) |
 
 ## 12. Riscos
 

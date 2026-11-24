@@ -16,6 +16,18 @@ export function isPortalRequest(url: string): boolean {
   return url.startsWith(PORTAL_API_PREFIX);
 }
 
+/** API do portal do credor (sessão e token próprios, nunca os do usuário interno nem os do devedor — ADR 0011). */
+export const CREDITOR_API_PREFIX = '/api/creditor/';
+
+export function isCreditorRequest(url: string): boolean {
+  return url.startsWith(CREDITOR_API_PREFIX);
+}
+
+/** Telas do portal do credor (não restauram a sessão interna). */
+export function isCreditorPath(path: string): boolean {
+  return path === '/credor' || path.startsWith('/credor/');
+}
+
 /** Telas públicas do portal do devedor (não restauram a sessão interna). */
 export function isPortalPath(path: string): boolean {
   return path === '/portal' || path.startsWith('/portal/');

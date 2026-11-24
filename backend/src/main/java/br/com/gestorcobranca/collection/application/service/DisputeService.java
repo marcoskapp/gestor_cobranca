@@ -352,7 +352,7 @@ class DisputeService implements DisputeUseCases {
     public EvidenceView attachEvidence(UUID disputeId, EvidenceUpload upload) {
         Dispute dispute = disputeAccess.forCommand(disputeId);
         Actor actor = currentActor.get();
-        if (actor.isUser() && !actor.has(Permission.DISPUTE_MANAGE) && !actor.has(Permission.CASE_WORK)) {
+        if (!actor.bypassesStaffRules() && !actor.has(Permission.DISPUTE_MANAGE) && !actor.has(Permission.CASE_WORK)) {
             takeIfNeeded(dispute);
         }
         DisputeEvidence evidence = evidenceStore.store(dispute, upload, null);

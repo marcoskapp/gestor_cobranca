@@ -22,6 +22,7 @@ import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.paging.NameSearch;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
+import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -246,7 +247,9 @@ class AuthorityService implements AuthorityUseCases, AuthorityProvisioning {
         String subject = switch (actor.type()) {
             case ASSISTANT -> AssignmentSubject.ASSISTANT_POLICY.name();
             case DEBTOR -> AssignmentSubject.PORTAL.name();
-            default -> AssignmentSubject.USER.name();
+            case USER -> AssignmentSubject.USER.name();
+            // o resolvedor já recusa os demais; explícito para nenhum ator novo cair como "usuário"
+            case SYSTEM, INTEGRATION, CREDITOR -> throw new ScopeAccessDeniedException();
         };
         UUID subjectId = actor.type() == Actor.ActorType.DEBTOR ? AssignmentSubject.PORTAL_CHANNEL_ID : actor.id();
         return new EffectiveAuthorityView(subject, subjectId, creditorId, r.source().name(),

@@ -51,7 +51,7 @@ class ConversationAssigneeService implements ConversationAssigneeUseCases {
 
     @Override
     public PageResponse<AssigneeView> search(UUID conversationId, String query, Set<UUID> ids, PageQuery page) {
-        if (access.actor().isUser()) {
+        if (!access.actor().bypassesStaffRules()) {
             accessScope.requirePermission(Permission.INBOX_MANAGE);
         }
         Guard.require(ids == null || ids.size() <= MAX_IDS, "conversation_assignee.ids_limit",

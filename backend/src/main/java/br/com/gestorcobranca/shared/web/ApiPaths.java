@@ -12,6 +12,9 @@ public final class ApiPaths {
     /** API do portal de autonegociação (autenticação do devedor). */
     public static final String PORTAL = "/api/portal/v1";
 
+    /** API do portal do credor (autenticação da pessoa do credor, ADR 0011). */
+    public static final String CREDITOR = "/api/creditor/v1";
+
     /**
      * Raiz da API pública de integração dos credores (token de integração, cadeia de segurança própria —
      * módulo publicapi). Fora de {@code /api}: nunca aceita o JWT de usuário nem o token do portal.

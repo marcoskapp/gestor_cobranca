@@ -199,6 +199,7 @@ Métricas (Micrometer → CloudWatch, namespace `GestorCobranca`): latência por
 | V2300–V2399 | ingestion — importação PDF inteligente |
 | V2400–V2499 | complaint — reclamações de canais externos |
 | V2500–V2599 | costing — custos operacionais e margem por credor e carteira (contrato de leitura em `R__costing_contract.sql`) |
+| V2600–V2699 | creditorportal — API de negócio do portal do credor (ADR 0011; reservada: o MVP não tem tabela própria — a identidade do credor fica no `identity`, V0210+) |
 
 Como as faixas são por módulo, uma migration nova de faixa baixa pode chegar depois de versões maiores já aplicadas; o Flyway roda com `out-of-order: true` (a validação de checksum continua ativa) — ver `MigrationOrderIT`.
 

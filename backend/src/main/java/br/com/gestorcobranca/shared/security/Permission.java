@@ -36,6 +36,7 @@ public enum Permission {
     // Credores e carteiras
     CREDITOR_VIEW("Consultar credores"),
     CREDITOR_MANAGE("Gerenciar credores"),
+    CREDITOR_PORTAL_MANAGE("Liberar o portal do credor e gerenciar os usuários do credor (convidar, mudar perfil, revogar)"),
     CONTRACT_MANAGE("Gerenciar contratos de prestação de serviço"),
     PORTFOLIO_VIEW("Consultar carteiras"),
     PORTFOLIO_MANAGE("Gerenciar carteiras"),
@@ -166,7 +167,15 @@ public enum Permission {
     // Custos operacionais e margem por credor e carteira (módulo costing)
     COST_VIEW("Consultar o painel e o relatório de margem por credor e carteira e os cadastros de custo"),
     COST_MANAGE("Manter tarifas de canal, câmbio, custos fixos e rateio e reapurar os custos"),
-    COST_RATE_MANAGE("Manter as faixas de custo de pessoas e a faixa de cada usuário");
+    COST_RATE_MANAGE("Manter as faixas de custo de pessoas e a faixa de cada usuário"),
+
+    // Portal do credor (ADR 0011): só a pessoa do credor recebe — nenhum perfil da assessoria, o assistente ou a
+    // integração (CREDITOR_ONLY)
+    CREDITOR_PORTAL_OVERVIEW("Portal do credor: consultar a visão geral, a prestação de contas e as contestações do credor"),
+    CREDITOR_STATEMENT_RESPOND("Portal do credor: aceitar ou contestar a prestação de contas"),
+    CREDITOR_DISPUTE_RESPOND("Portal do credor: responder às contestações que aguardam o credor"),
+    CREDITOR_PAYMENT_REPORT("Portal do credor: informar pagamento feito direto ao credor"),
+    CREDITOR_ACTIVITY_VIEW("Portal do credor: consultar a atividade dos usuários do próprio credor");
 
     /**
      * Permissões exclusivas do operador da plataforma SaaS: só o perfil de sistema {@code PLATFORM_ADMIN} do tenant da
@@ -175,6 +184,16 @@ public enum Permission {
     public static final java.util.Set<Permission> PLATFORM_ONLY = java.util.Collections.unmodifiableSet(
             java.util.EnumSet.of(TENANT_MANAGE, PLATFORM_BILLING_VIEW, PLATFORM_BILLING_MANAGE,
                     PLATFORM_API_TOKENS_MANAGE));
+
+    /**
+     * Permissões exclusivas da pessoa do credor no portal do credor ({@code Actor.ActorType.CREDITOR}): nenhum perfil de
+     * assessoria (nem o administrador), o assistente de IA, o ator de sistema ou um token de integração as recebe
+     * (invariante no construtor do {@code Actor}). As ações do credor exigem também o tipo do ator, como defesa em
+     * profundidade.
+     */
+    public static final java.util.Set<Permission> CREDITOR_ONLY = java.util.Collections.unmodifiableSet(
+            java.util.EnumSet.of(CREDITOR_PORTAL_OVERVIEW, CREDITOR_STATEMENT_RESPOND, CREDITOR_DISPUTE_RESPOND,
+                    CREDITOR_PAYMENT_REPORT, CREDITOR_ACTIVITY_VIEW));
 
     private final String description;
 
@@ -188,5 +207,9 @@ public enum Permission {
 
     public boolean isPlatformOnly() {
         return PLATFORM_ONLY.contains(this);
+    }
+
+    public boolean isCreditorOnly() {
+        return CREDITOR_ONLY.contains(this);
     }
 }

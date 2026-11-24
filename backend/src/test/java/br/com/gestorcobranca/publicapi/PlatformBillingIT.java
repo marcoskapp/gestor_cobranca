@@ -136,9 +136,16 @@ class PlatformBillingIT extends PublicApiTestSupport {
                 billableBytesIn + 999, billableBytesIn, records));
     }
 
+    /** Tudo da assessoria: sem as permissões de plataforma nem as do portal do credor (ADR 0011). */
+    private static Set<Permission> staffPermissions() {
+        Set<Permission> all = EnumSet.complementOf(EnumSet.copyOf(Permission.PLATFORM_ONLY));
+        all.removeAll(Permission.CREDITOR_ONLY);
+        return all;
+    }
+
     IssuedToken issueIn(UUID tenantId, UUID creditorId) {
         return tenantExecution.callAs(new Actor(Actor.ActorType.USER, Ids.newId(), tenantId, Ids.newId(), "gestor",
-                EnumSet.complementOf(EnumSet.copyOf(Permission.PLATFORM_ONLY)), CreditorScope.ALL),
+                staffPermissions(), CreditorScope.ALL),
                 () -> issuer.issue(new br.com.gestorcobranca.publicapi.application.port.in.IssueIntegrationToken
                         .IssueTokenCommand(creditorId, "ERP " + creditorId.toString().substring(0, 4), null,
                         Set.of("portfolios:read"), null, List.of(), null)));

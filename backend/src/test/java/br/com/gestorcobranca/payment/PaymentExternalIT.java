@@ -211,7 +211,9 @@ class PaymentExternalIT extends PaymentTestSupport {
         }
         String attributes = system(() -> jdbcTemplate.queryForObject("select string_agg(attributes::text, ' ') "
                 + "from shared.business_event where event_type like 'payment%'", String.class));
-        assertThat(attributes).doesNotContain("Depósito identificado", "Maria", "529");
+        // ids (UUID v7, gerados pelo relógio) saem antes: um trecho do documento pode aparecer dentro de um id por acaso
+        assertThat(attributes.replaceAll("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "<id>"))
+                .doesNotContain("Depósito identificado", "Maria", "529");
     }
 
     /**

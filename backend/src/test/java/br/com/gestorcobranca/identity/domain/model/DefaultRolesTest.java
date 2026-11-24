@@ -104,4 +104,23 @@ class DefaultRolesTest {
             }
         });
     }
+
+    @Test
+    void nenhumPerfilDaAssessoriaRecebePermissaoDoPortalDoCredorESoGestaoEAdministradorConvidam() {
+        roles.forEach((code, permissions) -> assertThat(permissions).as(code).doesNotContainAnyElementsOf(CREDITOR_ONLY));
+        roles.forEach((code, permissions) -> {
+            boolean manages = DefaultRoles.GESTOR.equals(code) || DefaultRoles.ADMIN.equals(code);
+            assertThat(permissions.contains(CREDITOR_PORTAL_MANAGE)).as(code).isEqualTo(manages);
+        });
+    }
+
+    @Test
+    void perfilDaAssessoriaNaoRecebePermissaoDoPortalDoCredor() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new Role("CUSTOM", "Custom", null,
+                Set.of(CASE_VIEW, CREDITOR_STATEMENT_RESPOND), false))
+                .hasMessageContaining("portal do credor");
+        Role gestor = new Role(DefaultRoles.GESTOR, "Gestor", null, Set.of(CASE_VIEW), true);
+        assertThat(gestor.applyDefaultPermissions(Set.of(CASE_VIEW, CREDITOR_PAYMENT_REPORT, CREDITOR_PORTAL_MANAGE)))
+                .containsExactly(CREDITOR_PORTAL_MANAGE);
+    }
 }

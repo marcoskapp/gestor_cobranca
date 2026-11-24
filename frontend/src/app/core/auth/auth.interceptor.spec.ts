@@ -52,6 +52,19 @@ describe('authInterceptor', () => {
     expect(http.expectOne('/assets/config.json').request.headers.has('Authorization')).toBe(false);
   });
 
+  it('nunca envia o token interno aos portais do devedor e do credor nem renova a sessão interna num 401 deles', async () => {
+    await signIn();
+    client.get('/api/portal/v1/me').subscribe({ error: () => undefined });
+    client.get('/api/creditor/v1/overview').subscribe({ error: () => undefined });
+    const portal = http.expectOne('/api/portal/v1/me');
+    const creditor = http.expectOne('/api/creditor/v1/overview');
+    expect(portal.request.headers.has('Authorization')).toBe(false);
+    expect(creditor.request.headers.has('Authorization')).toBe(false);
+    creditor.flush(null, { status: 401, statusText: 'Unauthorized' });
+    http.expectNone(REFRESH);
+    portal.flush(null, { status: 401, statusText: 'Unauthorized' });
+  });
+
   it('não envia o token para endpoints públicos de autenticação', async () => {
     await signIn();
     client.post('/api/v1/auth/password/forgot', {}, { context: publicRequestContext() }).subscribe();

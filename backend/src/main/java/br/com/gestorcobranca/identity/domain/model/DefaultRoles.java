@@ -111,6 +111,7 @@ public final class DefaultRoles {
     public static List<Definition> forTenant() {
         Set<Permission> admin = EnumSet.allOf(Permission.class);
         admin.removeAll(Permission.PLATFORM_ONLY);
+        admin.removeAll(Permission.CREDITOR_ONLY);
 
         Set<Permission> operador = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW,
@@ -137,7 +138,8 @@ public final class DefaultRoles {
                 LEGAL_MANAGE, LEGAL_AUTHORIZE, LEGAL_EXPENSE_MANAGE, TELEPHONY_MANAGE, SETTLEMENT_APPROVE,
                 ASSISTANT_MANAGE, IMPORT_APPROVE,
                 PUBLIC_API_TOKEN_VIEW, PUBLIC_API_TOKEN_MANAGE, PUBLIC_API_USAGE_VIEW, PUBLIC_API_BILLING_MANAGE,
-                ORGANIZATION_AREA_VIEW, SCORING_AREA_VIEW, VULNERABILITY_SENSITIVE_VIEW, COST_VIEW, TIER_MANAGE));
+                ORGANIZATION_AREA_VIEW, SCORING_AREA_VIEW, VULNERABILITY_SENSITIVE_VIEW, COST_VIEW, TIER_MANAGE,
+                CREDITOR_PORTAL_MANAGE));
 
         Set<Permission> financeiro = EnumSet.of(
                 CREDITOR_VIEW, PORTFOLIO_VIEW, POLICY_VIEW, DEBTOR_VIEW, CASE_VIEW, AGREEMENT_VIEW,

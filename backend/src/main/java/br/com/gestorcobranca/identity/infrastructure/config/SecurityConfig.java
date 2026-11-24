@@ -72,12 +72,19 @@ class SecurityConfig {
 
     /** Authority do ator devedor ({@code ActorAuthentication} acrescenta {@code ACTOR_<tipo>}). */
     static final String DEBTOR_AUTHORITY = "ACTOR_" + Actor.ActorType.DEBTOR.name();
+    /** Authority da pessoa do credor no portal do credor (ADR 0011). */
+    static final String CREDITOR_AUTHORITY = "ACTOR_" + Actor.ActorType.CREDITOR.name();
+    /** Authority do usuário da assessoria. */
+    static final String USER_AUTHORITY = "ACTOR_" + Actor.ActorType.USER.name();
 
-    /** API interna: autenticado por token de usuário (nunca o token do portal do devedor). */
+    /**
+     * API interna: somente o usuário da assessoria (lista de permissão, não de exclusão). Devedor, credor e qualquer
+     * tipo de ator que surgir depois ficam de fora por padrão: os tokens de cada portal têm audiência e API próprias.
+     */
     static final AuthorizationManager<RequestAuthorizationContext> INTERNAL_ONLY = (authentication, context) -> {
         Authentication auth = authentication.get();
         boolean allowed = auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)
-                && auth.getAuthorities().stream().noneMatch(a -> DEBTOR_AUTHORITY.equals(a.getAuthority()));
+                && auth.getAuthorities().stream().anyMatch(a -> USER_AUTHORITY.equals(a.getAuthority()));
         return new AuthorizationDecision(allowed);
     };
 
@@ -144,9 +151,12 @@ class SecurityConfig {
                             .requestMatchers(matcher(null, "/actuator/**")).denyAll()
                             // API do portal: somente o devedor autenticado no portal (token de audiência própria)
                             .requestMatchers(matcher(null, ApiPaths.PORTAL + "/**")).hasAuthority(DEBTOR_AUTHORITY)
-                            // demais APIs: autenticado e nunca um devedor do portal (sessões não se misturam)
+                            // API do portal do credor: somente a pessoa do credor (token de audiência própria)
+                            .requestMatchers(matcher(null, ApiPaths.CREDITOR + "/**")).hasAuthority(CREDITOR_AUTHORITY)
+                            // demais APIs: somente o usuário da assessoria (sessões dos portais não se misturam)
                             .requestMatchers(matcher(null, "/api/**")).access(INTERNAL_ONLY)
-                            .requestMatchers(matcher(null, "/v3/api-docs/**"), matcher(null, "/swagger-ui/**")).authenticated()
+                            .requestMatchers(matcher(null, "/v3/api-docs/**"), matcher(null, "/v3/api-docs.yaml"),
+                                    matcher(null, "/v3/api-docs.yaml/**"), matcher(null, "/swagger-ui/**")).access(INTERNAL_ONLY)
                             // aplicação Angular (estáticos) servida pelo próprio backend
                             .anyRequest().permitAll();
                 })

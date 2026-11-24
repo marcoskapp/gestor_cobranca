@@ -149,7 +149,7 @@ class CaseAssigneeService implements CaseAssigneeUseCases {
     /** Mesma exigência da gravação: usuário com a permissão (atores de sistema passam, como nos serviços). */
     private void requireUserPermission(Permission permission) {
         Actor actor = currentActor.get();
-        if (actor.isUser()) {
+        if (!actor.bypassesStaffRules()) {
             accessScope.requirePermission(permission);
         }
     }

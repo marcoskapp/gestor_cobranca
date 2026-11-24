@@ -29,7 +29,7 @@ class TenantSettingsController {
     }
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAuthority('ACTOR_USER')")
     TenantView current() {
         return tenantAdministration.currentTenant();
     }

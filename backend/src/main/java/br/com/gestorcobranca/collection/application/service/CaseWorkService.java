@@ -292,7 +292,7 @@ class CaseWorkService implements CaseWorkUseCases {
         CollectionCase c = access.forCommand(caseId);
         requireActive(c);
         Actor actor = access.actor();
-        if (actor.isUser() && !c.isAssignedTo(actor.id()) && !actor.has(Permission.CASE_ASSIGN)) {
+        if (!actor.bypassesStaffRules() && !c.isAssignedTo(actor.id()) && !actor.has(Permission.CASE_ASSIGN)) {
             throw new ConflictException("case.not_assigned_to_user", "Somente o responsável entrega o caso ao assistente");
         }
         CaseRecorder.Snapshot before = CaseRecorder.snapshot(c);

@@ -107,7 +107,7 @@ class TaskService implements TaskUseCases {
         Guard.require(!dueAt.isAfter(now.plus(MAX_HORIZON_DAYS, ChronoUnit.DAYS)), "task.due_too_far",
                 "Data da tarefa além de %d dias".formatted(MAX_HORIZON_DAYS));
         UUID byDefault = defaultAssignee(c);
-        if (assigneeUserId != null && !assigneeUserId.equals(byDefault) && access.actor().isUser()) {
+        if (assigneeUserId != null && !assigneeUserId.equals(byDefault) && !access.actor().bypassesStaffRules()) {
             // escolher outro responsável é atribuir — no agendamento e no retorno da tabulação (a tela só mostra o
             // campo com CASE_ASSIGN; o servidor confere)
             accessScope.requirePermission(Permission.CASE_ASSIGN);

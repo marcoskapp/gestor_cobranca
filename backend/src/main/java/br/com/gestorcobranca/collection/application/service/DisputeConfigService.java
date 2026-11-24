@@ -311,7 +311,7 @@ class DisputeConfigService implements DisputeConfigUseCases {
 
     private void requireManageAll(String resource) {
         Actor actor = currentActor.get();
-        if (actor.isUser()) {
+        if (!actor.bypassesStaffRules()) {
             accessScope.requirePermission(Permission.DISPUTE_MANAGE);
         }
         accessScope.requireAllCreditors(resource);
@@ -319,7 +319,7 @@ class DisputeConfigService implements DisputeConfigUseCases {
 
     private void requireScope(UUID creditorId, String resource) {
         Actor actor = currentActor.get();
-        if (actor.isUser()) {
+        if (!actor.bypassesStaffRules()) {
             accessScope.requirePermission(Permission.DISPUTE_MANAGE);
         }
         if (creditorId == null) {

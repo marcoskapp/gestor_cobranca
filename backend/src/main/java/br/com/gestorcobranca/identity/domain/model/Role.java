@@ -84,7 +84,7 @@ public class Role extends TenantScopedEntity {
         Guard.requireState(systemRole, "role.not_system", "Somente perfis de sistema recebem permissões padrão");
         Set<Permission> pending = EnumSet.noneOf(Permission.class);
         for (Permission permission : definition) {
-            if (!permission.isPlatformOnly() || isPlatformAdminRole()) {
+            if (!permission.isCreditorOnly() && (!permission.isPlatformOnly() || isPlatformAdminRole())) {
                 if (!appliedDefaults.contains(permission)) {
                     pending.add(permission);
                 }
@@ -106,6 +106,8 @@ public class Role extends TenantScopedEntity {
                 "Perfil deve ter ao menos uma permissão");
         Guard.require(permissions.stream().noneMatch(Permission::isPlatformOnly) || isPlatformAdminRole(),
                 "role.platform_permission", "Permissão de plataforma não pode ser atribuída a perfis de assessoria");
+        Guard.require(permissions.stream().noneMatch(Permission::isCreditorOnly), "role.creditor_permission",
+                "Permissão do portal do credor não pode ser atribuída a perfis da assessoria");
         this.name = name.trim();
         this.description = description;
         this.permissions.clear();

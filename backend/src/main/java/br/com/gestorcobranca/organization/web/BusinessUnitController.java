@@ -32,13 +32,13 @@ class BusinessUnitController {
     }
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAuthority('ACTOR_USER')")
     List<BusinessUnitView> list() {
         return units.list();
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAuthority('ACTOR_USER')")
     BusinessUnitView get(@PathVariable UUID id) {
         return units.get(id);
     }

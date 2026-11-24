@@ -132,7 +132,7 @@ class ConversationOwnership {
             target = fromCase(work.handToAssistant(kase.get().id(), text(reason, "Conversa devolvida ao assistente")), c,
                     false);
         } else {
-            if (actor.isUser() && c.getOwnerType() == OwnerType.USER && !Objects.equals(c.getOwnerUserId(), actor.id())
+            if (!actor.bypassesStaffRules() && c.getOwnerType() == OwnerType.USER && !Objects.equals(c.getOwnerUserId(), actor.id())
                     && !actor.has(br.com.gestorcobranca.shared.security.Permission.CASE_ASSIGN)) {
                 throw new ConflictException("conversation.not_assigned_to_user",
                         "Somente o dono devolve a conversa ao assistente");

@@ -49,7 +49,7 @@ class DisputeAccess {
      */
     boolean requireWork(Dispute dispute) {
         Actor actor = currentActor.get();
-        if (!actor.isUser() || actor.has(Permission.DISPUTE_MANAGE)) {
+        if (actor.bypassesStaffRules() || actor.has(Permission.DISPUTE_MANAGE)) {
             return false;
         }
         if (!actor.has(Permission.DISPUTE_WORK)) {
@@ -66,14 +66,14 @@ class DisputeAccess {
 
     void requireManage() {
         Actor actor = currentActor.get();
-        if (actor.isUser()) {
+        if (!actor.bypassesStaffRules()) {
             accessScope.requirePermission(Permission.DISPUTE_MANAGE);
         }
     }
 
     boolean canManage() {
         Actor actor = currentActor.get();
-        return !actor.isUser() || actor.has(Permission.DISPUTE_MANAGE);
+        return actor.bypassesStaffRules() || actor.has(Permission.DISPUTE_MANAGE);
     }
 
     Actor actor() {

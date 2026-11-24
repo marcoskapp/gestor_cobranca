@@ -66,8 +66,11 @@ class LegalAccess {
 
     ActorScope scope() {
         Actor actor = currentActor.get();
-        if (!actor.isUser()) {
+        if (actor.bypassesStaffRules()) {
             return ActorScope.INTERNAL;
+        }
+        if (!actor.isUser()) {
+            throw accessScope.denyActorType("legal_matter");
         }
         return members.findByUserIdAndActiveTrue(actor.id())
                 .map(m -> new ActorScope(m.getLawFirmId(), firms.findById(m.getLawFirmId()).map(LawFirm::isActive)

@@ -19,7 +19,7 @@ import { AuthService } from './core/auth/auth.service';
 import { provideBootstrapDefaults } from './core/config/bootstrap.config';
 import { provideAppLocale } from './core/config/app-locale';
 import { PageTitleStrategy } from './core/config/page-title.strategy';
-import { isPortalPath } from './core/config/api';
+import { isCreditorPath, isPortalPath } from './core/config/api';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { GlobalErrorHandler } from './core/http/global-error-handler';
 import { NavigationHistory } from './core/layout/breadcrumbs/navigation-history';
@@ -46,7 +46,10 @@ export const appConfig: ApplicationConfig = {
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     // restaura a sessão (cookie de refresh) antes da primeira navegação
     // (o portal do devedor nunca toca a sessão interna)
-    provideAppInitializer(() => (isPortalPath(location.pathname) ? undefined : inject(AuthService).restoreSession())),
+    // os portais do devedor e do credor têm sessão própria: não restauram a sessão interna
+    provideAppInitializer(() =>
+      isPortalPath(location.pathname) || isCreditorPath(location.pathname) ? undefined : inject(AuthService).restoreSession(),
+    ),
     // tema e densidade aplicados desde a primeira tela (o onboarding é carregado com o shell)
     provideAppInitializer(() => {
       inject(ThemeService);

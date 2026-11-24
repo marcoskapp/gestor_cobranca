@@ -67,17 +67,33 @@ class JwtKeyConfig {
     }
 
     /**
-     * Tokens do portal ({@code typ=portal}) só com a audiência do portal e exclusivamente ela; os
-     * demais só com a audiência da API interna. Assim um token de devedor nunca autentica como
-     * usuário interno (e vice-versa), mesmo assinado pela mesma chave.
+     * Cada tipo de token só com a sua audiência, e exclusivamente ela: {@code portal} → portal do devedor;
+     * {@code creditor*} → portal do credor; os tipos do usuário interno → API interna; tipo desconhecido → recusado. Assim um token de devedor ou de credor nunca
+     * autentica como usuário interno (e vice-versa), mesmo assinado pela mesma chave.
      */
     static boolean audienceMatchesType(Jwt jwt) {
         java.util.List<String> audiences = jwt.getAudience();
         if (audiences == null || audiences.size() != 1) {
             return false;
         }
-        boolean portal = TokenClaims.TYPE_PORTAL.equals(jwt.getClaimAsString(TokenClaims.TYPE));
-        return audiences.getFirst().equals(portal ? TokenClaims.PORTAL_AUDIENCE : TokenClaims.AUDIENCE);
+        String expected = expectedAudience(jwt.getClaimAsString(TokenClaims.TYPE));
+        return expected != null && audiences.getFirst().equals(expected);
+    }
+
+    /** Audiência de cada tipo de token, por mapa explícito: tipo desconhecido não tem audiência e é recusado. */
+    private static final java.util.Map<String, String> AUDIENCE_BY_TYPE = java.util.Map.of(
+            TokenClaims.TYPE_ACCESS, TokenClaims.AUDIENCE,
+            TokenClaims.TYPE_MFA, TokenClaims.AUDIENCE,
+            TokenClaims.TYPE_MFA_ENROLL, TokenClaims.AUDIENCE,
+            TokenClaims.TYPE_PASSWORD_CHANGE, TokenClaims.AUDIENCE,
+            TokenClaims.TYPE_PORTAL, TokenClaims.PORTAL_AUDIENCE,
+            TokenClaims.TYPE_CREDITOR, TokenClaims.CREDITOR_AUDIENCE,
+            TokenClaims.TYPE_CREDITOR_MFA, TokenClaims.CREDITOR_AUDIENCE,
+            TokenClaims.TYPE_CREDITOR_MFA_ENROLL, TokenClaims.CREDITOR_AUDIENCE,
+            TokenClaims.TYPE_CREDITOR_PASSWORD, TokenClaims.CREDITOR_AUDIENCE);
+
+    static String expectedAudience(String type) {
+        return type == null ? null : AUDIENCE_BY_TYPE.get(type);
     }
 
     private static RSAPublicKey readPublicKey(JwtProperties properties) {

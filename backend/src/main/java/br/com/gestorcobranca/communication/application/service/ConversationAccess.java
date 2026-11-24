@@ -6,6 +6,7 @@ import br.com.gestorcobranca.communication.domain.model.SenderType;
 import br.com.gestorcobranca.communication.domain.repository.ConversationRepository;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
+import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -75,8 +76,11 @@ class ConversationAccess {
      */
     boolean requireWorkable(Conversation c) {
         Actor actor = currentActor.get();
-        if (!actor.isUser()) {
+        if (actor.bypassesStaffRules()) {
             return false;
+        }
+        if (!actor.isUser()) {
+            throw accessScope.denyActorType("conversation");
         }
         if (c.getOwnerType() == OwnerType.USER) {
             if (actor.id().equals(c.getOwnerUserId()) || actor.has(Permission.CASE_ASSIGN)) {
@@ -99,6 +103,7 @@ class ConversationAccess {
             case ASSISTANT -> SenderType.ASSISTANT;
             case SYSTEM, INTEGRATION -> campaignExecutionId != null ? SenderType.CAMPAIGN : SenderType.SYSTEM;
             case DEBTOR -> throw new ConflictException("message.sender_invalid", "O devedor não envia por este canal");
+            case CREDITOR -> throw new ConflictException("message.sender_invalid", "O credor não envia por este canal");
         };
     }
 }

@@ -98,7 +98,7 @@ abstract class PublicApiTestSupport extends IntegrationTest {
 
     /** Gestor com todas as permissões da API pública e escopo de todos os credores. */
     <T> T asManager(Supplier<T> action) {
-        return asUser(managerId, EnumSet.allOf(Permission.class), CreditorScope.ALL, action);
+        return asUser(managerId, EnumSet.complementOf(EnumSet.copyOf(Permission.CREDITOR_ONLY)), CreditorScope.ALL, action);
     }
 
     <T> T asUser(UUID id, Set<Permission> permissions, CreditorScope scope, Supplier<T> action) {
