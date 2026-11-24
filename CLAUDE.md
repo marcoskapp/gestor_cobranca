@@ -60,6 +60,17 @@ Valem em toda entrega; a revisão e o `audit.sh` conferem. Detalhes e exemplos e
   ser commitado (`git diff --cached`/`git diff HEAD` e arquivos novos). Tratamento do relatório como na etapa 7 da
   skill: Crítica/Alta confirmada no que a mudança alterou se corrige antes de commitar (ou se para e avisa o
   responsável); Média/Baixa vira sugestão no resumo. Subagente indisponível → não commitar e avisar.
+- **Revisões especializadas antes do commit, conforme o que mudou** (mesmo tratamento, em paralelo com o revisor):
+  subagente `arquiteto` quando a mudança toca `infra/`, `port/in`, `shared.events`, migrations, dependências, módulo
+  novo ou integração externa; subagente `revisor-ux` quando toca tela, texto de tela, manual ou tour; subagente
+  `engenheiro-seguranca` quando toca autenticação, sessão, permissões ou alçadas, entrada pública (portal, API pública,
+  webhooks), pagamento, upload/download/exportação, criptografia, IA, RLS/grants, IAM/rede/containers ou dependências (lista completa: tabela da etapa 7.1 da skill `concluir-tarefa`).
+  Ele também entra **antes** de implementar funcionalidade com dado sensível ou entrada pública (modo preventivo).
+  Até a produção, os achados (inclusive abertos) ficam em `docs/tecnico/seguranca-riscos.md` (decisão 1383); issue
+  pública nunca descreve vulnerabilidade aberta.
+- **Outros subagentes** (fora do commit): `analista-negocio` antes de implementar uma funcionalidade ou quando o pedido
+  estiver ambíguo (refina, confere regras e decisões, prepara as decisões do responsável — não decide);
+  `curador-docs` sob demanda ou periodicamente, para a organização de `docs/` e do repositório.
 - Mensagens de commit em português, descrevendo o quê e o porquê. Nunca `push --force` na `master`.
 - Não comente sobre commits "Unverified" no GitHub.
 
@@ -119,5 +130,6 @@ Senha dos usuários do sandbox e demais detalhes: [README.md](README.md) (seçã
 1. `mvn test` (e os ITs dos módulos tocados) e `npm run build && npm test` quando houver frontend.
 2. Telas alteradas: confira no sandbox (`audit.sh` cobre acesso por perfil, alinhamento e rolagem).
 3. Docs, decisões e base de conhecimento atualizadas.
-4. Revisão pelo subagente `revisor-de-codigo` antes do commit (obrigatória; veja "Fluxo de git").
+4. Revisão pelo subagente `revisor-de-codigo` antes do commit (obrigatória; veja "Fluxo de git"), com `arquiteto`,
+   `revisor-ux` e `engenheiro-seguranca` quando a mudança tocar a área deles.
 5. Resumo curto ao responsável: o que mudou, decisões a revisar, como testar.

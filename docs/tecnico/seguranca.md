@@ -1,6 +1,6 @@
 # Segurança
 
-Controles implementados na plataforma, com a localização no código. Mudanças nesses pontos exigem revisão específica no pull request.
+Controles implementados na plataforma, com a localização no código. Mudanças nesses pontos exigem revisão específica no pull request (subagente `engenheiro-seguranca`, [.claude/agents/engenheiro-seguranca.md](../../.claude/agents/engenheiro-seguranca.md)). Riscos ainda abertos, aguardando aprovação ou aceitos: [seguranca-riscos.md](seguranca-riscos.md).
 
 ## 1. Autenticação
 
@@ -164,5 +164,7 @@ Segredos de **runtime** (`app/*`, inclusive o token do GitHub dos chamados de su
 | S3 oráculo de tempo no pedido de código | confirmado (envio síncrono dentro da janela); corrigido | envio em executor próprio fora da requisição (`PortalCodeDispatchIT`) |
 
 ## 8. Recomendações pendentes de aprovação
+
+Acompanhadas, com issue e mitigação atual, em [seguranca-riscos.md](seguranca-riscos.md) §3.
 
 AWS WAF (regras gerenciadas e limite de taxa — inclusive o limite global por token da API pública), GuardDuty, Parameter Store + KMS para segredos e rotação, ACM para certificados, e testes de intrusão antes da entrada em produção (incluindo a API pública).

@@ -1,6 +1,6 @@
 ---
 name: concluir-tarefa
-description: Checklist de conclusão de uma tarefa no Gestor de Cobrança — testes do backend e frontend, ITs dos módulos tocados, sandbox, documentação, decisões autônomas, base de conhecimento, revisão pelo subagente revisor-de-codigo, commit e resumo ao responsável (PO). Use ao terminar uma mudança, antes de commitar, ou quando o usuário pedir para "fechar", "concluir" ou "finalizar" a tarefa.
+description: Checklist de conclusão de uma tarefa no Gestor de Cobrança — testes do backend e frontend, ITs dos módulos tocados, sandbox, documentação, decisões autônomas, base de conhecimento, revisão pelo subagente revisor-de-codigo (e pelo arquiteto, revisor-ux e engenheiro-seguranca conforme o que mudou), commit e resumo ao responsável (PO). Use ao terminar uma mudança, antes de commitar, ou quando o usuário pedir para "fechar", "concluir" ou "finalizar" a tarefa.
 ---
 
 # Concluir uma tarefa
@@ -109,6 +109,33 @@ Com o relatório em mãos:
 
 Se o subagente não estiver disponível ou falhar, não commite: diga isso ao usuário e pergunte como seguir.
 
+### 7.1 Revisões especializadas (conforme o que mudou)
+
+Chame em paralelo com o `revisor-de-codigo` (mesma mensagem, várias chamadas da ferramenta Agent), com o mesmo tipo
+de prompt (alvo e objetivo, sem a sua conclusão):
+
+| Mudou… | Subagente | `subagent_type` |
+| --- | --- | --- |
+| `infra/`, `scripts/instance`, `scripts/db`, `application/port/in`, `shared/events`, migrations, `pom.xml`, `package.json` (frontend e `scripts/sandbox/audit`), módulo novo ou integração externa | arquiteto | `arquiteto` |
+| tela, componente, rota, texto de tela, manual ou tour em `frontend/src/app/` | revisor de UX | `revisor-ux` |
+| `shared/security`, `identity`, `Permission`/`@PreAuthorize`, alçadas, `PublicEndpoint`, `portal`, `publicapi`, webhooks, `payment`, `settlement`, upload/download/exportação (`shared/storage`, `shared/export`), `shared/crypto`, `assistant`/`shared/ai`/`helpdesk`, migration com tabela nova, RLS ou grants, IAM/rede/Dockerfile em `infra/`, dependências | engenheiro de segurança (modo revisão) | `engenheiro-seguranca` |
+
+Tratamento igual ao do `revisor-de-codigo`: confira cada achado; **Crítica** ou **Alta** confirmada no que a tarefa
+alterou se corrige antes do commit (ou para e avisa); **Média**/**Baixa** viram sugestão no resumo. Parecer do
+arquiteto "depende de aprovação" → issue no GitHub e aviso ao responsável antes de commitar. ADR sugerida pelo
+arquiteto e aceita → arquivo em `docs/arquitetura/adr/` na mesma mudança. Se o sandbox estava parado, o `revisor-ux`
+avalia pelo código; a conferência em tela continua sendo a etapa 4. Subagente indisponível → não commite e avise.
+
+Achados do `engenheiro-seguranca`: só **confirmada** Crítica/Alta bloqueia (suspeita vira verificação a fazer).
+Corrigiu → chame-o de novo no modo **validação**, com os arquivos da correção e o teste que a cobre; só então trate
+como corrigida. Controle novo → `docs/tecnico/seguranca.md`; risco aceito ou que depende de aprovação →
+`docs/tecnico/seguranca-riscos.md` (§3); primeiro relatório de auditoria ou modelo de ameaças → incluir no índice
+`docs/README.md` na mesma mudança; vulnerabilidade que fica **aberta** → §4 do mesmo arquivo (até a produção,
+decisão 1383) e aviso ao responsável; issue pública nunca descreve vulnerabilidade aberta.
+
+Os outros dois agentes não entram neste checklist: o `analista-negocio` atua **antes** de implementar (refinar o
+pedido, conferir conflitos com regras e decisões) e o `curador-docs` faz a curadoria periódica da documentação.
+
 ## 8. Commit (só se o usuário pedir)
 
 - Só depois da etapa 7 concluída, sem issue Crítica ou Alta pendente no que a tarefa alterou.
@@ -122,6 +149,7 @@ Curto, em português:
 1. **O que mudou** — por módulo/tela.
 2. **Testes** — o que rodou e o resultado (contagens quando houver); o que não rodou e por quê.
 3. **Decisões a revisar** — números e uma linha cada.
-4. **Revisão de código** — issues do `revisor-de-codigo` corrigidas, descartadas (com motivo) e sugestões pendentes.
+4. **Revisões** — achados do `revisor-de-codigo` (e do `arquiteto`/`revisor-ux`/`engenheiro-seguranca`, quando chamados) corrigidos,
+   descartados (com motivo) e sugestões pendentes.
 5. **Issues abertas** — se houver.
 6. **Como testar** — perfil do sandbox, tela e passos.
