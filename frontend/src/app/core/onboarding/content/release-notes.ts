@@ -3,6 +3,15 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 38,
+    date: '2026-11-24',
+    title: 'Extrato importado não confirma pagamento sozinho',
+    items: [
+      { text: 'Crédito de extrato que cita uma cobrança Pix ou boleto do sistema vira pagamento para outra pessoa aprovar em "Aprovação de pagamentos": só depois da aprovação a parcela ou o título é baixado. Quem importou o extrato não aprova.', route: '/pagamentos/aprovacoes' },
+      { text: 'Extrato enviado por quem informou um pagamento externo não concilia esse pagamento: vira a divergência "Extrato de quem informou", para outra pessoa conferir com o banco e vincular.', route: '/pagamentos/divergencias' },
+    ],
+  },
+  {
     version: 37,
     date: '2026-11-24',
     title: 'Portal do credor: prestação de contas',

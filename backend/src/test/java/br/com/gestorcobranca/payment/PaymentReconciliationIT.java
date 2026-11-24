@@ -33,20 +33,31 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 /**
- * Conciliação (F15) contra PostgreSQL real: arquivo de retorno confirma instrução sem webhook (e o
- * webhook posterior não duplica a baixa), conciliação por identificador da transação, divergências
- * (valor, sem correspondência), linhas repetidas em outro arquivo sem nova baixa, mesmo arquivo recusado e
- * resolução auditada com segregação (quem informou não concilia o próprio pagamento).
+ * Conciliação (F15) contra PostgreSQL real: linha de extrato que cita uma instrução cria pagamento em revisão, que só
+ * confirma a instrução com a aprovação de outra pessoa (SEG-20261124-C01; o webhook posterior não duplica a baixa),
+ * conciliação por identificador da transação, divergências (valor, sem correspondência), linhas repetidas em outro
+ * arquivo sem nova baixa, mesmo arquivo recusado e resolução auditada com segregação (quem informou não concilia o
+ * próprio pagamento, nem manualmente nem com extrato que ele mesmo enviou).
  */
 class PaymentReconciliationIT extends PaymentTestSupport {
 
     private StatementImportView importCsv(String name, String csv) {
+        return importCsvAs(false, name, csv);
+    }
+
+    /** @param byFinance1 envia como F1 (por padrão, F2 envia os extratos) */
+    private StatementImportView importCsvAs(boolean byFinance1, String name, String csv) {
         byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
-        StatementImportView view = asFinance2(() -> reconciliation.importStatement(new StatementUpload("CSV_GENERIC", null,
-                name, "text/csv", bytes.length, new ByteArrayInputStream(bytes))));
+        java.util.function.Supplier<StatementImportView> upload = () -> reconciliation.importStatement(
+                new StatementUpload("CSV_GENERIC", null, name, "text/csv", bytes.length, new ByteArrayInputStream(bytes)));
+        StatementImportView view = byFinance1 ? asFinance1(upload::get) : asFinance2(upload::get);
         assertThat(view.status()).isEqualTo("RECEIVED");
         settle();
         return asFinance2(() -> reconciliation.getImport(view.id()));
+    }
+
+    private String lineStatus(UUID paymentId) {
+        return system(() -> jdbcTemplate.queryForObject("select status from payment.statement_line where payment_id = ?", String.class, paymentId));
     }
 
     private PaymentView external(String amount, String reference, UUID title) {
@@ -76,16 +87,28 @@ class PaymentReconciliationIT extends PaymentTestSupport {
         assertThat(imported.status()).isEqualTo("PROCESSED");
         assertThat(imported.totalLines()).isEqualTo(5);
         assertThat(imported.createdPayments()).isEqualTo(1);
-        assertThat(imported.reconciledLines()).isEqualTo(2);
+        assertThat(imported.reconciledLines()).isEqualTo(1);
         assertThat(imported.divergentLines()).isEqualTo(2);
         assertThat(imported.ignoredLines()).isEqualTo(1);
 
-        // arquivo de retorno confirmou a instrução sem webhook: pagamento integrado, conciliado e alocado
-        assertThat(asOperator(() -> instructions.get(pix.id())).status()).isEqualTo("PAID");
-        PaymentView fromStatement = asFinance1(() -> payments.get(asOperator(() -> instructions.get(pix.id())).paymentId()));
+        // a linha cita a instrução: o extrato enviado por F2 não confirma sozinho — pagamento em revisão, instrução aberta
+        assertThat(asOperator(() -> instructions.get(pix.id())).status()).isEqualTo("ACTIVE");
+        UUID pendingId = system(() -> jdbcTemplate.queryForObject("select id from payment.payment where instruction_id = ?", UUID.class, pix.id()));
+        PaymentView pending = asFinance1(() -> payments.get(pendingId));
+        assertThat(pending.status()).isEqualTo("INFORMED");
+        assertThat(pending.reviewMode()).isEqualTo("DUAL_CONTROL");
+        assertThat(lineStatus(pendingId)).isEqualTo("PENDING_REVIEW");
+        assertThat(count("select count(*) from payment.payment_allocation where payment_id = ?", pendingId)).isZero();
+        // quem enviou o extrato não aprova; outra pessoa aprova → instrução paga, pagamento conciliado com a linha
+        assertThatThrownBy(() -> asFinance2(() -> payments.approve(pendingId, null)))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("não pode revisá-lo");
+        assertThat(asFinance1(() -> payments.reviewAssessment(pendingId)).reason()).isEqualTo("STATEMENT_LINE");
+        PaymentView fromStatement = asFinance1(() -> payments.approve(pendingId, "Conferido no extrato do banco"));
         assertThat(fromStatement.status()).isEqualTo("RECONCILED");
-        assertThat(fromStatement.reviewMode()).isEqualTo("STATEMENT");
         assertThat(fromStatement.reconciliationMode()).isEqualTo("STATEMENT");
+        assertThat(asOperator(() -> instructions.get(pix.id())).status()).isEqualTo("PAID");
+        assertThat(asOperator(() -> instructions.get(pix.id())).paymentId()).isEqualTo(pendingId);
+        assertThat(lineStatus(pendingId)).isEqualTo("CREATED_PAYMENT");
         awaitConsumed("negotiation.payment-confirmed", 1);
         settle();
         awaitTrue("parcela paga", () -> "PAID".equals(agreement(agreement.id()).installments().getFirst().status()));
@@ -167,5 +190,92 @@ class PaymentReconciliationIT extends PaymentTestSupport {
         assertThat(count("select count(*) from shared.business_event where event_type = 'payment.divergence'")).isEqualTo(5);
         assertThat(count("select count(*) from shared.business_event where event_type = 'payment.reconciled' "
                 + "and attributes ->> 'mode' = 'STATEMENT'")).isEqualTo(2);
+    }
+
+    @Test
+    void statementLineDoesNotConfirmInstructionWithoutSecondPerson() {
+        provision("reconcile-review");
+        AgreementView agreement = formalizeAgreement(2);
+        InstructionView pix = pixFor(agreement.id(), agreement.installments().getFirst().id(), "PIX_IMMEDIATE");
+        String amount = pix.amount().toPlainString().replace('.', ',');
+        StatementImportView imported = importCsv("extrato-review.csv", """
+                data;valor;tipo;id_transacao;referencia;descricao
+                %s;%s;C;;%s;PIX RECEBIDO
+                """.formatted(today, amount, pix.txid()));
+        assertThat(imported.createdPayments()).isEqualTo(1);
+        UUID pendingId = system(() -> jdbcTemplate.queryForObject("select id from payment.payment where instruction_id = ?", UUID.class, pix.id()));
+        // na fila de aprovação de outra pessoa, e não na de quem enviou
+        assertThat(asFinance1(() -> payments.reviewQueue(null, PageQuery.of(0, 20))).content())
+                .extracting(PaymentView::id).contains(pendingId);
+        assertThat(asFinance2(() -> payments.reviewQueue(null, PageQuery.of(0, 20))).content())
+                .extracting(PaymentView::id).doesNotContain(pendingId);
+        assertThat(agreement(agreement.id()).installments().getFirst().status()).isNotEqualTo("PAID");
+
+        // o PSP confirma a mesma cobrança antes da revisão: aprovar baixaria em dobro → recusado; a recusa fecha a linha
+        SimulatedNotification paid = simulatePay(pix.id(), null);
+        assertThat(postWebhook(paid.routingKey(), paid.body(), paid.signature())).isEqualTo(200);
+        settle();
+        assertThat(asOperator(() -> instructions.get(pix.id())).status()).isEqualTo("PAID");
+        assertThat(asOperator(() -> instructions.get(pix.id())).paymentId()).isNotEqualTo(pendingId);
+        assertThatThrownBy(() -> asFinance1(() -> payments.approve(pendingId, null)))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("já foi paga");
+        assertThat(asFinance1(() -> payments.reject(pendingId, "Já confirmado pelo PSP")).status()).isEqualTo("REJECTED");
+        assertThat(lineStatus(pendingId)).isEqualTo("REVIEW_REJECTED");
+        assertThat(count("select count(*) from payment.payment_allocation where payment_id = ?", pendingId)).isZero();
+    }
+
+    @Test
+    void informerCannotReconcileOwnExternalPaymentByStatement() {
+        provision("reconcile-self");
+        PaymentView own = external("80.00", "DOC-SELF", titleB);
+        assertThat(own.status()).isEqualTo("CONFIRMED");
+        // F1 informou o pagamento e envia o extrato que o "confirma": não concilia, vira divergência para outra pessoa
+        StatementImportView imported = importCsvAs(true, "extrato-self.csv", """
+                data;valor;tipo;id_transacao;referencia;descricao
+                %s;80,00;C;DOC-SELF;;TED RECEBIDA
+                """.formatted(today));
+        assertThat(imported.status()).isEqualTo("PROCESSED");
+        assertThat(imported.divergentLines()).isEqualTo(1);
+        assertThat(asFinance1(() -> payments.get(own.id())).status()).isEqualTo("CONFIRMED");
+        assertThat(asFinance2(() -> reconciliation.divergences(new DivergenceFilter("OPEN", null, null, null, null),
+                PageQuery.of(0, 20))).content()).extracting(DivergenceView::type, DivergenceView::paymentId)
+                .containsExactly(tuple("SELF_RECONCILIATION", own.id()));
+        // a divergência é resolvida por outra pessoa (quem informou continua sem poder conciliar)
+        DivergenceView self = asFinance2(() -> reconciliation.divergences(new DivergenceFilter("OPEN", null, null, null,
+                null), PageQuery.of(0, 20))).content().getFirst();
+        assertThatThrownBy(() -> asFinance1(() -> reconciliation.resolve(self.id(), new ResolveCommand("MATCHED_PAYMENT",
+                own.id(), "Conferido")))).isInstanceOf(BusinessRuleException.class).hasMessageContaining("não pode conciliá-lo");
+        asFinance2(() -> reconciliation.resolve(self.id(), new ResolveCommand("MATCHED_PAYMENT", own.id(),
+                "Conferido no extrato do banco")));
+        assertThat(asFinance1(() -> payments.get(own.id())).status()).isEqualTo("RECONCILED");
+    }
+
+    @Test
+    void pendingStatementLineNeverHoldsThePixTransactionOfTheProvider() {
+        provision("reconcile-e2e");
+        AgreementView agreement = formalizeAgreement(2);
+        InstructionView pix = pixFor(agreement.id(), agreement.installments().getFirst().id(), "PIX_IMMEDIATE");
+        SimulatedNotification paid = simulatePay(pix.id(), null);
+        String amount = pix.amount().toPlainString().replace('.', ',');
+        // a linha traz o endToEndId do Pix e chega antes do PSP: o pagamento pendente não guarda o identificador
+        importCsv("extrato-e2e.csv", """
+                data;valor;tipo;id_transacao;referencia;descricao
+                %s;%s;C;%s;%s;PIX RECEBIDO
+                """.formatted(today, amount, paid.endToEndId(), pix.txid()));
+        UUID pendingId = system(() -> jdbcTemplate.queryForObject("select id from payment.payment where instruction_id = ?",
+                UUID.class, pix.id()));
+        assertThat(asFinance1(() -> payments.get(pendingId)).providerTransactionId()).isNull();
+        // a confirmação real do PSP vale normalmente, sem divergência de duplicidade
+        assertThat(postWebhook(paid.routingKey(), paid.body(), paid.signature())).isEqualTo(200);
+        settle();
+        assertThat(asOperator(() -> instructions.get(pix.id())).status()).isEqualTo("PAID");
+        assertThat(asOperator(() -> instructions.get(pix.id())).paymentId()).isNotEqualTo(pendingId);
+        assertThat(count("select count(*) from payment.divergence where type = 'DUPLICATE_PAYMENT' and instruction_id = ?",
+                pix.id())).isZero();
+        assertThatThrownBy(() -> asFinance1(() -> payments.approve(pendingId, null)))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("já foi paga");
+        asFinance1(() -> payments.reject(pendingId, "Já confirmado pelo PSP"));
+        assertThat(count("select count(*) from payment.payment where provider_transaction_id = ?", paid.endToEndId()))
+                .isEqualTo(1);
     }
 }

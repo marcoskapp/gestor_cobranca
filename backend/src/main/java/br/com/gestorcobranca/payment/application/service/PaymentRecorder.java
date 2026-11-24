@@ -98,7 +98,7 @@ class PaymentRecorder {
                 .created("paidAt", p.getPaidAt()).created("origin", p.getExternalOrigin())
                 .created("reviewRequired", p.isReviewRequired()).created("evidenceSha256", p.getEvidenceSha256())
                 .meta("externalReference", p.getExternalReference()).meta("targetKind", p.getTargetKind())
-                .meta("reviewReason", reviewReason));
+                .meta("reviewReason", reviewReason).meta("statementLineId", p.getStatementLineId()));
     }
 
     /**

@@ -15,6 +15,7 @@ import br.com.gestorcobranca.payment.domain.model.AllocationOrigin;
 import br.com.gestorcobranca.payment.domain.model.ExternalOrigin;
 import br.com.gestorcobranca.payment.domain.model.Payment;
 import br.com.gestorcobranca.payment.domain.model.PaymentAllocation;
+import br.com.gestorcobranca.payment.domain.model.PaymentInstruction;
 import br.com.gestorcobranca.payment.domain.model.PaymentMethod;
 import br.com.gestorcobranca.payment.domain.model.PaymentStatus;
 import br.com.gestorcobranca.payment.domain.model.ReversalReason;
@@ -95,6 +96,7 @@ class PaymentService implements PaymentUseCases {
     private final ExternalPaymentLocks externalLocks;
     private final PaymentProperties properties;
     private final AgreementBreakSuspensionUseCases breakSuspensions;
+    private final StatementLineReview statementLineReview;
 
     PaymentService(PaymentRepository payments, PaymentAllocationRepository allocations, PaymentReversalRepository reversals,
                    TargetResolver resolver, AllocationService allocationService, PaymentConfirmation confirmation,
@@ -102,7 +104,7 @@ class PaymentService implements PaymentUseCases {
                    PaymentSettingsProvider settings, IdempotencyService idempotency, FileStorage fileStorage,
                    AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, PaymentMetrics metrics,
                    JsonCodec json, Clock clock, ExternalPaymentLocks externalLocks, PaymentProperties properties,
-                   AgreementBreakSuspensionUseCases breakSuspensions) {
+                   AgreementBreakSuspensionUseCases breakSuspensions, StatementLineReview statementLineReview) {
         this.payments = payments;
         this.allocations = allocations;
         this.reversals = reversals;
@@ -124,6 +126,7 @@ class PaymentService implements PaymentUseCases {
         this.externalLocks = externalLocks;
         this.properties = properties;
         this.breakSuspensions = breakSuspensions;
+        this.statementLineReview = statementLineReview;
     }
 
     @Override
@@ -280,8 +283,7 @@ class PaymentService implements PaymentUseCases {
     public ReviewAssessmentView reviewAssessment(UUID paymentId) {
         accessScope.requirePermission(Permission.PAYMENT_REVIEW);
         Payment p = loadVisible(paymentId);
-        Guard.require(p.getSource() == br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
-                && p.isReviewRequired(), "payment.review_not_required", "O pagamento não passou pela aprovação");
+        Guard.require(p.isReviewRequired(), "payment.review_not_required", "O pagamento não passou pela aprovação");
         Money limit = p.getReviewLimit();
         Money considered = p.getReviewConsideredAmount();
         PaymentProperties.ExternalReview config = properties.externalReview();
@@ -295,11 +297,15 @@ class PaymentService implements PaymentUseCases {
     @Override
     public PaymentView approve(UUID paymentId, String note) {
         accessScope.requirePermission(Permission.PAYMENT_REVIEW);
+        // mesma ordem de bloqueio do StatementMatcher e do PixSettlement: instrução, depois pagamento
+        PaymentInstruction locked = statementLineReview.lockInstructionOf(paymentId).orElse(null);
         Payment p = lockForCommand(paymentId);
         Instant now = Instant.now(clock);
         p.approve(currentActor.actorId(), note, now);
+        PaymentInstruction instruction = statementLineReview.instructionForApproval(p, locked);
         metrics.review("APPROVED", Duration.between(p.getInformedAt(), now));
-        confirmation.confirmed(p, null, "review");
+        confirmation.confirmed(p, instruction, "review");
+        statementLineReview.approved(p, currentActor.actorId(), now);
         reviewClosed(p);
         return view(p);
     }
@@ -313,6 +319,7 @@ class PaymentService implements PaymentUseCases {
         payments.save(p);
         metrics.review("REJECTED", Duration.between(p.getInformedAt(), now));
         recorder.rejected(p);
+        statementLineReview.rejected(p);
         reviewClosed(p);
         return view(p);
     }

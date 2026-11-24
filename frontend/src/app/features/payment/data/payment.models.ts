@@ -224,8 +224,8 @@ export interface PaymentView {
 
 export type StatementFormat = 'CSV_GENERIC' | 'CNAB_240' | 'CNAB_400';
 export type StatementImportStatus = 'RECEIVED' | 'PROCESSING' | 'PROCESSED' | 'FAILED' | 'CANCELLED';
-export type StatementLineStatus = 'RECONCILED' | 'CREATED_PAYMENT' | 'DIVERGENT' | 'ALREADY_RECONCILED' | 'IGNORED_DUPLICATE' | 'IGNORED_DEBIT';
-export type DivergenceType = 'AMOUNT_MISMATCH' | 'DUPLICATE_PAYMENT' | 'UNMATCHED' | 'NOT_CONFIRMED' | 'PARTIAL_REFUND';
+export type StatementLineStatus = 'RECONCILED' | 'CREATED_PAYMENT' | 'DIVERGENT' | 'ALREADY_RECONCILED' | 'IGNORED_DUPLICATE' | 'IGNORED_DEBIT' | 'PENDING_REVIEW' | 'REVIEW_REJECTED';
+export type DivergenceType = 'AMOUNT_MISMATCH' | 'DUPLICATE_PAYMENT' | 'UNMATCHED' | 'NOT_CONFIRMED' | 'PARTIAL_REFUND' | 'SELF_RECONCILIATION';
 export type DivergenceStatus = 'OPEN' | 'RESOLVED' | 'DISMISSED';
 export type DivergenceResolution = 'MATCHED_PAYMENT' | 'ACCEPTED' | 'DISMISSED';
 
@@ -402,7 +402,7 @@ export interface PaymentSettingsRequest {
 export interface ReviewAssessmentView {
   paymentId: string;
   /** Nulo em pagamento registrado antes de o motivo ser gravado (compara com o limite atual por pagamento). */
-  reason: 'AMOUNT' | 'DESTINATION_CUMULATIVE' | 'INFORMER_CUMULATIVE' | null;
+  reason: 'AMOUNT' | 'DESTINATION_CUMULATIVE' | 'INFORMER_CUMULATIVE' | 'STATEMENT_LINE' | null;
   limit: number | null;
   consideredAmount: number | null;
   excess: number | null;

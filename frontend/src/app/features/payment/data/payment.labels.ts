@@ -85,6 +85,7 @@ export const DIVERGENCE_TYPE_LABELS: Record<DivergenceType, string> = {
   UNMATCHED: 'Sem correspondência',
   NOT_CONFIRMED: 'Pagamento não confirmado',
   PARTIAL_REFUND: 'Devolução parcial',
+  SELF_RECONCILIATION: 'Extrato de quem informou',
 };
 
 /** O que a divergência significa e o que costuma resolvê-la. */
@@ -94,6 +95,7 @@ export const DIVERGENCE_TYPE_HINTS: Record<DivergenceType, string> = {
   UNMATCHED: 'Crédito no extrato sem instrução, pagamento ou parcela correspondente. Vincule ao pagamento certo ou descarte.',
   NOT_CONFIRMED: 'O extrato cita um pagamento que ainda aguarda aprovação. Aprove o pagamento e depois vincule.',
   PARTIAL_REFUND: 'O PSP devolveu parte de um Pix. O estorno no sistema é total: analise e estorne se for o caso.',
+  SELF_RECONCILIATION: 'Quem enviou o extrato é quem informou este pagamento. Outra pessoa confere o crédito no banco e vincula.',
 };
 
 export const RESOLUTION_LABELS: Record<DivergenceResolution, string> = {
@@ -127,6 +129,7 @@ export const EXPIRATION_OPTIONS: readonly { value: number | null; label: string 
 /** Mensagens das recusas de regra que a tela apresenta por conta própria. */
 export const PAYMENT_ERROR_LABELS: Record<string, string> = {
   'payment.self_review': 'Você informou este pagamento. A aprovação precisa ser feita por outra pessoa com permissão de revisão.',
+  'payment.instruction_already_paid': 'A cobrança citada no extrato já foi paga por outro pagamento. Recuse este para não baixar em dobro.',
   'payment.self_reconciliation': 'Você informou este pagamento e não pode conciliá-lo. Peça a outra pessoa do financeiro.',
   'payment.not_pending_review': 'Este pagamento já foi revisado. Recarregue a tela.',
   'payment.not_reversible': 'Somente pagamentos confirmados ou conciliados podem ser estornados.',

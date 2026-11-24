@@ -218,7 +218,7 @@ class PaymentStatementCancelIT extends PaymentTestSupport {
         assertThat(processed.status()).isEqualTo("PROCESSED");
         assertThat(processed.totalLines()).isEqualTo(TOTAL_LINES);
         assertThat(processed.createdPayments()).isEqualTo(1);
-        assertThat(processed.reconciledLines()).isEqualTo(2);
+        assertThat(processed.reconciledLines()).isEqualTo(1);
         assertThat(processed.divergentLines()).isEqualTo(3);
         assertThat(processed.ignoredLines()).isEqualTo(DEBITS);
         assertThat(lines(importId)).isEqualTo(TOTAL_LINES);

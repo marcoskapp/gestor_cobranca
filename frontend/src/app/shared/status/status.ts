@@ -556,6 +556,8 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     ALREADY_RECONCILED: { label: 'Já conciliada', tone: 'neutral' },
     IGNORED_DUPLICATE: { label: 'Repetida (ignorada)', tone: 'neutral' },
     IGNORED_DEBIT: { label: 'Débito (ignorado)', tone: 'neutral' },
+    PENDING_REVIEW: { label: 'Pagamento em aprovação', tone: 'info' },
+    REVIEW_REJECTED: { label: 'Pagamento recusado', tone: 'danger' },
   },
   /** Divergência de conciliação (`DivergenceStatus`). */
   divergence: {

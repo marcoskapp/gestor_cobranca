@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * O que ainda pode baixar parcelas do acordo e o negotiation não conhece: pagamentos externos informados
- * aguardando a revisão de outra pessoa e alocações já confirmadas ainda não baixadas (em trânsito).
+ * O que ainda pode baixar parcelas do acordo e o negotiation não conhece: pagamentos aguardando a revisão de
+ * outra pessoa (externos acima do limite e créditos de extrato importado — decisão 1451) e alocações já confirmadas ainda não baixadas (em trânsito).
  * Implementada pelo módulo payment (ADR-0010), lida na mesma transação do job de quebra — a fonte é o
  * próprio payment, sem cópia nem atraso de evento.
  * <p>
@@ -23,10 +23,10 @@ public interface PaymentReviewHolds {
     PaymentHold holdFor(UUID agreementId, Instant reviewedSince);
 
     /**
-     * @param pending           externos {@code INFORMED} com o acordo como destino, do mais antigo ao mais recente
+     * @param pending           pagamentos {@code INFORMED} em revisão com o acordo como destino, do mais antigo ao mais recente
      * @param inTransit         ids das alocações ao acordo confirmadas e ainda sem retorno do negotiation (o
      *                          {@code paymentId} do {@code PaymentConfirmed})
-     * @param reviewed          externos com o acordo como destino revisados por segunda pessoa desde {@code reviewedSince}
+     * @param reviewed          pagamentos com o acordo como destino revisados por segunda pessoa desde {@code reviewedSince}
      */
     record PaymentHold(List<PendingReview> pending, List<UUID> inTransit, List<ReviewOutcome> reviewed) {
 

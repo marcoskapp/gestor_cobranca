@@ -572,22 +572,29 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.instruction', version: 1, path: '/pagamentos/instrucoes/:id', tourId: 'payment.instruction' },
   {
     key: 'payment.review',
-    version: 4,
+    version: 5,
     path: '/pagamentos/aprovacoes',
     tourId: 'payment.review',
     changes: [
       { version: 2, items: ['Coluna "Destino solicitado": para onde o valor vai (parcelas do acordo ou títulos) antes de aprovar.'] },
       { version: 3, items: ['Filtros de credor e de onde o pagamento entrou; "Revisar" abre a decisão com quanto passa do limite, "Aprovar e abrir a próxima" e o contador "1 de N".'] },
       { version: 4, items: ['No celular, os filtros ficam no botão "Filtros (n)", com quantos estão aplicados.'] },
+      { version: 5, items: ['Crédito de extrato importado que cita uma cobrança do sistema entra aqui para outra pessoa aprovar ("Extrato importado"); quem importou o extrato não aprova.'] },
     ],
   },
   // decisão da fila antes do detalhe do pagamento (":id" casaria o caminho)
-  { key: 'payment.approval', version: 1, path: '/pagamentos/aprovacoes/:id', tourId: 'approval.decision' },
+  {
+    key: 'payment.approval',
+    version: 2,
+    path: '/pagamentos/aprovacoes/:id',
+    tourId: 'approval.decision',
+    changes: [{ version: 2, items: ['Pagamento vindo de extrato importado mostra "Crédito em extrato importado": confira o crédito no extrato do banco antes de aprovar.'] }],
+  },
   { key: 'payment.reallocation', version: 1, path: '/pagamentos/sobras', tourId: 'payment.reallocation' },
   { key: 'payment.reconciliation', version: 1, path: '/pagamentos/conciliacao', tourId: 'payment.reconciliation' },
   {
     key: 'payment.statement',
-    version: 5,
+    version: 6,
     path: '/pagamentos/conciliacao/:id',
     tourId: 'payment.statement',
     changes: [
@@ -595,14 +602,18 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Botão "Tentar novamente" na importação com falha: continua de onde parou, sem baixa repetida.', 'A falha mostra a linha do arquivo onde o problema apareceu.'] },
       { version: 4, items: ['Botão "Cancelar processamento" na importação na fila ou em processamento: para onde está, com motivo, e o que já foi gravado fica valendo.', 'A importação cancelada aceita "Tentar novamente", que continua de onde parou.'] },
       { version: 5, items: ['"Cancelar processamento" foi para o menu "Mais ações" (⋯), separado das demais ações.'] },
+      { version: 6, items: ['Linha que cita uma cobrança do sistema aparece como "Pagamento em aprovação" até outra pessoa aprovar (ou "Pagamento recusado").'] },
     ],
   },
   {
     key: 'payment.divergences',
-    version: 2,
+    version: 3,
     path: '/pagamentos/divergencias',
     tourId: 'payment.divergences',
-    changes: [{ version: 2, items: ['Filtros por credor e por data de abertura ("Aberta de" e "Aberta até"). O painel de confiabilidade abre esta lista já filtrada.'] }],
+    changes: [
+      { version: 2, items: ['Filtros por credor e por data de abertura ("Aberta de" e "Aberta até"). O painel de confiabilidade abre esta lista já filtrada.'] },
+      { version: 3, items: ['Tipo novo "Extrato de quem informou": o extrato foi enviado por quem informou o pagamento; outra pessoa confere o crédito no banco e vincula.'] },
+    ],
   },
   {
     key: 'payment.pix-accounts',

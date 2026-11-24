@@ -8,7 +8,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Suspensão da quebra do acordo enquanto há pagamento externo aguardando revisão (decisão do responsável
+ * Suspensão da quebra do acordo enquanto há pagamento aguardando revisão — externo acima do limite ou crédito de
+ * extrato importado, decisão 1451 (decisão do responsável
  * de 26/10/2026; {@code negociacao-e-alcadas.md} §10.6.1). A suspensão começa e termina no servidor — no
  * job diário de quebra e quando o payment conclui uma revisão —, sempre conferindo a situação dos
  * pagamentos na fonte ({@code PaymentReviewHolds}); nenhum cliente a liga ou desliga diretamente.

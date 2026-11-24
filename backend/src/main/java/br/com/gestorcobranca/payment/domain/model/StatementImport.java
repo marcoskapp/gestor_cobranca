@@ -194,7 +194,9 @@ public class StatementImport extends TenantScopedEntity {
                     createdPayments += n;
                     reconciledLines += n;
                 }
-                case DIVERGENT -> divergentLines += n;
+                // pagamento criado, aguardando a aprovação de outra pessoa: ainda não conciliado
+                case PENDING_REVIEW -> createdPayments += n;
+                case DIVERGENT, REVIEW_REJECTED -> divergentLines += n;
                 case ALREADY_RECONCILED, IGNORED_DUPLICATE, IGNORED_DEBIT -> ignoredLines += n;
             }
         });

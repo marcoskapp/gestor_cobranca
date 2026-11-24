@@ -275,7 +275,7 @@ describe('conteúdo do onboarding', () => {
     // v17: aba "Acordos"; v18: prévia do template com o nome e o credor preenchidos, acompanhando a digitação
     expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(18);
     expect(findTour('collection.station')?.version).toBe(4);
-    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(4);
+    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(5);
     // aprovações no padrão único (revisão 11/2026, 3.1): decisão da fila antes do detalhe (":id" casaria o caminho)
     expect(findScreen('/pagamentos/aprovacoes/pay-1')?.key).toBe('payment.approval');
     expect(findScreen('/titulos/correcoes-de-valor/aj-1')?.key).toBe('debt.title-amount-approval');
@@ -291,7 +291,7 @@ describe('conteúdo do onboarding', () => {
     expect(findScreen('/pagamentos/conciliacao/st-1')?.changes?.find((c) => c.version === 3)?.items.join(' ')).toContain('Tentar novamente');
     // pedido do responsável: cancelar o processamento do extrato, com novidade na tela e tour revisado
     // v5: "Cancelar processamento" no "Mais ações" (frente F)
-    expect(findScreen('/pagamentos/conciliacao/st-1')?.version).toBe(5);
+    expect(findScreen('/pagamentos/conciliacao/st-1')?.version).toBe(6);
     expect(findScreen('/pagamentos/conciliacao/st-1')?.changes?.find((c) => c.version === 4)?.items.join(' ')).toContain('Cancelar processamento');
     expect(findTour('payment.statement')?.version).toBe(4);
     // nota de versão nova, a mais recente primeiro

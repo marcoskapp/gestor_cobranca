@@ -1367,13 +1367,13 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'payment.review',
-    version: 3,
+    version: 4,
     title: 'Aprovação de pagamentos',
-    summary: 'Segunda pessoa para pagamentos informados acima do limite.',
+    summary: 'Segunda pessoa para pagamentos informados acima do limite e créditos de extrato importado.',
     steps: [
-      { anchor: 'review-segregation', title: 'Quem informa não aprova', body: 'Os pagamentos que você informou não aparecem aqui; o sistema recusa a aprovação própria.' },
+      { anchor: 'review-segregation', title: 'Quem informa não aprova', body: 'Os pagamentos que você informou ou cujo extrato você importou não aparecem aqui; o sistema recusa a aprovação própria.' },
       { anchor: 'filters', title: 'Filtros', body: 'Filtre por credor e por onde o pagamento entrou; a decisão abre na mesma fila filtrada.' },
-      { anchor: 'data-table', title: 'Revisar', body: 'Confira o destino solicitado e o comprovante; "Revisar" mostra quanto passa do limite para aprovar ou recusar.', placement: 'above' },
+      { anchor: 'data-table', title: 'Revisar', body: 'Confira o destino solicitado e o comprovante (no extrato importado, o crédito no extrato do banco); "Revisar" mostra o motivo para aprovar ou recusar.', placement: 'above' },
     ],
   },
   {

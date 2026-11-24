@@ -45,7 +45,7 @@
   @if (act.ownPending) {
     <div class="alert alert-info d-flex gap-2 align-items-start" role="note" data-tour="payment-own">
       <app-icon name="people" />
-      <span>Você informou este pagamento. Por segurança, a aprovação precisa ser feita por <strong>outra pessoa</strong> com permissão de revisão — o sistema recusa a aprovação de quem informou.</span>
+      <span>{{ fromStatement(p) ? 'Você importou o extrato deste pagamento.' : 'Você informou este pagamento.' }} Por segurança, a aprovação precisa ser feita por <strong>outra pessoa</strong> com permissão de revisão — o sistema recusa a aprovação de quem {{ fromStatement(p) ? 'importou o extrato' : 'informou' }}.</span>
     </div>
   } @else if (p.status === 'INFORMED' && !act.review) {
     <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
@@ -200,7 +200,7 @@
             <dt>Onde entrou</dt>
             <dd>{{ origins[p.externalOrigin] }}</dd>
           }
-          @if (p.reviewMode) {
+          @if (p.reviewMode && p.status !== 'INFORMED' && p.status !== 'REJECTED') {
             <dt>Confirmação</dt>
             <dd>{{ reviewModes[p.reviewMode] }}</dd>
           }
@@ -217,7 +217,7 @@
             <dd><a [routerLink]="['/pagamentos/instrucoes', p.instructionId]">Abrir instrução</a></dd>
           }
           @if (p.informedBy) {
-            <dt>Informado por</dt>
+            <dt>{{ fromStatement(p) ? 'Extrato importado por' : 'Informado por' }}</dt>
             <dd>{{ userName(p.informedBy) }}</dd>
           }
           @if (p.note) {

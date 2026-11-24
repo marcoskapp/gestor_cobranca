@@ -71,8 +71,9 @@ class PaymentStatementResumeIT extends PaymentTestSupport {
         StatementImportView interrupted = asFinance2(() -> reconciliation.getImport(received.id()));
         assertThat(interrupted.status()).isEqualTo("PROCESSING");
         assertThat(lines(received.id())).isEqualTo(500);
-        // o primeiro lote já confirmou a baixa do Pix; o segundo (TED e depósito repetido) foi desfeito por inteiro
-        assertThat(asOperator(() -> instructions.get(fixture.pix().id())).status()).isEqualTo("PAID");
+        // o primeiro lote já criou o pagamento do Pix (em revisão por outra pessoa, instrução aberta); o segundo (TED e
+        // depósito repetido) foi desfeito por inteiro
+        assertThat(asOperator(() -> instructions.get(fixture.pix().id())).status()).isEqualTo("ACTIVE");
         assertThat(asFinance1(() -> payments.get(fixture.doc1().id())).status()).isEqualTo("CONFIRMED");
         assertThat(job(received.id())).isEqualTo("PENDING");
 
@@ -83,15 +84,16 @@ class PaymentStatementResumeIT extends PaymentTestSupport {
         assertThat(processed.status()).isEqualTo("PROCESSED");
         assertThat(processed.totalLines()).isEqualTo(FAILING_LINE - 1);
         assertThat(processed.createdPayments()).isEqualTo(1);
-        assertThat(processed.reconciledLines()).isEqualTo(2);
+        assertThat(processed.reconciledLines()).isEqualTo(1);
         assertThat(processed.divergentLines()).isEqualTo(3);
         assertThat(processed.ignoredLines()).isEqualTo(DEBITS);
         assertThat(lines(received.id())).isEqualTo(FAILING_LINE - 1);
         // sem baixa duplicada: um só pagamento da instrução e a TED conciliada uma vez
         assertThat(count("select count(*) from payment.payment where instruction_id = ?", fixture.pix().id())).isEqualTo(1);
         assertThat(asFinance1(() -> payments.get(fixture.doc1().id())).status()).isEqualTo("RECONCILED");
+        // só a TED concilia pelo extrato; o Pix espera a aprovação de outra pessoa (SEG-20261124-C01)
         assertThat(count("select count(*) from shared.business_event where event_type = 'payment.reconciled' "
-                + "and attributes ->> 'mode' = 'STATEMENT'")).isEqualTo(2);
+                + "and attributes ->> 'mode' = 'STATEMENT'")).isEqualTo(1);
         // o depósito repetido no segundo lote continua sendo a 2ª ocorrência, não uma duplicata do primeiro
         assertThat(count("select count(*) from payment.statement_line where import_id = ? and status = 'IGNORED_DUPLICATE'",
                 received.id())).isZero();
@@ -182,14 +184,15 @@ class PaymentStatementResumeIT extends PaymentTestSupport {
         assertThat(processed.failureCode()).isNull();
         assertThat(processed.totalLines()).isEqualTo(FAILING_LINE - 1);
         assertThat(processed.createdPayments()).isEqualTo(1);
-        assertThat(processed.reconciledLines()).isEqualTo(2);
+        assertThat(processed.reconciledLines()).isEqualTo(1);
         assertThat(processed.divergentLines()).isEqualTo(3);
         assertThat(lines(received.id())).isEqualTo(FAILING_LINE - 1);
         // sem baixa duplicada: um só pagamento da instrução e a TED conciliada uma vez
         assertThat(count("select count(*) from payment.payment where instruction_id = ?", fixture.pix().id())).isEqualTo(1);
         assertThat(asFinance1(() -> payments.get(fixture.doc1().id())).status()).isEqualTo("RECONCILED");
+        // só a TED concilia pelo extrato; o Pix espera a aprovação de outra pessoa (SEG-20261124-C01)
         assertThat(count("select count(*) from shared.business_event where event_type = 'payment.reconciled' "
-                + "and attributes ->> 'mode' = 'STATEMENT'")).isEqualTo(2);
+                + "and attributes ->> 'mode' = 'STATEMENT'")).isEqualTo(1);
         assertThat(count("select count(*) from payment.divergence where statement_line_id in "
                 + "(select id from payment.statement_line where import_id = ?)", received.id())).isEqualTo(3);
         // auditoria da nova tentativa com o antes e o depois

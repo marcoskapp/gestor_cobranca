@@ -132,9 +132,16 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
         return findAll(spec, pageable);
     }
 
+    @Override
+    @Query("""
+            select p.instructionId from Payment p
+             where p.id = :paymentId and p.reviewReason = 'STATEMENT_LINE'
+            """)
+    Optional<UUID> findStatementReviewInstructionId(@Param("paymentId") UUID paymentId);
+
     @Query("""
             select p from Payment p
-             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+             where p.reviewRequired = true
                and p.targetAgreementId in :agreementIds
                and (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
                     or (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.REJECTED
@@ -146,7 +153,7 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
 
     @Query("""
             select p from Payment p
-             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+             where p.reviewRequired = true
                and p.targetAgreementId in :agreementIds and p.creditorId in :creditors
                and (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
                     or (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.REJECTED
@@ -170,7 +177,7 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
     @Override
     @Query("""
             select p from Payment p
-             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+             where p.reviewRequired = true
                and p.creditorId = :creditorId and p.debtorId = :debtorId
                and (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
                     or (p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.REJECTED
@@ -183,7 +190,7 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
     @Override
     @Query("""
             select p from Payment p
-             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+             where p.reviewRequired = true
                and p.targetAgreementId = :agreementId
                and p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
              order by p.informedAt, p.id
@@ -193,7 +200,7 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
     @Override
     @Query("""
             select p from Payment p
-             where p.source = br.com.gestorcobranca.payment.domain.model.PaymentSource.EXTERNAL
+             where p.reviewRequired = true
                and p.targetAgreementId = :agreementId
                and p.reviewMode = br.com.gestorcobranca.payment.domain.model.ReviewMode.DUAL_CONTROL
                and p.reviewedAt >= :since

@@ -26,6 +26,7 @@ import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, PAYMENT_ERROR_LABELS } from '../data/payment.labels';
 import { PaymentView, ReviewAssessmentView } from '../data/payment.models';
+import { fromStatementReview } from '../data/payment.rules';
 import { breakHoldBadge } from '../data/review-status';
 
 /** Filtros da fila que seguem na URL da decisão (os mesmos da lista). */
@@ -54,6 +55,8 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
       return [{ label: 'Soma do devedor neste credor', hint: `pagamentos ${window}`, requested: formatAmount(a.consideredAmount ?? 0), limit: formatAmount(a.limit ?? 0), excess: excessText(a.excess, a.limit) }];
     case 'INFORMER_CUMULATIVE':
       return [{ label: 'Soma de quem informou', hint: `pagamentos ${window}`, requested: formatAmount(a.consideredAmount ?? 0), limit: formatAmount(a.limit ?? 0), excess: excessText(a.excess, a.limit) }];
+    case 'STATEMENT_LINE':
+      return [{ label: 'Crédito em extrato importado', hint: 'arquivo enviado por uma pessoa: confira o crédito no extrato do banco', requested: formatAmount(p.amount), limit: 'sempre revisado', excess: null }];
     default:
       return [
         {
@@ -84,12 +87,18 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
         <button class="btn btn-outline-primary" type="button" (click)="queue.backToQueue()">Voltar para a fila</button>
       </app-empty-state>
     } @else if (payment(); as p) {
-      <app-page-header [title]="'Aprovação · ' + debtors.name(p.debtorId)" [subtitle]="'Pagamento informado em ' + (p.informedAt | appDate) + ' · ' + creditors.name(p.creditorId)">
+      <app-page-header
+        [title]="'Aprovação · ' + debtors.name(p.debtorId)"
+        [subtitle]="(fromStatement(p) ? 'Extrato importado em ' : 'Pagamento informado em ') + (p.informedAt | appDate) + ' · ' + creditors.name(p.creditorId)"
+      >
         @if (p.evidenceAvailable) {
           <button class="btn btn-outline-secondary" type="button" (click)="download(p)" [disabled]="downloading()" data-tour="payment-evidence">
             <app-icon name="paperclip" />
             Baixar comprovante
           </button>
+        }
+        @if (fromStatement(p) && p.instructionId) {
+          <a class="btn btn-outline-secondary" [routerLink]="['/pagamentos/instrucoes', p.instructionId]">Cobrança citada</a>
         }
         <a class="btn btn-outline-secondary" [routerLink]="['/pagamentos', p.id]">Ficha do pagamento</a>
       </app-page-header>
@@ -131,12 +140,12 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
       }
 
       <section class="app-card pa-card" aria-labelledby="pa-data">
-        <h2 class="app-card__title" id="pa-data">O que foi informado</h2>
+        <h2 class="app-card__title" id="pa-data">{{ fromStatement(p) ? 'Crédito no extrato' : 'O que foi informado' }}</h2>
         <div class="app-kpi-grid">
           <app-kpi-card label="Valor pago" info="payment.detail.amount"><app-amount [value]="p.amount" /></app-kpi-card>
           <app-kpi-card label="Pago em" record variant="text">{{ p.paidAt | appDate }}</app-kpi-card>
           <app-kpi-card label="Meio" record variant="text">{{ methods[p.method] }}</app-kpi-card>
-          <app-kpi-card label="Onde entrou" record variant="text">{{ p.externalOrigin ? origins[p.externalOrigin] : '—' }}</app-kpi-card>
+          <app-kpi-card label="Onde entrou" record variant="text">{{ p.externalOrigin ? origins[p.externalOrigin] : fromStatement(p) ? 'Extrato importado' : '—' }}</app-kpi-card>
         </div>
         <dl class="app-definition-list">
           <dt>Devedor</dt>
@@ -149,16 +158,21 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
           </dd>
           <dt>Credor</dt>
           <dd>{{ creditors.name(p.creditorId) }}</dd>
-          <dt>Referência</dt>
-          <dd>{{ p.externalReference ?? '—' }}</dd>
-          <dt>Observação de quem informou</dt>
-          <dd>{{ p.note ?? '—' }}</dd>
+          @if (fromStatement(p)) {
+            <dt>Id da transação</dt>
+            <dd class="app-mono">{{ p.providerTransactionId ?? 'Não veio no extrato' }}</dd>
+          } @else {
+            <dt>Referência</dt>
+            <dd>{{ p.externalReference ?? '—' }}</dd>
+            <dt>Observação de quem informou</dt>
+            <dd>{{ p.note ?? '—' }}</dd>
+          }
           <dt>Destino solicitado</dt>
           <dd>
             @if (p.requestedTarget; as t) {
               <app-requested-target [target]="t" />
             } @else {
-              <span class="app-muted">Definido por quem informou (aplicado na aprovação)</span>
+              <span class="app-muted">{{ fromStatement(p) ? 'O da cobrança citada (aplicado na aprovação)' : 'Definido por quem informou (aplicado na aprovação)' }}</span>
             }
           </dd>
         </dl>
@@ -221,12 +235,28 @@ export class PaymentApproval {
   });
   protected readonly requester = computed<ApprovalParty>(() => {
     const p = this.payment();
-    return { name: p?.informedBy ? (p.informedBy === this.auth.user()?.id ? 'Você' : this.users.name(p.informedBy)) : '—', role: 'informou o pagamento' };
+    return {
+      name: p?.informedBy ? (p.informedBy === this.auth.user()?.id ? 'Você' : this.users.name(p.informedBy)) : '—',
+      role: p && fromStatementReview(p) ? 'importou o extrato' : 'informou o pagamento',
+    };
   });
   protected readonly approver = computed<ApprovalParty | null>(() => (this.canReview() ? { name: 'Você', role: 'revisão por segunda pessoa' } : null));
   protected readonly blockedReason = computed(() =>
-    this.assessment()?.ownPayment ? 'Você informou este pagamento: a aprovação é de outra pessoa (segregação de funções, inclusive para administradores).' : null,
+    this.assessment()?.ownPayment
+      ? this.isFromStatement()
+        ? 'Você importou o extrato deste pagamento: a aprovação é de outra pessoa (segregação de funções, inclusive para administradores).'
+        : 'Você informou este pagamento: a aprovação é de outra pessoa (segregação de funções, inclusive para administradores).'
+      : null,
   );
+
+  protected fromStatement(p: PaymentView): boolean {
+    return fromStatementReview(p);
+  }
+
+  private isFromStatement(): boolean {
+    const p = this.payment();
+    return !!p && fromStatementReview(p);
+  }
 
   protected holdBadge(p: PaymentView) {
     return breakHoldBadge(p.breakSuspension);
@@ -243,8 +273,11 @@ export class PaymentApproval {
   protected approve(p: PaymentView): void {
     this.confirm
       .confirm({
-        title: 'Aprovar pagamento informado',
-        message: 'O valor passa a abater a dívida nos destinos informados. Confira o comprovante antes de aprovar.',
+        title: fromStatementReview(p) ? 'Aprovar pagamento do extrato' : 'Aprovar pagamento informado',
+        message:
+          fromStatementReview(p)
+            ? 'O valor passa a abater a dívida e a cobrança citada no extrato fica paga. Confira o crédito no extrato do banco antes de aprovar.'
+            : 'O valor passa a abater a dívida nos destinos informados. Confira o comprovante antes de aprovar.',
         confirmLabel: 'Aprovar',
         reason: 'optional',
         reasonLabel: 'Observação (opcional)',
@@ -256,8 +289,10 @@ export class PaymentApproval {
   protected reject(p: PaymentView): void {
     this.confirm
       .confirm({
-        title: 'Recusar pagamento informado',
-        message: 'O pagamento não baixa a dívida e fica registrado como recusado, com o seu motivo.',
+        title: fromStatementReview(p) ? 'Recusar pagamento do extrato' : 'Recusar pagamento informado',
+        message: fromStatementReview(p)
+          ? 'O pagamento não baixa a dívida, a cobrança continua em aberto e a linha do extrato fica como "Pagamento recusado", com o seu motivo.'
+          : 'O pagamento não baixa a dívida e fica registrado como recusado, com o seu motivo.',
         confirmLabel: 'Recusar',
         destructive: true,
         reason: 'required',

@@ -201,6 +201,45 @@ public class Payment extends TenantScopedEntity {
         return p;
     }
 
+    /** Motivo da revisão do pagamento criado por linha de extrato enviada por uma pessoa (sem limite: sempre revisado). */
+    public static final String REVIEW_REASON_STATEMENT_LINE = "STATEMENT_LINE";
+
+    /**
+     * Pagamento de uma instrução citada numa linha de extrato enviada por uma pessoa (SEG-20261124-C01): o arquivo não
+     * prova que o dinheiro entrou, então o pagamento nasce {@code INFORMED} e só é confirmado (alocado, instrução paga)
+     * quando outra pessoa aprova — quem importou o extrato é quem "informou". O destino é o da instrução; o identificador
+     * da transação da linha só é vinculado na aprovação.
+     */
+    public static Payment fromStatementPendingReview(PaymentMethod method, UUID creditorId, UUID debtorId, Money amount,
+                                                     Instant paidAt, UUID instructionId, Target target, UUID importedBy,
+                                                     UUID statementLineId, Instant now) {
+        Guard.require(instructionId != null, "payment.instruction_required", "Instrução obrigatória");
+        Guard.require(target != null, "payment.target_required", "Destino obrigatório");
+        Guard.require(importedBy != null, "payment.informer_required", "Responsável pelo registro obrigatório");
+        Guard.require(statementLineId != null, "payment.statement_line_required", "Linha do extrato obrigatória");
+        Payment p = new Payment(PaymentSource.PROVIDER, method, creditorId, debtorId, amount, paidAt);
+        // sem o identificador da transação até a aprovação (StatementLineReview#approved): gravado aqui, faria a
+        // confirmação real do PSP ser tratada como "já conhecida" e, recusado, bloquearia o Pix verdadeiro
+        p.instructionId = instructionId;
+        p.targetKind = target.kind();
+        p.targetAgreementId = target.agreementId();
+        p.targetItems = target.itemsJson();
+        p.targetStrategy = target.strategy();
+        p.informedBy = importedBy;
+        p.informedAt = now;
+        p.reviewRequired = true;
+        p.reviewReason = REVIEW_REASON_STATEMENT_LINE;
+        p.reviewMode = ReviewMode.DUAL_CONTROL;
+        p.status = PaymentStatus.INFORMED;
+        p.statementLineId = statementLineId;
+        return p;
+    }
+
+    /** Criado por linha de extrato e aguardando (ou já tendo passado pela) revisão de outra pessoa. */
+    public boolean isFromStatementReview() {
+        return REVIEW_REASON_STATEMENT_LINE.equals(reviewReason);
+    }
+
     /**
      * Pagamento externo informado por um operador. Acima do limite de risco ({@code reviewRequired})
      * fica {@code INFORMED} até a aprovação de outra pessoa; até o limite é confirmado na hora.
@@ -302,9 +341,9 @@ public class Payment extends TenantScopedEntity {
         }
         Guard.requireState(status == PaymentStatus.CONFIRMED, "payment.not_confirmed",
                 "Somente pagamento confirmado pode ser conciliado");
-        if (mode == ReconciliationMode.MANUAL && source == PaymentSource.EXTERNAL && Objects.equals(by, informedBy)) {
+        if (!reconcilableBy(mode, by)) {
             throw new BusinessRuleException("payment.self_reconciliation",
-                    "Quem informou o pagamento não pode conciliá-lo manualmente");
+                    "Quem informou o pagamento não pode conciliá-lo");
         }
         this.status = PaymentStatus.RECONCILED;
         this.reconciliationMode = mode;
@@ -312,6 +351,16 @@ public class Payment extends TenantScopedEntity {
         this.statementLineId = statementLineId;
         this.reconciledAt = now;
         return true;
+    }
+
+    /**
+     * Segregação na conciliação: quem informou o pagamento (externo, ou quem importou o extrato do crédito em revisão)
+     * não o concilia, nem manualmente nem com um extrato que ele mesmo enviou (SEG-20261124-C01) — a conferência com o
+     * banco precisa vir de outra pessoa ou do provedor. Vale para toda origem com pessoa responsável.
+     */
+    public boolean reconcilableBy(ReconciliationMode mode, UUID by) {
+        boolean byPerson = mode == ReconciliationMode.MANUAL || mode == ReconciliationMode.STATEMENT;
+        return !(byPerson && informedBy != null && Objects.equals(by, informedBy));
     }
 
     /** Estorno total: o pagamento permanece, como {@code REVERSED}; as alocações são revertidas pelo serviço. */

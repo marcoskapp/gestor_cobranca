@@ -9,7 +9,6 @@ import br.com.gestorcobranca.payment.domain.model.PaymentInstruction;
 import br.com.gestorcobranca.payment.domain.model.PaymentMethod;
 import br.com.gestorcobranca.payment.domain.model.PaymentStatus;
 import br.com.gestorcobranca.payment.domain.model.ReconciliationMode;
-import br.com.gestorcobranca.payment.domain.model.ReviewMode;
 import br.com.gestorcobranca.payment.domain.model.StatementImport;
 import br.com.gestorcobranca.payment.domain.model.BankStatementLine;
 import br.com.gestorcobranca.payment.domain.model.StatementLineStatus;
@@ -21,6 +20,7 @@ import br.com.gestorcobranca.payment.domain.service.PixIdentifiers;
 import br.com.gestorcobranca.payment.domain.service.StatementFingerprint;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.domain.Money;
+import br.com.gestorcobranca.shared.json.JsonCodec;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -39,12 +39,14 @@ import java.util.UUID;
  *   <li>débito → ignorado; mesma transação já importada (impressão digital) → ignorada, sem nova baixa;</li>
  *   <li>identificador da transação = {@code endToEndId}/identificador do provedor ou referência externa
  *       de pagamento informado;</li>
- *   <li>referência = {@code txid} ou id de instrução (sem pagamento ainda: o arquivo de retorno é a
- *       confirmação — cria o pagamento integrado e aloca ao destino da instrução), id de pagamento ou id
- *       de parcela (pagamento confirmado da parcela com o mesmo valor e data dentro da tolerância);</li>
+ *   <li>referência = {@code txid} ou id de instrução (sem pagamento ainda: cria um pagamento {@code INFORMED} com o
+ *       destino da instrução, que só é confirmado quando outra pessoa aprova — o arquivo foi enviado por uma pessoa e
+ *       não prova que o dinheiro entrou, SEG-20261124-C01), id de pagamento ou id de parcela (pagamento confirmado da
+ *       parcela com o mesmo valor e data dentro da tolerância);</li>
  *   <li>sem correspondência → divergência {@code UNMATCHED}.</li>
  * </ol>
- * Valor diferente → {@code AMOUNT_MISMATCH}; pagamento ainda não confirmado → {@code NOT_CONFIRMED}.
+ * Valor diferente → {@code AMOUNT_MISMATCH}; pagamento ainda não confirmado → {@code NOT_CONFIRMED}; pagamento externo
+ * informado por quem enviou o extrato → {@code SELF_RECONCILIATION} (não concilia).
  * Importação restrita a um credor ignora correspondências de outros credores.
  */
 @Component
@@ -54,25 +56,25 @@ class StatementMatcher {
     private final PaymentRepository payments;
     private final PaymentInstructionRepository instructions;
     private final PaymentAllocationRepository allocations;
-    private final PaymentConfirmation confirmation;
     private final PaymentRecorder recorder;
     private final Divergences divergences;
     private final PaymentSettingsProvider settings;
     private final PaymentMetrics metrics;
+    private final JsonCodec json;
     private final Clock clock;
 
     StatementMatcher(BankStatementRepository statements, PaymentRepository payments, PaymentInstructionRepository instructions,
-                     PaymentAllocationRepository allocations, PaymentConfirmation confirmation, PaymentRecorder recorder,
-                     Divergences divergences, PaymentSettingsProvider settings, PaymentMetrics metrics, Clock clock) {
+                     PaymentAllocationRepository allocations, PaymentRecorder recorder, Divergences divergences,
+                     PaymentSettingsProvider settings, PaymentMetrics metrics, JsonCodec json, Clock clock) {
         this.statements = statements;
         this.payments = payments;
         this.instructions = instructions;
         this.allocations = allocations;
-        this.confirmation = confirmation;
         this.recorder = recorder;
         this.divergences = divergences;
         this.settings = settings;
         this.metrics = metrics;
+        this.json = json;
         this.clock = clock;
     }
 
@@ -171,6 +173,10 @@ class StatementMatcher {
         if (p.getStatus() == PaymentStatus.RECONCILED) {
             return new Outcome(StatementLineStatus.ALREADY_RECONCILED, p.getId());
         }
+        if (!p.reconcilableBy(ReconciliationMode.STATEMENT, source.getRequestedBy())) {
+            divergence(DivergenceType.SELF_RECONCILIATION, source, line, p, null);
+            return new Outcome(StatementLineStatus.DIVERGENT, p.getId());
+        }
         if (txId != null && p.getProviderTransactionId() == null && p.getExternalReference() == null) {
             p.attachProviderTransaction(txId);
         }
@@ -181,7 +187,7 @@ class StatementMatcher {
     private Outcome againstInstruction(StatementImport source, BankStatementLine line, PaymentInstruction instruction,
                                        String txId) {
         List<Payment> existing = payments.findByInstructionIdOrderByCreatedAtAsc(instruction.getId()).stream()
-                .filter(Payment::isEffective).toList();
+                .filter(p -> p.isEffective() || p.getStatus() == PaymentStatus.INFORMED).toList();
         if (!existing.isEmpty()) {
             Optional<Payment> same = existing.stream().filter(p -> p.getAmount().equals(line.getAmount())
                     && (txId == null || p.getProviderTransactionId() == null || txId.equals(p.getProviderTransactionId())))
@@ -195,15 +201,17 @@ class StatementMatcher {
         }
         Instant now = Instant.now(clock);
         Instant paidAt = line.getPaidOn().atTime(LocalTime.NOON).atZone(TimeConfig.BUSINESS_ZONE).toInstant();
-        Payment payment = payments.saveAndFlush(Payment.fromProvider(method(instruction), instruction.getCreditorId(),
-                instruction.getDebtorId(), line.getAmount(), paidAt.isAfter(now) ? now : paidAt, instruction.getId(), txId,
-                ReviewMode.STATEMENT, now));
-        confirmation.confirmed(payment, instruction, "statement");
-        reconcile(payment, line, source);
+        AllocationService.Destination destination = AllocationService.Destination.of(instruction);
+        Payment payment = payments.saveAndFlush(Payment.fromStatementPendingReview(method(instruction),
+                instruction.getCreditorId(), instruction.getDebtorId(), line.getAmount(), paidAt.isAfter(now) ? now : paidAt,
+                instruction.getId(), new Payment.Target(destination.kind(), destination.agreementId(),
+                        json.toJson(destination.items()), destination.strategy()),
+                source.getRequestedBy(), line.getId(), now));
+        recorder.informed(payment, Payment.REVIEW_REASON_STATEMENT_LINE);
         if (!line.getAmount().equals(instruction.getAmount())) {
             divergence(DivergenceType.AMOUNT_MISMATCH, source, line, payment, instruction.getAmount());
         }
-        return new Outcome(StatementLineStatus.CREATED_PAYMENT, payment.getId());
+        return new Outcome(StatementLineStatus.PENDING_REVIEW, payment.getId());
     }
 
     private Optional<Payment> byInstallment(StatementImport source, BankStatementLine line, UUID installmentId) {

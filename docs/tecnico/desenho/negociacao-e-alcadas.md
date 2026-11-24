@@ -203,7 +203,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 - Aplicação (consumidor, acordo bloqueado `FOR UPDATE`): valor indicado por parcela e, o excedente, às parcelas seguintes em ordem; acima do saldo do acordo → não aplicado. Acordo encerrado (quebrado, cancelado, renegociado, quitado) → registro `UNAPPLIED` (WARN + métrica): cabe ao payment realocar ou devolver.
 - Idempotência: `shared.consumed_event` + único (acordo, pagamento). Estorno sem acordo informado procura o pagamento em todos os acordos.
 
-- **Pagamento informado aguardando aprovação** (externo acima do limite, `INFORMED` no payment): a parcela continua em aberto até a aprovação gerar o `PaymentConfirmed`, mas **a quebra fica suspensa até a revisão**, por no máximo 7 dias (decisão do responsável de 26/10/2026, que substitui a 437 — §10.6.1). A tela do acordo mostra o aviso, a previsão das parcelas cobertas, os recusados recentes e a suspensão lendo `GET /payment/review-status/...` (payment, `AGREEMENT_VIEW`) — ver `pagamentos.md` §5.1–§5.2 e decisões 430–438 e 540–549. O `AgreementView` não muda.
+- **Pagamento informado aguardando aprovação** (externo acima do limite ou crédito de extrato importado — decisão 1451 —, `INFORMED` no payment): a parcela continua em aberto até a aprovação gerar o `PaymentConfirmed`, mas **a quebra fica suspensa até a revisão**, por no máximo 7 dias (decisão do responsável de 26/10/2026, que substitui a 437 — §10.6.1). A tela do acordo mostra o aviso, a previsão das parcelas cobertas, os recusados recentes e a suspensão lendo `GET /payment/review-status/...` (payment, `AGREEMENT_VIEW`) — ver `pagamentos.md` §5.1–§5.2 e decisões 430–438 e 540–549. O `AgreementView` não muda.
 
 ### 10.5 Lançamentos no razão do título (`DebtLedgerPort`)
 
@@ -221,7 +221,7 @@ Código em `negotiation/{domain/model/proposal,domain/model/agreement,applicatio
 
 #### 10.6.1 Quebra suspensa por pagamento em revisão (decisão do responsável de 26/10/2026; decisões 540–549, ADR-0010)
 
-*"A quebra do acordo deve ser suspensa enquanto o pagamento do acordo estiver pendente de revisão."* O negotiation não depende do payment: ele **declara** a porta `application.port.spi.PaymentReviewHolds` (interface nomeada `spi`) e o payment a implementa. A porta é lida de forma síncrona, com o acordo bloqueado, e devolve os externos `INFORMED` com o acordo como destino, as alocações confirmadas ainda não baixadas aqui (em trânsito) e as revisões concluídas desde o início da suspensão.
+*"A quebra do acordo deve ser suspensa enquanto o pagamento do acordo estiver pendente de revisão."* O negotiation não depende do payment: ele **declara** a porta `application.port.spi.PaymentReviewHolds` (interface nomeada `spi`) e o payment a implementa. A porta é lida de forma síncrona, com o acordo bloqueado, e devolve os pagamentos `INFORMED` em revisão com o acordo como destino (externos e créditos de extrato, decisão 1451), as alocações confirmadas ainda não baixadas aqui (em trânsito) e as revisões concluídas desde o início da suspensão.
 
 | Componente | Onde | Papel |
 | --- | --- | --- |

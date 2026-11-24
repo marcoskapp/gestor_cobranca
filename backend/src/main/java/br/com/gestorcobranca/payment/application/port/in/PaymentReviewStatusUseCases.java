@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Situação de revisão dos pagamentos externos para quem acompanha o acordo ou o caso
+ * Situação de revisão dos pagamentos em revisão (externos e créditos de extrato — decisão 1451) para quem acompanha o acordo ou o caso
  * ({@code AGREEMENT_VIEW}): pagamentos informados aguardando a aprovação de outra pessoa
  * ({@code INFORMED}) e recusados recentemente ({@code REJECTED}), sem a evidência, a observação nem a
  * referência externa — o detalhe completo continua exigindo {@code PAYMENT_VIEW}.

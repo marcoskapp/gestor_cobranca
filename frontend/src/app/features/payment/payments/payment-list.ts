@@ -29,6 +29,7 @@ import { PaymentLauncher } from '../data/payment-launcher';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, SOURCE_LABELS } from '../data/payment.labels';
 import { PaymentFilter, PaymentView } from '../data/payment.models';
+import { fromStatementReview } from '../data/payment.rules';
 
 /** Pagamentos recebidos (Pix integrado, extrato e informados), filtráveis por situação, origem, credor e período. */
 @Component({
@@ -229,7 +230,13 @@ export class PaymentList {
     if (p.source === 'EXTERNAL') {
       return p.externalOrigin ? `Informado · ${ORIGIN_LABELS[p.externalOrigin]}` : 'Informado';
     }
-    return p.reviewMode === 'STATEMENT' ? 'Confirmado pelo extrato' : 'Integrado (PSP)';
+    if (p.reviewMode === 'STATEMENT') {
+      return 'Confirmado pelo extrato';
+    }
+    if (fromStatementReview(p)) {
+      return p.status === 'INFORMED' ? 'Extrato importado · em aprovação' : 'Extrato importado · aprovado por segunda pessoa';
+    }
+    return 'Integrado (PSP)';
   }
 
   protected clear(): void {

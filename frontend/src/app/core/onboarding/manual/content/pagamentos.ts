@@ -4,7 +4,7 @@ export const MANUAL: ModuleManual = {
   id: 'pagamentos',
   overview: [
     'Pagamentos registra todo dinheiro que entra e o leva ao destino certo: a parcela de um acordo ou um título avulso. O Pix integrado é confirmado pelo PSP; dinheiro recebido por outro meio é informado com comprovante.',
-    'Pagamento informado acima do limite da assessoria só é confirmado depois que outra pessoa aprova. O extrato bancário importado na conciliação confirma e confere os recebimentos linha a linha.',
+    'Pagamento informado acima do limite da assessoria só é confirmado depois que outra pessoa aprova. O extrato bancário importado na conciliação confere os recebimentos linha a linha; o crédito que cita uma cobrança do sistema vira pagamento para outra pessoa aprovar, porque o arquivo enviado por uma pessoa não prova a entrada do dinheiro.',
     'O que o sistema não concilia sozinho vira divergência, e o que não abateu dívida vira sobra a realocar ou devolver. Estornos nunca apagam: compensam o lançamento original.',
   ],
   connections: [
@@ -85,13 +85,13 @@ export const MANUAL: ModuleManual = {
     {
       id: 'payment.review',
       title: 'Aprovação de pagamentos',
-      objective: 'Pagamentos informados acima do limite da assessoria, aguardando a conferência de uma segunda pessoa.',
+      objective: 'Pagamentos informados acima do limite da assessoria e créditos de extrato importado, aguardando a conferência de uma segunda pessoa.',
       purpose: [
         'Confira o comprovante e para onde o valor vai antes de aprovar. Os pagamentos que você informou não aparecem aqui. Filtre por credor e por onde o pagamento entrou; "Revisar" abre a decisão na mesma fila.',
         'Enquanto o pagamento aguarda, a quebra do acordo fica suspensa. O selo mostra até quando; com o prazo vencido, a quebra já voltou a valer e o pagamento aparece em destaque.',
       ],
       profiles: ['FINANCEIRO', 'SUPERVISOR'],
-      inputs: ['Pagamentos informados acima do limite definido em Parâmetros de pagamentos.'],
+      inputs: ['Pagamentos informados acima do limite definido em Parâmetros de pagamentos.', 'Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova).'],
       outputs: ['Pagamento confirmado e alocado, ou recusado com motivo.'],
       related: [
         { screen: 'payment.settings', why: 'Limite que exige aprovação.' },
@@ -105,6 +105,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Decida um pagamento informado vendo por que ele passou do limite e quanto passa.',
       purpose: [
         'Mostra o limite ultrapassado no registro: o do pagamento sozinho, a soma do devedor no credor ou a soma de quem informou nas últimas horas, com o excesso em valor e %. Embaixo, o que foi informado, o destino solicitado e o comprovante.',
+        'Crédito de extrato importado aparece como "Crédito em extrato importado" e é sempre revisado: confira o crédito no extrato do banco. Se a cobrança já tiver sido paga pelo Pix, recuse o pagamento do extrato para não baixar em dobro.',
         '"Aprovar e abrir a próxima" e "Recusar e abrir a próxima" seguem na mesma fila filtrada, com o contador "1 de N". Quem informou não aprova, inclusive administradores.',
       ],
       profiles: ['FINANCEIRO', 'SUPERVISOR'],
@@ -134,7 +135,7 @@ export const MANUAL: ModuleManual = {
       purpose: ['Envie o arquivo do banco no layout genérico. A prévia aponta linhas com problema antes do envio; cada importação mostra o resultado do lote.'],
       profiles: ['FINANCEIRO'],
       inputs: ['Extrato bancário da conta de recebimento.'],
-      outputs: ['Pagamentos conciliados ou confirmados pelo extrato; divergências para tratar.'],
+      outputs: ['Pagamentos conciliados; créditos que citam uma cobrança do sistema enviados para aprovação de outra pessoa; divergências para tratar.'],
       related: [
         { screen: 'payment.divergences', why: 'O que não conciliou sozinho.' },
         { screen: 'settlement.statements', why: 'Recebimentos conciliados entram no demonstrativo.' },
@@ -146,7 +147,7 @@ export const MANUAL: ModuleManual = {
       title: 'Extrato importado',
       objective: 'Indicadores de um extrato importado e o tratamento de cada linha.',
       purpose: [
-        'A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados.',
+        'A taxa de conciliação considera os créditos; débitos e linhas repetidas são ignorados. Linha que cita uma cobrança do sistema fica "Pagamento em aprovação" até outra pessoa aprovar em Aprovação de pagamentos (ou "Pagamento recusado"). Extrato enviado por quem informou um pagamento externo não o concilia: vira a divergência "Extrato de quem informou". Linha "Pagamento recusado": veja o motivo na ficha do pagamento; se o crédito existir, trate em Divergências.',
         'Importação com falha mostra o motivo e a linha do arquivo. "Tentar novamente" continua de onde parou: as linhas já gravadas e as baixas delas não se repetem. Se o problema estiver no arquivo, a falha volta com a mesma linha: corrija e importe um arquivo novo.',
         '"Cancelar processamento" (no menu "Mais ações", na fila ou em processamento, com motivo) para a importação onde está: o lote em andamento termina, nenhum outro é gravado e as linhas e baixas já gravadas ficam valendo. Use quando o arquivo estiver errado ou a importação parar de avançar; depois, "Tentar novamente" continua de onde parou.',
       ],
@@ -161,7 +162,7 @@ export const MANUAL: ModuleManual = {
       title: 'Divergências de conciliação',
       objective: 'Créditos que o sistema não conciliou sozinho, para decidir com justificativa.',
       purpose: [
-        'Tipos: valor diferente, duplicidade, sem correspondência, não confirmado e devolução parcial. Concilie com o pagamento certo, aceite ou descarte.',
+        'Tipos: valor diferente, duplicidade, sem correspondência, não confirmado, devolução parcial e extrato de quem informou (outra pessoa vincula). Concilie com o pagamento certo, aceite ou descarte.',
         'Filtre por credor e pela data de abertura ("Aberta de" e "Aberta até"); o painel de confiabilidade abre esta lista já filtrada.',
       ],
       profiles: ['FINANCEIRO'],

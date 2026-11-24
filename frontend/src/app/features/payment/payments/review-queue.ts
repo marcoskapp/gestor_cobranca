@@ -31,6 +31,7 @@ import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS } from '../data/payment.labels';
 import { PaymentView } from '../data/payment.models';
+import { fromStatementReview } from '../data/payment.rules';
 import { breakHoldBadge } from '../data/review-status';
 
 /**
@@ -43,10 +44,10 @@ import { breakHoldBadge } from '../data/review-status';
   selector: 'app-review-queue',
   imports: [FilterBar, Icon, NgbTooltip, ReactiveFormsModule, RouterLink, Amount, AppDatePipe, CellDef, DataTable, EntityPicker, PageHeader, RequestedTarget, ...FORM_FIELD],
   template: `
-    <app-page-header title="Aprovação de pagamentos" subtitle="Pagamentos informados acima do limite da assessoria aguardando uma segunda pessoa." />
+    <app-page-header title="Aprovação de pagamentos" subtitle="Pagamentos informados acima do limite e créditos de extrato importado, aguardando uma segunda pessoa." />
     <div class="alert alert-info d-flex gap-2 align-items-start" role="note" data-tour="review-segregation">
       <app-icon name="people" />
-      <span>Os pagamentos que <strong>você</strong> informou não aparecem aqui: quem informa não aprova (o sistema recusa, inclusive para administradores). Confira o comprovante e <strong>para onde o valor vai</strong> (destino solicitado) antes de aprovar.</span>
+      <span>Os pagamentos que <strong>você</strong> informou ou cujo extrato você importou não aparecem aqui: quem informa não aprova (o sistema recusa, inclusive para administradores). Confira o comprovante (no extrato importado, o crédito no extrato do banco) e <strong>para onde o valor vai</strong> (destino solicitado) antes de aprovar.</span>
     </div>
     <app-filter-bar [activeCount]="activeFilters()">
       <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar a fila de aprovação">
@@ -74,7 +75,7 @@ import { breakHoldBadge } from '../data/review-status';
       (retry)="query.reload()"
       emptyIcon="check2-circle"
       emptyMessage="Nada aguardando a sua aprovação."
-      emptyHint="Pagamentos informados acima do limite aparecem aqui assim que registrados."
+      emptyHint="Pagamentos informados acima do limite e créditos de extrato que citam uma cobrança do sistema aparecem aqui assim que registrados."
     >
       <ng-template appCell="informedAt" [appCellOf]="query.rows()" let-p>
         <a [routerLink]="['/pagamentos/aprovacoes', p.id]" [queryParams]="linkParams()">{{ p.informedAt | appDate }}</a>
@@ -93,7 +94,7 @@ import { breakHoldBadge } from '../data/review-status';
       </ng-template>
       <ng-template appCell="origin" [appCellOf]="query.rows()" let-p>
         {{ methods[p.method] }}
-        <div class="app-muted rq-small">{{ p.externalOrigin ? origins[p.externalOrigin] : '—' }}</div>
+        <div class="app-muted rq-small">{{ p.externalOrigin ? origins[p.externalOrigin] : fromStatement(p) ? 'Extrato importado' : '—' }}</div>
       </ng-template>
       <ng-template appCell="target" [appCellOf]="query.rows()" let-p>
         @if (p.requestedTarget) {
@@ -141,6 +142,7 @@ import { breakHoldBadge } from '../data/review-status';
   `,
 })
 export class ReviewQueue {
+  protected readonly fromStatement = fromStatementReview;
   private readonly api = inject(PaymentsApi);
   private readonly notifications = inject(NotificationService);
   private readonly auth = inject(AuthService);

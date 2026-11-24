@@ -100,7 +100,10 @@ class PixSettlement {
             applyRefunds(p, tx);
             return;
         }
-        boolean duplicate = previous.stream().anyMatch(p -> p.getStatus() != PaymentStatus.REJECTED);
+        // pagamento de extrato ainda em revisão não é baixa: o Pix confirma normalmente e a aprovação dele passa a ser
+        // recusada (payment.instruction_already_paid — decisão 1452)
+        boolean duplicate = previous.stream().anyMatch(p -> p.getStatus() != PaymentStatus.REJECTED
+                && !(p.getStatus() == PaymentStatus.INFORMED && p.isFromStatementReview()));
         Payment payment = payments.saveAndFlush(Payment.fromProvider(PaymentMethod.PIX, instruction.getCreditorId(),
                 instruction.getDebtorId(), amount, tx.paidAt() == null ? now : tx.paidAt(), instruction.getId(),
                 tx.endToEndId(), ReviewMode.PROVIDER, now));

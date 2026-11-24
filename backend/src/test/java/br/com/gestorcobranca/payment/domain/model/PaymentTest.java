@@ -73,6 +73,41 @@ class PaymentTest {
     }
 
     @Test
+    void statementLineCreatesPaymentPendingReviewByAnotherPerson() {
+        UUID importer = UUID.randomUUID();
+        UUID line = UUID.randomUUID();
+        Payment p = Payment.fromStatementPendingReview(PaymentMethod.PIX, creditor, debtor, Money.of("150.00"),
+                now.minusSeconds(60), UUID.randomUUID(),
+                new Payment.Target(TargetKind.AGREEMENT, UUID.randomUUID(), "[]", null), importer, line, now);
+        assertThat(p.getStatus()).isEqualTo(PaymentStatus.INFORMED);
+        assertThat(p.getSource()).isEqualTo(PaymentSource.PROVIDER);
+        assertThat(p.getReviewMode()).isEqualTo(ReviewMode.DUAL_CONTROL);
+        assertThat(p.isReviewRequired()).isTrue();
+        assertThat(p.isFromStatementReview()).isTrue();
+        assertThat(p.getConfirmedAt()).isNull();
+        assertThat(p.getStatementLineId()).isEqualTo(line);
+        assertThat(p.getProviderTransactionId()).isNull();
+        assertThatThrownBy(() -> Payment.fromStatementPendingReview(PaymentMethod.PIX, creditor, debtor, Money.of("1.00"),
+                now, UUID.randomUUID(), new Payment.Target(TargetKind.AGREEMENT, UUID.randomUUID(), "[]", null), null,
+                line, now)).isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> p.approve(importer, null, now)).isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("não pode revisá-lo");
+        p.approve(UUID.randomUUID(), null, now);
+        assertThat(p.getStatus()).isEqualTo(PaymentStatus.CONFIRMED);
+    }
+
+    @Test
+    void informerNeverReconcilesOwnExternalPaymentByStatement() {
+        Payment p = informed(false);
+        assertThat(p.reconcilableBy(ReconciliationMode.STATEMENT, informer)).isFalse();
+        assertThat(p.reconcilableBy(ReconciliationMode.MANUAL, informer)).isFalse();
+        assertThat(p.reconcilableBy(ReconciliationMode.PROVIDER_API, informer)).isTrue();
+        assertThatThrownBy(() -> p.reconcile(ReconciliationMode.STATEMENT, informer, UUID.randomUUID(), now))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("não pode conciliá-lo");
+        assertThat(p.reconcile(ReconciliationMode.STATEMENT, UUID.randomUUID(), UUID.randomUUID(), now)).isTrue();
+    }
+
+    @Test
     void allocationNeverExceedsTheAmountAndReleaseReturnsToBalance() {
         Payment p = Payment.fromProvider(PaymentMethod.PIX, creditor, debtor, Money.of("100.00"), now, null, "E2E",
                 ReviewMode.PROVIDER, now);

@@ -29,7 +29,7 @@ import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, OUTCOME_LABELS, PAYMENT_ERROR_LABELS, REVIEW_MODE_LABELS, SOURCE_LABELS } from '../data/payment.labels';
 import { AllocationView, LineView, PaymentView } from '../data/payment.models';
-import { allocationTarget, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
+import { allocationTarget, fromStatementReview, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
 import { breakHoldBadge } from '../data/review-status';
 import { ReallocateDialog, ReallocateDialogData } from '../reallocation/reallocate-dialog';
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
@@ -59,6 +59,10 @@ export class PaymentDetail {
   private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   private readonly breadcrumbs = inject(BreadcrumbService);
+
+  protected fromStatement(p: PaymentView): boolean {
+    return fromStatementReview(p);
+  }
 
   protected readonly methods = METHOD_LABELS;
   protected readonly origins = ORIGIN_LABELS;
@@ -222,8 +226,10 @@ export class PaymentDetail {
     }
     this.confirm
       .confirm({
-        title: 'Aprovar pagamento informado',
-        message: 'O valor passa a abater a dívida nos destinos informados. Confira o comprovante antes de aprovar.',
+        title: fromStatementReview(p) ? 'Aprovar pagamento do extrato' : 'Aprovar pagamento informado',
+        message: fromStatementReview(p)
+          ? 'O valor passa a abater a dívida e a cobrança citada no extrato fica paga. Confira o crédito no extrato do banco antes de aprovar.'
+          : 'O valor passa a abater a dívida nos destinos informados. Confira o comprovante antes de aprovar.',
         confirmLabel: 'Aprovar',
         reason: 'optional',
         reasonLabel: 'Observação (opcional)',
@@ -239,8 +245,10 @@ export class PaymentDetail {
     }
     this.confirm
       .confirm({
-        title: 'Recusar pagamento informado',
-        message: 'O pagamento não baixa a dívida e fica registrado como recusado, com o seu motivo.',
+        title: fromStatementReview(p) ? 'Recusar pagamento do extrato' : 'Recusar pagamento informado',
+        message: fromStatementReview(p)
+          ? 'O pagamento não baixa a dívida, a cobrança continua em aberto e a linha do extrato fica como "Pagamento recusado", com o seu motivo.'
+          : 'O pagamento não baixa a dívida e fica registrado como recusado, com o seu motivo.',
         confirmLabel: 'Recusar',
         destructive: true,
         reason: 'required',
@@ -302,7 +310,7 @@ export class PaymentDetail {
     return [
       { label: 'Devedor', value: this.debtorName() ?? 'Devedor' },
       { label: 'Valor', value: formatAmount(p.amount) },
-      { label: 'Informado por', value: this.userName(p.informedBy) },
+      { label: fromStatementReview(p) ? 'Extrato importado por' : 'Informado por', value: this.userName(p.informedBy) },
       { label: 'Destino', value: p.allocations.map(allocationTarget).join('; ') || this.requestedText() || 'Definido por quem informou (aplicado na aprovação)' },
     ];
   }

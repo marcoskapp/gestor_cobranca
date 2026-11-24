@@ -26,6 +26,14 @@ describe('quanto passa do limite (pagamentos e correções de valor)', () => {
     expect(paymentReviewReasons({ amount: 450 }, assessment({ reason: 'INFORMER_CUMULATIVE' }))[0].label).toBe('Soma de quem informou');
   });
 
+  it('pagamento criado por linha de extrato: sempre revisado, sem limite nem excesso', () => {
+    const [row] = paymentReviewReasons({ amount: 320 }, assessment({ reason: 'STATEMENT_LINE', limit: null, consideredAmount: null, excess: null }));
+    expect(row.label).toBe('Crédito em extrato importado');
+    expect(row.requested).toContain('320,00');
+    expect(row.limit).toBe('sempre revisado');
+    expect(row.excess).toBeNull();
+  });
+
   it('pagamento antigo sem motivo gravado: compara com o limite atual por pagamento', () => {
     const [row] = paymentReviewReasons({ amount: 700 }, assessment({ reason: null, limit: null, consideredAmount: null, excess: null }));
     expect(row.hint).toContain('limite atual');

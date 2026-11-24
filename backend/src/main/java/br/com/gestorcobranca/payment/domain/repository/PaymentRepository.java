@@ -31,6 +31,9 @@ public interface PaymentRepository {
     /** Bloqueia o pagamento da transação do provedor (antes de carregá-lo, evitando versão desatualizada). */
     Optional<Payment> findByProviderTransactionIdForUpdate(String providerTransactionId);
 
+    /** Instrução citada pelo pagamento criado por linha de extrato (sem carregar o pagamento); vazio nos demais. */
+    Optional<UUID> findStatementReviewInstructionId(UUID paymentId);
+
     List<Payment> findByInstructionIdOrderByCreatedAtAsc(UUID instructionId);
 
     List<Payment> findByExternalReferenceAndStatus(String externalReference, PaymentStatus status);
@@ -57,7 +60,7 @@ public interface PaymentRepository {
     Page<UUID> findPendingReallocationIds(Set<UUID> creditorIds, Pageable pageable);
 
     /**
-     * Pagamentos externos destinados aos acordos aguardando revisão ({@code INFORMED}) ou recusados
+     * Pagamentos em revisão (externos e créditos de extrato — decisão 1451) destinados aos acordos aguardando revisão ({@code INFORMED}) ou recusados
      * ({@code REJECTED}) a partir de {@code rejectedSince}, por data do registro.
      *
      * @param creditorIds credores permitidos (nulo = todos)

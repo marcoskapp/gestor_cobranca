@@ -391,3 +391,11 @@ export const CREDENTIAL_KEY_LABELS: Record<string, string> = {
   webhookSecret: 'segredo HMAC',
   certificatePassword: 'senha do certificado',
 };
+
+/**
+ * Pagamento criado por linha de extrato importado, em revisão ou já revisado por segunda pessoa (decisão 1450): sem
+ * comprovante, com quem importou no lugar de quem informou. Regra única para as telas.
+ */
+export function fromStatementReview(p: Pick<PaymentView, 'source' | 'reviewMode'>): boolean {
+  return p.source === 'PROVIDER' && p.reviewMode === 'DUAL_CONTROL';
+}
