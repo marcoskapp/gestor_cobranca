@@ -53,7 +53,6 @@ evidência, o cenário de exploração e a correção ficam no próprio item, ab
 
 | ID | Título | Severidade | Estado | Onde | Correção prevista |
 | --- | --- | --- | --- | --- | --- |
-| SEG-20261124-C01 | Extrato CSV enviado por uma pessoa confirma pagamento (instrução paga, parcelas e títulos quitados) sem autenticidade nem segunda pessoa; conciliação por extrato não barra quem informou o externo | Alta | aberto — limite de confirmação imediata a decidir | `payment` `StatementMatcher#againstInstruction`, `#againstPayment`; `Payment#reconcile` | pagamento do extrato nasce `INFORMED` com revisão por outra pessoa; segregação também no modo `STATEMENT`; ITs em `PaymentReconciliationIT` |
 | SEG-20261124-D01 | Anonimização do titular não alcança communication, collection (observações, contestações, .eml), legal, payment (evidência) e ingestion (arquivos de carga) | Alta | aberto — arquivos de carga a decidir | `DebtorAnonymized` sem consumidor nesses módulos; `DataSubjectRequestService`, `RetentionService` | consumidor por módulo dono apagando conteúdo, contato e arquivos (mantendo hash); exceção de gatilho para o .eml; IT por módulo |
 | SEG-20261124-A01 | Ramais por conta de telefonia sem escopo de credor (remoção sem conferência; conta padrão sem exigir todos os credores; listagem de ramais de contas fora do escopo) | Média | aberto | `telephony` `AgentService#endpoints`, `#configureEndpoint`, `#removeEndpoint` | regra única de conta (`TelephonyAccountAccess`); IT em `TelephonyScopeIT` |
 | SEG-20261124-B01 | MFA obrigatório decidido pelo código do perfil: perfis personalizados ou ampliados com permissões administrativas entram sem segundo fator | Média | aberto — lista de permissões a decidir | `identity` `AuthenticationService#mfaRequiredFor`; `app.security.mfa.required-for-roles` | MFA também por permissões efetivas (`required-for-permissions`); IT de perfil personalizado |
@@ -79,10 +78,19 @@ evidência, o cenário de exploração e a correção ficam no próprio item, ab
 | SEG-20261124-E07 | Imagens base sem digest | Baixa | aberto | `infra/docker/app/Dockerfile`, Compose | fixar `@sha256:` |
 | SEG-20261124-E08 | Perfil padrão `local` sem guarda (chaves de desenvolvimento versionadas, simuladores) | Baixa | aberto | `application.yml`, `application-local.yml` | `LocalProfileGuard` |
 | SEG-20261124-E09 | Advisories em dependências de desenvolvimento do frontend (vite, minimatch); produção sem achados no `npm audit` | Baixa | aberto | `frontend/package-lock.json` | `npm audit fix` |
+| SEG-20261124-C01c | Importação de extrato cancelada mantém aprováveis os pagamentos em revisão que ela criou | Baixa | aberto — decisão do responsável | `payment` `ReconciliationService#cancelImport`, `StatementLineReview` | mostrar na fila que a importação foi cancelada ou recusar esses pagamentos no cancelamento (continua exigindo segunda pessoa) |
 | SEG-20261124-F05 | Respostas de `/api/creditor/v1` sem teste de snapshot de contrato: campo novo nos records do `creditorportal` chega ao credor sem nenhum teste falhar | Baixa | aberto | `creditorportal` (controllers de `/api/creditor/v1`) | snapshot das respostas permitidas (RS-26) |
 | SEG-20261124-F07 | Aceite do demonstrativo pelo portal confia no `mfaVerifiedAt` informado pelo chamador | Baixa | aberto — reforço previsto na fatia 6 | `settlement` (aceite pelo portal), chamado pelo `creditorportal` | comprovante opaco de uso único do `CreditorStepUp` |
 
 ### Achados de revisão antes do commit
+
+**SEG-20261124-C01c** — validação da correção do C01 (e81cdb9d), 24/11/2026; C01a e C01b da mesma validação foram
+corrigidos antes do commit (§5).
+
+- **C01c.** Cancelar uma importação de extrato interrompe o processamento das linhas restantes, mas os pagamentos em
+  revisão que o lote já criou continuam na fila "Aprovação de pagamentos" e podem ser aprovados (sempre por outra
+  pessoa com `PAYMENT_REVIEW`). Correção a decidir pelo responsável: indicar na fila que a importação de origem foi
+  cancelada, ou recusar esses pagamentos no próprio cancelamento.
 
 **SEG-20261124-F05 e F07** — revisão da fatia 4 do portal do credor (prestação de contas), 24/11/2026; F01–F04 e F06
 da mesma revisão foram corrigidos antes do commit (§5).
@@ -102,6 +110,11 @@ da mesma revisão foram corrigidos antes do commit (§5).
 
 | ID | Título | Severidade | Corrigido em (commit) | Teste que cobre | Validado em |
 | --- | --- | --- | --- | --- | --- |
+| SEG-20261124-G01 | Portal do credor (fatia 5): limites de tamanho e de envios da resposta à contestação conferidos só depois de receber o multipart; envio recusado não contava no limite | Média | f0c01fca | `CreditorUploadLimiterTest#decimoPrimeiroEnvioNoMesmoMinutoDa429ENaJanelaSeguintePassa`, `#multipartAcimaDoTetoESemTamanhoSaoRecusadosAntesDeLer` (decisão 1434; pendente: conferir com o balanceador, antes da produção, que os envios chegam com `Content-Length`) | 24/11/2026, revisão antes do commit |
+| SEG-20261124-G02 | Portal do credor (fatia 5): assunto do pedido ia ao credor sem tirar o link seguro de evidências | Baixa | f0c01fca | `CreditorDisputePortalIT` (assunto com o link → `doesNotContain("dispute-files")`; melhoria opcional em aberto: recusar o link no assunto do modelo) | 24/11/2026, revisão antes do commit |
+| SEG-20261124-C01 | Extrato CSV enviado por uma pessoa confirmava pagamento sem segunda pessoa; o extrato de quem informou conciliava o próprio pagamento externo | Alta | e81cdb9d | `PaymentReconciliationIT#statementLineDoesNotConfirmInstructionWithoutSecondPerson`, `#informerCannotReconcileOwnExternalPaymentByStatement`, `#pendingStatementLineNeverHoldsThePixTransactionOfTheProvider`; `PaymentTest#statementLineCreatesPaymentPendingReviewByAnotherPerson`, `#informerNeverReconcilesOwnExternalPaymentByStatement` (decisões 1450–1453) | 24/11/2026, `engenheiro-seguranca` em modo validação |
+| SEG-20261124-C01a | (regressão encontrada na validação do C01, antes do commit) pagamento de extrato pendente guardava o id da transação e fazia o PSP ignorar a confirmação real do Pix | Média | e81cdb9d | `PaymentReconciliationIT#pendingStatementLineNeverHoldsThePixTransactionOfTheProvider` | 24/11/2026, revisão antes do commit |
+| SEG-20261124-C01b | (idem) duplicidade falsa (`DUPLICATE_PAYMENT`) contra o Pix confirmado pelo PSP quando havia pagamento de extrato em revisão | Baixa | e81cdb9d | `PaymentReconciliationIT#pendingStatementLineNeverHoldsThePixTransactionOfTheProvider` (nenhuma `DUPLICATE_PAYMENT`) | 24/11/2026, revisão antes do commit |
 | SEG-20261124-F01 | Assessoria registrava aceite por cima de contestação feita pelo credor no portal | Média | e9a9cbbd | `SettlementLifecycleTest#creditorPortalContestationIsOnlyRevertedByTheCreditor`; `CreditorSettlementIT#creditorSeesOnlyItsSentStatementsAcknowledgesWithMfaAndContests` (409 `statement.creditor_portal_response`; decisão 1420) | 24/11/2026, revisão antes do commit |
 | SEG-20261124-F02 | Tentativa sobre demonstrativo de outro credor respondia 404 sem registrar `SCOPE_DENIED` | Média | e9a9cbbd | `CreditorSettlementIT#creditorSeesOnlyItsSentStatementsAcknowledgesWithMfaAndContests` (`SCOPE_DENIED` no demonstrativo e na contestação de outro credor; arquivo de outro demonstrativo → 404; RS-06; decisão 1422) | 24/11/2026, revisão antes do commit |
 | SEG-20261124-F03 | Termo de resposta sem a observação do credor | Baixa | e9a9cbbd; teste do hash em ed27182d | `CreditorSettlementIT#creditorSeesOnlyItsSentStatementsAcknowledgesWithMfaAndContests` (observação gravada no termo do aceite e da contestação); `StatementTermDigestTest#observacaoDiferenteMudaOHashDoTermo` (observação diferente ou ausente muda o SHA-256 do termo); `StatementTermDigestTest#formatoV1Congelado` (formato v1 do texto canônico fixo; termos já gravados seguem verificáveis) | 24/11/2026, revisão antes do commit |
