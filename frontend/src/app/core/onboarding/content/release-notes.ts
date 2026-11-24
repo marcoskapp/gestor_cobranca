@@ -3,6 +3,14 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 39,
+    date: '2026-11-24',
+    title: 'Portal do credor: contestações',
+    items: [
+      { text: 'No portal do credor, a pessoa do credor vê as contestações em que a assessoria pediu a posição dela, lê o pedido, baixa os documentos e responde com a posição, um resumo e até 5 documentos. A resposta aparece na contestação com a origem "Portal do credor", os documentos passam pela verificação de segurança e a decisão continua com a assessoria.', route: '/cobranca/contestacoes' },
+    ],
+  },
+  {
     version: 38,
     date: '2026-11-24',
     title: 'Extrato importado não confirma pagamento sozinho',

@@ -234,7 +234,7 @@ Eventos do fluxo das contestações (negocio/contestacoes.md): todos levam credo
 | `dispute.creditor_request_sent` | pedido ao credor aceito pelo SMTP | `sequence`, `recipients`, `titles`, `evidences`, `requestedDays`, `templateVersion` |
 | `dispute.creditor_request_failed` | pedido com falha definitiva de envio | `sequence`, `errorCode` |
 | `dispute.creditor_request_overdue` | prazo pedido ao credor vencido sem resposta | `sequence`, `daysLate` |
-| `dispute.creditor_responded` | resposta do credor (tela, API ou e-mail confirmado) | `position`, `source` (MANUAL, PUBLIC_API, EMAIL), `documents`, `withRequest`, `withinRequestedDeadline`, `responseHours` |
+| `dispute.creditor_responded` | resposta do credor (tela, API ou e-mail confirmado) | `position`, `source` (MANUAL, PUBLIC_API, EMAIL, CREDITOR_PORTAL), `documents`, `withRequest`, `withinRequestedDeadline`, `responseHours` |
 | `dispute.creditor_mail_received` | e-mail do credor recebido no endereço de resposta de um pedido | `outcome` (ACCEPTED, QUARANTINED), `quarantineReason`, `sequence`, `attachments`, `attachmentsRejected`, `withinRequestedDeadline`, `responseHours` (do envio do pedido ao e-mail) |
 | `dispute.creditor_mail_confirmed` | analista confirmou a posição do credor a partir do e-mail | `position`, `released` (passou pela quarentena), `evidences`, `hoursToConfirmation` (duração = recebimento → confirmação) |
 | `dispute.creditor_mail_dismissed` | e-mail do credor descartado com motivo | `from` (PENDING_CONFIRMATION, QUARANTINED), `quarantineReason` |
@@ -553,6 +553,13 @@ E-mails: `mail.sent{type=creditor_invitation|creditor_password_reset|security_al
 `SCOPE_DENIED` (`resource=settlement_statement` ou `statement_export`) quando a pessoa tenta um demonstrativo ou arquivo de outro credor (a resposta é 404) e `ACCESS_DENIED` (`resource=settlement_statement`, `actorType`) quando outro tipo de ator chama os casos de uso do credor.
 Sem métrica nova: `settlement.statements.transitions{status}` conta as respostas dos dois caminhos.
 
+**Contestações no portal** (creditorportal → collection, fatia 5): a resposta usa o evento `dispute.creditor_responded`
+com `source=CREDITOR_PORTAL` e a auditoria `dispute.creditor_responded` (`actor_type=CREDITOR`, `source`, `requestId`,
+`documents`); cada documento gera `dispute.document_quarantined` e segue a verificação (evento `dispute.creditor_document_scanned`).
+Log de acesso: `FILE_DOWNLOADED` (`resource=dispute_evidence`, `origin=creditor_portal`), `SCOPE_DENIED`
+(`resource=dispute`) para contestação de outro credor (a resposta é 404), `ACCESS_DENIED` (`resource=dispute`) para
+outro tipo de ator e `RATE_LIMITED` (`scope=creditor_upload`) no limite de envios. Métricas: `collection.disputes.creditor_responses{source=CREDITOR_PORTAL}` e `creditor_portal.document_uploads.rejected{operation}`.
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -672,7 +679,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `collection.disputes.overdue{type}` | contestações com prazo de resposta vencido (alarme) |
 | `collection.disputes.assignments{mode}` | mudanças de responsável das contestações |
 | `collection.disputes.creditor_mails{purpose,outcome}`, `collection.disputes.creditor_mail.duration` (p50/p95/p99) | e-mails ao credor (pedido, lembrete, cobrança): `sent`, `transient` (será repetido), `exhausted` (tentativas esgotadas), `rejected` (falha definitiva); duração do envio SMTP |
-| `collection.disputes.creditor_overdue{type}`, `collection.disputes.creditor_responses{source}` | pedidos ao credor vencidos; respostas do credor (tela, API) |
+| `collection.disputes.creditor_overdue{type}`, `collection.disputes.creditor_responses{source}` | pedidos ao credor vencidos; respostas do credor (tela, API, e-mail, portal do credor) |
 | `collection.disputes.debtor_notices{channel,outcome}`, `collection.disputes.adjustments{action,status}` | respostas ao devedor; ajustes sugeridos, feitos e dispensados |
 | `collection.disputes.mail_replies.received{outcome,reason}` | e-mails ao subdomínio de respostas: `accepted`, `quarantined` (motivo: `sender_not_registered`, `authentication_failed`, `virus`, `spam`, `rate_limited`, `too_large`, `too_many_attachments`, `route_expired`, `dispute_closed`, `malformed`), `unrouted` (`no_reply_address`, `unknown_token`), `duplicate` — `authentication_failed`/`virus` em alta pedem atenção (falsificação) |
 | `collection.disputes.mail_replies.attachments{outcome}` | anexos dos e-mails aceitos: `accepted`, `rejected_type`, `rejected_size`, `rejected_limit` |
@@ -680,6 +687,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `integration.calls{provider=sqs\|s3,operation=inbound_mail,outcome}` | leitura da fila e do bucket do SES inbound; erros contínuos = fila parada (veja também a DLQ no CloudWatch) |
 | `collection.disputes.document_scans{engine,outcome}`, `collection.disputes.document_scan.duration{engine}` | verificação de malware dos documentos do credor pela API: `clean`, `not_scanned`, `infected`, `unavailable` (daemon fora; job tenta de novo) — `infected` > 0 e `unavailable` contínuo pedem alarme |
 | `publicapi.document_uploads.rejected{operation}` | envios com documentos recusados pelo limite próprio por token (429) |
+| `creditor_portal.document_uploads.rejected{operation}` | envios com documentos do portal do credor recusados pelo limite por pessoa do credor (429; `operation=dispute_response`) |
 | `collection.disputes.evidence_link{outcome}` | downloads do link de evidências (`served`, `expired`, `exhausted`, `unknown`, `malformed`, `rate_limited`) — recusas em alta podem indicar varredura |
 | `integration.calls{provider=smtp,operation=dispute_mail,outcome}` | chamadas ao SMTP dos e-mails de contestação |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |

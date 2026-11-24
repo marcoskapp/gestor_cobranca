@@ -107,3 +107,95 @@ export interface CreditorOpenPeriod {
   direction: TransferDirection;
   calculatedAt: string;
 }
+
+/** Contestações no portal do credor (fatia 5): só as em que a assessoria pediu a posição do credor. */
+export type CreditorDisputeSituation = 'AWAITING_YOU' | 'ANSWERED' | 'CLOSED';
+export type CreditorDisputeOutcome = 'UPHELD' | 'REJECTED' | 'PARTIALLY_UPHELD' | 'WITHDRAWN';
+export type CreditorDisputePosition = 'CONFIRMS_DEBT' | 'ACCEPTS_CLAIM' | 'PARTIAL' | 'INFORMATION';
+/** Quem levou a resposta: a pessoa do credor no portal, a integração do credor ou a assessoria (de outro canal). */
+export type CreditorDisputeResponseOrigin = 'CREDITOR_PORTAL' | 'INTEGRATION' | 'AGENCY';
+
+export interface CreditorDisputeItem {
+  id: string;
+  protocol: string;
+  type: string;
+  situation: CreditorDisputeSituation;
+  outcome: CreditorDisputeOutcome | null;
+  openedAt: string;
+  disputedAmount: number;
+  titleCount: number;
+  requestedDueDate: string | null;
+  overdue: boolean;
+  lastResponseAt: string | null;
+  closedAt: string | null;
+}
+
+export interface CreditorDisputeTitle {
+  externalId: string;
+  installmentNumber: number | null;
+  dueDate: string | null;
+  openBalance: number | null;
+}
+
+export interface CreditorDisputeDocument {
+  id: string;
+  fileName: string;
+  size: number;
+  sha256: string;
+}
+
+export interface CreditorDisputeRequest {
+  id: string;
+  sequenceNumber: number;
+  sentAt: string | null;
+  requestedDueDate: string;
+  awaiting: boolean;
+  overdue: boolean;
+  subject: string;
+  body: string;
+  documents: CreditorDisputeDocument[];
+}
+
+export interface CreditorDisputeResponse {
+  id: string;
+  requestId: string | null;
+  position: CreditorDisputePosition;
+  origin: CreditorDisputeResponseOrigin;
+  /** Só o resumo escrito no portal; o que a assessoria registrou de outro canal fica com ela. */
+  note: string | null;
+  receivedAt: string;
+  documents: CreditorDisputeDocument[];
+  documentsInVerification: number;
+  documentsRejected: number;
+}
+
+export interface CreditorDisputeDetail {
+  dispute: CreditorDisputeItem;
+  titles: CreditorDisputeTitle[];
+  requests: CreditorDisputeRequest[];
+  responses: CreditorDisputeResponse[];
+}
+
+export const CREDITOR_DISPUTE_TYPE_LABELS: Record<string, string> = {
+  NOT_RECOGNIZED: 'Dívida não reconhecida',
+  ALREADY_PAID: 'Alegação de pagamento',
+  WRONG_AMOUNT: 'Valor incorreto',
+  FRAUD: 'Suspeita de fraude',
+  PRESCRIBED: 'Alegação de prescrição',
+  PRODUCT_OR_SERVICE: 'Produto ou serviço',
+  OTHER: 'Outro motivo',
+};
+
+export const CREDITOR_DISPUTE_POSITION_LABELS: Record<CreditorDisputePosition, string> = {
+  CONFIRMS_DEBT: 'Confirmo a dívida',
+  ACCEPTS_CLAIM: 'O devedor tem razão',
+  PARTIAL: 'O devedor tem razão em parte',
+  INFORMATION: 'Só envio informação ou documentos',
+};
+
+export const CREDITOR_DISPUTE_OUTCOME_LABELS: Record<CreditorDisputeOutcome, string> = {
+  UPHELD: 'Encerrada a favor do devedor',
+  REJECTED: 'Encerrada: a cobrança segue',
+  PARTIALLY_UPHELD: 'Encerrada: devedor com razão em parte',
+  WITHDRAWN: 'Encerrada: o devedor desistiu',
+};

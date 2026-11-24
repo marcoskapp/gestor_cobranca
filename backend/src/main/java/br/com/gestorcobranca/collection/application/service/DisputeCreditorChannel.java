@@ -255,7 +255,9 @@ class DisputeCreditorChannel {
         CreditorPosition position = CollectionEnums.parse(CreditorPosition.class, command.position(),
                 "dispute_response.position_invalid", "Posição do credor");
         Instant now = Instant.now(clock);
-        Instant receivedAt = command.receivedAt() == null ? now : command.receivedAt();
+        // no portal do credor o instante é sempre o do servidor (a pessoa do credor não informa quando respondeu)
+        Instant receivedAt = command.receivedAt() == null || source == CreditorResponseSource.CREDITOR_PORTAL ? now
+                : command.receivedAt();
         Guard.require(!receivedAt.isAfter(now.plusSeconds(60)), "dispute_response.received_in_future",
                 "A data de recebimento não pode ser futura");
         Guard.require(!receivedAt.isBefore(d.getOpenedAt()), "dispute_response.received_before_opening",
@@ -275,8 +277,9 @@ class DisputeCreditorChannel {
                 answered == null ? null : answered.getId(), source, position, command.note(), receivedAt,
                 currentActor.actorId()));
         List<UUID> stored = new ArrayList<>();
-        if (source == CreditorResponseSource.PUBLIC_API) {
-            // documentos de sistema externo: quarentena e verificação de malware antes de virar evidência
+        if (source.isExternal()) {
+            // documentos de fora da assessoria (API, e-mail, portal do credor): quarentena e verificação de malware
+            // antes de virar evidência
             Guard.require(files.size() <= properties.disputes().apiMaxDocuments(), "dispute_response.too_many_documents",
                     "No máximo %d documentos por resposta".formatted(properties.disputes().apiMaxDocuments()));
             for (EvidenceUpload file : files) {

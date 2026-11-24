@@ -424,7 +424,7 @@ aberto, sem status novo).
 * Acompanhamento: `collection.dispute-follow-up` (cron `app.collection.disputes.follow-up-cron`, padrão `0 5 8 * * *`,
   ShedLock): lembrete até `reminderDaysBefore` antes do prazo pedido e cobrança no dia seguinte ao vencimento, uma vez
   cada.
-* Resposta: `collection.dispute_creditor_response` (append-only, `MANUAL|PUBLIC_API|EMAIL`, posição, resumo criptografado);
+* Resposta: `collection.dispute_creditor_response` (append-only, `MANUAL|PUBLIC_API|EMAIL|CREDITOR_PORTAL`, posição, resumo criptografado; documentos de toda origem externa pela quarentena — `CreditorResponseSource.isExternal()`; no portal do credor, interface `collection :: creditor` com `CreditorDisputeService`, ver [portal-credor.md](portal-credor.md) §3d);
   documentos manuais viram `dispute_evidence` com `creditor_response_id`. API pública em `publicapi` (escopos
   `disputes:read`/`disputes:write`, ator `INTEGRATION`).
 * Documentos da API (decisões 814–819): tipo pelo conteúdo (`FileSignatures`: PDF, PNG, JPEG), até

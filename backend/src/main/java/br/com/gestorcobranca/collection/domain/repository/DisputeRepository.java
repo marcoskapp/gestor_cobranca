@@ -18,6 +18,8 @@ public interface DisputeRepository {
 
     Optional<Dispute> findById(UUID id);
 
+    List<Dispute> findByIdIn(java.util.Collection<UUID> ids);
+
     List<Dispute> findByCaseIdOrderByOpenedAtDesc(UUID caseId);
 
     /** Contestações abertas a partir de um pedido externo (ex.: {@code portal_request:<id>}), em todos os casos. */

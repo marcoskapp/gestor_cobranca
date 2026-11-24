@@ -63,7 +63,7 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
     </header>
     <dl class="app-definition-list dp-meta">
       <dt>Origem</dt>
-      <dd>{{ response().source === 'PUBLIC_API' ? 'API do credor' : (response().source === 'EMAIL' ? 'E-mail, confirmado por ' : 'Registrada por ') + (response().source === 'PUBLIC_API' ? '' : (response().recordedByName ?? 'usuário')) }}</dd>
+      <dd>{{ origin() }}</dd>
       @if (response().evidenceIds.length || response().documentsInVerification || response().documentsRejected) {
         <dt>Documentos</dt>
         <dd>
@@ -110,6 +110,19 @@ import { adjustmentShortcut, canWorkDispute, disputeActions, dueTone, isPending,
 export class CreditorResponseCard {
   readonly response = input.required<CreditorResponseView>();
   protected readonly positionLabel = computed(() => CREDITOR_POSITION_LABELS[this.response().position]);
+  protected readonly origin = computed(() => {
+    const r = this.response();
+    switch (r.source) {
+      case 'PUBLIC_API':
+        return 'API do credor';
+      case 'CREDITOR_PORTAL':
+        return r.recordedByName ? 'Portal do credor, enviada por ' + r.recordedByName : 'Portal do credor, enviada pelo time do credor';
+      case 'EMAIL':
+        return 'E-mail, confirmado por ' + (r.recordedByName ?? 'usuário');
+      default:
+        return 'Registrada por ' + (r.recordedByName ?? 'usuário');
+    }
+  });
 }
 
 /**

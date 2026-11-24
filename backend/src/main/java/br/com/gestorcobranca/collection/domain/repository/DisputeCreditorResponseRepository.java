@@ -12,4 +12,6 @@ public interface DisputeCreditorResponseRepository {
     DisputeCreditorResponse saveAndFlush(DisputeCreditorResponse response);
 
     List<DisputeCreditorResponse> findByDisputeIdOrderByReceivedAtAsc(UUID disputeId);
+
+    List<DisputeCreditorResponse> findByDisputeIdIn(java.util.Collection<UUID> disputeIds);
 }

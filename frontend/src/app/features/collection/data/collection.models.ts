@@ -610,7 +610,7 @@ export interface CreditorResponseView {
   id: string;
   disputeId: string;
   requestId: string | null;
-  source: 'MANUAL' | 'PUBLIC_API' | 'EMAIL';
+  source: 'MANUAL' | 'PUBLIC_API' | 'EMAIL' | 'CREDITOR_PORTAL';
   position: CreditorPosition;
   note: string;
   receivedAt: string;

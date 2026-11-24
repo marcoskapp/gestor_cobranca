@@ -1,17 +1,16 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, from, map, switchMap } from 'rxjs';
+import { Observable } from 'rxjs';
 import { silentErrorContext } from '../../core/http/http-context';
-import { FileDownloadService, fileNameFrom } from '../../shared/data/file-download';
-import { sha256Hex } from '../../shared/util/hash';
 import { CREDITOR_API } from './creditor.api';
+import { CreditorVerifiedDownload } from './creditor-download';
 import { CreditorOpenPeriod, CreditorStatementDetail, CreditorStatementFile, CreditorStatementItem } from './creditor.models';
 
 /** Prestação de contas no portal do credor (`/api/creditor/v1/statements`). O credor vem sempre da sessão. */
 @Injectable({ providedIn: 'root' })
 export class CreditorStatementsApi {
   private readonly http = inject(HttpClient);
-  private readonly files = inject(FileDownloadService);
+  private readonly downloads = inject(CreditorVerifiedDownload);
   private readonly base = `${CREDITOR_API}/statements`;
 
   list(): Observable<CreditorStatementItem[]> {
@@ -39,26 +38,7 @@ export class CreditorStatementsApi {
 
   /** Baixa (o servidor registra o download) e confere o SHA-256 do conteúdo; só salva se conferir. */
   download(statementId: string, file: CreditorStatementFile): Observable<{ verified: boolean }> {
-    return this.http
-      .get(`${this.base}/${encodeURIComponent(statementId)}/files/${encodeURIComponent(file.id)}/content`,
-        { observe: 'response', responseType: 'blob', context: silentErrorContext() })
-      .pipe(
-        switchMap((response) => {
-          const blob = response.body ?? new Blob();
-          const name = fileNameFrom(response) ?? file.fileName;
-          const header = (response.headers.get('X-Content-SHA256') ?? '').toLowerCase();
-          const expected = file.sha256.toLowerCase();
-          return from(blob.arrayBuffer().then((buffer) => sha256Hex(buffer))).pipe(
-            map((actual) => {
-              // só salva o que confere com o código de integridade mostrado (e com o informado pelo servidor)
-              const verified = actual === expected && (!header || header === expected);
-              if (verified) {
-                this.files.saveBlob(blob, name);
-              }
-              return { verified };
-            }),
-          );
-        }),
-      );
+    return this.downloads.fetch(`${this.base}/${encodeURIComponent(statementId)}/files/${encodeURIComponent(file.id)}/content`,
+      file.sha256, file.fileName);
   }
 }

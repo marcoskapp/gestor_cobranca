@@ -18,6 +18,29 @@ interface DisputeCreditorRequestJpaRepository extends JpaRepository<DisputeCredi
         return followUpCandidates(reminderUntil, today, Limit.of(limit));
     }
 
+    @Override
+    default List<DisputeCreditorRequest> findRecentByCreditorId(UUID creditorId, int limit) {
+        return findByCreditorIdOrderByCreatedAtDesc(creditorId, Limit.of(limit));
+    }
+
+    List<DisputeCreditorRequest> findByCreditorIdOrderByCreatedAtDesc(UUID creditorId, Limit limit);
+
+    @Override
+    default List<DisputeCreditorRequest> findAwaitingByCreditorId(UUID creditorId, int limit) {
+        return awaitingByCreditor(creditorId, Limit.of(limit));
+    }
+
+    /** Índice parcial {@code ix_dispute_request_creditor_awaiting (tenant_id, creditor_id, requested_due_date)}. */
+    @Query("""
+            select r from DisputeCreditorRequest r
+             where r.creditorId = :creditorId
+               and r.status in (br.com.gestorcobranca.collection.domain.model.CreditorRequestStatus.QUEUED,
+                                br.com.gestorcobranca.collection.domain.model.CreditorRequestStatus.SENT,
+                                br.com.gestorcobranca.collection.domain.model.CreditorRequestStatus.FAILED)
+             order by r.requestedDueDate, r.id
+            """)
+    List<DisputeCreditorRequest> awaitingByCreditor(UUID creditorId, Limit limit);
+
     /** Índice {@code ix_dispute_request_followup (tenant_id, requested_due_date) where status = 'SENT'}. */
     @Query("""
             select r from DisputeCreditorRequest r

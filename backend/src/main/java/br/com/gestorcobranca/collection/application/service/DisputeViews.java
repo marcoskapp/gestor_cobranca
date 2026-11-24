@@ -68,6 +68,16 @@ class DisputeViews {
         return disputes.stream().map(d -> view(d, byDebtor.getOrDefault(d.getDebtorId(), Map.of()), names)).toList();
     }
 
+    /**
+     * Só os títulos da contestação, pelo vencimento (portal do credor): sem a visão da assessoria, o responsável nem a
+     * contagem de evidências. O escopo por credor do ator vale na consulta dos títulos.
+     */
+    List<DisputedTitle> titles(Dispute dispute) {
+        Set<UUID> ids = dispute.getTitleIds();
+        return titles.listByDebtor(dispute.getDebtorId()).stream().filter(t -> ids.contains(t.id()))
+                .map(DisputeViews::title).sorted(BY_DUE).toList();
+    }
+
     /** Com os títulos já carregados pelo chamador (ex.: a ficha do caso). */
     DisputeView view(Dispute dispute, Map<UUID, DisputedTitle> knownTitles) {
         return view(dispute, knownTitles, names(Stream.of(dispute.getAssigneeId())));

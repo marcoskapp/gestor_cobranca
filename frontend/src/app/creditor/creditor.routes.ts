@@ -77,6 +77,18 @@ export const CREDITOR_ROUTES: Routes = [
         canActivate: [creditorAccessGuard(CreditorPermission.OVERVIEW)],
         loadComponent: () => import('./pages/creditor-statement-detail').then((m) => m.CreditorStatementDetailPage),
       },
+      {
+        path: 'contestacoes',
+        title: 'Contestações',
+        canActivate: [creditorAccessGuard(CreditorPermission.OVERVIEW)],
+        loadComponent: () => import('./pages/creditor-disputes').then((m) => m.CreditorDisputes),
+      },
+      {
+        path: 'contestacoes/:id',
+        title: 'Contestação',
+        canActivate: [creditorAccessGuard(CreditorPermission.OVERVIEW)],
+        loadComponent: () => import('./pages/creditor-dispute-detail').then((m) => m.CreditorDisputeDetailPage),
+      },
       { path: '**', redirectTo: 'inicio' },
     ],
   },

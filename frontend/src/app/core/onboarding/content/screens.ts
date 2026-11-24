@@ -476,7 +476,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'collection.dispute',
-    version: 3,
+    version: 4,
     path: '/cobranca/contestacoes/:id',
     tourId: 'collection.dispute',
     changes: [
@@ -494,6 +494,12 @@ export const SCREENS: readonly ScreenGuide[] = [
         items: [
           'Canal com o credor organizado por pedido, como uma conversa: o "E-mail enviado ao credor" (para, cópia, prazo, envios) e, logo abaixo, os "E-mails recebidos do credor" e as respostas registradas.',
           'Mensagens abertas num quadro com rolagem; no e-mail recebido, as verificações em selos, o motivo da quarentena em destaque e as ações numa linha própria.',
+        ],
+      },
+      {
+        version: 4,
+        items: [
+          'Com o portal do credor liberado, a pessoa do credor responde ao pedido pelo portal: a resposta aparece com a origem "Portal do credor" e os documentos passam pela verificação de segurança antes de virar evidência.',
         ],
       },
     ],

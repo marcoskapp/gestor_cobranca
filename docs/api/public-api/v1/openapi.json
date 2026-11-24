@@ -921,6 +921,7 @@
             "type" : "string"
           },
           "source" : {
+            "description" : "Como a resposta chegou: MANUAL (registrada pela assessoria), PUBLIC_API (por esta API), EMAIL (e-mail do credor confirmado pela assessoria) ou CREDITOR_PORTAL (pela pessoa do credor no portal do credor)",
             "type" : "string"
           }
         },

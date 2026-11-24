@@ -55,6 +55,9 @@ import { fragmentToken } from '../pages/creditor-errors';
             <a [routerLink]="['/credor', slug(), 'prestacao-de-contas']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page">
               <app-icon name="file-earmark-text" /> Prestação de contas
             </a>
+            <a [routerLink]="['/credor', slug(), 'contestacoes']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page">
+              <app-icon name="chat-square-text" /> Contestações
+            </a>
           }
         </nav>
       }

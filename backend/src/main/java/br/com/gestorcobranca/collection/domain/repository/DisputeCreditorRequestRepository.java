@@ -17,6 +17,17 @@ public interface DisputeCreditorRequestRepository {
 
     long countByDisputeId(UUID disputeId);
 
+    /** Pedidos ao credor, do mais recente ao mais antigo (portal do credor; índice {@code ix_dispute_request_creditor}). */
+    List<DisputeCreditorRequest> findRecentByCreditorId(UUID creditorId, int limit);
+
+    /**
+     * Pedidos ao credor que aguardam a resposta (na fila, enviados ou com falha de envio), pelo prazo (portal do credor;
+     * índice parcial {@code ix_dispute_request_creditor_awaiting}).
+     */
+    List<DisputeCreditorRequest> findAwaitingByCreditorId(UUID creditorId, int limit);
+
+    List<DisputeCreditorRequest> findByDisputeIdIn(java.util.Collection<UUID> disputeIds);
+
     /**
      * Pedidos enviados e sem resposta com algo a fazer: lembrete ainda não enfileirado e prazo até
      * {@code reminderUntil}, ou prazo vencido (antes de {@code today}) ainda não sinalizado.

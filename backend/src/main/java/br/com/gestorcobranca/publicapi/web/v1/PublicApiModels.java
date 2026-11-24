@@ -222,7 +222,9 @@ final class PublicApiModels {
      * assessoria: {@code documentsInVerification} ainda em verificação, {@code documentsAccepted} entregues e
      * {@code documentsRejected} recusados (conteúdo malicioso ou sem verificação concluída — reenvie por outro meio).
      */
-    record CreditorResponseDto(UUID id, UUID disputeId, UUID requestId, String source, String position,
+    record CreditorResponseDto(UUID id, UUID disputeId, UUID requestId,
+                               @Schema(description = "Como a resposta chegou: MANUAL (registrada pela assessoria), PUBLIC_API (por esta API), EMAIL (e-mail do credor confirmado pela assessoria) ou CREDITOR_PORTAL (pela pessoa do credor no portal do credor)")
+                               String source, String position,
                                Instant receivedAt, int documentsAccepted, int documentsInVerification,
                                int documentsRejected) {
         static CreditorResponseDto of(br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.CreditorResponseView v) {
