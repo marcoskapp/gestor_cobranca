@@ -88,7 +88,7 @@ import { focusFilter, focusableKey, unfocusFilter, urlFilter } from '../data/url
         <div class="pn__grid app-columns">
           <section class="app-card" aria-labelledby="op-status">
             <h2 class="app-card__title" id="op-status">Casos por estado <app-info-hint indicator="analytics.portfolio.cases-by-status" label="Casos por estado" /></h2>
-            <div class="pn__table-wrap">
+            <div class="pn__table-wrap app-scroll-x">
               <table class="pn__table">
                 <thead><tr><th scope="col">Estado</th><th scope="col" class="num">Casos</th><th scope="col" class="num">Elegíveis</th><th scope="col" class="num">Saldo em aberto</th><th scope="col" class="num">Saldo elegível <app-info-hint indicator="analytics.portfolio.eligible" label="Saldo elegível" /></th></tr></thead>
                 <tbody>
@@ -110,7 +110,7 @@ import { focusFilter, focusableKey, unfocusFilter, urlFilter } from '../data/url
           <section class="app-card" aria-labelledby="op-queue">
             <h2 class="app-card__title" id="op-queue">Fila pendente <app-info-hint indicator="analytics.portfolio.pending-queue" label="Fila pendente" /></h2>
             <p class="pn__hint">Casos elegíveis aguardando na fila (sem negociador atribuído).</p>
-            <div class="pn__table-wrap">
+            <div class="pn__table-wrap app-scroll-x">
               <table class="pn__table">
                 <thead><tr><th scope="col">Fila</th><th scope="col" class="num">Casos</th><th scope="col" class="num">Saldo elegível</th></tr></thead>
                 <tbody>

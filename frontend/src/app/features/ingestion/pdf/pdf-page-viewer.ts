@@ -42,7 +42,7 @@ export const REGION_LEGEND: readonly { kind: string; label: string }[] = [
         <li><span class="pv-swatch" data-kind="SELECTED" aria-hidden="true"></span>Título selecionado</li>
       </ul>
     }
-    <div class="pv-frame" data-tour="pdf-viewer">
+    <div class="pv-frame" data-tour="pdf-viewer" tabindex="0" role="region" [attr.aria-label]="'Página ' + page() + ' do PDF'">
       @if (image(); as src) {
         <div class="pv-page-box">
           <img [src]="src" [alt]="'Página ' + page() + ' do PDF'" class="pv-img" />

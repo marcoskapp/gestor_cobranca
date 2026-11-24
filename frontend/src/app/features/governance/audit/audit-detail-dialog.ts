@@ -35,16 +35,16 @@ import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
       <div class="audit-diff">
         <section>
           <h3 class="app-section-title mt-3">Antes</h3>
-          <app-json-view [value]="e.before" />
+          <app-json-view [value]="e.before" label="Antes da alteração" />
         </section>
         <section>
           <h3 class="app-section-title mt-3">Depois</h3>
-          <app-json-view [value]="e.after" />
+          <app-json-view [value]="e.after" label="Depois da alteração" />
         </section>
       </div>
       @if (e.metadata) {
         <h3 class="app-section-title mt-3">Metadados</h3>
-        <app-json-view [value]="e.metadata" />
+        <app-json-view [value]="e.metadata" label="Metadados" />
       }
     </div>
     <div class="modal-footer">

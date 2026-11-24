@@ -18,7 +18,7 @@ const RATE = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 0, maximumF
     @if (lines().length === 0) {
       <p class="app-muted mb-0" role="status">Sem linhas de cálculo: não houve volume creditado no período.</p>
     } @else {
-      <div class="in-scroll">
+      <div class="in-scroll app-scroll-x">
         <table class="in-table">
           <caption class="visually-hidden">{{ caption() }}</caption>
           <thead>

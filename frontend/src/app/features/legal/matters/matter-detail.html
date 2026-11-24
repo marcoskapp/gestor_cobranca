@@ -69,7 +69,7 @@
           <div class="md-cols">
             <section aria-labelledby="md-titles">
               <h2 class="app-section-title" id="md-titles">Títulos ({{ s.titles.length }})</h2>
-              <div class="md-scroll">
+              <div class="md-scroll app-scroll-x">
                 <table class="md-table" aria-label="Títulos do caso jurídico">
                   <thead>
                     <tr>
@@ -99,7 +99,7 @@
 
               <h2 class="app-section-title" id="md-collaterals">Garantias ({{ s.collaterals.length }})</h2>
               @if (s.collaterals.length) {
-                <div class="md-scroll">
+                <div class="md-scroll app-scroll-x">
                   <table class="md-table" aria-labelledby="md-collaterals">
                     <thead>
                       <tr>
@@ -391,7 +391,7 @@
               <button class="btn btn-primary" type="button" (click)="recordExpense()"><app-icon name="plus-lg" /> Registrar despesa</button>
             }
           </div>
-          <div class="md-scroll">
+          <div class="md-scroll app-scroll-x">
             <table class="md-table" aria-label="Custas e despesas">
               <thead>
                 <tr>

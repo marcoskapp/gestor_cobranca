@@ -67,7 +67,7 @@ interface Mark {
       @if (!model().points.length) {
         <p class="sc__summary" role="status">Nenhuma carteira com receita e valor recuperado no período e filtros escolhidos.</p>
       } @else if (table()) {
-        <div class="sc__table-wrap">
+        <div class="sc__table-wrap app-scroll-x">
           <table class="sc__table">
             <thead>
               <tr>
@@ -193,7 +193,6 @@ interface Mark {
       pointer-events: none;
     }
     .sc__tip-hint { color: var(--bs-secondary-color); }
-    .sc__table-wrap { overflow-x: auto; }
     .sc__table { width: 100%; border-collapse: collapse; font-size: var(--app-text-sm); }
     .sc__table th, .sc__table td { padding: 6px 8px; border-bottom: 1px solid var(--bs-border-color); text-align: left; }
     .sc__table .num { text-align: right; white-space: nowrap; }

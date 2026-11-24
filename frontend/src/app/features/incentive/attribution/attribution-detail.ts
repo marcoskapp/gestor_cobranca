@@ -56,7 +56,7 @@ import { pct } from '../data/incentive.rules';
             @if (a.credits.length === 0) {
               <p class="app-muted mb-0">Nenhum crédito individual (por exemplo, acordo fechado sozinho pelo assistente sem equipe dona da fila).</p>
             } @else {
-              <div class="in-scroll">
+              <div class="in-scroll app-scroll-x">
                 <table class="in-table">
                   <caption class="visually-hidden">Créditos do acordo</caption>
                   <thead>

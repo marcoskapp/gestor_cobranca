@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 35,
+    date: '2026-11-24',
+    title: 'Relatório de margem mais legível, atalho do Início e rolagem',
+    items: [
+      { text: 'No painel e no relatório completo de margem, as carteiras abertas aparecem como um grupo do credor (recuadas, sombreadas e com ícone de pasta); abra pelo nome do credor. No relatório, "Abrir todas as carteiras" mostra todas de uma vez.', route: '/paineis/margem' },
+      { text: 'Na barra superior, o atalho para o Início agora é a casinha, o mesmo ícone do item "Início" do menu.', route: '/' },
+      { text: 'Listas completas e tabelas largas não mostram mais barra de rolagem vertical sem função: o cartão cresce com a lista e só a tabela rola para o lado quando falta largura.', route: '/paineis' },
+    ],
+  },
+  {
     version: 34,
     date: '2026-11-23',
     title: 'Painéis mais enxutos e prévia de template',

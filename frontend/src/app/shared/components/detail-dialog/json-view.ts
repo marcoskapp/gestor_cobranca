@@ -3,7 +3,7 @@ import { Component, computed, input } from '@angular/core';
 /** Exibe um objeto JSON como texto pré-formatado (interpolação segura, nunca HTML). */
 @Component({
   selector: 'app-json-view',
-  template: `<pre class="app-json">{{ text() }}</pre>`,
+  template: `<pre class="app-json" tabindex="0" role="region" [attr.aria-label]="label()">{{ text() }}</pre>`,
   styles: `
     .app-json {
       margin: 0;
@@ -21,6 +21,8 @@ import { Component, computed, input } from '@angular/core';
 })
 export class JsonView {
   readonly value = input<unknown>();
+  /** Nome acessível da área (rola na vertical e recebe foco pelo teclado). */
+  readonly label = input('Detalhes em JSON');
   protected readonly text = computed(() => {
     const value = this.value();
     if (value === null || value === undefined) {

@@ -73,7 +73,7 @@ import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
       <div class="ld-grid app-columns">
         <section class="app-card" aria-labelledby="ld-stages" data-tour="legal-stages">
           <h2 class="app-card__title" id="ld-stages">Casos por fase <app-info-hint indicator="legal.dashboard.stages" label="Casos por fase" /></h2>
-          <div class="ld-scroll">
+          <div class="ld-scroll app-scroll-x">
             <table class="ld-table" aria-label="Casos por fase">
               <thead>
                 <tr>
@@ -142,9 +142,6 @@ import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
       gap: var(--app-gap);
-    }
-    .ld-scroll {
-      overflow-x: auto;
     }
     .ld-table {
       width: 100%;

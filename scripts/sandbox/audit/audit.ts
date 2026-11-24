@@ -10,6 +10,8 @@
 //   - rolagem      o documento rola (scrollHeight > innerHeight ou scrollWidth > innerWidth): só a área de
 //                  conteúdo (`main.app-content`) pode rolar; ou uma tabela (`.table-responsive`) fica mais larga
 //                  que o espaço dela e ganha barra horizontal (texto longo sem quebra, como IPv6 e rotas);
+//   - rolagem-interna  contêiner com barra vertical que não deveria existir (ux.md §23): sobra de até 4 px (a "barra
+//                  fantasma") ou bloco que rola na horizontal e também na vertical sem altura máxima;
 //   - erro-js      exceção não tratada no navegador.
 // Ação visível e desabilitada com o motivo (`app-disabled-action`, exceção decidida pelo responsável) não é problema:
 // ela não chama o servidor nem mostra "Acesso negado"; só os 403 e os avisos "Acesso negado" contam.
@@ -26,7 +28,7 @@ import type { Browser, Page } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-type ProblemType = '403' | 'acesso-negado' | 'cartoes' | 'rolagem' | 'erro-js';
+type ProblemType = '403' | 'acesso-negado' | 'cartoes' | 'rolagem' | 'rolagem-interna' | 'erro-js';
 
 interface Problem {
   profile: string;
@@ -148,7 +150,25 @@ async function auditProfile(browser: Browser, spec: string): Promise<ProfileResu
       const wideTables = [...document.querySelectorAll('.table-responsive')]
         .filter((t) => t.clientWidth > 0 && t.scrollWidth > t.clientWidth + 1)
         .map((t) => `${t.closest('app-data-table')?.querySelector('caption')?.textContent?.trim() || 'tabela'}: ${t.scrollWidth} px em ${t.clientWidth} px`);
-      return { scrollHeight: doc.scrollHeight, scrollWidth: doc.scrollWidth, innerHeight, innerWidth, misaligned, wideTables };
+      // rolagem interna fora do padrão: o cartão cresce com o conteúdo e mesmo assim mostra barra vertical
+      const innerScroll: string[] = [];
+      for (const el of document.querySelectorAll<HTMLElement>('main.app-content *')) {
+        if (el.clientHeight === 0 || el.scrollHeight <= el.clientHeight) continue;
+        // campos de formulário rolam por natureza (texto maior que as linhas visíveis)
+        if (el.matches('textarea, select')) continue;
+        const cs = getComputedStyle(el);
+        if (cs.overflowY !== 'auto' && cs.overflowY !== 'scroll') continue;
+        const extra = el.scrollHeight - el.clientHeight;
+        // `overflow-y: auto` sozinho já computa `overflow-x: auto` (CSS Overflow 3): "dois eixos" só quando o bloco rola de
+        // fato na horizontal; área de altura fixa (flex ou `height`) que só rola na vertical é legítima (ux.md §23)
+        const rollsX = (cs.overflowX === 'auto' || cs.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1;
+        const both = rollsX && cs.maxHeight === 'none';
+        if (extra <= 4 || both) {
+          const name = el.tagName.toLowerCase() + [...el.classList].slice(0, 3).map((c) => '.' + c).join('');
+          innerScroll.push(`${name}: ${el.scrollHeight} px em ${el.clientHeight} px${extra <= 4 ? ' (barra que não rola)' : ' (rola nos dois eixos sem altura máxima)'}`);
+        }
+      }
+      return { scrollHeight: doc.scrollHeight, scrollWidth: doc.scrollWidth, innerHeight, innerWidth, misaligned, wideTables, innerScroll };
     }, ALIGN_TOLERANCE_PX).catch(() => null);
     if (layout) {
       for (const m of layout.misaligned) report('cartoes', m);
@@ -156,6 +176,7 @@ async function auditProfile(browser: Browser, spec: string): Promise<ProfileResu
         report('rolagem', `documento ${layout.scrollWidth}×${layout.scrollHeight} na janela ${layout.innerWidth}×${layout.innerHeight}`);
       }
       for (const t of layout.wideTables) report('rolagem', `tabela com barra horizontal — ${t}`);
+      for (const t of layout.innerScroll) report('rolagem-interna', t);
     }
   };
 
@@ -281,13 +302,13 @@ function markdown(results: ProfileResult[]): string {
     '',
     `Gerado em ${new Date().toISOString()} · ${BASE} · janela ${WIDTH}×${HEIGHT} · detalhe ${DETAIL ? 'sim' : 'não'}`,
     '',
-    '| Perfil | Páginas e abas | 403 | Acesso negado | Cartões desalinhados | Documento rola | Erro JS | Falha da auditoria |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
+    '| Perfil | Páginas e abas | 403 | Acesso negado | Cartões desalinhados | Documento rola | Rolagem interna | Erro JS | Falha da auditoria |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
   ];
   const count = (r: ProfileResult, t: ProblemType) => r.problems.filter((p) => p.type === t).length;
   for (const r of results) {
     lines.push(`| ${r.profile} | ${r.pages.length} | ${count(r, '403')} | ${count(r, 'acesso-negado')} | ${count(r, 'cartoes')} | `
-      + `${count(r, 'rolagem')} | ${count(r, 'erro-js')} | ${r.failure ?? ''} |`);
+      + `${count(r, 'rolagem')} | ${count(r, 'rolagem-interna')} | ${count(r, 'erro-js')} | ${r.failure ?? ''} |`);
   }
   const problems = results.flatMap((r) => r.problems);
   lines.push('', '## Problemas (perfil × página)', '');

@@ -81,7 +81,7 @@ const GROUPS = ['MONTH', 'WEEK', 'DAY', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TE
         </section>
         <section class="app-card" aria-labelledby="rc-table">
           <h2 class="app-card__title" id="rc-table">Detalhe por {{ groupName().toLowerCase() }}</h2>
-          <div class="pn__table-wrap">
+          <div class="pn__table-wrap app-scroll-x">
             <table class="pn__table">
               <thead>
                 <tr><th scope="col">{{ groupName() }}</th><th scope="col" class="num">Recebido <app-info-hint indicator="analytics.recovery.gross" label="Recebido" /></th><th scope="col" class="num">Estornado <app-info-hint indicator="analytics.recovery.reversals" label="Estornado" /></th><th scope="col" class="num">Recuperado líquido <app-info-hint indicator="analytics.recovery.net" label="Recuperado líquido" /></th><th scope="col" class="num">Recebimentos <app-info-hint indicator="analytics.recovery.receipts" label="Recebimentos" /></th>@if (showRate()) {<th scope="col" class="num">Taxa (base: saldo elegível no início) <app-info-hint indicator="analytics.recovery.rate" label="Taxa de recuperação" /></th>}</tr>

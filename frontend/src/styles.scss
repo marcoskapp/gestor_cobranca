@@ -545,6 +545,46 @@ time {
   color: var(--bs-secondary-color);
 }
 
+// --------------------------------------------------------------------- rolagem interna (ux.md §23)
+
+// Regra: nenhum componente usa `overflow: auto`/`overflow-x: auto` solto. Ou o bloco cresce com o conteúdo e só
+// rola na horizontal (`.app-scroll-x`), ou tem ALTURA FIXA definida pelo componente e rola na vertical
+// (`.app-scroll-y`). Nunca as duas coisas: cartão que cresce não mostra barra vertical.
+
+// Conteúdo largo (tabela, faixa de abas): rola só na horizontal; a altura acompanha o conteúdo.
+// `overflow-y: hidden`: `overflow-x: auto` sozinho torna o eixo vertical `auto`, e o `<caption class="visually-hidden">`
+// (estático no Bootstrap, 1 px abaixo da tabela) gerava uma barra vertical que não rola nada.
+// `position: relative`: contém os `.visually-hidden` (absolutos) das células, que senão alargam a página.
+.app-scroll-x,
+.table-responsive {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
+// campos ou botões encostados na borda (tabela com campos, tabela com bordas): folga para o anel de foco, que a
+// rolagem recortaria (contorno de 2 px + afastamento de 2 px)
+.app-scroll-x--focus-gutter {
+  padding: 4px;
+  margin: -4px;
+}
+
+// Área de altura fixa (chat, citação, código, linha do tempo): rola na vertical. A altura (`max-height` ou flex com
+// `min-height: 0`) vem do componente. Sem conteúdo focável dentro: `tabindex="0"` e nome acessível
+// (`aria-label`/`aria-labelledby`; `role="region"` quando o elemento não tiver papel próprio).
+.app-scroll-y {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+// item de faixa rolável: anel de foco por dentro (a faixa recorta o que passa da borda)
+.app-tabs .nav-link:focus-visible,
+.portal__nav a:focus-visible {
+  outline-offset: -2px;
+}
+
 // --------------------------------------------------------------------- onboarding (overlays do CDK)
 
 .app-tour-pane {

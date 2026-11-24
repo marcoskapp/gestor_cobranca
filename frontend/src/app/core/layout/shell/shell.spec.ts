@@ -54,6 +54,15 @@ describe('Shell — cabeçalho estreito', () => {
 
   const chatItem = () => [...document.querySelectorAll<HTMLButtonElement>('.app-user-menu .dropdown-item')].find((b) => b.textContent?.includes('Chat de suporte'));
 
+  it('atalho da barra superior para o Início: a casinha e o destino do item "Início" do menu', async () => {
+    narrow = false;
+    await RouterTestingHarness.create('/');
+    const home = document.querySelector<HTMLAnchorElement>('a.app-topbar__brand')!;
+    expect(home.getAttribute('aria-label')).toBe('Início');
+    expect(home.getAttribute('href')).toBe('/');
+    expect(home.querySelector('app-icon')?.getAttribute('name') ?? home.querySelector('use')?.getAttribute('href')).toContain('house');
+  }, 20_000);
+
   it('telas largas: sem o item de chat no menu do usuário (o botão fica na barra)', async () => {
     narrow = false;
     await RouterTestingHarness.create('/');

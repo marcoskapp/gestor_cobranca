@@ -24,7 +24,7 @@
     </div>
   }
   <p class="mp__hint">
-    Abra o credor para ver as carteiras. Margem negativa aparece com "−" e a palavra "negativa".
+    Abra o credor pelo nome para ver as carteiras dele logo abaixo. Margem negativa aparece com "−" e a palavra "negativa".
     @if (!full()) {
       Recuperado, margem de contribuição, ROI e custo por categoria estão no relatório completo.
     }
@@ -39,6 +39,7 @@
       }
     </p>
   }
+  <div class="mp__tools">
   <div class="mp__order">
     <label class="form-label" for="mp-order">Ordenar por</label>
     <select id="mp-order" class="form-select form-select-sm" (change)="order($any($event.target).value)">
@@ -47,7 +48,15 @@
       }
     </select>
   </div>
-  <div class="mp__table-wrap" [class.mp__table-wrap--wide]="withCategories()">
+  @if (full() && expandable()) {
+    <button type="button" class="btn btn-outline-secondary btn-sm mp__expand-all" data-tour="margin-expand-all" (click)="toggleAll()">
+      <app-icon [name]="allOpen() ? 'chevron-up' : 'chevron-down'" />{{ allOpen() ? 'Fechar todas as carteiras' : 'Abrir todas as carteiras' }}
+    </button>
+    <!-- o texto do botão muda com o foco nele; o anúncio diz o que entrou ou saiu da tabela -->
+    <span class="visually-hidden" role="status" aria-live="polite">{{ expandAllMessage() }}</span>
+  }
+  </div>
+  <div class="mp__table-wrap app-scroll-x" [class.mp__table-wrap--wide]="withCategories()">
     <table class="mp__table" [class.mp__table--compact]="!full()" #tableEl [attr.aria-describedby]="notice() ? 'mp-notice' : null">
       <caption class="visually-hidden">Margem por credor e carteira, ordenada por {{ effectiveSort().key === 'name' ? 'nome' : 'coluna escolhida' }}</caption>
       <thead>
@@ -95,29 +104,37 @@
         @for (item of visibleRows(); track item.row.creditorId) {
           @let c = item.row;
           @let open = expanded().has(c.creditorId);
-          <tr class="mp__creditor" [class.mp__negative]="negative(c.netMargin)">
+          <tr class="mp__creditor" [class.mp__creditor--open]="open && item.portfolios.length" [class.mp__negative]="negative(c.netMargin)">
             <th scope="row">
               @if (item.portfolios.length) {
-                <button type="button" class="btn btn-link mp__expand" (click)="toggle(c.creditorId)" [attr.aria-expanded]="open"
-                        [attr.aria-controls]="'mp-p-' + c.creditorId" [attr.aria-label]="(open ? 'Fechar' : 'Abrir') + ' as carteiras de ' + creditorName(c)">
-                  <app-icon [name]="open ? 'chevron-down' : 'chevron-right'" />
+                <!-- o nome inteiro abre e fecha as carteiras (alvo maior que só a seta) -->
+                <button type="button" class="mp__expand" (click)="toggle(c.creditorId)" [attr.aria-expanded]="open"
+                        [attr.aria-controls]="'mp-p-' + c.creditorId">
+                  <app-icon class="mp__chevron" [name]="open ? 'chevron-down' : 'chevron-right'" />
+                  <span>{{ creditorName(c) }}</span>
                 </button>
+                <span class="sub mp__count">{{ count(item.portfolios.length) }} {{ item.portfolios.length === 1 ? 'carteira' : 'carteiras' }}</span>
+              } @else {
+                <span>{{ creditorName(c) }}</span>
+                <span class="sub">sem carteira</span>
               }
-              <span>{{ creditorName(c) }}</span>
-              <span class="sub">{{ count(item.portfolios.length) }} {{ item.portfolios.length === 1 ? 'carteira' : 'carteiras' }}</span>
             </th>
             <ng-container *ngTemplateOutlet="cells; context: { $implicit: c, link: creditorLink(c), trend: trendOf(c.creditorId) }" />
           </tr>
           @if (open) {
-            @for (p of item.portfolios; track p.portfolioId ?? '-'; let first = $first) {
-              <tr class="mp__portfolio" [class.mp__negative]="negative(p.netMargin)" [attr.id]="first ? 'mp-p-' + c.creditorId : null">
+            @for (p of item.portfolios; track p.portfolioId ?? '-'; let first = $first; let last = $last) {
+              <tr class="mp__portfolio" [class.mp__portfolio--last]="last" [class.mp__negative]="negative(p.netMargin)" [attr.id]="first ? 'mp-p-' + c.creditorId : null">
                 <th scope="row">
-                  <span class="mp__indent">
-                    @if (searchMatch(portfolioName(p))) {
-                      <mark>{{ portfolioName(p) }}</mark><span class="visually-hidden"> (encontrada na busca)</span>
-                    } @else {
-                      {{ portfolioName(p) }}
-                    }
+                  <span class="mp__branch">
+                    <app-icon class="mp__branch-icon" name="folder2-open" />
+                    <span>
+                      <span class="visually-hidden">Carteira de {{ creditorName(c) }}: </span>
+                      @if (searchMatch(portfolioName(p))) {
+                        <mark>{{ portfolioName(p) }}</mark><span class="visually-hidden"> (encontrada na busca)</span>
+                      } @else {
+                        {{ portfolioName(p) }}
+                      }
+                    </span>
                   </span>
                 </th>
                 <ng-container *ngTemplateOutlet="cells; context: { $implicit: p, link: portfolioLink(c, p), trend: trendOf(c.creditorId, p.portfolioId) }" />

@@ -4,9 +4,6 @@
   gap: var(--app-gap);
   margin-bottom: var(--app-gap);
 }
-.pn__table-wrap {
-  overflow-x: auto;
-}
 .pn__table {
   width: 100%;
   border-collapse: collapse;
@@ -26,6 +23,12 @@
   .num {
     text-align: right;
     white-space: nowrap;
+  }
+  // cabeçalho em até 2 linhas (rótulo + "i"): a tabela cabe a partir de 1280 px sem rolar para o lado (ux.md §22);
+  // os valores continuam numa linha só
+  thead th.num {
+    min-width: 72px;
+    white-space: normal;
   }
   .sub {
     display: block;

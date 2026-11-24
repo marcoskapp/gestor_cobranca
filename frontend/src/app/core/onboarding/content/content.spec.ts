@@ -201,8 +201,9 @@ describe('conteúdo do onboarding', () => {
 
   it('painel de margem compacto e relatório completo registrados, com tour e nota de versão', () => {
     const panel = findScreen('/paineis/margem?de=2026-10-01')!;
-    expect(panel.version).toBe(4);
+    expect(panel.version).toBe(5);
     expect(panel.changes?.some((c) => c.version === 4)).toBe(true);
+    expect(panel.changes?.some((c) => c.version === 5)).toBe(true);
     expect(findTour('analytics.margin')?.version).toBe(3);
     // relatório: rota própria, antes do painel não casaria (segmentos diferentes), sem item no menu
     const report = findScreen('/paineis/margem/relatorio?de=2026-10-01&base=conciliado')!;
@@ -212,6 +213,11 @@ describe('conteúdo do onboarding', () => {
     expect(note.title).toBe('Painéis mais enxutos e prévia de template');
     // a novidade da margem aponta para o painel (o relatório não tem item no menu: abre pelo painel)
     expect(note.items.map((i) => i.route)).toEqual(['/paineis/margem', '/paineis', '/conversas']);
+    // v35: carteiras como grupo do credor no relatório
+    expect(report.version).toBe(2);
+    expect(report.changes?.some((c) => c.version === 2)).toBe(true);
+    expect(findTour('analytics.margin-report')?.version).toBe(2);
+    expect(RELEASE_NOTES.find((n) => n.version === 35)?.items.map((i) => i.route)).toEqual(['/paineis/margem', '/', '/paineis']);
   });
 
   it('pagamentos, instruções, aprovação, sobras, conciliação e contas Pix registrados com tour (rotas fixas antes de :id)', () => {

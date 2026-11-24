@@ -192,7 +192,7 @@
           {{ showMemory() ? 'Ocultar memória de cálculo' : 'Ver memória de cálculo' }}
         </button>
         @if (showMemory()) {
-          <div class="sim-scroll">
+          <div class="sim-scroll app-scroll-x">
             <table class="sim-table" aria-label="Memória de cálculo por título">
               <thead>
                 <tr>
@@ -224,7 +224,7 @@
           </div>
           @if (r.envelope?.length) {
             <h3 class="app-section-title">Envelope da política (desconto máximo) <app-info-hint indicator="negotiation.sim.envelope" label="Envelope da política" /></h3>
-            <div class="sim-scroll">
+            <div class="sim-scroll app-scroll-x">
               <table class="sim-table" aria-label="Envelope da política">
                 <thead>
                   <tr>

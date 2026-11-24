@@ -156,7 +156,7 @@ export function monthRange(month: string, today: string): { from: string; to: st
         }
         <section class="app-card" aria-labelledby="pf-table">
           <h2 class="app-card__title" id="pf-table">{{ groupLabels[groupBy()] }}</h2>
-          <div class="in-scroll">
+          <div class="in-scroll app-scroll-x">
             <table class="in-table" #tableEl>
               <caption class="visually-hidden">Indicadores {{ groupLabels[groupBy()].toLowerCase() }}</caption>
               <thead>

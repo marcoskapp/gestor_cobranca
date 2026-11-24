@@ -1,5 +1,7 @@
 :host {
   display: block;
+  // linha-guia da árvore credor → carteiras: mais forte que a borda da tabela, sem competir com o texto
+  --mp-guide: color-mix(in srgb, var(--bs-secondary-color) 55%, transparent);
 }
 .mp__hint {
   margin: 8px 0 0;
@@ -45,7 +47,6 @@
 }
 .mp__table-wrap {
   margin-top: 8px;
-  overflow-x: auto;
 }
 .mp__table {
   width: 100%;
@@ -79,10 +80,18 @@
     color: var(--bs-secondary-color);
   }
 }
-// nome do credor em 1–2 linhas naturais (não "Credor / Fictício Cedro")
+// nome do credor em 1–2 linhas naturais (não "Credor / Fictício Cedro"); no relatório, um pouco mais largo para a
+// carteira recuada, sem passar de 1280 px sem as categorias (184 px já fazia a tabela rolar 16 px)
 .mp__table tbody th,
 .mp__table tfoot th {
   min-width: 160px;
+}
+.mp__table:not(.mp__table--compact) tbody th {
+  min-width: 176px;
+}
+// com as categorias a tabela já rola de propósito (nome fixo à esquerda): o nome da carteira cabe numa linha
+.mp__table-wrap--wide .mp__table:not(.mp__table--compact) tbody th {
+  min-width: 230px;
 }
 // com o custo por categoria a tabela passa da largura: o nome do credor fica fixo à esquerda enquanto ela rola
 .mp__table-wrap--wide .mp__table tbody th,
@@ -93,10 +102,13 @@
   z-index: 1;
   background: var(--app-surface);
 }
+.mp__table-wrap--wide .mp__table .mp__portfolio > th {
+  position: sticky;
+  background: var(--bs-tertiary-bg);
+}
 .mp__order {
   display: none;
   max-width: 320px;
-  margin-top: 8px;
   .form-label {
     margin-bottom: 2px;
     font-size: var(--app-text-sm);
@@ -113,16 +125,101 @@
   font: inherit;
   text-align: inherit;
 }
+// nome do credor como botão (seta + nome): abre e fecha as carteiras
 .mp__expand {
-  margin: -4px 4px 0 -6px;
-  padding: 0 4px;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-left: -4px;
+  padding: 0 4px 0 0;
+  border: 0;
+  border-radius: var(--bs-border-radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--app-weight-semibold);
+  text-align: left;
+  &:hover span {
+    text-decoration: underline;
+  }
 }
-.mp__portfolio th {
+.mp__chevron {
+  flex: none;
+  margin-top: 2px;
+  color: var(--bs-secondary-color);
+}
+.mp__count {
+  padding-left: 20px;
+}
+.mp__creditor > th {
+  font-weight: var(--app-weight-semibold);
+}
+
+// credor aberto = cabeçalho do grupo; carteiras = bloco recuado e sombreado, com a linha-guia (árvore) ligando cada
+// carteira ao credor e o ícone de pasta (o mesmo do menu Carteiras). A última fecha o grupo com a borda normal.
+.mp__creditor--open > th,
+.mp__creditor--open > td {
+  border-bottom-color: transparent;
+}
+.mp__portfolio > th,
+.mp__portfolio > td {
+  background: var(--bs-tertiary-bg);
+  border-bottom: 1px dashed var(--bs-border-color);
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.mp__portfolio--last > th,
+.mp__portfolio--last > td {
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.mp__portfolio > th {
+  position: relative;
   font-weight: normal;
+  // linha vertical que desce do credor (na última carteira, só até o meio: o "└")
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 13px;
+    border-left: 2px solid var(--mp-guide);
+  }
+  // ramo horizontal até a carteira
+  &::after {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: 13px;
+    width: 12px;
+    border-top: 2px solid var(--mp-guide);
+  }
 }
-.mp__indent {
-  display: inline-block;
-  padding-left: 28px;
+.mp__portfolio--last > th::before {
+  bottom: auto;
+  height: 17px;
+}
+.mp__branch {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding-left: 22px;
+}
+.mp__branch-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--bs-secondary-color);
+}
+.mp__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.mp__expand-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .mp__negative > th:first-child {
   box-shadow: inset 3px 0 0 var(--bs-danger);
@@ -164,12 +261,19 @@
   .mp__order {
     display: block;
   }
+  // blocos por credor: sem rolagem nenhuma. Os dois eixos explícitos, porque o `overflow-y: hidden` do `.app-scroll-x`
+  // transformaria o `visible` em `auto` (CSS Overflow 3) e cortaria o botão do credor e o anel de foco
   .mp__table-wrap {
-    overflow-x: visible;
+    overflow: visible;
   }
   .mp__table-wrap--wide .mp__table tbody th,
-  .mp__table-wrap--wide .mp__table tfoot th {
+  .mp__table-wrap--wide .mp__table tfoot th,
+  .mp__table-wrap--wide .mp__table .mp__portfolio > th {
     position: static;
+  }
+  // o fundo da carteira fica no bloco (tr) no celular
+  .mp__table-wrap--wide .mp__table .mp__portfolio > th {
+    background: none;
   }
   .mp__table {
     thead {
@@ -223,6 +327,33 @@
       width: auto;
       text-align: right;
     }
+  }
+  // carteira: bloco recuado e sombreado sob o credor, com a borda-guia à esquerda (sem os traços da árvore)
+  .mp__table tr.mp__portfolio {
+    margin-left: 12px;
+    padding: 6px 8px 6px 10px;
+    border-left: 2px solid var(--mp-guide);
+    border-bottom: 1px dashed var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+  }
+  .mp__table tr.mp__portfolio--last {
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  // carteira negativa: a própria borda-guia assume a cor de alerta (sem faixa dupla); "negativa" segue no texto
+  .mp__table tr.mp__portfolio.mp__negative {
+    box-shadow: none;
+    border-left-color: var(--bs-danger);
+  }
+  .mp__table .mp__portfolio > th,
+  .mp__table .mp__portfolio > td {
+    background: none;
+  }
+  .mp__portfolio > th::before,
+  .mp__portfolio > th::after {
+    content: none;
+  }
+  .mp__branch {
+    padding-left: 0;
   }
   .mp__negative > th:first-child {
     box-shadow: none;

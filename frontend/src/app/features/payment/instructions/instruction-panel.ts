@@ -73,7 +73,7 @@ const MAX_POLLS = 60;
           <app-pix-qr [value]="i.pixCopyPaste" [alt]="'QR Code do Pix de ' + amountText(i)" />
           <div class="ip__copy">
             <span class="app-section-title" id="ip-code-label">Pix copia e cola</span>
-            <code class="ip__code" aria-labelledby="ip-code-label">{{ i.pixCopyPaste }}</code>
+            <code class="ip__code" tabindex="0" role="region" aria-labelledby="ip-code-label">{{ i.pixCopyPaste }}</code>
             <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" (click)="copy(i)" data-tour="instruction-copy">
               <app-icon name="copy" />
               Copiar código

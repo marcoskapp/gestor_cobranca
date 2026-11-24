@@ -235,7 +235,7 @@ export class VigencyDialog {
           @if (r.statements.length === 0) {
             <p class="app-muted" role="status">Nenhum negociador com lançamentos liberados no mês.</p>
           } @else {
-            <div class="in-scroll">
+            <div class="in-scroll app-scroll-x">
               <table class="in-table">
                 <caption class="visually-hidden">Simulação por negociador</caption>
                 <thead>

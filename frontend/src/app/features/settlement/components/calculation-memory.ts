@@ -12,7 +12,7 @@ import { CalculationView } from '../data/settlement.models';
   imports: [Amount],
   template: `
     @let c = calculation();
-    <div class="cm-scroll">
+    <div class="cm-scroll app-scroll-x">
       <table class="cm-table" [attr.aria-label]="caption()">
         <thead>
           <tr>
@@ -40,9 +40,6 @@ import { CalculationView } from '../data/settlement.models';
     <p class="app-muted cm-small">Regra aplicada: <strong>{{ c.ruleCode }}</strong> ({{ percent(c.rate) }}). Centavos arredondados pela regra bancária em cada linha.</p>
   `,
   styles: `
-    .cm-scroll {
-      overflow-x: auto;
-    }
     .cm-table {
       width: 100%;
       border-collapse: collapse;

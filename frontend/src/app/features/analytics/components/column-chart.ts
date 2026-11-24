@@ -37,7 +37,7 @@ const AXIS_COUNT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
       @if (rows().length === 0) {
         <p class="cc__summary" role="status">Sem dados no período e filtros escolhidos.</p>
       } @else if (table()) {
-        <div class="cc__table-wrap">
+        <div class="cc__table-wrap app-scroll-x">
           <table class="cc__table">
             <thead>
               <tr><th scope="col">{{ categoryHeader() }}</th><th scope="col" class="num">{{ series().name }}</th>@if (hasNotes()) {<th scope="col">Observação</th>}</tr>

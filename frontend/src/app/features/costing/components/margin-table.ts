@@ -317,6 +317,30 @@ export class MarginTable {
     });
   }
 
+  /** Credores na tela que têm carteira para abrir. */
+  private readonly expandableIds = computed(() => this.visibleRows().filter((i) => i.portfolios.length).map((i) => i.row.creditorId));
+  protected readonly expandable = computed(() => this.expandableIds().length > 0);
+  protected readonly allOpen = computed(() => {
+    const open = this.expanded();
+    return this.expandable() && this.expandableIds().every((id) => open.has(id));
+  });
+
+  /** Anúncio ao leitor de tela depois de "Abrir/Fechar todas" (vazio até o primeiro clique). */
+  protected readonly expandAllMessage = signal('');
+
+  /** "Abrir todas as carteiras" abre as dos credores na tela; "Fechar todas" fecha tudo. */
+  protected toggleAll(): void {
+    if (this.allOpen()) {
+      this.expanded.set(new Set());
+      this.expandAllMessage.set('Carteiras fechadas.');
+      return;
+    }
+    const open = new Set([...this.expanded(), ...this.expandableIds()]);
+    this.expanded.set(open);
+    const total = this.visibleRows().filter((i) => open.has(i.row.creditorId)).reduce((n, i) => n + i.portfolios.length, 0);
+    this.expandAllMessage.set(`Carteiras abertas: ${total}.`);
+  }
+
   protected toggle(creditorId: string): void {
     this.expanded.update((set) => {
       const next = new Set(set);

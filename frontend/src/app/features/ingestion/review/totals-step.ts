@@ -93,7 +93,7 @@ export function totalsRequest(v: TotalsForm): TotalsRequest | null {
               <span class="app-status app-status--danger"><app-icon name="exclamation-circle" /> Os totais não conferem: a importação fica bloqueada</span>
             }
           </h3>
-          <div class="ts-table-wrap">
+          <div class="ts-table-wrap app-scroll-x">
             <table class="ts-table">
               <caption class="visually-hidden">Totais informados e calculados</caption>
               <thead>
@@ -153,7 +153,7 @@ export function totalsRequest(v: TotalsForm): TotalsRequest | null {
           <p class="app-muted ts-small">Ajudam a localizar a diferença: compare com os subtotais da sua planilha.</p>
           <div class="ts-groups">
             @for (d of dimensions(); track d.dimension) {
-              <div class="ts-table-wrap">
+              <div class="ts-table-wrap app-scroll-x">
                 <table class="ts-table">
                   <caption>{{ d.label }}</caption>
                   <thead><tr><th scope="col">Grupo</th><th scope="col" class="num">Linhas</th><th scope="col" class="num">Principal</th><th scope="col" class="num">Saldo</th></tr></thead>
@@ -214,7 +214,6 @@ export function totalsRequest(v: TotalsForm): TotalsRequest | null {
       font-weight: var(--app-weight-semibold);
     }
     .ts-table-wrap {
-      overflow-x: auto;
       margin-bottom: 12px;
     }
     .ts-table {

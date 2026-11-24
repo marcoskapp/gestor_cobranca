@@ -54,7 +54,7 @@ O **desktop operacional** é o alvo primário (1366–1920 px). Tablet e celular
 | ≥ 1280 px | Menu lateral fixo (256 px) ou trilho (72 px), busca com rótulo, contexto completo do tenant |
 | 960–1279 px | Busca mais estreita |
 | 600–959 px | Menu sobreposto (drawer), busca só com ícone, contexto só com nome da assessoria |
-| < 600 px | Marca só com logotipo, sem nome do usuário; filtros e ações em largura total; trilha mostra os 2 últimos níveis; balão do tour fixo na parte de baixo; convites em largura total |
+| < 600 px | Atalho do Início (casinha, o mesmo ícone do item "Início" do menu) sem nome do usuário; filtros e ações em largura total; trilha mostra os 2 últimos níveis; balão do tour fixo na parte de baixo; convites em largura total |
 
 Tabelas largas rolam horizontalmente dentro do cartão (sem quebrar o layout) a partir de 576 px; abaixo disso o `app-data-table` vira lista empilhada (título, metadados, selo e linha clicável — §12), com "Mais detalhes" para as colunas fora do resumo. Em painéis estreitos numa tela larga (ficha do devedor no painel da estação), a área marcada com `appCompactTables` empilha a tabela que não cabe na largura disponível, sem rolagem lateral. Filtros recolhem num botão "Filtros (n)" abaixo de 768 px (§12.3).
 
@@ -931,6 +931,26 @@ rolagem lateral a partir de 1280 px);
 trazer o sinal na margem e a palavra "negativa" na linha de baixo ("−R$ 1.800,00" / "−3,2% da receita · negativa");
 com busca, esconder "Sem credor", chamar o total de "Total do período (todos os credores)" e não repetir a mensagem de
 "nenhum encontrado" acima do cabeçalho; e, no celular (< 576 px), virar blocos por credor com "Ordenar por".
+
+## 23. Rolagem interna: horizontal que cresce ou vertical de altura fixa (24/11/2026, decisões 1377–1380)
+
+Pedido do responsável: no "Carteira por credor" do painel operacional, "Ver todos" mostrava uma barra vertical que não
+rolava nada (o cartão cresce com a lista). Causa: `overflow-x: auto` sozinho torna o eixo vertical `auto`, e o
+`<caption class="visually-hidden">` (estático no Bootstrap) fica 1 px abaixo da tabela. Regra para todo o sistema:
+
+| Situação | Classe (`styles.scss`, "rolagem interna") | Comportamento |
+| --- | --- | --- |
+| Conteúdo largo (tabela, faixa de abas, navegação do portal) | `.app-scroll-x` (e `.table-responsive`, ajustada globalmente) | rola só na horizontal; a altura acompanha o conteúdo; `position: relative` contém os `.visually-hidden` das células |
+| Campos ou botões encostados na borda da área que rola | `+ .app-scroll-x--focus-gutter` | 4 px de folga para o anel de foco |
+| Área de altura fixa (chat, linha do tempo, código, citação, lista em diálogo) | `.app-scroll-y` ou `overflow: auto` **com** `max-height`/flex limitado | rola na vertical; sem conteúdo focável dentro, `tabindex="0"` e nome acessível (`aria-label`/`aria-labelledby`, `role="region"` sem papel próprio) |
+
+* Nunca `overflow: auto`/`overflow-x: auto` solto num componente; cartão de painel nunca tem altura máxima com rolagem
+  (§21): ou cresce, ou tem altura fixa e rola — nunca as duas coisas.
+* Item de faixa rolável (`.app-tabs`, `.portal__nav`) tem o anel de foco por dentro (`outline-offset: -2px`).
+* O cabeçalho do `app-data-table` não é `sticky` (a tabela cresce com a página; não há rolagem vertical à qual se
+  prender); cabeçalho fixo só em área de altura fixa (ex.: variações do índice).
+* A auditoria do sandbox (`audit.sh`) marca `rolagem-interna`: barra vertical de até 4 px ou rolagem nos dois eixos
+  sem altura máxima.
 
 Premissas gerais de navegabilidade, usabilidade, segurança e conformidade: `CLAUDE.md` ("Premissas de toda tela e
 funcionalidade").

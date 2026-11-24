@@ -154,6 +154,26 @@ describe('relatório completo de margem por carteira', () => {
     expect(el(fixture).querySelectorAll('tbody tr.mp__creditor').length).toBe(1);
   });
 
+  it('carteiras aparecem como grupo do credor: nome do credor abre, "Abrir todas" abre e fecha tudo, leitor de tela ouve o credor', async () => {
+    permissions.set(['COST_VIEW', 'CREDITOR_VIEW', 'PORTFOLIO_VIEW']);
+    const fixture = await render(marginReport());
+    const all = () => [...el(fixture).querySelectorAll<HTMLButtonElement>('.mp__expand-all')][0];
+    expect(text(all())).toContain('Abrir todas as carteiras');
+    // o botão do credor é o próprio nome
+    expect(text(el(fixture).querySelector('button.mp__expand'))).toContain('Banco Alfa');
+    all().click();
+    fixture.detectChanges();
+    const portfolio = el(fixture).querySelector('tr.mp__portfolio')!;
+    expect(portfolio.classList).toContain('mp__portfolio--last');
+    expect(portfolio.previousElementSibling?.classList).toContain('mp__creditor--open');
+    expect(text(portfolio.querySelector('th .visually-hidden')).trim()).toBe('Carteira de Banco Alfa:');
+    expect(text(all())).toContain('Fechar todas as carteiras');
+    expect(text(el(fixture).querySelector('.mp__tools [role="status"]'))).toBe('Carteiras abertas: 1.');
+    all().click();
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('tr.mp__portfolio')).toBeNull();
+  });
+
   it('busca sem resultado orienta e "Limpar busca" volta à lista inteira', async () => {
     permissions.set(['COST_VIEW', 'CREDITOR_VIEW', 'PORTFOLIO_VIEW']);
     const fixture = await render(marginReport());

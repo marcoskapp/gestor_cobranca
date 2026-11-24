@@ -92,7 +92,7 @@ type Typing = { value: string; now: boolean } | null;
             <button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="clearSearch()">Limpar busca</button>
           </div>
         } @else {
-          <div class="bc__table-wrap">
+          <div class="bc__table-wrap app-scroll-x">
             <table class="bc__table bc__table--stack" #tableEl>
               @if (ranked()) {
                 <caption class="visually-hidden">{{ title() }}, ordenado por {{ sortCaption() }}</caption>

@@ -90,7 +90,7 @@
     </div>
   </header>
 
-  <ol #timelineList class="cv-timeline" aria-label="Linha do tempo do devedor, da mais antiga para a mais recente" data-tour="conversation-timeline">
+  <ol #timelineList class="cv-timeline" tabindex="0" aria-label="Linha do tempo do devedor, da mais antiga para a mais recente" data-tour="conversation-timeline">
     @for (item of timeline(); track $index) {
       @if (item.kind === 'event') {
         <li class="cv-event">

@@ -95,7 +95,7 @@ import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
               </div>
             </div>
           } @else if (p.sample.length) {
-            <div class="su-scroll">
+            <div class="su-scroll app-scroll-x">
               <table class="su-table" aria-label="Primeiras linhas do extrato">
                 <thead>
                   <tr>
@@ -156,9 +156,6 @@ import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
     .su-issues {
       margin: 6px 0;
       padding-left: 18px;
-    }
-    .su-scroll {
-      overflow-x: auto;
     }
     .su-table {
       width: 100%;

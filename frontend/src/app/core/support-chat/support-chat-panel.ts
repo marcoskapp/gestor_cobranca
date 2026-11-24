@@ -68,7 +68,7 @@ const SUGGESTIONS: readonly string[] = ['Como uso esta tela?', 'Quais são as mi
       </div>
     </div>
 
-    <div class="offcanvas-body chat__body" #scroller>
+    <div class="offcanvas-body chat__body" #scroller tabindex="0" role="region" aria-label="Conversa com o suporte">
       @switch (store.availability()) {
         @case ('unavailable') {
           <app-empty-state

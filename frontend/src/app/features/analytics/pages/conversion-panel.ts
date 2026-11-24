@@ -75,7 +75,7 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
           </section>
           <section class="app-card" aria-labelledby="cv-breaks" data-tour="analytics-breaks">
             <h2 class="app-card__title" id="cv-breaks">Quebra precoce por safra <app-info-hint indicator="analytics.conversion.early-break" label="Quebra precoce por safra" /></h2>
-            <div class="pn__table-wrap">
+            <div class="pn__table-wrap app-scroll-x">
               <table class="pn__table">
                 <thead><tr><th scope="col">Janela</th><th scope="col" class="num">Acordos maduros</th><th scope="col" class="num">Quebrados</th><th scope="col" class="num">Taxa</th></tr></thead>
                 <tbody>
@@ -102,7 +102,7 @@ const GROUPS = ['ORIGIN', 'CREDITOR', 'PORTFOLIO', 'OPERATOR', 'TEAM', 'CHANNEL'
         </section>
         <section class="app-card" aria-labelledby="cv-table">
           <h2 class="app-card__title" id="cv-table">Detalhe por {{ groupName().toLowerCase() }}</h2>
-          <div class="pn__table-wrap">
+          <div class="pn__table-wrap app-scroll-x">
             <table class="pn__table" #tableEl>
               <thead>
                 <tr><th scope="col">{{ groupName() }}</th><th scope="col" class="num">Contatos efetivos <app-info-hint indicator="analytics.conversion.effective-contacts" label="Contatos efetivos" /></th><th scope="col" class="num">Propostas <app-info-hint indicator="analytics.conversion.proposals" label="Propostas" /></th><th scope="col" class="num">Acordos <app-info-hint indicator="analytics.conversion.agreements" label="Acordos" /></th><th scope="col" class="num">Contato → acordo <app-info-hint indicator="analytics.conversion.contact-to-agreement" label="Contato → acordo" /></th><th scope="col" class="num">1ª parcela <app-info-hint indicator="analytics.conversion.first-installment" label="1ª parcela" /></th><th scope="col" class="num">Acordado <app-info-hint indicator="analytics.conversion.agreed" label="Acordado" /></th><th scope="col" class="num">Pago <app-info-hint indicator="analytics.conversion.paid" label="Pago" /></th></tr>

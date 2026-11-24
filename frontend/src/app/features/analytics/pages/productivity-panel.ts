@@ -66,7 +66,7 @@ const GROUPS = ['OPERATOR', 'TEAM'];
         }
         <section class="app-card" aria-labelledby="pd-table" data-tour="analytics-table">
           <h2 class="app-card__title" id="pd-table">{{ state.filter().groupBy === 'TEAM' ? 'Por equipe' : 'Por pessoa' }}</h2>
-          <div class="pn__table-wrap">
+          <div class="pn__table-wrap app-scroll-x">
             <table class="pn__table" #tableEl>
               <thead>
                 <tr>

@@ -29,6 +29,7 @@ docs/
 | [layout-extrato-conciliacao.md](negocio/layout-extrato-conciliacao.md) | Layout do extrato/arquivo de retorno (CSV) para a conciliação de pagamentos |
 | [layout-demonstrativo-prestacao-contas.md](negocio/layout-demonstrativo-prestacao-contas.md) | Demonstrativo de prestação de contas ao credor: o que entra, cálculo do líquido, arquivo conciliável (CSV/XLSX) e ciclo |
 | [indicadores.md](negocio/indicadores.md) | Indicadores dos painéis e relatórios: definição, fórmula e denominador de cada um (contrato com a operação) |
+| [portal-credor.md](negocio/portal-credor.md) | Portal do credor (proposta em análise, 24/11/2026): telas, dados mostrados e ocultos, ações do credor (na hora × pedido), compliance, identidade, fases e decisões do responsável |
 | [portal-autonegociacao.md](negocio/portal-autonegociacao.md) | Portal de autonegociação do devedor: acesso, condições, perfil `PORTAL`, atendimento e indicadores |
 | [score-propensao.md](negocio/score-propensao.md) | Score de propensão: finalidade e limites de uso, dados permitidos, modelos, explicação e LGPD (telas em `tecnico/desenho/scoring.md` §12) |
 | [perfis-de-acesso.md](negocio/perfis-de-acesso.md) | Perfis de acesso padrão por tipo de usuário e como se mantêm atualizados |

@@ -18,11 +18,9 @@
   border-radius: 0;
 }
 
-// cabeçalho fixo e discreto (variáveis da tabela do Bootstrap)
+// cabeçalho discreto (variáveis da tabela do Bootstrap); sem `sticky`: a tabela cresce com a página e o contêiner
+// rola só na horizontal (ux.md §23), então não há rolagem vertical à qual se prender
 .app-table__head th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   font-size: var(--app-text-xs);
   color: var(--bs-secondary-color);
   white-space: nowrap;

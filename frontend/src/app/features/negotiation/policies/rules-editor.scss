@@ -63,11 +63,6 @@
   font-size: var(--app-text-xs);
 }
 
-.re-scroll {
-  // contém o `.visually-hidden` (posição absoluta) do cabeçalho: sem isso ele fica fora da rolagem e alarga a página
-  position: relative;
-  overflow-x: auto;
-}
 
 .re-table {
   border-collapse: collapse;

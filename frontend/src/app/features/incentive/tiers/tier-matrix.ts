@@ -10,7 +10,7 @@ import { QUARTILES_DESC, TIER_LEVELS, cloneMatrix } from './tier.rules';
 @Component({
   selector: 'app-tier-matrix',
   template: `
-    <div class="table-responsive">
+    <div class="table-responsive app-scroll-x--focus-gutter">
       <table class="table table-sm table-bordered align-middle text-center mb-0 tier-matrix">
         <caption class="visually-hidden">{{ caption() }}</caption>
         <thead>

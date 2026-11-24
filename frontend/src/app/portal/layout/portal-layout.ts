@@ -55,7 +55,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
         }
       </div>
       @if (loggedIn()) {
-        <nav class="portal__nav" aria-label="Seções do portal">
+        <nav class="portal__nav app-scroll-x" aria-label="Seções do portal">
           <a [routerLink]="['/portal', slug(), 'dividas']" routerLinkActive="portal__nav--active" ariaCurrentWhenActive="page">
             <app-icon name="receipt" /> Minhas dívidas
           </a>

@@ -92,12 +92,13 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'analytics.margin-report',
-    version: 1,
+    version: 2,
     title: 'Relatório de margem por carteira',
     summary: 'Todos os credores e carteiras do período, com todas as colunas, o custo por categoria e a busca.',
     steps: [
       { anchor: 'margin-basis', title: 'Base dos custos', body: 'Estimado pelo uso registrado ou conciliado com as faturas dos canais. A escolha vale para a tabela e a exportação.' },
       { anchor: 'margin-table', title: 'Tabela completa', body: 'Busque o credor ou a carteira, ordene por qualquer coluna e esconda o custo por categoria para ler só as margens.' },
+      { anchor: 'margin-expand-all', title: 'Carteiras do credor', body: 'Abra o credor pelo nome: as carteiras aparecem logo abaixo, recuadas e com ícone de pasta. Este botão abre ou fecha todas de uma vez.' },
       { anchor: 'margin-report-panel', title: 'Ver o painel', body: 'Volta ao painel de margem com o mesmo período, credor, carteira e base.' },
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],

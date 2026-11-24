@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "997eb89f77a8631c",
+ "contentVersion": "d3e3875c26f30a14",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -6618,6 +6618,7 @@
    "objective": "Todos os credores e carteiras do período com receita, custo por categoria, margens, ROI e tendência, para analisar e exportar.",
    "purpose": [
     "Abre pelo botão \"Relatório completo\" do painel de margem, em nova aba e com o mesmo período, credor, carteira, base dos custos e ordem. Traz as colunas que o painel resume: recuperado, receita, o custo de cada categoria e o custo direto, custo total, margem de contribuição, margem líquida, ROI e a tendência de seis meses. \"Mostrar o custo por categoria\" esconde ou mostra as categorias; com elas, só a tabela rola para o lado e o nome do credor fica fixo.",
+    "Abra o credor pelo nome para ver as carteiras dele: elas aparecem logo abaixo como um grupo, recuadas, sombreadas, com o ícone de pasta e a linha que as liga ao credor; \"Abrir todas as carteiras\" abre as de todos os credores na tela e \"Fechar todas\" recolhe.",
     "A busca acha o credor pelo nome dele ou de uma carteira, já aberto, com a carteira destacada; a tabela mostra 25 credores por vez (\"Mostrar mais\" traz mais 25) e as linhas \"Sem credor\" e \"Total\" continuam as do período. Ordene por qualquer coluna; recuperado e receita levam ao Razão de comissão. \"Exportar\" baixa a planilha ou o CSV com os mesmos filtros e fica registrado; \"Ver o painel\" volta ao painel com o mesmo recorte."
    ],
    "profiles": [

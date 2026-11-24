@@ -183,7 +183,7 @@ interface RateRow {
       <section class="app-card ix-rates" aria-labelledby="ix-rates-title" data-tour="index-rates">
         @if (detail(); as d) {
           <h2 class="app-card__title" id="ix-rates-title">{{ d.code }} · variações mensais</h2>
-          <div class="ix-scroll">
+          <div class="ix-scroll app-scroll-y app-scroll-x--focus-gutter" tabindex="0" role="region" aria-labelledby="ix-rates-title">
             <table class="table table-sm mb-0 ix-table">
               <thead>
                 <tr>
@@ -240,7 +240,13 @@ interface RateRow {
     }
     .ix-scroll {
       max-height: 420px;
-      overflow-y: auto;
+    }
+    /* cabeçalho fixo no topo da área de altura fixa */
+    .ix-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--bs-body-bg);
     }
     .ix-table {
       font-size: var(--app-text-sm);

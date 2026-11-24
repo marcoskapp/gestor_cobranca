@@ -146,7 +146,7 @@
 
       <section class="app-card" aria-labelledby="pd-schedule">
         <h2 class="app-card__title" id="pd-schedule">Cronograma</h2>
-        <div class="pd-scroll">
+        <div class="pd-scroll app-scroll-x">
           <table class="pd-table" aria-label="Cronograma de pagamentos da proposta">
             <thead>
               <tr>
@@ -194,7 +194,7 @@
           </ul>
           @if (composition(); as c) {
             <h3 class="app-section-title">Dívida atualizada em {{ c.referenceDate | appDate: 'date' }}</h3>
-            <div class="pd-scroll">
+            <div class="pd-scroll app-scroll-x">
               <table class="pd-table" aria-label="Memória de cálculo por título">
                 <thead>
                   <tr>

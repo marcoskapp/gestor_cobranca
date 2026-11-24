@@ -75,7 +75,7 @@ const ORIGIN_LABELS: Record<string, string> = {
                            [series]="[{ name: 'Abertas', color: '--app-chart-1' }]" [rows]="openedRows(r.byOrigin, originLabels)" />
           </section>
         </div>
-        <section class="app-card pn__table-wrap" aria-labelledby="dp-creditors" data-tour="analytics-disputes-creditors">
+        <section class="app-card pn__table-wrap app-scroll-x" aria-labelledby="dp-creditors" data-tour="analytics-disputes-creditors">
           <h2 class="app-card__title" id="dp-creditors">Por credor <app-info-hint indicator="analytics.disputes.upheld-rate" label="Procedência por credor" /></h2>
           <table class="pn__table">
             <thead>
@@ -108,7 +108,7 @@ const ORIGIN_LABELS: Record<string, string> = {
             </tbody>
           </table>
         </section>
-        <section class="app-card pn__table-wrap" aria-labelledby="dp-backlog" data-tour="analytics-disputes-backlog">
+        <section class="app-card pn__table-wrap app-scroll-x" aria-labelledby="dp-backlog" data-tour="analytics-disputes-backlog">
           <h2 class="app-card__title" id="dp-backlog">Fila por responsável <app-info-hint indicator="analytics.disputes.backlog" label="Fila por responsável" /></h2>
           @if (r.meta.peopleRestricted) {
             <p class="pn__hint">Mostrando só as pessoas do seu escopo.</p>

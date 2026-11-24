@@ -78,7 +78,7 @@ export function infoTarget(header: string): string {
       </div>
 
       <h3 class="me-title">Colunas da tabela</h3>
-      <div class="table-responsive">
+      <div class="table-responsive app-scroll-x--focus-gutter">
         <table class="table table-sm align-middle me-table">
           <caption class="visually-hidden">Destino de cada coluna do PDF</caption>
           <thead>

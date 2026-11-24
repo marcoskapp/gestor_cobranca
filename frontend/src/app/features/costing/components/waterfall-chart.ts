@@ -35,7 +35,7 @@ const KIND_LABELS: Record<WaterfallStep['kind'], string> = { start: 'ponto de pa
       @if (steps().length === 0) {
         <p class="wf__summary" role="status">Sem dados no período e filtros escolhidos.</p>
       } @else if (table()) {
-        <div class="wf__table-wrap">
+        <div class="wf__table-wrap app-scroll-x">
           <table class="wf__table">
             <thead>
               <tr><th scope="col">{{ categoryHeader() }}</th><th scope="col" class="num">{{ valueHeader() }}</th>@if (hasNotes()) {<th scope="col">Observação</th>}</tr>
@@ -103,7 +103,6 @@ const KIND_LABELS: Record<WaterfallStep['kind'], string> = { start: 'ponto de pa
     .wf__track:focus-visible .wf__bar { filter: brightness(1.12); }
     .wf__value { font-size: var(--app-text-xs); text-align: right; white-space: nowrap; }
     .wf__value--negative { color: var(--bs-danger-text-emphasis); }
-    .wf__table-wrap { overflow-x: auto; }
     .wf__table { width: 100%; border-collapse: collapse; font-size: var(--app-text-sm); }
     .wf__table th, .wf__table td { padding: 6px 8px; border-bottom: 1px solid var(--bs-border-color); text-align: left; }
     .wf__table .num { text-align: right; white-space: nowrap; }

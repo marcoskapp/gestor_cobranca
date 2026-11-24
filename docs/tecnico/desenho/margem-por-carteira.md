@@ -443,7 +443,13 @@ padrão simulados em `navigation.spec.ts`: `COST_VIEW` para GESTOR, FINANCEIRO, 
   "negativa". No painel: Credor/carteira, Receita, Custo total, Margem líquida (R$ e % da receita) e Tendência, dos
   **10 primeiros credores** na ordem da tabela, com a linha "Outros (N credores)" somando o resto e o aviso "Mostrando
   10 de 30 credores, que somam 62% da receita."; o botão **"Relatório completo"** abre a tabela inteira em nova aba
-  (decisões 1364–1370). No celular, blocos por credor com "Ordenar por". Carteira nula = "Sem carteira (custos do
+  (decisões 1364–1370). Carteiras abertas aparecem como **grupo do credor** (decisão 1376): o credor aberto vira
+  cabeçalho do grupo, o nome inteiro é o botão que abre e fecha (`aria-expanded`), e cada carteira fica recuada, em
+  fundo sombreado, com ícone de pasta (o do menu Carteiras), linha-guia em árvore até o credor e o prefixo oculto
+  "Carteira de {credor}:" para o leitor de tela; a última carteira fecha o grupo com a borda normal. No relatório,
+  "Abrir todas as carteiras"/"Fechar todas as carteiras" age sobre os credores na tela. No celular, blocos por credor
+  com "Ordenar por" e as carteiras em blocos recuados com borda-guia (vermelha na carteira negativa). Nome no relatório
+  com 176 px (230 px com o custo por categoria, quando a tabela já rola e o nome fica fixo), para caber em 1280 px. Carteira nula = "Sem carteira (custos do
   credor)".
 * **Drill-down**: recuperado e receita (cartão, linhas de credor e de carteira) levam ao Razão de comissão com o mesmo
   credor, carteira e período (`ledgerTarget` + `drillAccess` do analytics); sem a permissão do razão ou com mais de um

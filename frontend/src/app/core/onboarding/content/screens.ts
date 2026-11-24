@@ -93,7 +93,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'analytics.margin',
-    version: 4,
+    version: 5,
     path: '/paineis/margem',
     tourId: 'analytics.margin',
     changes: [
@@ -106,13 +106,23 @@ export const SCREENS: readonly ScreenGuide[] = [
           '"Relatório completo" abre em nova aba, com os mesmos filtros, todas as colunas, o custo por categoria, a busca e "Mostrar mais".',
         ],
       },
+      { version: 5, items: ['Ao abrir um credor, as carteiras aparecem como um grupo dele: recuadas, sombreadas, com ícone de pasta e a linha que as liga ao credor. Abra pelo nome do credor.'] },
     ],
   },
   {
     key: 'analytics.margin-report',
-    version: 1,
+    version: 2,
     path: '/paineis/margem/relatorio',
     tourId: 'analytics.margin-report',
+    changes: [
+      {
+        version: 2,
+        items: [
+          'As carteiras abertas aparecem como um grupo do credor: recuadas, sombreadas, com ícone de pasta e a linha que as liga ao credor.',
+          'Clique no nome do credor para abrir as carteiras; "Abrir todas as carteiras" abre as de todos os credores na tela.',
+        ],
+      },
+    ],
   },
   { key: 'scoring.models', version: 1, path: '/score/modelos', tourId: 'scoring.models' },
   {

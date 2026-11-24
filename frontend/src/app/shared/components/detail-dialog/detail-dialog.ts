@@ -53,7 +53,7 @@ export interface DetailDialogData {
       </dl>
       @for (s of data.sections ?? []; track s.label) {
         <h3 class="app-section-title mt-3">{{ s.label }}</h3>
-        <app-json-view [value]="s.json" />
+        <app-json-view [value]="s.json" [label]="s.label" />
       }
     </div>
     <div class="modal-footer">

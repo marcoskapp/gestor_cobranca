@@ -35,7 +35,7 @@ import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
         <dd class="app-mono">{{ e.requestId ?? '—' }}</dd>
       </dl>
       <h3 class="app-section-title mt-3">Detalhes</h3>
-      <app-json-view [value]="e.details" />
+      <app-json-view [value]="e.details" label="Detalhes do acesso" />
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" type="button" ngbAutofocus appDialogClose>Fechar</button>

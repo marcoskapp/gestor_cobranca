@@ -169,7 +169,7 @@ export class QualityFormDialog {
           @if (f.description) {
             <p class="app-muted">{{ f.description }}</p>
           }
-          <div class="in-scroll">
+          <div class="in-scroll app-scroll-x">
             <table class="in-table">
               <caption class="visually-hidden">Critérios de {{ f.name }}</caption>
               <thead>

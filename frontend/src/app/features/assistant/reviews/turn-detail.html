@@ -54,9 +54,9 @@
           <p class="app-muted">Conteúdo descartado pela política de retenção ou pela anonimização do devedor. Metadados e hashes permanecem.</p>
         } @else {
           <h3 class="app-section-title">Devedor</h3>
-          <pre class="as-pre">{{ d.inputText || '—' }}</pre>
+          <pre class="as-pre" tabindex="0" role="region" aria-label="Mensagem do devedor">{{ d.inputText || '—' }}</pre>
           <h3 class="app-section-title">Assistente</h3>
-          <pre class="as-pre">{{ d.outputText || '(sem resposta enviada)' }}</pre>
+          <pre class="as-pre" tabindex="0" role="region" aria-label="Resposta do assistente">{{ d.outputText || '(sem resposta enviada)' }}</pre>
         }
       </section>
 
@@ -77,9 +77,9 @@
               <span class="app-muted as-small">{{ c.durationMs }} ms</span>
             </summary>
             <h4 class="app-section-title">Argumentos</h4>
-            <pre class="as-pre">{{ pretty(c.arguments) || '—' }}</pre>
+            <pre class="as-pre" tabindex="0" role="region" aria-label="Argumentos da chamada">{{ pretty(c.arguments) || '—' }}</pre>
             <h4 class="app-section-title">Resultado</h4>
-            <pre class="as-pre">{{ pretty(c.result) || '—' }}</pre>
+            <pre class="as-pre" tabindex="0" role="region" aria-label="Resultado da chamada">{{ pretty(c.result) || '—' }}</pre>
           </details>
         } @empty {
           <p class="as-small">Nenhuma ferramenta chamada.</p>
@@ -129,7 +129,7 @@
           <details>
             <summary><h2 class="app-card__title td-inline" id="td-context">Contexto minimizado enviado ao modelo</h2></summary>
             <p class="app-muted as-small">Esquema v{{ t.contextVersion }} · SHA-256 {{ t.contextSha256 }}. Sem documento, contatos, nome completo nem ids internos.</p>
-            <pre class="as-pre">{{ pretty(d.context) }}</pre>
+            <pre class="as-pre" tabindex="0" role="region" aria-labelledby="td-context">{{ pretty(d.context) }}</pre>
           </details>
         </section>
       }

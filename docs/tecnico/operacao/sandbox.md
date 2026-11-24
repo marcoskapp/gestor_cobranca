@@ -299,6 +299,7 @@ O `verify.sh` confere o contrato da API (inclusive menu × API, §9); o `audit.s
 | `acesso-negado` | aviso "Acesso negado" (toast) ou a página de acesso negado da rota |
 | `cartoes` | cartões irmãos na mesma linha (sobreposição vertical de mais da metade do menor) com topos diferentes em mais de 1 px — use `.app-columns`/`.app-stack` ([`ux.md` §4](../desenho/ux.md)) |
 | `rolagem` | o documento rola (`scrollHeight > innerHeight` ou `scrollWidth > innerWidth`): só a área de conteúdo (`main.app-content`) pode rolar |
+| `rolagem-interna` | contêiner dentro do conteúdo com barra vertical que não deveria existir: sobra de até 4 px (barra que não rola) ou bloco que rola de fato na horizontal e também na vertical sem altura máxima (área de altura fixa que só rola na vertical, `textarea` e `select` não contam) — use `.app-scroll-x` ou `.app-scroll-y` ([`ux.md` §23](../desenho/ux.md)) |
 | `erro-js` | exceção não tratada no navegador |
 
 ```bash

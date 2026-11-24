@@ -14,12 +14,9 @@
     <app-icon [name]="compact() || rail() ? 'list' : 'text-indent-right'" />
   </button>
 
-  <a class="app-topbar__brand" routerLink="/" [attr.aria-label]="appName + ' — início'">
-    <svg class="app-logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-      <rect width="32" height="32" rx="9" fill="currentColor" opacity="0.16" />
-      <path d="M9 21.5V10.5h2.8v11z M14.6 21.5v-7h2.8v7z M20.2 21.5v-4h2.8v4z" fill="currentColor" />
-      <path d="M8.5 24.5h15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-    </svg>
+  <!-- atalho para o Início: a mesma casinha e o mesmo destino do item "Início" do menu -->
+  <a class="app-topbar__brand" routerLink="/" aria-label="Início" ngbTooltip="Início">
+    <span class="app-home-mark" aria-hidden="true"><app-icon name="house" /></span>
   </a>
 
   @if (user(); as u) {

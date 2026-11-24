@@ -59,7 +59,7 @@
             <app-kpi-card label="Observações" info="scoring.model.observations" [detail]="int(v.positives) + ' pagaram'">{{ int(v.rows) }}</app-kpi-card>
           </div>
           @if (comparison().length) {
-            <div class="pd-scroll">
+            <div class="pd-scroll app-scroll-x">
               <table class="pd-table" aria-label="Comparação com o campeão nas mesmas observações">
                 <thead>
                   <tr>
@@ -121,7 +121,7 @@
         <h2 class="app-card__title" id="md-definition">Definição</h2>
         @if (scorecard(); as s) {
           <p class="md-small">Pontos base {{ s.basePoints }} · {{ anchorText() }}.</p>
-          <div class="pd-scroll">
+          <div class="pd-scroll app-scroll-x">
             <table class="pd-table md-wrap" aria-label="Regras do scorecard">
               <thead>
                 <tr>
@@ -153,7 +153,7 @@
             {{ m.metrics.iterations ?? '—' }} iterações{{ m.metrics.converged === false ? ', sem convergir' : '' }}. Intercepto {{ decimal2(l.intercept) }}.
             Coeficientes sobre a variável padronizada (média e desvio do treino), do maior para o menor efeito.
           </p>
-          <div class="pd-scroll">
+          <div class="pd-scroll app-scroll-x">
             <table class="pd-table" aria-label="Coeficientes da regressão">
               <thead>
                 <tr>
