@@ -124,8 +124,9 @@ class DisputeMailReplyIT extends CollectionTestSupport {
         assertThat(reply.text()).contains("Confirmamos a baixa").doesNotContain("<script").doesNotContain("alert")
                 .doesNotContain("rastreio.test");
         assertThat(reply.rawSha256()).hasSize(64);
-        assertThat(reply.attachments()).isEqualTo(2);
-        assertThat(reply.attachmentsRejected()).isEqualTo(1); // o .exe disfarçado não passa da lista de tipos
+        assertThat(reply.attachments()).isEqualTo(3);
+        // o .exe disfarçado não passa da lista de tipos; o PDF com JavaScript é recusado (SEG-I01, decisão 1441)
+        assertThat(reply.attachmentsRejected()).isEqualTo(2);
         assertThat(reply.attachmentsInVerification()).isEqualTo(1);
 
         // pendência do responsável e filtro da fila
@@ -291,6 +292,10 @@ class DisputeMailReplyIT extends CollectionTestSupport {
                     .append("Content-Disposition: attachment; filename=\"fatura.pdf\"\r\n")
                     .append("Content-Transfer-Encoding: base64\r\n\r\n")
                     .append(Base64.getMimeEncoder().encodeToString("MZ\u0090\u0000executavel".getBytes(StandardCharsets.ISO_8859_1)))
+                    .append("\r\n--b1\r\nContent-Type: application/pdf; name=\"extrato.pdf\"\r\n")
+                    .append("Content-Disposition: attachment; filename=\"extrato.pdf\"\r\n")
+                    .append("Content-Transfer-Encoding: base64\r\n\r\n")
+                    .append(Base64.getMimeEncoder().encodeToString(br.com.gestorcobranca.support.TestPdfs.withJavaScript()))
                     .append("\r\n");
         }
         s.append("--b1--\r\n");

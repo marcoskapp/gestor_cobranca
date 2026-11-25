@@ -192,7 +192,8 @@ class CollectionController {
                     + "documentos passam por verificação de segurança (quarentena) antes de chegar à assessoria: "
                     + "acompanhe por `GET /disputes/{id}/creditor-responses` (`documentsInVerification`, "
                     + "`documentsAccepted`, `documentsRejected`). Limite próprio de envios com documentos por token "
-                    + "(429 `rate_limited` com `Retry-After`).")
+                    + "(429 `rate_limited` com `Retry-After`). Muitos PDFs sendo conferidos ao mesmo tempo: 503 "
+                    + "`storage.pdf_busy` com `Retry-After` (nada é gravado; repita o mesmo envio).")
     CreditorResponseDto respondWithDocuments(@PathVariable UUID id,
                                              @Valid @RequestPart("response") CreditorResponseRequest r,
                                              @RequestPart(name = "files", required = false) java.util.List<MultipartFile> files,

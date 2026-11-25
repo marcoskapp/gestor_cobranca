@@ -73,6 +73,16 @@ public class GlobalExceptionHandler {
         return domainProblem(HttpStatus.CONFLICT, e);
     }
 
+    /** Recurso ocupado por pouco tempo: 503 com {@code Retry-After} (o cliente repete em instantes). */
+    @ExceptionHandler(br.com.gestorcobranca.shared.domain.TemporarilyUnavailableException.class)
+    org.springframework.http.ResponseEntity<ProblemDetail> temporarilyUnavailable(
+            br.com.gestorcobranca.shared.domain.TemporarilyUnavailableException e) {
+        LOG.atWarn().addKeyValue("error.code", e.code()).log("Recurso ocupado: {}", e.getMessage());
+        return org.springframework.http.ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(org.springframework.http.HttpHeaders.RETRY_AFTER, String.valueOf(e.retryAfterSeconds()))
+                .body(domainProblem(HttpStatus.SERVICE_UNAVAILABLE, e));
+    }
+
     @ExceptionHandler(br.com.gestorcobranca.shared.domain.PreconditionFailedException.class)
     ProblemDetail preconditionFailed(br.com.gestorcobranca.shared.domain.PreconditionFailedException e) {
         return domainProblem(HttpStatus.PRECONDITION_FAILED, e);

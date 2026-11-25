@@ -101,7 +101,14 @@ class SesInboundMailConsumer implements SmartLifecycle, AutoCloseable {
             try {
                 List<Message> messages = receive();
                 for (Message m : messages) {
-                    handle(m);
+                    try {
+                        handle(m);
+                    } catch (br.com.gestorcobranca.shared.domain.TemporarilyUnavailableException e) {
+                        // recurso ocupado nesta instância (ex.: leituras de PDF): a mensagem não é apagada e volta pela
+                        // fila depois do tempo de visibilidade; o restante do lote segue
+                        LOG.atWarn().addKeyValue("sqsMessageId", m.messageId()).addKeyValue("error.code", e.code())
+                                .log("E-mail recebido adiado: recurso ocupado; nova tentativa pela fila");
+                    }
                 }
                 backoff = properties.ses().pollInterval();
                 if (messages.isEmpty()) {

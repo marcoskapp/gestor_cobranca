@@ -32,6 +32,8 @@ const ALLOWED_NAME = /\.(pdf|png|jpe?g)$/i;
 
 function reportMessage(error: ApiError): string {
   switch (error.code) {
+    case 'storage.pdf_busy':
+      return error.detail ?? 'Muitos arquivos sendo conferidos agora. Tente de novo em alguns segundos.';
     case 'idempotency.key_reused':
       return 'Este informe já foi enviado. Feche a janela e confira a lista antes de informar de novo.';
     case 'creditor_step_up.invalid':

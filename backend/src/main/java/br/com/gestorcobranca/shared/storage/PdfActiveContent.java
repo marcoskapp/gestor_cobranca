@@ -37,7 +37,12 @@ public final class PdfActiveContent {
             COSName.getPDFName("SubmitForm"), COSName.getPDFName("ImportData"), COSName.getPDFName("RichMediaExecute"));
     /** Chaves de conteúdo ativo ou escondido: JavaScript, formulário XFA, arquivos embutidos e mídia interativa. */
     private static final Set<COSName> ACTIVE_KEYS = Set.of(COSName.JS, COSName.getPDFName("XFA"),
-            COSName.EMBEDDED_FILES, COSName.getPDFName("RichMediaContent"), COSName.getPDFName("RichMediaSettings"));
+            COSName.EMBEDDED_FILES, COSName.EF, COSName.getPDFName("RichMediaContent"),
+            COSName.getPDFName("RichMediaSettings"));
+    /** Anotações que carregam arquivo ou mídia (mesmo sem {@code /Type}). */
+    private static final Set<COSName> ACTIVE_SUBTYPES = Set.of(COSName.getPDFName("FileAttachment"),
+            COSName.getPDFName("RichMedia"), COSName.getPDFName("Movie"), COSName.getPDFName("Sound"),
+            COSName.getPDFName("Screen"), COSName.getPDFName("3D"));
 
     /**
      * Abre o PDF (sem senha, com teto de memória) e procura conteúdo ativo (JavaScript, ação de abrir programa, envio ou
@@ -46,11 +51,17 @@ public final class PdfActiveContent {
      */
     public static Verdict inspect(byte[] content) {
         // no máximo algumas leituras ao mesmo tempo por instância: cada uma pode usar até o teto de memória (AQ-04)
+        boolean acquired;
         try {
-            PARSES.acquire();
+            acquired = PARSES.tryAcquire(PARSE_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return Verdict.UNREADABLE;
+            acquired = false;
+        }
+        if (!acquired) {
+            // espera com prazo: nunca prende a requisição (nem a conexão de uma transação) indefinidamente
+            throw new br.com.gestorcobranca.shared.domain.TemporarilyUnavailableException("storage.pdf_busy",
+                    "Muitos arquivos sendo conferidos agora. Tente de novo em alguns segundos.", RETRY_AFTER_SECONDS);
         }
         try {
             return parse(content);
@@ -61,11 +72,23 @@ public final class PdfActiveContent {
 
     /** Leituras simultâneas por instância (o restante espera, sem recusar). */
     static final int MAX_CONCURRENT_PARSES = 4;
-    private static final java.util.concurrent.Semaphore PARSES = new java.util.concurrent.Semaphore(MAX_CONCURRENT_PARSES, true);
+    /** Espera máxima por uma vaga de leitura (depois, 503 com {@code Retry-After}). */
+    static final int PARSE_WAIT_SECONDS = 5;
+    /** Sugestão ao cliente para repetir depois de recusar por falta de vaga ({@code Retry-After}). */
+    static final int RETRY_AFTER_SECONDS = 10;
+    /**
+     * Objetos demais na tabela de referências: o PDF não é conferido (recusado como ilegível). Limita a varredura; o
+     * carregamento já fica limitado pelo tamanho máximo do arquivo de quem chama.
+     */
+    static final int MAX_OBJECTS = 200_000;
+    static final java.util.concurrent.Semaphore PARSES = new java.util.concurrent.Semaphore(MAX_CONCURRENT_PARSES, true);
 
     private static Verdict parse(byte[] content) {
         try (PDDocument document = Loader.loadPDF(content, "", null, null,
                 org.apache.pdfbox.io.MemoryUsageSetting.setupMainMemoryOnly(MAX_PARSE_MEMORY).streamCache)) {
+            if (document.getDocument().getXrefTable().size() > MAX_OBJECTS) {
+                return Verdict.UNREADABLE;
+            }
             return hasActiveContent(document) ? Verdict.ACTIVE_CONTENT : Verdict.SAFE;
         } catch (IOException | RuntimeException e) {
             return Verdict.UNREADABLE;
@@ -111,7 +134,9 @@ public final class PdfActiveContent {
                 COSName action = dict.getCOSName(COSName.S);
                 if (anyActiveContent && ((action != null && ACTIVE_ACTIONS.contains(action))
                         || ACTIVE_KEYS.stream().anyMatch(dict::containsKey)
-                        || COSName.EMBEDDED_FILE.equals(dict.getCOSName(COSName.TYPE)))) {
+                        || COSName.EMBEDDED_FILE.equals(dict.getCOSName(COSName.TYPE))
+                        || (dict.getCOSName(COSName.SUBTYPE) != null
+                                && ACTIVE_SUBTYPES.contains(dict.getCOSName(COSName.SUBTYPE))))) {
                     return true;
                 }
                 for (Map.Entry<COSName, COSBase> e : dict.entrySet()) {

@@ -51,6 +51,66 @@ class PdfActiveContentTest {
     }
 
     @Test
+    void anotacaoDeAnexoOuMidiaERecusadaMesmoSemArquivo() throws Exception {
+        for (String subtype : java.util.List.of("FileAttachment", "RichMedia", "Movie", "Sound", "Screen", "3D")) {
+            assertThat(PdfActiveContent.inspect(build(d -> page(d, annotation(subtype)))))
+                    .as(subtype).isEqualTo(PdfActiveContent.Verdict.ACTIVE_CONTENT);
+        }
+    }
+
+    @Test
+    void especificacaoComArquivoEmbutidoSemTypeERecusada() throws Exception {
+        assertThat(PdfActiveContent.inspect(build(d -> {
+            org.apache.pdfbox.cos.COSDictionary spec = new org.apache.pdfbox.cos.COSDictionary();
+            org.apache.pdfbox.cos.COSDictionary ef = new org.apache.pdfbox.cos.COSDictionary();
+            ef.setItem(org.apache.pdfbox.cos.COSName.F, new org.apache.pdfbox.cos.COSStream());
+            spec.setItem(org.apache.pdfbox.cos.COSName.EF, ef);
+            d.getDocumentCatalog().getCOSObject().setItem(org.apache.pdfbox.cos.COSName.getPDFName("X"), spec);
+        }))).isEqualTo(PdfActiveContent.Verdict.ACTIVE_CONTENT);
+    }
+
+    @Test
+    void comprovanteComLinkPassa() throws Exception {
+        assertThat(PdfActiveContent.inspect(build(d -> {
+            org.apache.pdfbox.cos.COSDictionary link = annotation("Link");
+            org.apache.pdfbox.cos.COSDictionary uri = new org.apache.pdfbox.cos.COSDictionary();
+            uri.setItem(org.apache.pdfbox.cos.COSName.S, org.apache.pdfbox.cos.COSName.URI);
+            uri.setString(org.apache.pdfbox.cos.COSName.URI, "https://banco.example/comprovante");
+            link.setItem(org.apache.pdfbox.cos.COSName.A, uri);
+            page(d, link);
+        }))).isEqualTo(PdfActiveContent.Verdict.SAFE);
+    }
+
+    private static org.apache.pdfbox.cos.COSDictionary annotation(String subtype) {
+        org.apache.pdfbox.cos.COSDictionary annotation = new org.apache.pdfbox.cos.COSDictionary();
+        annotation.setItem(org.apache.pdfbox.cos.COSName.SUBTYPE, org.apache.pdfbox.cos.COSName.getPDFName(subtype));
+        return annotation;
+    }
+
+    private static void page(PDDocument d, org.apache.pdfbox.cos.COSDictionary annotation) {
+        org.apache.pdfbox.cos.COSArray annots = new org.apache.pdfbox.cos.COSArray();
+        annots.add(annotation);
+        d.getPage(0).getCOSObject().setItem(org.apache.pdfbox.cos.COSName.ANNOTS, annots);
+    }
+
+    @Test
+    void semVagaDeLeituraNoPrazoResponde503EmVezDeEsperarParaSempre() {
+        int permits = PdfActiveContent.MAX_CONCURRENT_PARSES;
+        PdfActiveContent.PARSES.acquireUninterruptibly(permits);
+        try {
+            long start = System.nanoTime();
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> PdfActiveContent.inspect(TestPdfs.blank()))
+                    .isInstanceOf(br.com.gestorcobranca.shared.domain.TemporarilyUnavailableException.class)
+                    .hasFieldOrPropertyWithValue("code", "storage.pdf_busy");
+            assertThat(java.time.Duration.ofNanos(System.nanoTime() - start))
+                    .isLessThan(java.time.Duration.ofSeconds(PdfActiveContent.PARSE_WAIT_SECONDS + 3));
+        } finally {
+            PdfActiveContent.PARSES.release(permits);
+        }
+        assertThat(PdfActiveContent.inspect(TestPdfs.blank())).isEqualTo(PdfActiveContent.Verdict.SAFE);
+    }
+
+    @Test
     void arquivoQueNaoAbreEhRecusado() {
         assertThat(PdfActiveContent.inspect("%PDF-1.4 sem estrutura".getBytes(StandardCharsets.US_ASCII)))
                 .isEqualTo(PdfActiveContent.Verdict.UNREADABLE);
