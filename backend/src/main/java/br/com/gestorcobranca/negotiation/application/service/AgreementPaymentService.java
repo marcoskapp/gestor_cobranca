@@ -95,7 +95,7 @@ class AgreementPaymentService {
         Instant paidAt = e.paidAt() == null ? e.occurredAt() : e.paidAt();
         if (!a.getStatus().isActive()) {
             agreements.save(new AgreementPayment(a.getId(), e.paymentId(), amount, Money.ZERO, amount, paidAt, e.source(),
-                    e.method(), "{}", "[]"));
+                    e.method(), "{}", "[]", e.receivedBy()));
             metrics.paymentConsumed("UNAPPLIED");
             LOG.atWarn().addKeyValue("agreementId", a.getId()).addKeyValue("paymentId", e.paymentId())
                     .addKeyValue("status", a.getStatus())
@@ -107,7 +107,7 @@ class AgreementPaymentService {
         List<BucketPosting> postings = receipt.appliedTotal().isPositive() ? a.allocate(receipt.appliedTotal()) : List.of();
         agreements.save(new AgreementPayment(a.getId(), e.paymentId(), amount, receipt.appliedTotal(), receipt.unapplied(),
                 paidAt, e.source(), e.method(), LedgerLines.allocationsJson(json, receipt.applied()),
-                LedgerLines.postingsJson(json, postings)));
+                LedgerLines.postingsJson(json, postings), e.receivedBy()));
         agreements.save(a);
         receipt.installmentChanges().forEach(c -> recorder.installmentChanged(a, c, now));
         receipt.statusChanges().forEach(c -> recorder.statusChanged(a, c, now));

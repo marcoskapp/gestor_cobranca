@@ -5,6 +5,7 @@ import { CellDef } from '../../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../../shared/components/data-table/data-table';
 import { pagedQuery } from '../../../../shared/data/paged-query';
 import { AppDatePipe } from '../../../../shared/pipes/date-time.pipe';
+import { Icon } from '../../../../shared/components/icon/icon';
 import { TitlesApi } from '../../data/debt.api';
 import { LEDGER_COMPONENT_LABELS, LEDGER_ENTRY_LABELS, REFERENCE_TYPE_LABELS } from '../../data/debt.labels';
 
@@ -14,7 +15,7 @@ import { LEDGER_COMPONENT_LABELS, LEDGER_ENTRY_LABELS, REFERENCE_TYPE_LABELS } f
  */
 @Component({
   selector: 'app-title-ledger',
-  imports: [DataTable, CellDef, Amount, AppDatePipe],
+  imports: [DataTable, CellDef, Amount, AppDatePipe, Icon],
   template: `
     <app-data-table
       caption="Razão do título"
@@ -29,7 +30,14 @@ import { LEDGER_COMPONENT_LABELS, LEDGER_ENTRY_LABELS, REFERENCE_TYPE_LABELS } f
       emptyMessage="Nenhum lançamento no razão."
     >
       <ng-template appCell="occurredAt" [appCellOf]="query.rows()" let-e>{{ e.occurredAt | appDate }}</ng-template>
-      <ng-template appCell="entryType" [appCellOf]="query.rows()" let-e>{{ entryLabels[e.entryType] ?? e.entryType }}</ng-template>
+      <ng-template appCell="entryType" [appCellOf]="query.rows()" let-e>
+        {{ entryLabels[e.entryType] ?? e.entryType }}
+        @if (e.receivedBy === 'CREDITOR') {
+          <span class="app-status app-status--info d-inline-flex mt-1">
+            <app-icon class="app-status__icon" name="cash-coin" />{{ e.entryType === 'REVERSAL' ? 'Estorno de pago ao credor' : 'Pago ao credor' }}
+          </span>
+        }
+      </ng-template>
       <ng-template appCell="component" [appCellOf]="query.rows()" let-e>{{ componentLabels[e.component] ?? e.component }}</ng-template>
       <ng-template appCell="amount" [appCellOf]="query.rows()" let-e><app-amount [value]="e.amount" [signed]="true" /></ng-template>
       <ng-template appCell="origin" [appCellOf]="query.rows()" let-e>

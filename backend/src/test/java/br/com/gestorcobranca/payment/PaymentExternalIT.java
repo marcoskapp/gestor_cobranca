@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.security.Actor;
+import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.shared.security.ActorAuthentication;
 import br.com.gestorcobranca.shared.security.CreditorScope;
 import br.com.gestorcobranca.shared.security.Permission;
@@ -351,8 +352,8 @@ class PaymentExternalIT extends PaymentTestSupport {
 
     /**
      * A dispensa de {@code AGREEMENT_VIEW} na alocação vale só para o token de integração (decisão 1518,
-     * SEG-20261125-01): a pessoa da assessoria com {@code PAYMENT_REGISTER_EXTERNAL} e sem {@code AGREEMENT_VIEW} não
-     * informa pagamento para parcela de acordo, e nada é gravado.
+     * SEG-20261125-J01): a pessoa da assessoria com {@code PAYMENT_REGISTER_EXTERNAL} e sem {@code AGREEMENT_VIEW} não
+     * informa pagamento nem cria instrução de pagamento para parcela de acordo, e nada é gravado.
      */
     @Test
     void staffWithoutAgreementViewCannotTargetAnAgreement() {
@@ -366,6 +367,74 @@ class PaymentExternalIT extends PaymentTestSupport {
         assertThatThrownBy(() -> tenantExecution.callAs(staff, () -> payments.registerExternal(toAgreement, pdf(), null)))
                 .isInstanceOf(ScopeAccessDeniedException.class);
         assertThat(count("select count(*) from payment.payment where external_reference = 'PSA-1'")).isZero();
+        // nem cria instrução de pagamento (Pix ou boleto) para a parcela sem poder ver o acordo
+        Actor instructor = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "PERSONALIZADO",
+                EnumSet.of(Permission.PAYMENT_INSTRUCTION_CREATE, Permission.PAYMENT_REGISTER_EXTERNAL,
+                        Permission.PAYMENT_VIEW), CreditorScope.ALL);
+        long before = count("select count(*) from payment.payment_instruction");
+        assertThatThrownBy(() -> tenantExecution.callAs(instructor, () -> instructions.create(
+                new br.com.gestorcobranca.payment.application.port.in.PaymentInstructionUseCases.CreateInstructionCommand(
+                        "PIX_IMMEDIATE", agreement.id(), agreement.installments().getFirst().id(), null, null, null, null,
+                        "WHATSAPP"), null))).isInstanceOf(ScopeAccessDeniedException.class);
+        assertThat(count("select count(*) from payment.payment_instruction")).isEqualTo(before);
+    }
+
+    /**
+     * Pagamento recebido diretamente pelo credor (H07, decisões 1466 e 1521): o razão do título grava quem recebeu, o
+     * título mostra o total pago ao credor (selo "Pago ao credor" e filtro da lista), o acordo marca o pagamento, e o
+     * estorno tira o selo. O pagamento na conta da assessoria não leva o selo.
+     */
+    @Test
+    void paymentReceivedByTheCreditorMarksTitleAndAgreementUntilReversed() {
+        provision("pago-ao-credor");
+        PaymentView agency = asOperator(() -> payments.registerExternal(toTitleB("50.00", "PC-0"), pdf(), null));
+        assertThat(agency.status()).isEqualTo("CONFIRMED");
+        assertThat(system(() -> debtTitles.get(titleB)).creditorPaidTotal()).isEqualByComparingTo("0");
+
+        PaymentView direct = asOperator(() -> payments.registerExternal(new ExternalPaymentCommand(creditorB, debtor,
+                new BigDecimal("120.00"), paidAt, "PIX", "CREDITOR_DIRECT", "PC-1", null,
+                new TargetInput("TITLES", null, List.of(titleB), null)), pdf(), null));
+        assertThat(direct.status()).isEqualTo("CONFIRMED");
+        assertThat(system(() -> debtTitles.get(titleB)).creditorPaidTotal()).isEqualByComparingTo("120.00");
+        assertThat(system(() -> debtTitles.get(titleB)).paidTotal()).isEqualByComparingTo("170.00");
+        assertThat(count("""
+                select count(*) from debt.title_ledger_entry
+                 where title_id = ? and entry_type = 'PAYMENT' and received_by = 'CREDITOR'""", titleB)).isPositive();
+        assertThat(count("""
+                select count(*) from debt.title_ledger_entry
+                 where title_id = ? and entry_type = 'PAYMENT' and received_by = 'AGENCY'""", titleB)).isPositive();
+        assertThat(system(() -> debtTitles.search(new DebtTitleUseCases.TitleSearch(null, null, null, null, null, null,
+                null, null, null, true), PageQuery.of(0, 50))).content()).extracting(DebtTitleUseCases.TitleView::id)
+                .containsExactly(titleB);
+        // o filtro respeita o escopo por credor: quem só vê o credor A não acha o título do B
+        Actor onlyA = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "PERSONALIZADO",
+                EnumSet.of(Permission.DEBTOR_VIEW), CreditorScope.of(List.of(creditorA)));
+        assertThat(tenantExecution.callAs(onlyA, () -> debtTitles.search(new DebtTitleUseCases.TitleSearch(null, null,
+                null, null, null, null, null, null, null, true), PageQuery.of(0, 50))).content())
+                .extracting(DebtTitleUseCases.TitleView::id).doesNotContain(titleB);
+
+        // parcela de acordo paga diretamente ao credor: o acordo marca o pagamento e o lançamento chega ao razão
+        AgreementView agreement = formalizeAgreement(2);
+        PaymentView toAgreement = asOperator(() -> payments.registerExternal(new ExternalPaymentCommand(creditorA, debtor,
+                new BigDecimal("10.00"), paidAt, "PIX", "CREDITOR_DIRECT", "PC-2", null,
+                new TargetInput("AGREEMENT", agreement.id(), List.of(agreement.installments().getFirst().id()), null)),
+                pdf(), null));
+        assertThat(toAgreement.status()).isEqualTo("CONFIRMED");
+        awaitConsumed("payment.agreement-payment-recorded", 1);
+        settle();
+        assertThat(asManager(() -> agreements.payments(agreement.id()))).singleElement()
+                .satisfies(p -> assertThat(p.receivedBy()).isEqualTo("CREDITOR"));
+        assertThat(count("""
+                select count(*) from debt.title_ledger_entry e join debt.debt_title t on t.id = e.title_id
+                 where t.creditor_id = ? and e.entry_type = 'PAYMENT' and e.received_by = 'CREDITOR'
+                   and t.creditor_paid_total > 0""", creditorA)).isPositive();
+
+        // estorno: o selo some (o estorno repete o receptor do pagamento)
+        asFinance1(() -> payments.reverse(direct.id(), new ReverseCommand("BANK_RETURN", "Credor devolveu ao devedor")));
+        assertThat(system(() -> debtTitles.get(titleB)).creditorPaidTotal()).isEqualByComparingTo("0");
+        assertThat(count("""
+                select count(*) from debt.title_ledger_entry
+                 where title_id = ? and entry_type = 'REVERSAL' and received_by = 'CREDITOR'""", titleB)).isPositive();
     }
 
     private <T> T asIntegration(UUID tokenId, java.util.function.Supplier<T> action) {

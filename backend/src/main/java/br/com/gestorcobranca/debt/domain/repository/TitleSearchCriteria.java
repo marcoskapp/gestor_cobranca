@@ -14,8 +14,10 @@ import java.util.UUID;
  * @param dueOnOrAfter       vencimento a partir de (já combinado com o atraso máximo)
  * @param dueOnOrBefore      vencimento até (já combinado com o atraso mínimo)
  * @param importBatchId      lote de importação que criou o título
+ * @param paidToCreditor     só títulos com valor líquido pago diretamente ao credor (selo "Pago ao credor")
  */
 public record TitleSearchCriteria(Collection<UUID> allowedCreditorIds, UUID creditorId, UUID portfolioId,
                                   UUID debtorId, Collection<TitleStatus> statuses, LocalDate dueOnOrAfter,
-                                  LocalDate dueOnOrBefore, UUID importBatchId) {
+                                  LocalDate dueOnOrBefore, UUID importBatchId,
+                                  boolean paidToCreditor) {
 }

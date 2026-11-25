@@ -3,6 +3,15 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 45,
+    date: '2026-11-25',
+    title: 'Selo "Pago ao credor" nos títulos',
+    items: [
+      { text: 'Título com parte paga diretamente ao credor (sem passar pela assessoria) mostra o selo "Pago ao credor" na lista, na ficha do devedor, na estação de cobrança e no detalhe, com o valor e o lançamento marcado no razão.', route: '/titulos?recebido=credor' },
+      { text: 'Novo filtro "Recebimento" na lista de títulos e "Pago ao credor" nos pagamentos do acordo. O estorno do pagamento tira o selo.', route: '/titulos?recebido=credor' },
+    ],
+  },
+  {
     version: 44,
     date: '2026-11-25',
     title: 'Pagamentos informados pela integração do credor',

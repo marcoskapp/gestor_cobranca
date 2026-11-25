@@ -3,7 +3,7 @@
 Desenho técnico da correção manual do valor do título (§1–§5), da busca rápida de devedor (§6) e do contato novo
 recebido na carga (§7, desenho completo em [contatos-recebidos.md](contatos-recebidos.md)). As regras de negócio estão em
 [negocio/correcao-de-valor.md](../../negocio/correcao-de-valor.md) (decisões 802–813, 864, 865, 872 e as revisões do
-responsável 888–892). Este documento cobre, por enquanto, só a correção de valor; o restante do
+responsável 888–892), além do pago ao credor (§11). Este documento cobre, por enquanto, só esses temas; o restante do
 módulo (devedores, títulos, razão, garantias, prescrição) segue descrito no código e nas decisões.
 
 ## 1. Agregados e tabelas
@@ -261,3 +261,25 @@ real), deixa o contato inválido, sem WhatsApp, sem nome e papel da pessoa; a te
 422), a revelação é recusada, o uso não é contado e `contactsForChannel` não o oferece. Cada módulo que guarda dado
 do titular consome `DebtorAnonymized` e limpa o que é dele ([ADR 0012](../../arquitetura/adr/0012-anonimizacao-do-titular-por-modulo-dono.md)).
 Testes: `DebtModuleIT#anonymizationRemovesPersonalDataButKeepsTitles`, `DebtorContactTest#anonymizedContactIsNeutralizedAndRefusesEveryChange`.
+
+## 11. Pago ao credor: quem recebeu o dinheiro (`V0313`, H07)
+
+Decisões 1466 e 1521–1526. O pagamento feito diretamente ao credor (origem `CREDITOR_DIRECT` ou `CREDITOR_REPORT` no
+payment) é destacado nos títulos.
+
+- **Razão**: `title_ledger_entry.received_by` (`AGENCY` ou `CREDITOR`) só em `PAYMENT` e `REVERSAL` (`check`
+  `ck_title_ledger_received_by`); `TitleLedger.applyPayment` exige o receptor (`DebtLedgerPort.PaymentApplication
+  .receivedBy`, padrão `AGENCY`) e `reversePayment` repete o do pagamento estornado. Lançamentos anteriores ficam
+  nulos (valem assessoria; sem carga retroativa no razão append-only).
+- **Cache no título**: `debt_title.creditor_paid_total`, parte de `paid_total` recebida pelo credor, líquida dos
+  estornos (`TitleBalance.creditorPaidTotal`, gravada por `DebtTitle.recordPosting` na mesma transação; `check`
+  `0 <= creditor_paid_total <= paid_total`). Índice parcial `ix_debt_title_creditor_paid` (`creditor_paid_total > 0`, o mesmo predicado do filtro).
+- **Leitura**: `TitleView.creditorPaidTotal`, `TitleSummary.creditorPaidTotal` (ficha do devedor),
+  `LedgerEntryView.receivedBy` e o filtro `TitleSearch.paidToCreditor` (`GET /api/v1/titles?paidToCreditor=true`).
+  A API pública não expõe o campo (decisão 1524).
+- **Telas**: selo "Pago ao credor" na lista de títulos (filtro "Recebimento", `?recebido=credor`) e na ficha do
+  devedor e na estação (aba Títulos, `CaseUseCases.TitleInfo.creditorPaidTotal`); no detalhe, "ao credor: R$ …" no total pago e o aviso com "Ver no razão"; no razão, "Pago ao credor" ou "Estorno de pago ao credor".
+- **Auditoria**: o lançamento grava `receivedBy` nos metadados de `debt_title.payment_applied` e `payment_reversed`.
+- **Testes**: `TitleLedgerTest` (receptor, estorno e obrigatoriedade) e
+  `PaymentExternalIT#paymentReceivedByTheCreditorMarksTitleAndAgreementUntilReversed` (título avulso, acordo, filtro
+  e estorno).

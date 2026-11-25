@@ -598,6 +598,11 @@ public class Payment extends TenantScopedEntity {
         return externalReference != null;
     }
 
+    /** O dinheiro ficou com o credor (pagamento externo pago diretamente a ele ou informado por ele; H07). */
+    public boolean receivedByCreditor() {
+        return externalOrigin != null && externalOrigin.receivedByCreditor();
+    }
+
     public ExternalOrigin getExternalOrigin() {
         return externalOrigin;
     }

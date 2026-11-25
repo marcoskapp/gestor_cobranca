@@ -22,7 +22,8 @@ import java.util.UUID;
  * {@code externalId} do credor (RB01).
  * <p>
  * O valor devido é o razão do título ({@link TitleLedgerEntry}); {@code openBalance} e
- * {@code paidTotal} são um cache do razão, atualizado na mesma transação de cada lançamento
+ * {@code paidTotal} (com {@code creditorPaidTotal}, a parte recebida diretamente pelo credor) são um cache do razão,
+ * atualizado na mesma transação de cada lançamento
  * por {@link #recordPosting}. Regras de status ({@link TitleStatus}):
  * <ul>
  *   <li>saldo zerado por crédito (pagamento, desconto, baixa) → {@code SETTLED} automático;</li>
@@ -81,6 +82,10 @@ public class DebtTitle extends TenantScopedEntity {
     @Column(name = "paid_total", nullable = false, precision = 19, scale = 2)
     private Money paidTotal;
 
+    /** Parte de {@code paidTotal} recebida diretamente pelo credor (líquida de estornos): selo "Pago ao credor". */
+    @Column(name = "creditor_paid_total", nullable = false, precision = 19, scale = 2)
+    private Money creditorPaidTotal;
+
     @Column(name = "last_payment_at")
     private Instant lastPaymentAt;
 
@@ -132,6 +137,7 @@ public class DebtTitle extends TenantScopedEntity {
         this.status = TitleStatus.OPEN;
         this.openBalance = Money.ZERO;
         this.paidTotal = Money.ZERO;
+        this.creditorPaidTotal = Money.ZERO;
         this.importBatchId = importBatchId;
         updateTerms(originContractId, installmentNumber, dueDate);
     }
@@ -242,18 +248,23 @@ public class DebtTitle extends TenantScopedEntity {
     /**
      * Atualiza o cache do razão após um lançamento e aplica as transições automáticas de status.
      *
+     * @param newCreditorPaidTotal parte de {@code newPaidTotal} recebida diretamente pelo credor
      * @return status anterior
      */
     public TitleStatus recordPosting(LedgerEntryType type, Money newOpenBalance, Money newPaidTotal,
-                                     Instant newLastPaymentAt) {
+                                     Money newCreditorPaidTotal, Instant newLastPaymentAt) {
         requireAcceptsPosting(type);
         Guard.require(newOpenBalance != null && !newOpenBalance.isNegative(), "title.balance_negative",
                 "Saldo do título não pode ficar negativo");
         Guard.require(newPaidTotal != null && !newPaidTotal.isNegative(), "title.paid_negative",
                 "Total pago não pode ficar negativo");
+        Guard.require(newCreditorPaidTotal != null && !newCreditorPaidTotal.isNegative()
+                        && !newCreditorPaidTotal.isGreaterThan(newPaidTotal), "title.creditor_paid_invalid",
+                "Total pago ao credor deve ficar entre zero e o total pago");
         TitleStatus previous = status;
         this.openBalance = newOpenBalance;
         this.paidTotal = newPaidTotal;
+        this.creditorPaidTotal = newCreditorPaidTotal;
         this.lastPaymentAt = newLastPaymentAt;
         if (newOpenBalance.isZero() && status.acceptsPostings() && type != LedgerEntryType.OPENING) {
             moveTo(TitleStatus.SETTLED, null);
@@ -411,6 +422,10 @@ public class DebtTitle extends TenantScopedEntity {
 
     public Money getPaidTotal() {
         return paidTotal;
+    }
+
+    public Money getCreditorPaidTotal() {
+        return creditorPaidTotal;
     }
 
     public Instant getLastPaymentAt() {

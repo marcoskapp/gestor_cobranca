@@ -131,7 +131,8 @@ class LedgerPostingJob implements JobHandler<LedgerPostingJob.Payload> {
             }
             ComponentAmounts payments = amounts(lines, BucketPosting::part, BucketPosting::payment);
             if (payments != null) {
-                ledger.applyPayment(new DebtLedgerPort.PaymentApplication(titleId, p.getPaymentId(), payments, p.getPaidAt()));
+                ledger.applyPayment(new DebtLedgerPort.PaymentApplication(titleId, p.getPaymentId(), payments, p.getPaidAt(),
+                        p.receivedByCreditor() ? DebtLedgerPort.Receiver.CREDITOR : DebtLedgerPort.Receiver.AGENCY));
             }
             ComponentAmounts discounts = amounts(lines, BucketPosting::part, BucketPosting::discount);
             if (discounts != null) {

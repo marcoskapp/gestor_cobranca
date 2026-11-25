@@ -3,6 +3,7 @@ package br.com.gestorcobranca.debt.domain.service;
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import br.com.gestorcobranca.debt.domain.model.LedgerComponent;
 import br.com.gestorcobranca.debt.domain.model.LedgerEntryType;
+import br.com.gestorcobranca.debt.domain.model.PaymentReceiver;
 import br.com.gestorcobranca.debt.domain.model.TitleLedgerEntry;
 import br.com.gestorcobranca.debt.domain.model.TitleStatus;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
@@ -41,11 +42,17 @@ public final class TitleLedger {
      * @param entries        lançamentos novos a persistir (vazio se a operação já havia sido aplicada)
      * @param previousStatus status antes da operação
      * @param previousBalance saldo em aberto antes da operação
+     * @param previousCreditorPaid parte do total pago recebida pelo credor antes da operação (nulo = não informado)
      */
-    public record Posting(List<TitleLedgerEntry> entries, TitleStatus previousStatus, Money previousBalance) {
+    public record Posting(List<TitleLedgerEntry> entries, TitleStatus previousStatus, Money previousBalance,
+                          Money previousCreditorPaid) {
 
         public Posting {
             entries = List.copyOf(entries);
+        }
+
+        public Posting(List<TitleLedgerEntry> entries, TitleStatus previousStatus, Money previousBalance) {
+            this(entries, previousStatus, previousBalance, null);
         }
 
         public boolean applied() {
@@ -107,12 +114,14 @@ public final class TitleLedger {
     /**
      * Pagamento alocado por componente.
      *
-     * @param parts valores pagos (positivos) por componente
+     * @param parts      valores pagos (positivos) por componente
+     * @param receivedBy quem recebeu o dinheiro (obrigatório)
      */
     public static Posting applyPayment(DebtTitle title, Collection<TitleLedgerEntry> existing, UUID paymentId,
-                                       Map<LedgerComponent, Money> parts, Instant at) {
+                                       Map<LedgerComponent, Money> parts, Instant at, PaymentReceiver receivedBy) {
+        Guard.require(receivedBy != null, "ledger.receiver_required", "Informe quem recebeu o pagamento");
         return creditEntries(title, existing, LedgerEntryType.PAYMENT, TitleLedgerEntry.REF_PAYMENT, paymentId, parts,
-                at, null);
+                at, null, receivedBy);
     }
 
     /**
@@ -128,7 +137,12 @@ public final class TitleLedger {
         }
         Map<LedgerComponent, Money> mirrored = new EnumMap<>(LedgerComponent.class);
         paid.forEach((component, amount) -> mirrored.put(component, amount.negate()));
-        return post(title, existing, LedgerEntryType.REVERSAL, mirrored, at, TitleLedgerEntry.REF_PAYMENT, paymentId, reason);
+        // o estorno repete quem recebeu o pagamento estornado (o selo "Pago ao credor" some com ele)
+        PaymentReceiver receivedBy = existing.stream()
+                .filter(e -> e.refersTo(LedgerEntryType.PAYMENT, TitleLedgerEntry.REF_PAYMENT, paymentId))
+                .map(TitleLedgerEntry::getReceivedBy).filter(java.util.Objects::nonNull).findFirst().orElse(null);
+        return post(title, existing, LedgerEntryType.REVERSAL, mirrored, at, TitleLedgerEntry.REF_PAYMENT, paymentId, reason,
+                receivedBy);
     }
 
     /**
@@ -154,12 +168,12 @@ public final class TitleLedger {
         Guard.require(type == LedgerEntryType.DISCOUNT || type == LedgerEntryType.WRITE_OFF, "ledger.discount_type_invalid",
                 "Tipo de concessão inválido");
         Guard.require(reason != null && !reason.isBlank(), "ledger.discount_reason_required", "Informe o motivo da concessão");
-        return creditEntries(title, existing, type, TitleLedgerEntry.REF_AGREEMENT, agreementId, parts, at, reason);
+        return creditEntries(title, existing, type, TitleLedgerEntry.REF_AGREEMENT, agreementId, parts, at, reason, null);
     }
 
     private static Posting creditEntries(DebtTitle title, Collection<TitleLedgerEntry> existing, LedgerEntryType type,
                                          String referenceType, UUID referenceId, Map<LedgerComponent, Money> parts,
-                                         Instant at, String reason) {
+                                         Instant at, String reason, PaymentReceiver receivedBy) {
         requirePositiveParts(parts);
         Map<LedgerComponent, Money> negated = new EnumMap<>(LedgerComponent.class);
         parts.forEach((component, amount) -> negated.put(component, amount.negate()));
@@ -174,7 +188,7 @@ public final class TitleLedger {
                 }
             });
         }
-        return post(title, existing, type, negated, at, referenceType, referenceId, reason);
+        return post(title, existing, type, negated, at, referenceType, referenceId, reason, receivedBy);
     }
 
     /**
@@ -185,24 +199,50 @@ public final class TitleLedger {
     private static Posting post(DebtTitle title, Collection<TitleLedgerEntry> existing, LedgerEntryType type,
                                 Map<LedgerComponent, Money> signedParts, Instant at, String referenceType,
                                 UUID referenceId, String reason) {
+        return post(title, existing, type, signedParts, at, referenceType, referenceId, reason, null);
+    }
+
+    private static Posting post(DebtTitle title, Collection<TitleLedgerEntry> existing, LedgerEntryType type,
+                                Map<LedgerComponent, Money> signedParts, Instant at, String referenceType,
+                                UUID referenceId, String reason, PaymentReceiver receivedBy) {
         Guard.require(at != null, "ledger.occurred_at_required", "Data do lançamento obrigatória");
         Guard.require(referenceId != null, "ledger.reference_required", "Referência do lançamento obrigatória");
         Guard.require(!signedParts.isEmpty(), "ledger.parts_required", "Informe ao menos um componente com valor");
         TitleStatus previousStatus = title.getStatus();
         Money previousBalance = title.getOpenBalance();
+        Money previousCreditorPaid = title.getCreditorPaidTotal();
         if (alreadyApplied(existing, type, referenceType, referenceId, signedParts)) {
-            return new Posting(List.of(), previousStatus, previousBalance);
+            if (type == LedgerEntryType.PAYMENT) {
+                requireSameReceiver(existing, referenceType, referenceId, receivedBy);
+            }
+            return new Posting(List.of(), previousStatus, previousBalance, previousCreditorPaid);
         }
         title.requireAcceptsPosting(type);
 
         List<TitleLedgerEntry> created = new ArrayList<>();
         new EnumMap<>(signedParts).forEach((component, amount) -> created.add(
-                new TitleLedgerEntry(title.getId(), type, component, amount, at, referenceType, referenceId, reason)));
+                new TitleLedgerEntry(title.getId(), type, component, amount, at, referenceType, referenceId, reason,
+                        receivedBy)));
         List<TitleLedgerEntry> all = new ArrayList<>(existing);
         all.addAll(created);
         TitleBalance balance = TitleBalance.of(all);
-        title.recordPosting(type, balance.openBalance(), balance.paidTotal(), balance.lastPaymentAt());
-        return new Posting(created, previousStatus, previousBalance);
+        title.recordPosting(type, balance.openBalance(), balance.paidTotal(), balance.creditorPaidTotal(),
+                balance.lastPaymentAt());
+        return new Posting(created, previousStatus, previousBalance, previousCreditorPaid);
+    }
+
+    /** A repetição do pagamento indica o mesmo receptor (lançamento sem receptor vale assessoria). */
+    private static void requireSameReceiver(Collection<TitleLedgerEntry> existing, String referenceType, UUID referenceId,
+                                            PaymentReceiver receivedBy) {
+        PaymentReceiver requested = receivedBy == null ? PaymentReceiver.AGENCY : receivedBy;
+        boolean differs = existing.stream()
+                .filter(e -> e.refersTo(LedgerEntryType.PAYMENT, referenceType, referenceId))
+                .anyMatch(e -> (e.getReceivedBy() == null ? PaymentReceiver.AGENCY : e.getReceivedBy()) != requested);
+        if (differs) {
+            throw new ConflictException("ledger.reference_conflict",
+                    "Pagamento já lançado para esta referência com outro receptor",
+                    Map.of("referenceType", referenceType, "referenceId", referenceId.toString()));
+        }
     }
 
     /**

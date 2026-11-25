@@ -83,7 +83,7 @@ class DebtorSheetService implements DebtorSheetQueries {
                 }
                 summaries.add(new TitleSummary(t.getId(), t.getPortfolioId(), t.getExternalId(), t.getInstallmentNumber(),
                         t.getDueDate(), t.getPrincipalAmount().amount(), t.getOpenBalance().amount(), t.getStatus().name(),
-                        t.isDisputeBlocked(), overdue));
+                        t.isDisputeBlocked(), overdue, t.getCreditorPaidTotal().amount()));
             }
             positions.add(new CreditorPosition(entry.getKey(), creditorOpen.amount(), creditorMaxOverdue, summaries));
             total = total.plus(creditorOpen);

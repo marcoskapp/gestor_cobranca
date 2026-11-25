@@ -72,7 +72,7 @@ final class DebtViews {
                 t.getExternalId(), t.getInstallmentNumber(), t.getDueDate(), t.getPrincipalAmount().amount(),
                 t.getOpenBalance().amount(), t.getPaidTotal().amount(), t.getStatus().name(), t.getStatusReason(),
                 t.isDisputeBlocked(), t.getDisputeId(), t.getLastPaymentAt(), t.daysOverdue(today), t.getImportBatchId(),
-                t.getVersion() == null ? 0L : t.getVersion(), t.getUpdatedAt());
+                t.getVersion() == null ? 0L : t.getVersion(), t.getUpdatedAt(), t.getCreditorPaidTotal().amount());
     }
 
     static ContractView contract(OriginContract c) {

@@ -45,7 +45,12 @@
   <section class="app-kpi-grid" aria-label="Resumo do título" data-tour="title-summary">
     <app-kpi-card label="Saldo em aberto" record><app-amount [value]="t.openBalance" /></app-kpi-card>
     <app-kpi-card label="Valor original" record><app-amount [value]="t.principalAmount" /></app-kpi-card>
-    <app-kpi-card label="Total pago" record><app-amount [value]="t.paidTotal" /></app-kpi-card>
+    <app-kpi-card label="Total pago" record>
+      <app-amount [value]="t.paidTotal" />
+      @if (t.creditorPaidTotal > 0) {
+        <span appKpiExtra class="app-kpi__detail">ao credor: <app-amount [value]="t.creditorPaidTotal" /></span>
+      }
+    </app-kpi-card>
     <app-kpi-card label="Atraso" record><app-overdue-badge [days]="t.daysOverdue" [status]="t.status" /></app-kpi-card>
   </section>
 
@@ -55,6 +60,16 @@
       <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
         <app-icon name="hammer" />
         <span>Título em contestação: a cobrança fica bloqueada até a análise ser concluída.</span>
+      </div>
+    }
+    @if (t.creditorPaidTotal > 0) {
+      <div class="alert alert-info d-flex gap-2 align-items-start" role="note">
+        <app-icon name="cash-coin" />
+        <span>
+          <app-amount [value]="t.creditorPaidTotal" /> deste título foi pago diretamente ao credor, sem passar pela
+          assessoria.
+          <a routerLink="." [queryParams]="{ aba: 'razao' }" queryParamsHandling="merge">Ver no razão</a>
+        </span>
       </div>
     }
     <dl class="app-definition-list">

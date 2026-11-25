@@ -5,6 +5,7 @@ import br.com.gestorcobranca.debt.application.service.TitleChangeNotifier.Trigge
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import br.com.gestorcobranca.debt.domain.model.LedgerComponent;
 import br.com.gestorcobranca.debt.domain.model.LedgerEntryType;
+import br.com.gestorcobranca.debt.domain.model.PaymentReceiver;
 import br.com.gestorcobranca.debt.domain.model.TitleStatus;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.service.TitleLedger;
@@ -53,7 +54,8 @@ class DebtLedgerService implements DebtLedgerPort {
     public LedgerResult applyPayment(PaymentApplication payment) {
         Guard.require(payment.paymentId() != null, "ledger.payment_required", "Pagamento obrigatório");
         return post(payment.titleId(), title -> TitleLedger.applyPayment(title, recorder.existingEntries(title),
-                payment.paymentId(), parts(payment.parts()), payment.paidAt()), "debt_title.payment_applied", Trigger.PAYMENT);
+                payment.paymentId(), parts(payment.parts()), payment.paidAt(),
+                PaymentReceiver.valueOf(payment.receivedBy().name())), "debt_title.payment_applied", Trigger.PAYMENT);
     }
 
     @Override

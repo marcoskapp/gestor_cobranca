@@ -92,18 +92,28 @@ public interface DebtTitleUseCases {
      * @param importBatchId lote de importação que criou o título (do lote para os títulos importados)
      */
     record TitleSearch(UUID creditorId, UUID portfolioId, UUID debtorId, String status, LocalDate dueFrom,
-                       LocalDate dueTo, Integer minOverdueDays, Integer maxOverdueDays, UUID importBatchId) {
+                       LocalDate dueTo, Integer minOverdueDays, Integer maxOverdueDays, UUID importBatchId,
+                       Boolean paidToCreditor) {
+
+        /** Sem o filtro "Pago ao credor". */
+        public TitleSearch(UUID creditorId, UUID portfolioId, UUID debtorId, String status, LocalDate dueFrom,
+                           LocalDate dueTo, Integer minOverdueDays, Integer maxOverdueDays, UUID importBatchId) {
+            this(creditorId, portfolioId, debtorId, status, dueFrom, dueTo, minOverdueDays, maxOverdueDays, importBatchId,
+                    null);
+        }
     }
 
     /**
      * @param version   versão do registro (lock otimista) — {@code ETag} da API pública
      * @param updatedAt última alteração do título
+     * @param creditorPaidTotal parte de {@code paidTotal} paga diretamente ao credor (H07): positiva = selo
+     *                          "Pago ao credor"
      */
     record TitleView(UUID id, UUID creditorId, UUID portfolioId, UUID debtorId, UUID originContractId,
                      String externalId, Integer installmentNumber, LocalDate dueDate, BigDecimal principalAmount,
                      BigDecimal openBalance, BigDecimal paidTotal, String status, String statusReason,
                      boolean disputeBlocked, UUID disputeId, Instant lastPaymentAt, long daysOverdue,
-                     UUID importBatchId, long version, Instant updatedAt) {
+                     UUID importBatchId, long version, Instant updatedAt, BigDecimal creditorPaidTotal) {
     }
 
     /**
@@ -132,11 +142,12 @@ public interface DebtTitleUseCases {
     }
 
     /**
-     * @param amount valor com sinal: positivo aumenta o saldo (abertura, encargo, estorno),
-     *               negativo reduz (pagamento, desconto, baixa)
+     * @param amount     valor com sinal: positivo aumenta o saldo (abertura, encargo, estorno),
+     *                   negativo reduz (pagamento, desconto, baixa)
+     * @param receivedBy AGENCY ou CREDITOR em pagamento e estorno (nulo nos demais e antes do H07)
      */
     record LedgerEntryView(UUID id, String entryType, String component, BigDecimal amount, Instant occurredAt,
-                           String referenceType, UUID referenceId, String reason, Instant recordedAt) {
+                           String referenceType, UUID referenceId, String reason, Instant recordedAt, String receivedBy) {
     }
 
     record LedgerPage(UUID titleId, PageResponse<LedgerEntryView> entries) {

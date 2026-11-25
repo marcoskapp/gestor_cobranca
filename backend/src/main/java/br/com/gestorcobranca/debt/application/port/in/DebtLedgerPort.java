@@ -53,7 +53,29 @@ public interface DebtLedgerPort {
         }
     }
 
-    record PaymentApplication(UUID titleId, UUID paymentId, ComponentAmounts parts, Instant paidAt) {
+    /**
+     * @param receivedBy quem recebeu o dinheiro (H07, decisão 1466): {@link Receiver#CREDITOR} no pagamento feito
+     *                   diretamente ao credor; o título mostra o selo "Pago ao credor" enquanto houver valor líquido
+     *                   recebido por ele. O estorno repete o receptor do pagamento estornado.
+     */
+    record PaymentApplication(UUID titleId, UUID paymentId, ComponentAmounts parts, Instant paidAt, Receiver receivedBy) {
+
+        public PaymentApplication {
+            receivedBy = receivedBy == null ? Receiver.AGENCY : receivedBy;
+        }
+
+        /** Pagamento recebido pela assessoria. */
+        public PaymentApplication(UUID titleId, UUID paymentId, ComponentAmounts parts, Instant paidAt) {
+            this(titleId, paymentId, parts, paidAt, Receiver.AGENCY);
+        }
+    }
+
+    /** Quem recebeu o dinheiro de um pagamento. */
+    enum Receiver {
+        /** Conta da assessoria ou meio integrado. */
+        AGENCY,
+        /** Pago diretamente ao credor (informado por ele, pela integração dele ou por quem registrou). */
+        CREDITOR
     }
 
     record PaymentReversal(UUID titleId, UUID paymentId, Instant reversedAt, String reason) {

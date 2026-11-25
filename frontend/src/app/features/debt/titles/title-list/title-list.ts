@@ -39,6 +39,8 @@ export function toTitleFilter(v: {
   importBatchId?: string;
   status: string;
   bucket: string;
+  /** `credor`: só títulos com valor pago diretamente ao credor; opcional para os chamadores antigos. */
+  receivedBy?: string;
   /** `LocalDate` ISO (yyyy-MM-dd) do `ngbDatepicker`. */
   dueFrom: string | null;
   dueTo: string | null;
@@ -54,6 +56,7 @@ export function toTitleFilter(v: {
     dueFrom: v.dueFrom || null,
     dueTo: v.dueTo || null,
     importBatchId: v.importBatchId || null,
+    paidToCreditor: v.receivedBy === 'credor' ? true : null,
   };
 }
 
@@ -93,7 +96,7 @@ export class TitleList {
   protected readonly titleLabel = titleLabel;
   protected readonly canViewDebtors = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
 
-  /** Filtros na URL (`?credor=&carteira=&devedor=&lote=&situacao=&atraso=&venc-de=&venc-ate=`): vindos de outras telas e preservados ao voltar. */
+  /** Filtros na URL (`?credor=&carteira=&devedor=&lote=&situacao=&atraso=&recebido=&venc-de=&venc-ate=`): vindos de outras telas e preservados ao voltar. */
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly filters = syncFormWithUrl(
     this.fb.group({
@@ -103,6 +106,7 @@ export class TitleList {
       importBatchId: [''],
       status: [''],
       bucket: [''],
+      receivedBy: [''],
       dueFrom: this.fb.control<string | null>(null),
       dueTo: this.fb.control<string | null>(null),
     }),
@@ -113,6 +117,7 @@ export class TitleList {
       importBatchId: urlParam.id('lote'),
       status: urlParam.choice('situacao', statusOptions('title').map((s) => s.value)),
       bucket: urlParam.choice('atraso', OVERDUE_BUCKETS.map((b) => b.value)),
+      receivedBy: urlParam.choice('recebido', ['credor']),
       dueFrom: urlParam.date('venc-de'),
       dueTo: urlParam.date('venc-ate'),
     },

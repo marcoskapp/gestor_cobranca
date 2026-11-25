@@ -46,7 +46,7 @@ class DebtTitleTest {
     @Test
     void settledCannotBeSuspendedOrCancelledManually() {
         DebtTitle t = title("50.00", LocalDate.of(2026, 1, 10));
-        t.recordPosting(LedgerEntryType.PAYMENT, Money.ZERO, Money.of("50.00"), null);
+        t.recordPosting(LedgerEntryType.PAYMENT, Money.ZERO, Money.of("50.00"), Money.ZERO, null);
         assertThat(t.getStatus()).isEqualTo(TitleStatus.SETTLED);
         assertThatThrownBy(() -> t.suspend("x")).isInstanceOf(ConflictException.class);
         assertThatThrownBy(() -> t.cancel("x")).isInstanceOf(ConflictException.class);

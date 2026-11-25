@@ -52,6 +52,6 @@ public interface DebtorSheetQueries {
 
     record TitleSummary(UUID titleId, UUID portfolioId, String externalId, Integer installmentNumber, LocalDate dueDate,
                         BigDecimal principalAmount, BigDecimal openBalance, String status, boolean disputeBlocked,
-                        long daysOverdue) {
+                        long daysOverdue, BigDecimal creditorPaidTotal) {
     }
 }

@@ -57,6 +57,11 @@ public class TitleLedgerEntry extends TenantScopedEntity {
     @Column(name = "reason", length = 500, updatable = false)
     private String reason;
 
+    /** Só em pagamento e estorno; nulo nos demais e nos lançamentos anteriores ao H07 (valem assessoria). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "received_by", length = 10, updatable = false)
+    private PaymentReceiver receivedBy;
+
     protected TitleLedgerEntry() {
     }
 
@@ -76,6 +81,16 @@ public class TitleLedgerEntry extends TenantScopedEntity {
         this.referenceType = referenceType;
         this.referenceId = referenceId;
         this.reason = reason == null || reason.isBlank() ? null : reason.trim();
+    }
+
+    /** Lançamento de pagamento ou estorno com quem recebeu o dinheiro. */
+    public TitleLedgerEntry(UUID titleId, LedgerEntryType entryType, LedgerComponent component, Money amount,
+                            Instant occurredAt, String referenceType, UUID referenceId, String reason,
+                            PaymentReceiver receivedBy) {
+        this(titleId, entryType, component, amount, occurredAt, referenceType, referenceId, reason);
+        Guard.require(receivedBy == null || entryType == LedgerEntryType.PAYMENT || entryType == LedgerEntryType.REVERSAL,
+                "ledger.receiver_not_allowed", "Só pagamento e estorno indicam quem recebeu");
+        this.receivedBy = receivedBy;
     }
 
     public boolean refersTo(LedgerEntryType type, String referenceType, UUID referenceId) {
@@ -112,5 +127,15 @@ public class TitleLedgerEntry extends TenantScopedEntity {
 
     public String getReason() {
         return reason;
+    }
+
+    /** Quem recebeu; nulo fora de pagamento e estorno (e nos lançamentos anteriores ao H07). */
+    public PaymentReceiver getReceivedBy() {
+        return receivedBy;
+    }
+
+    /** Pagamento ou estorno de dinheiro recebido diretamente pelo credor. */
+    public boolean receivedByCreditor() {
+        return receivedBy == PaymentReceiver.CREDITOR;
     }
 }

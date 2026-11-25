@@ -52,7 +52,12 @@ class LedgerRecorder {
                 .meta("entryType", first.getEntryType())
                 .meta("referenceType", first.getReferenceType())
                 .meta("referenceId", first.getReferenceId())
-                .meta("total", posting.total());
+                .meta("total", posting.total())
+                .meta("receivedBy", first.getReceivedBy());
+        if (posting.previousCreditorPaid() != null
+                && !posting.previousCreditorPaid().equals(title.getCreditorPaidTotal())) {
+            audit.change("creditorPaidTotal", posting.previousCreditorPaid(), title.getCreditorPaidTotal());
+        }
         posting.entries().forEach(e -> audit.meta("component." + e.getComponent().name(), e.getAmount()));
         auditTrail.record(audit);
         notifier.changed(title, posting.previousStatus(), posting.previousBalance(), trigger);

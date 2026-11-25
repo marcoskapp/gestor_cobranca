@@ -27,7 +27,7 @@ function sheet(): CaseSheet {
       interactionCount: 1, effectiveContactCount: 1, score: null, version: 3,
     },
     debtor: { id: 'd-1', name: 'Ana Paula Ribeiro', maskedDocument: '***.982.247-**', personType: 'INDIVIDUAL', status: 'ACTIVE', contacts: [] },
-    titles: [{ titleId: 't-1', externalId: 'CARTAO-4471', installmentNumber: null, dueDate: '2026-08-10', principalAmount: 1000, openBalance: 1250.4, status: 'OPEN', disputeBlocked: false, daysOverdue: 74 }],
+    titles: [{ titleId: 't-1', externalId: 'CARTAO-4471', installmentNumber: null, dueDate: '2026-08-10', principalAmount: 1000, openBalance: 1250.4, status: 'OPEN', disputeBlocked: false, daysOverdue: 74, creditorPaidTotal: 0 }],
     activeRestrictions: [],
     openDisputes: [],
     pendingPromise: null,

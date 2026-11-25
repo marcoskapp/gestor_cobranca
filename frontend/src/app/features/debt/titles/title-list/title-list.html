@@ -24,6 +24,12 @@
       }
     </select>
   </app-field>
+  <app-field label="Recebimento" [hint]="filters.controls.receivedBy.value ? 'Títulos com algum valor pago direto ao credor, sem passar pela assessoria.' : undefined">
+    <select appInput formControlName="receivedBy">
+      <option value="">Qualquer</option>
+      <option value="credor">Pago ao credor</option>
+    </select>
+  </app-field>
   <app-field label="Vencimento de">
     <div class="input-group">
       <input appInput ngbDatepicker #dueFrom="ngbDatepicker" formControlName="dueFrom" placeholder="dd/mm/aaaa" [maxDate]="dueToLimit()" />
@@ -81,6 +87,11 @@
     @if (t.disputeBlocked) {
       <span class="app-status app-status--warning title-list__flag" ngbTooltip="Em contestação: cobrança bloqueada">
         <app-icon class="app-status__icon" name="hammer" />Contestação
+      </span>
+    }
+    @if (t.creditorPaidTotal > 0) {
+      <span class="app-status app-status--info title-list__flag" ngbTooltip="Pago diretamente ao credor, sem passar pela assessoria (informado pelo credor ou registrado a partir do aviso dele)">
+        <app-icon class="app-status__icon" name="cash-coin" />Pago ao credor<span class="visually-hidden">: pago diretamente ao credor, sem passar pela assessoria</span>
       </span>
     }
   </ng-template>

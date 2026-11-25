@@ -119,8 +119,9 @@ public interface AgreementUseCases {
     /**
      * @param status       APPLIED, UNAPPLIED (excedente/acordo encerrado) ou REVERSED
      * @param ledgerStatus PENDING, POSTED, REVERSED ou SKIPPED (lançamento no razão do título)
+     * @param receivedBy   AGENCY ou CREDITOR (pago diretamente ao credor, H07: "Pago ao credor")
      */
     record PaymentView(UUID paymentId, BigDecimal amount, BigDecimal appliedAmount, BigDecimal unappliedAmount,
-                       Instant paidAt, String status, String ledgerStatus, Instant reversedAt) {
+                       Instant paidAt, String status, String ledgerStatus, Instant reversedAt, String receivedBy) {
     }
 }

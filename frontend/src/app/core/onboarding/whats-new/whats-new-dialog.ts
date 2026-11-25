@@ -84,7 +84,9 @@ export class WhatsNewDialog {
     if (!item.route) {
       return false;
     }
-    const [path, fragment] = item.route.split('#', 2);
+    const [beforeHash, fragment] = item.route.split('#', 2);
+    // a rota pode trazer um filtro pronto (?recebido=credor): a tela é a do caminho
+    const path = beforeHash.split('?', 1)[0];
     const screen = this.allowed.get(path);
     const section = fragment ? screen?.sections?.find((s) => s.fragment === fragment) : undefined;
     return !!screen && (!section || !section.permissions.length || section.permissions.some(this.has));

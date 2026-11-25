@@ -115,6 +115,8 @@ export interface SheetTitle {
   status: 'OPEN' | 'SETTLED' | 'CANCELLED' | 'SUSPENDED' | 'RETURNED';
   disputeBlocked: boolean;
   daysOverdue: number;
+  /** Parte do total pago recebida diretamente pelo credor (selo "Pago ao credor"). */
+  creditorPaidTotal: Amount;
 }
 
 /** `channel` nulo = todos os canais; `creditorId` nulo = todos os credores. */

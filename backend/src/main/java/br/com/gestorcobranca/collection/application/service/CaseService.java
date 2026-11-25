@@ -175,7 +175,8 @@ class CaseService implements CaseUseCases {
                 .flatMap(p -> p.titles().stream())
                 .filter(t -> t.portfolioId().equals(c.getPortfolioId()))
                 .map(t -> new TitleInfo(t.titleId(), t.externalId(), t.installmentNumber(), t.dueDate(),
-                        t.principalAmount(), t.openBalance(), t.status(), t.disputeBlocked(), t.daysOverdue()))
+                        t.principalAmount(), t.openBalance(), t.status(), t.disputeBlocked(), t.daysOverdue(),
+                        t.creditorPaidTotal()))
                 .toList();
         List<RestrictionInfo> activeRestrictions = restrictions.search(
                         new RestrictionFilter(c.getDebtorId(), null, null, "ACTIVE", null), new PageQuery(0, SHEET_RESTRICTIONS))

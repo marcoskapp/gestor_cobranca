@@ -124,6 +124,9 @@
                   @if (t.disputeBlocked) {
                     <span class="sp-flag"><app-icon name="hammer" />Contestação</span>
                   }
+                  @if (t.creditorPaidTotal > 0) {
+                    <span class="sp-flag sp-flag--info"><app-icon name="cash-coin" />Pago ao credor<span class="visually-hidden">: pago diretamente ao credor, sem passar pela assessoria</span></span>
+                  }
                 </td>
                 <td class="sp-tertiary">{{ t.dueDate | appDate: 'date' }}</td>
                 <td [ngbTooltip]="'Vencimento ' + (t.dueDate | appDate: 'date')">

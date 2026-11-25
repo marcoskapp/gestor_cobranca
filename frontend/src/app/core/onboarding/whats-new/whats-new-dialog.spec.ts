@@ -33,6 +33,11 @@ describe('WhatsNewDialog — "Conhecer" só para a tela que a pessoa abre', () =
     expect(canOpen(['USER_VIEW'], '/organizacao/configuracoes#contatos-recebidos')).toBe(false);
   });
 
+  it('rota com filtro pronto (?) vale pela tela do caminho', () => {
+    expect(canOpen(['DEBTOR_VIEW'], '/titulos?recebido=credor')).toBe(true);
+    expect(canOpen(['USER_VIEW'], '/titulos?recebido=credor')).toBe(false);
+  });
+
   it('seção registrada no menu exige a permissão da seção', () => {
     expect(canOpen(['ORG_SETTINGS_MANAGE'], '/organizacao/configuracoes')).toBe(true);
     expect(canOpen(['ORG_SETTINGS_MANAGE'], '/organizacao/configuracoes#contatos-recebidos')).toBe(false);

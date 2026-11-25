@@ -51,6 +51,7 @@ const title: TitleView = {
   principalAmount: 2450.9,
   openBalance: 3120.45,
   paidTotal: 0,
+  creditorPaidTotal: 0,
   status: 'OPEN',
   statusReason: null,
   disputeBlocked: false,

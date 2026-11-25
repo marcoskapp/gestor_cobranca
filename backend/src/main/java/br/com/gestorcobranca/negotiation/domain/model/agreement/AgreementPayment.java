@@ -3,6 +3,7 @@ package br.com.gestorcobranca.negotiation.domain.model.agreement;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.TenantScopedEntity;
+import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -75,13 +76,16 @@ public class AgreementPayment extends TenantScopedEntity {
     private Instant reversedAt;
     @Column(name = "reversal_reason", length = 500)
     private String reversalReason;
+    /** AGENCY ou CREDITOR (pago diretamente ao credor, H07); nulo nos registros anteriores (vale AGENCY). */
+    @Column(name = "received_by", updatable = false, length = 10)
+    private String receivedBy;
 
     protected AgreementPayment() {
     }
 
     public AgreementPayment(UUID agreementId, UUID paymentId, Money amount, Money appliedAmount, Money unappliedAmount,
                             Instant paidAt, String source, String method, String installmentAllocationsJson,
-                            String ledgerPostingsJson) {
+                            String ledgerPostingsJson, String receivedBy) {
         Guard.require(agreementId != null && paymentId != null && paidAt != null, "agreement_payment.invalid",
                 "Acordo, pagamento e data obrigatórios");
         this.agreementId = agreementId;
@@ -94,6 +98,10 @@ public class AgreementPayment extends TenantScopedEntity {
         this.method = method;
         this.installmentAllocations = installmentAllocationsJson;
         this.ledgerPostings = ledgerPostingsJson;
+        Guard.require(receivedBy == null || PaymentConfirmed.RECEIVED_BY_AGENCY.equals(receivedBy)
+                        || PaymentConfirmed.RECEIVED_BY_CREDITOR.equals(receivedBy),
+                "agreement_payment.received_by_invalid", "Receptor do pagamento inválido");
+        this.receivedBy = receivedBy;
         this.status = appliedAmount.isPositive() ? Status.APPLIED : Status.UNAPPLIED;
         this.ledgerStatus = appliedAmount.isPositive() ? LedgerStatus.PENDING : LedgerStatus.SKIPPED;
     }
@@ -140,4 +148,14 @@ public class AgreementPayment extends TenantScopedEntity {
     public UUID getReversalId() { return reversalId; }
     public Instant getReversedAt() { return reversedAt; }
     public String getReversalReason() { return reversalReason; }
+
+    /** AGENCY ou CREDITOR; nulo nos registros anteriores ao H07 (vale AGENCY). */
+    public String getReceivedBy() {
+        return receivedBy;
+    }
+
+    /** Dinheiro recebido diretamente pelo credor. */
+    public boolean receivedByCreditor() {
+        return PaymentConfirmed.RECEIVED_BY_CREDITOR.equals(receivedBy);
+    }
 }

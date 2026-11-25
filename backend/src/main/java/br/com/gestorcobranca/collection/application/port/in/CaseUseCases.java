@@ -127,9 +127,10 @@ public interface CaseUseCases {
                               Instant firstAttemptAt) {
     }
 
+    /** @param creditorPaidTotal parte do total pago recebida diretamente pelo credor (selo "Pago ao credor", H07) */
     record TitleInfo(UUID titleId, String externalId, Integer installmentNumber, LocalDate dueDate,
                      BigDecimal principalAmount, BigDecimal openBalance, String status, boolean disputeBlocked,
-                     long daysOverdue) {
+                     long daysOverdue, BigDecimal creditorPaidTotal) {
     }
 
     /** @param channel nulo = todos os canais; @param creditorId nulo = todos os credores */

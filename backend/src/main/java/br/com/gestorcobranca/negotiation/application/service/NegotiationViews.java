@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
+import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.BreakRuleView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.InstallmentView;
@@ -93,7 +94,8 @@ class NegotiationViews {
     static PaymentView payment(AgreementPayment p) {
         return new PaymentView(p.getPaymentId(), p.getAmount().amount(), p.getAppliedAmount().amount(),
                 p.getUnappliedAmount().amount(), p.getPaidAt(), p.getStatus().name(), p.getLedgerStatus().name(),
-                p.getReversedAt());
+                p.getReversedAt(), p.receivedByCreditor()
+                ? PaymentConfirmed.RECEIVED_BY_CREDITOR : PaymentConfirmed.RECEIVED_BY_AGENCY);
     }
 
     private static BigDecimal amount(Money m) {

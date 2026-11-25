@@ -136,7 +136,8 @@ class DebtTitleService implements DebtTitleUseCases {
             }
         }
         TitleSearchCriteria criteria = new TitleSearchCriteria(debtorVisibility.allowedCreditors(), filter.creditorId(),
-                filter.portfolioId(), filter.debtorId(), statuses, dueOnOrAfter, dueOnOrBefore, filter.importBatchId());
+                filter.portfolioId(), filter.debtorId(), statuses, dueOnOrAfter, dueOnOrBefore, filter.importBatchId(),
+                Boolean.TRUE.equals(filter.paidToCreditor()));
         return PageResponse.of(titles.search(criteria, page.toPageable(SEARCH_SORT, Sort.by("dueDate", "id"))),
                 t -> DebtViews.title(t, today));
     }
@@ -341,7 +342,8 @@ class DebtTitleService implements DebtTitleUseCases {
 
     private static LedgerEntryView entryView(TitleLedgerEntry e) {
         return new LedgerEntryView(e.getId(), e.getEntryType().name(), e.getComponent().name(), e.getAmount().amount(),
-                e.getOccurredAt(), e.getReferenceType(), e.getReferenceId(), e.getReason(), e.getCreatedAt());
+                e.getOccurredAt(), e.getReferenceType(), e.getReferenceId(), e.getReason(), e.getCreatedAt(),
+                e.getReceivedBy() == null ? null : e.getReceivedBy().name());
     }
 
     private static LocalDate earliest(LocalDate a, LocalDate b) {

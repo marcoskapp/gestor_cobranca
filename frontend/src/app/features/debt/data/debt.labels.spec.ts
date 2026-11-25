@@ -17,6 +17,7 @@ function title(overrides: Partial<TitleView>): TitleView {
     principalAmount: 100,
     openBalance: 120,
     paidTotal: 0,
+    creditorPaidTotal: 0,
     status: 'OPEN',
     statusReason: null,
     disputeBlocked: false,
@@ -53,8 +54,10 @@ describe('rótulos e regras de tela do módulo debt', () => {
       dueFrom: null,
       dueTo: null,
       importBatchId: null,
+      paidToCreditor: null,
     });
     expect(toTitleFilter({ ...base, importBatchId: 'b-1' }).importBatchId).toBe('b-1');
+    expect(toTitleFilter({ ...base, receivedBy: 'credor' }).paidToCreditor).toBe(true);
     const open = toTitleFilter({ ...base, bucket: '361-', dueFrom: '2026-01-05', dueTo: '2026-02-28' });
     expect(open).toMatchObject({ minOverdueDays: 361, maxOverdueDays: null, dueFrom: '2026-01-05', dueTo: '2026-02-28' });
     expect(OVERDUE_BUCKETS.every((b) => b.max === null || (b.min ?? 0) <= b.max)).toBe(true);

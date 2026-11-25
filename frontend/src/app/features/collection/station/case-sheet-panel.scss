@@ -254,6 +254,10 @@
   color: var(--bs-warning-text-emphasis);
 }
 
+.sp-flag--info {
+  color: var(--bs-info-text-emphasis);
+}
+
 // atalhos de teclado não se aplicam a telas de toque
 @media (pointer: coarse) {
   .sp-kbd {

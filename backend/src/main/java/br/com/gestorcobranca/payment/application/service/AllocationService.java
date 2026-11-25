@@ -141,7 +141,7 @@ class AllocationService {
                 allocation.getId(), payment.getDebtorId(), payment.getCreditorId(), target.portfolioId(),
                 target.agreementId(), allocation.getAmount().amount(), payment.getPaidAt(), payment.getSource().name(),
                 payment.getMethod().name(), lines.stream().map(l -> new PaymentConfirmed.Allocation(null,
-                l.installmentId(), l.amount().amount())).toList()));
+                l.installmentId(), l.amount().amount())).toList(), receivedBy(payment)));
         recorded(payment, allocation);
         if (plan.leftover().isPositive()) {
             metrics.leftover("excess");
@@ -170,7 +170,7 @@ class AllocationService {
         LocalDate paidOn = payment.getPaidAt().atZone(TimeConfig.BUSINESS_ZONE).toLocalDate();
         List<PaymentConfirmed.Allocation> published = new java.util.ArrayList<>();
         for (PaymentAllocation.Line line : lines) {
-            Map<Component, Money> parts = postToLedger(allocation, line, payment.getPaidAt());
+            Map<Component, Money> parts = postToLedger(allocation, line, payment);
             TitleInfo info = byId.get(line.titleId());
             Money honorarium = parts.getOrDefault(Component.HONORARIUM, Money.ZERO);
             Integer daysPastDue = info == null || info.dueDate() == null ? null
@@ -182,7 +182,7 @@ class AllocationService {
         events.publishEvent(new PaymentConfirmed(Ids.newId(), currentActor.tenantId(), Instant.now(clock),
                 allocation.getId(), payment.getDebtorId(), payment.getCreditorId(), portfolioId, null,
                 allocation.getAmount().amount(), payment.getPaidAt(), payment.getSource().name(),
-                payment.getMethod().name(), published));
+                payment.getMethod().name(), published, receivedBy(payment)));
         recorded(payment, allocation);
         if (plan.leftover().isPositive()) {
             metrics.leftover("excess");
@@ -251,7 +251,7 @@ class AllocationService {
     }
 
     /** Lança a linha no razão do título; devolve a distribuição por componente. */
-    private Map<Component, Money> postToLedger(PaymentAllocation allocation, PaymentAllocation.Line line, Instant paidAt) {
+    private Map<Component, Money> postToLedger(PaymentAllocation allocation, PaymentAllocation.Line line, Payment payment) {
         Map<String, Money> balances = new LinkedHashMap<>();
         titles.balance(line.titleId()).components()
                 .forEach(c -> balances.put(c.component(), Money.ofNullable(c.balance())));
@@ -260,13 +260,18 @@ class AllocationService {
             DebtLedgerPort.LedgerResult result = ledger.applyPayment(new DebtLedgerPort.PaymentApplication(line.titleId(),
                     allocation.getId(), new ComponentAmounts(amount(parts, Component.PRINCIPAL),
                     amount(parts, Component.INTEREST), amount(parts, Component.FINE), amount(parts, Component.FEES),
-                    amount(parts, Component.HONORARIUM)), paidAt));
+                    amount(parts, Component.HONORARIUM)), payment.getPaidAt(),
+                    payment.receivedByCreditor() ? DebtLedgerPort.Receiver.CREDITOR : DebtLedgerPort.Receiver.AGENCY));
             metrics.ledgerPosting("payment", result.applied() ? "applied" : "duplicate");
             return parts;
         } catch (RuntimeException e) {
             metrics.ledgerPosting("payment", "failed");
             throw e;
         }
+    }
+
+    private static String receivedBy(Payment payment) {
+        return payment.receivedByCreditor() ? PaymentConfirmed.RECEIVED_BY_CREDITOR : PaymentConfirmed.RECEIVED_BY_AGENCY;
     }
 
     private Result leftover(Money amount, String reason, Payment payment, TargetKind kind) {

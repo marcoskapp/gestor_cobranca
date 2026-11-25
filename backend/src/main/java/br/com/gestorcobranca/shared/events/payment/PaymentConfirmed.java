@@ -15,6 +15,7 @@ import java.util.UUID;
  * @param source       PROVIDER (integrado) ou EXTERNAL (informado e revisado)
  * @param method       PIX, BOLETO, CARD, TRANSFER, CASH, OTHER
  * @param allocations  alocação por título/parcela
+ * @param receivedBy   quem recebeu o dinheiro: AGENCY ou CREDITOR (pago diretamente ao credor, H07); nulo vale AGENCY
  */
 public record PaymentConfirmed(
         UUID eventId,
@@ -29,10 +30,32 @@ public record PaymentConfirmed(
         Instant paidAt,
         String source,
         String method,
-        List<Allocation> allocations) implements IntegrationEvent {
+        List<Allocation> allocations,
+        String receivedBy) implements IntegrationEvent {
+
+    public static final String RECEIVED_BY_AGENCY = "AGENCY";
+    public static final String RECEIVED_BY_CREDITOR = "CREDITOR";
 
     public PaymentConfirmed {
         allocations = allocations == null ? List.of() : List.copyOf(allocations);
+        if (receivedBy == null) {
+            receivedBy = RECEIVED_BY_AGENCY;
+        } else if (!RECEIVED_BY_AGENCY.equals(receivedBy) && !RECEIVED_BY_CREDITOR.equals(receivedBy)) {
+            throw new IllegalArgumentException("receivedBy inválido: " + receivedBy);
+        }
+    }
+
+    /** Pagamento recebido pela assessoria (assinatura anterior ao H07). */
+    public PaymentConfirmed(UUID eventId, UUID tenantId, Instant occurredAt, UUID paymentId, UUID debtorId,
+                            UUID creditorId, UUID portfolioId, UUID agreementId, BigDecimal amount, Instant paidAt,
+                            String source, String method, List<Allocation> allocations) {
+        this(eventId, tenantId, occurredAt, paymentId, debtorId, creditorId, portfolioId, agreementId, amount, paidAt,
+                source, method, allocations, RECEIVED_BY_AGENCY);
+    }
+
+    /** Dinheiro recebido diretamente pelo credor. */
+    public boolean receivedByCreditor() {
+        return RECEIVED_BY_CREDITOR.equals(receivedBy);
     }
 
     /**

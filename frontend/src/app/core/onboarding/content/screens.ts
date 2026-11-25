@@ -196,7 +196,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'debt.debtor-detail',
-    version: 11,
+    version: 12,
     path: '/devedores/:id',
     tourId: 'debt.debtor-detail',
     changes: [
@@ -231,14 +231,18 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
       { version: 10, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
       { version: 11, items: ['Aba "Acordos": resumo de todos os acordos do devedor (acordos, em vigor, cumprimento e total pago) e cada acordo com o credor, a situação e as parcelas; o link abre o acordo numa aba nova.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial, e "Marcar atenção especial" oferece essas situações a quem pode registrar o processo.', 'Aberta pela estação, as listas que não cabem no painel viram linhas com o resumo e "Mais detalhes", sem rolagem lateral.'] },
+      { version: 12, items: ['Títulos com parte paga diretamente ao credor mostram o selo "Pago ao credor".'] },
     ],
   },
   {
     key: 'debt.titles',
-    version: 2,
+    version: 3,
     path: '/titulos',
     tourId: 'debt.titles',
-    changes: [{ version: 2, items: ['Vindo de um lote de importação ("Títulos importados"), a lista mostra só os títulos daquela carga; o filtro some no × ao lado.'] }],
+    changes: [
+      { version: 2, items: ['Vindo de um lote de importação ("Títulos importados"), a lista mostra só os títulos daquela carga; o filtro some no × ao lado.'] },
+      { version: 3, items: ['Selo "Pago ao credor" no título com parte paga diretamente ao credor, sem passar pela assessoria, e o filtro "Recebimento" para listar só esses títulos.'] },
+    ],
   },
   // "correções de valor" antes do detalhe (":id" casaria o caminho)
   {
@@ -274,7 +278,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.title-amount-approval', version: 1, path: '/titulos/correcoes-de-valor/:id', tourId: 'approval.decision' },
   {
     key: 'debt.title-detail',
-    version: 6,
+    version: 7,
     path: '/titulos/:id',
     tourId: 'debt.title-detail',
     changes: [
@@ -298,11 +302,12 @@ export const SCREENS: readonly ScreenGuide[] = [
         items: ['Suspender, transferir, devolver ao credor e cancelar ficam no menu "Mais ações" (⋯), com o cancelamento por último e separado; para voltar à lista, use a trilha no topo.'],
       },
       { version: 6, items: ['Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, caso da carteira, acordos que incluem o título, contestação, caso jurídico e o lote que trouxe o título.'] },
+      { version: 7, items: ['Título com parte paga diretamente ao credor: aviso com o valor, "ao credor" abaixo do total pago e, no razão, o lançamento marcado "pago ao credor". O estorno desse pagamento tira o aviso.'] },
     ],
   },
   {
     key: 'collection.queue',
-    version: 18,
+    version: 19,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -341,6 +346,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 16, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
       { version: 17, items: ['Aba "Acordos" (Alt + 8, em "Mais"): histórico de acordos do caso com resumo, situação e parcelas; cada acordo abre numa aba nova, sem interromper o atendimento. A aba Negociação mostra só os acordos em vigor.', 'Ficha do devedor no painel ao lado: contatos, títulos e demais listas em linhas com o resumo e "Mais detalhes", sem rolagem lateral.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial do cabeçalho.'] },
       { version: 18, items: ['Mensagem (Alt + W): ao escolher o template, o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores (o que ainda falta aparece entre colchetes, como [saldo]); se um valor não for aceito, o motivo aparece abaixo da prévia.'] },
+      { version: 19, items: ['Aba Títulos: o título com parte paga diretamente ao credor mostra o selo "Pago ao credor" ao lado do número.'] },
     ],
   },
   {
@@ -557,7 +563,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'negotiation.agreement-detail',
-    version: 5,
+    version: 6,
     path: '/negociacao/acordos/:id',
     tourId: 'negotiation.agreement-detail',
     changes: [
@@ -565,6 +571,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Ao informar pagamento, o aviso de que o valor vai para a aprovação de outra pessoa aparece para todos que informam, mesmo sem acesso aos parâmetros de pagamentos.'] },
       { version: 4, items: ['Cancelar acordo passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
       { version: 5, items: ['Cada pagamento aplicado abre o pagamento (data na tabela) e o nome do devedor abre a ficha dele.', 'Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, caso, proposta, pagamentos e acordos da renegociação.'] },
+      { version: 6, items: ['Pagamento de parcela feito diretamente ao credor aparece com "Pago ao credor" na situação.'] },
     ],
   },
   {

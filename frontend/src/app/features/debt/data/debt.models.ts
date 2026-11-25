@@ -212,6 +212,8 @@ export interface TitleView {
   lastPaymentAt: string | null;
   daysOverdue: number;
   importBatchId: string | null;
+  /** Parte de `paidTotal` paga diretamente ao credor (positiva = selo "Pago ao credor"). */
+  creditorPaidTotal: Amount;
 }
 
 export interface TitleFilter {
@@ -225,6 +227,8 @@ export interface TitleFilter {
   maxOverdueDays?: number | null;
   /** Lote de importação que criou o título. */
   importBatchId?: string | null;
+  /** Só títulos com valor pago diretamente ao credor. */
+  paidToCreditor?: boolean | null;
 }
 
 export type LedgerComponent = 'PRINCIPAL' | 'INTEREST' | 'FINE' | 'FEES' | 'HONORARIUM';
@@ -269,6 +273,8 @@ export interface LedgerEntryView {
   referenceId: string | null;
   reason: string | null;
   recordedAt: string;
+  /** Quem recebeu, em pagamento e estorno (nulo nos demais e nos lançamentos antigos). */
+  receivedBy: 'AGENCY' | 'CREDITOR' | null;
 }
 
 export interface LedgerPage {
@@ -359,6 +365,8 @@ export interface TitleSummary {
   status: TitleStatus;
   disputeBlocked: boolean;
   daysOverdue: number;
+  /** Parte do total pago recebida diretamente pelo credor. */
+  creditorPaidTotal: Amount;
 }
 
 export type InstrumentType = 'CONTRACT' | 'CCB' | 'PROMISSORY_NOTE' | 'DUPLICATE' | 'CHECK' | 'DEBT_CONFESSION' | 'OTHER';

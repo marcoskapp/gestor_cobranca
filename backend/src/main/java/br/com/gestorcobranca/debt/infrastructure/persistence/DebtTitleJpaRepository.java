@@ -7,6 +7,7 @@ import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorCreditor;
 import br.com.gestorcobranca.debt.domain.repository.TitleSearchCriteria;
+import br.com.gestorcobranca.shared.domain.Money;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
@@ -126,6 +127,10 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
         }
         if (c.importBatchId() != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("importBatchId"), c.importBatchId()));
+        }
+        if (c.paidToCreditor()) {
+            // mesmo predicado do índice parcial ix_debt_title_creditor_paid
+            spec = spec.and((root, query, cb) -> cb.greaterThan(root.<Money>get("creditorPaidTotal"), Money.ZERO));
         }
         return findAll(spec, pageable);
     }

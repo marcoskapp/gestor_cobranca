@@ -22,10 +22,11 @@ import java.util.UUID;
  * @param components    posição por componente (todos os componentes presentes, mesmo zerados)
  * @param openBalance   saldo em aberto (soma de todos os lançamentos)
  * @param paidTotal     pagamentos líquidos de estornos
+ * @param creditorPaidTotal parte de {@code paidTotal} recebida diretamente pelo credor (líquida dos estornos dela)
  * @param lastPaymentAt instante do último pagamento não estornado (nulo se não houver)
  */
 public record TitleBalance(Map<LedgerComponent, ComponentBalance> components, Money openBalance, Money paidTotal,
-                           Instant lastPaymentAt) {
+                           Money creditorPaidTotal, Instant lastPaymentAt) {
 
     /**
      * @param charged    abertura, encargos reconhecidos e ajustes (débitos)
@@ -60,15 +61,19 @@ public record TitleBalance(Map<LedgerComponent, ComponentBalance> components, Mo
         }
         Money open = Money.ZERO;
         Money paid = Money.ZERO;
+        Money creditorPaid = Money.ZERO;
         Set<UUID> reversedPayments = new HashSet<>();
         for (TitleLedgerEntry entry : entries) {
             components.compute(entry.getComponent(), (c, current) -> current.add(entry.getEntryType(), entry.getAmount()));
             open = open.plus(entry.getAmount());
-            if (entry.getEntryType() == LedgerEntryType.PAYMENT) {
+            if (entry.getEntryType() == LedgerEntryType.PAYMENT || entry.getEntryType() == LedgerEntryType.REVERSAL) {
                 paid = paid.minus(entry.getAmount());
-            } else if (entry.getEntryType() == LedgerEntryType.REVERSAL) {
-                paid = paid.minus(entry.getAmount());
-                reversedPayments.add(entry.getReferenceId());
+                if (entry.receivedByCreditor()) {
+                    creditorPaid = creditorPaid.minus(entry.getAmount());
+                }
+                if (entry.getEntryType() == LedgerEntryType.REVERSAL) {
+                    reversedPayments.add(entry.getReferenceId());
+                }
             }
         }
         Instant lastPayment = null;
@@ -78,7 +83,7 @@ public record TitleBalance(Map<LedgerComponent, ComponentBalance> components, Mo
                 lastPayment = entry.getOccurredAt();
             }
         }
-        return new TitleBalance(components, open, paid, lastPayment);
+        return new TitleBalance(components, open, paid, creditorPaid, lastPayment);
     }
 
     public Money balanceOf(LedgerComponent component) {

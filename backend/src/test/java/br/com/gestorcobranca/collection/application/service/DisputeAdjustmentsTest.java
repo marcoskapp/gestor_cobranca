@@ -39,7 +39,7 @@ class DisputeAdjustmentsTest {
     static Map<UUID, TitleView> title(String status, String balance) {
         return Map.of(TITLE, new TitleView(TITLE, null, null, null, null, "T-1", 1, LocalDate.of(2026, 6, 1),
                 new BigDecimal("300.00"), new BigDecimal(balance), BigDecimal.ZERO, status, null, false, null, null, 0,
-                null, 0, T0));
+                null, 0, T0, BigDecimal.ZERO));
     }
 
     @Test

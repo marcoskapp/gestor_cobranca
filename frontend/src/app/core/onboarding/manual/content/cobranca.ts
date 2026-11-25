@@ -258,6 +258,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'As faixas de atraso seguem o padrão da cobrança e consideram apenas títulos em cobrança.',
         'Aberta pelo lote de importação ("Títulos importados"), mostra só os títulos daquela carga (os criados ou atualizados por ela por último).',
+        'O selo "Pago ao credor" marca o título com parte paga diretamente ao credor, sem passar pela assessoria; o filtro "Recebimento" lista só esses títulos.',
       ],
       profiles: ['OPERADOR', 'SUPERVISOR', 'GESTOR', 'ANALISTA_CARTEIRA', 'AUDITOR'],
       inputs: ['Títulos gravados pela importação, com pagamentos e ajustes posteriores.'],
@@ -273,7 +274,7 @@ export const MANUAL: ModuleManual = {
       title: 'Detalhe do título',
       objective: 'Saldo por componente, razão, titularidade e as ações do ciclo de vida de um título.',
       purpose: [
-        'O saldo é calculado a partir do razão do título. Se divergir do saldo informado pelo credor, a diferença aparece em destaque.',
+        'O saldo é calculado a partir do razão do título. Se divergir do saldo informado pelo credor, a diferença aparece em destaque. O valor pago diretamente ao credor aparece no aviso "Pago ao credor" e no razão; o estorno desse pagamento tira o aviso.',
         'Suspender, transferir, devolver ou cancelar pede motivo e fica na trilha de auditoria. O cartão "Relacionados" leva ao devedor, ao caso da carteira, aos acordos que incluem o título, à contestação, ao caso jurídico e ao lote de importação.',
         'Corrigir valor muda o saldo dos componentes com motivo e evidência: até o limite da assessoria (somando as reduções do mesmo título {{debt.cumulativeWindow}}) aplica na hora; acima, ou em aumento do saldo, outra pessoa aprova. Título em acordo em vigor não é corrigido: renegocie antes.',
       ],

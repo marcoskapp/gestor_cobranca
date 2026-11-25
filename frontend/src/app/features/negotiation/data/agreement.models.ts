@@ -224,4 +224,6 @@ export interface AgreementPaymentView {
   status: 'APPLIED' | 'UNAPPLIED' | 'REVERSED';
   ledgerStatus: string;
   reversedAt: string | null;
+  /** `CREDITOR`: pago diretamente ao credor. */
+  receivedBy: 'AGENCY' | 'CREDITOR';
 }

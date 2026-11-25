@@ -167,7 +167,12 @@
                     </td>
                     <td class="pd-end"><app-amount [value]="p.amount" /></td>
                     <td class="pd-end"><app-amount [value]="p.appliedAmount" /></td>
-                    <td>{{ paymentStatus[p.status] ?? p.status }}{{ p.reversedAt ? ' em ' + (p.reversedAt | appDate: 'date') : '' }}</td>
+                    <td>
+                      {{ paymentStatus[p.status] ?? p.status }}{{ p.reversedAt ? ' em ' + (p.reversedAt | appDate: 'date') : '' }}
+                      @if (p.receivedBy === 'CREDITOR') {
+                        <span class="app-status app-status--info d-inline-flex mt-1"><app-icon class="app-status__icon" name="cash-coin" />Pago ao credor</span>
+                      }
+                    </td>
                     <td>{{ ledgerStatus[p.ledgerStatus] ?? p.ledgerStatus }}</td>
                   </tr>
                 }

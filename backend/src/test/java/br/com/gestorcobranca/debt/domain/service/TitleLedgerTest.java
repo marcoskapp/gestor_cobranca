@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static br.com.gestorcobranca.debt.domain.model.LedgerComponent.FINE;
+import static br.com.gestorcobranca.debt.domain.model.PaymentReceiver.AGENCY;
+import static br.com.gestorcobranca.debt.domain.model.PaymentReceiver.CREDITOR;
 import static br.com.gestorcobranca.debt.domain.model.LedgerComponent.HONORARIUM;
 import static br.com.gestorcobranca.debt.domain.model.LedgerComponent.INTEREST;
 import static br.com.gestorcobranca.debt.domain.model.LedgerComponent.PRINCIPAL;
@@ -69,7 +71,7 @@ class TitleLedgerTest {
         apply(TitleLedger.applyDiscount(title, ledger, LedgerEntryType.DISCOUNT, agreement,
                 Map.of(INTEREST, m("150.00"), FINE, m("20.00")), T0, "campanha"));
         apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("400.00"), HONORARIUM, m("40.00")),
-                T0.plusSeconds(60)));
+                T0.plusSeconds(60), AGENCY));
 
         TitleBalance balance = TitleBalance.of(ledger);
         assertThat(balance.balanceOf(PRINCIPAL)).isEqualTo(m("600.00"));
@@ -88,13 +90,13 @@ class TitleLedgerTest {
     @Test
     void partialPaymentReducesBalanceAndFullPaymentSettles() {
         UUID p1 = UUID.randomUUID();
-        Posting first = apply(TitleLedger.applyPayment(title, ledger, p1, Map.of(PRINCIPAL, m("300.00")), T0));
+        Posting first = apply(TitleLedger.applyPayment(title, ledger, p1, Map.of(PRINCIPAL, m("300.00")), T0, AGENCY));
         assertThat(first.applied()).isTrue();
         assertThat(first.previousBalance()).isEqualTo(m("1000.00"));
         assertThat(title.getOpenBalance()).isEqualTo(m("700.00"));
         assertThat(title.getStatus()).isEqualTo(TitleStatus.OPEN);
 
-        apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("700.00")), T0));
+        apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("700.00")), T0, AGENCY));
         assertThat(title.getOpenBalance()).isEqualTo(Money.ZERO);
         assertThat(title.getStatus()).isEqualTo(TitleStatus.SETTLED);
     }
@@ -102,8 +104,8 @@ class TitleLedgerTest {
     @Test
     void repeatingTheSamePaymentIsIdempotent() {
         UUID payment = UUID.randomUUID();
-        apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("300.00")), T0));
-        Posting again = apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("300.00")), T0));
+        apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("300.00")), T0, AGENCY));
+        Posting again = apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("300.00")), T0, AGENCY));
         assertThat(again.applied()).isFalse();
         assertThat(ledger).hasSize(2);
         assertThat(title.getOpenBalance()).isEqualTo(m("700.00"));
@@ -112,25 +114,25 @@ class TitleLedgerTest {
     @Test
     void samePaymentWithDifferentAmountsIsConflict() {
         UUID payment = UUID.randomUUID();
-        apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("300.00")), T0));
-        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("301.00")), T0))
+        apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("300.00")), T0, AGENCY));
+        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("301.00")), T0, AGENCY))
                 .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "ledger.reference_conflict");
     }
 
     @Test
     void paymentCannotExceedComponentBalance() {
-        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("1000.01")), T0))
+        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("1000.01")), T0, AGENCY))
                 .isInstanceOf(BusinessRuleException.class).hasFieldOrPropertyWithValue("code", "ledger.amount_exceeds_balance");
-        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(INTEREST, m("1.00")), T0))
+        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(INTEREST, m("1.00")), T0, AGENCY))
                 .hasFieldOrPropertyWithValue("code", "ledger.amount_exceeds_balance");
-        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("-1.00")), T0))
+        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("-1.00")), T0, AGENCY))
                 .hasFieldOrPropertyWithValue("code", "ledger.part_amount_invalid");
     }
 
     @Test
     void reversalMirrorsPaymentKeepsOriginalAndReopensSettledTitle() {
         UUID payment = UUID.randomUUID();
-        apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("1000.00")), T0));
+        apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("1000.00")), T0, AGENCY));
         assertThat(title.getStatus()).isEqualTo(TitleStatus.SETTLED);
 
         Posting reversal = apply(TitleLedger.reversePayment(title, ledger, payment, T0.plusSeconds(3600), "chargeback"));
@@ -160,7 +162,7 @@ class TitleLedgerTest {
     @Test
     void reversalIsAcceptedOnCancelledTitle() {
         UUID payment = UUID.randomUUID();
-        apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("100.00")), T0));
+        apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("100.00")), T0, AGENCY));
         title.cancel("indevido");
         apply(TitleLedger.reversePayment(title, ledger, payment, T0, "devolução"));
         assertThat(title.getStatus()).isEqualTo(TitleStatus.CANCELLED);
@@ -170,7 +172,7 @@ class TitleLedgerTest {
     @Test
     void writeOffOfRemainingBalanceSettles() {
         UUID agreement = UUID.randomUUID();
-        apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("800.00")), T0));
+        apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("800.00")), T0, AGENCY));
         apply(TitleLedger.applyDiscount(title, ledger, LedgerEntryType.WRITE_OFF, agreement, Map.of(PRINCIPAL, m("200.00")),
                 T0, "quitação do acordo"));
         assertThat(title.getStatus()).isEqualTo(TitleStatus.SETTLED);
@@ -179,7 +181,7 @@ class TitleLedgerTest {
 
     @Test
     void settledAndClosedTitlesRejectNewCredits() {
-        apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("1000.00")), T0));
+        apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("1000.00")), T0, AGENCY));
         assertThatThrownBy(() -> TitleLedger.applyCharges(title, ledger, "agreement", UUID.randomUUID(),
                 Map.of(INTEREST, m("1.00")), T0, null)).hasFieldOrPropertyWithValue("code", "title.not_accepting_postings");
     }
@@ -202,7 +204,7 @@ class TitleLedgerTest {
         assertThat(TitleLedger.adjustPrincipal(title, ledger, m("1100.00"), T0, TitleLedgerEntry.REF_IMPORT_BATCH, batch,
                 "correção").applied()).isFalse();
 
-        apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("600.00")), T0));
+        apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("600.00")), T0, AGENCY));
         assertThatThrownBy(() -> TitleLedger.adjustPrincipal(title, ledger, m("500.00"), T0,
                 TitleLedgerEntry.REF_IMPORT_BATCH, UUID.randomUUID(), "x"))
                 .hasFieldOrPropertyWithValue("code", "title.principal_below_settled");
@@ -213,5 +215,37 @@ class TitleLedgerTest {
         assertThatThrownBy(() -> new TitleLedgerEntry(title.getId(), LedgerEntryType.PAYMENT, LedgerComponent.PRINCIPAL,
                 m("10.00"), T0, "payment", UUID.randomUUID(), null))
                 .hasFieldOrPropertyWithValue("code", "ledger.amount_sign_invalid");
+    }
+
+    @Test
+    void paymentReceivedByTheCreditorIsTrackedAndItsReversalRemovesIt() {
+        UUID creditorPayment = UUID.randomUUID();
+        apply(TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("100.00")), T0, AGENCY));
+        apply(TitleLedger.applyPayment(title, ledger, creditorPayment, Map.of(PRINCIPAL, m("300.00")), T0, CREDITOR));
+        assertThat(title.getPaidTotal()).isEqualTo(m("400.00"));
+        assertThat(title.getCreditorPaidTotal()).isEqualTo(m("300.00"));
+        assertThat(ledger).filteredOn(e -> e.getEntryType() == LedgerEntryType.PAYMENT)
+                .extracting(TitleLedgerEntry::getReceivedBy).containsExactly(AGENCY, CREDITOR);
+
+        apply(TitleLedger.reversePayment(title, ledger, creditorPayment, T0.plusSeconds(60), "devolvido ao devedor"));
+        assertThat(ledger.getLast().getReceivedBy()).isEqualTo(CREDITOR);
+        assertThat(title.getCreditorPaidTotal()).isEqualTo(Money.ZERO);
+        assertThat(title.getPaidTotal()).isEqualTo(m("100.00"));
+        assertThat(ledger.getFirst().getReceivedBy()).isNull();
+    }
+
+    @Test
+    void paymentRequiresWhoReceivedIt() {
+        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, UUID.randomUUID(), Map.of(PRINCIPAL, m("1.00")),
+                T0, null)).isInstanceOf(BusinessRuleException.class).hasMessageContaining("quem recebeu");
+    }
+
+    @Test
+    void samePaymentWithDifferentReceiverIsConflict() {
+        UUID payment = UUID.randomUUID();
+        apply(TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("300.00")), T0, AGENCY));
+        assertThatThrownBy(() -> TitleLedger.applyPayment(title, ledger, payment, Map.of(PRINCIPAL, m("300.00")), T0,
+                CREDITOR)).isInstanceOf(ConflictException.class).hasMessageContaining("outro receptor");
+        assertThat(title.getCreditorPaidTotal()).isEqualTo(Money.ZERO);
     }
 }

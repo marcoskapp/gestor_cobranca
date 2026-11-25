@@ -24,6 +24,7 @@ const base: TitleView = {
   principalAmount: 1000,
   openBalance: 1250.5,
   paidTotal: 0,
+  creditorPaidTotal: 0,
   status: 'OPEN',
   statusReason: null,
   disputeBlocked: false,
@@ -102,6 +103,20 @@ describe('TitleDetail', () => {
     const fixture = await render(base);
     expect(buttons(fixture)).toEqual([]);
     expect(fixture.nativeElement.textContent).toContain('Título CT-10 · parcela 2');
+  });
+
+  it('título pago diretamente ao credor mostra o aviso e o valor no total pago', async () => {
+    permissions.set(['DEBTOR_VIEW']);
+    const fixture = await render({ ...base, paidTotal: 300, creditorPaidTotal: 200 });
+    const text = (fixture.nativeElement as HTMLElement).textContent!;
+    expect(text).toContain('deste título foi pago diretamente ao credor');
+    expect(text).toContain('ao credor:');
+  });
+
+  it('sem pagamento ao credor não mostra o aviso', async () => {
+    permissions.set(['DEBTOR_VIEW']);
+    const fixture = await render({ ...base, paidTotal: 300 });
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('pago diretamente ao credor');
   });
 
   it('oferece somente as transições manuais da situação atual', async () => {
