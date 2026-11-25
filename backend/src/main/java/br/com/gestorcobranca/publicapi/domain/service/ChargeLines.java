@@ -4,6 +4,8 @@ import br.com.gestorcobranca.shared.domain.Money;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collection;
+import java.util.Objects;
 
 /**
  * Regras de cálculo comuns às duas camadas de cobrança do consumo da API pública — a da assessoria ao credor
@@ -37,5 +39,13 @@ public final class ChargeLines {
         }
         return BigDecimal.valueOf(used).multiply(BigDecimal.valueOf(100))
                 .divide(BigDecimal.valueOf(included), 2, RoundingMode.HALF_EVEN);
+    }
+
+    /**
+     * Há cobrança parametrizada quando algum dos preços (mensalidade ou preço unitário do excedente) é maior que
+     * zero. Só franquias, sem preço, não geram valor: o faturamento não é mostrado ao usuário (pedido do responsável).
+     */
+    public static boolean anyPriced(Collection<BigDecimal> prices) {
+        return prices.stream().filter(Objects::nonNull).anyMatch(p -> p.signum() > 0);
     }
 }

@@ -52,7 +52,7 @@ type PageState = { kind: 'loading' } | { kind: 'error' } | { kind: 'not-found' }
       }
       @case ('ready') {
         @if (data(); as d) {
-          <div class="module-manual">
+          <div class="module-manual app-columns">
             <nav class="module-manual__toc app-card" aria-labelledby="manual-toc">
               <h2 class="app-card__title" id="manual-toc">Telas do módulo</h2>
               <ul class="module-manual__toc-list">

@@ -98,7 +98,7 @@ import { SimulationDialog, VigencyDialog, VigencyDialogData } from './plan-dialo
         </div>
       }
 
-      <div class="in-grid">
+      <div class="in-grid app-columns">
         <section class="app-card in-main" aria-labelledby="pd-rules" data-tour="plan-rules">
           <h2 class="app-card__title" id="pd-rules">Regras da versão</h2>
           <app-plan-rules-summary [rules]="p.rules" />

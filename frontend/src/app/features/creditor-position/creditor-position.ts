@@ -2,10 +2,12 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, catchError, finalize, forkJoin, interval, map, of, startWith } from 'rxjs';
+import { Observable, Subscription, catchError, finalize, forkJoin, interval, map, of, startWith } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { Permission } from '../../core/auth/permission';
 import { Amount } from '../../shared/components/amount/amount';
+import { ConfigLink } from '../../shared/components/config-link/config-link';
+import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { EntityPicker } from '../../shared/components/entity-picker/entity-picker';
 import { Icon } from '../../shared/components/icon/icon';
@@ -34,11 +36,28 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
 /**
  * Posição do credor a qualquer momento, sem esperar o fechamento: o ciclo de consumo da API em andamento (módulo
  * publicapi) e o repasse estimado do período em aberto (módulo settlement), compostos aqui na tela — nenhum módulo do
- * backend depende do outro. Cada bloco aparece conforme a permissão (consumo da API / prestação de contas).
+ * backend depende do outro. Cada bloco aparece conforme a permissão (consumo da API / prestação de contas); o do
+ * faturamento da API, só quando o servidor diz que o credor tem cobrança parametrizada (`chargesConfigured`) — sem
+ * preço no contrato, o card é omitido (nunca "R$ 0,00").
  */
+/** Resultado de uma das duas consultas da posição: a falha vira valor para ser tratada no `subscribe`. */
+interface Settled<T> {
+  ok: boolean;
+  value: T | null;
+}
+
+const SKIPPED: Settled<never> = { ok: true, value: null };
+
+function settle<T>(source: Observable<T>): Observable<Settled<T>> {
+  return source.pipe(
+    map((value): Settled<T> => ({ ok: true, value })),
+    catchError(() => of<Settled<T>>({ ok: false, value: null })),
+  );
+}
+
 @Component({
   selector: 'app-creditor-position',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, AppDatePipe, CumulativeChart, EmptyState, EntityPicker, Icon, KpiCard, PageHeader, InfoHint],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, AppDatePipe, ConfigLink, CumulativeChart, EmptyState, EntityPicker, Icon, KpiCard, PageHeader, InfoHint, Skeleton],
   template: `
     <app-page-header title="Posição do credor" subtitle="Faturamento da API e repasse do período em aberto, atualizados agora — sem esperar o fechamento." />
 
@@ -61,7 +80,9 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
     @if (!creditorId()) {
       <app-empty-state icon="building" title="Escolha um credor" message="A posição mostra o ciclo de consumo da API e o repasse do período em aberto do credor." />
     } @else {
-      @if (canBilling()) {
+      @if (billingPending()) {
+        <div class="app-card" aria-busy="true" aria-label="Carregando o faturamento da API"><app-skeleton variant="lines" [rows]="3" /></div>
+      } @else if (showBilling()) {
         <section class="app-card" aria-labelledby="cp-billing" data-tour="position-billing">
           <div class="cp-head">
             <h2 class="app-card__title" id="cp-billing">Faturamento da API — ciclo em andamento</h2>
@@ -74,7 +95,7 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
           } @else if (billing(); as b) {
             <p class="app-muted cp-small">
               Ciclo {{ cycle(b.periodStart, b.periodEnd) }} ({{ b.cycleKind === 'CONTRACT_END' ? 'termina no fim da vigência do contrato' : 'fecha no dia ' + b.usageClosingDay }}) · dia {{ b.daysElapsed }} de {{ b.cycleDays }}, faltam {{ b.daysRemaining }}
-              · {{ b.pricingVersion ? 'contrato ' + b.contractNumber + ', condições v' + b.pricingVersion : 'contrato sem condições de cobrança (valor zero)' }}
+              · contrato {{ b.contractNumber }}, condições v{{ b.pricingVersion }}
               @if (registeredDuringCycle(b); as when) { · condições cadastradas em {{ when }}: o primeiro cadastro vale para o ciclo inteiro }
               @if (proration(b); as p) { · {{ cycleKind(b) }}: mensalidade e franquias proporcionais a {{ p }} }
             </p>
@@ -128,10 +149,23 @@ const DIRECTION_LABELS: Record<SettlementPositionView['direction'], string> = {
                 </table>
               </div>
             }
-          } @else {
-            <p class="app-muted" role="status">Carregando…</p>
           }
         </section>
+      } @else if (billingWithoutCharges()) {
+        @if (canSettlement()) {
+          <p class="app-muted cp-small" role="status">
+            Sem cobrança da API para este credor: não há preço de uso da API (mensalidade ou excedente) cadastrado no contrato.
+            @if (canOpenCreditor()) {
+              <app-config-link [route]="'/organizacao/credores/' + creditorId()" label="Contratos do credor (preço das integrações)" [permissions]="creditorPermissions" />
+            }
+          </p>
+        } @else {
+          <app-empty-state icon="receipt" title="Sem cobrança da API para este credor" message="Não há preço de uso da API (mensalidade ou excedente) cadastrado no contrato do credor. Com preço cadastrado, o faturamento do ciclo aparece aqui.">
+            @if (canOpenCreditor()) {
+              <app-config-link [route]="'/organizacao/credores/' + creditorId()" label="Contratos do credor (preço das integrações)" [permissions]="creditorPermissions" />
+            }
+          </app-empty-state>
+        }
       }
 
       @if (canSettlement()) {
@@ -222,6 +256,10 @@ export class CreditorPosition {
 
   protected readonly canBilling = computed(() => this.auth.hasPermission(Permission.PUBLIC_API_USAGE_VIEW));
   protected readonly canSettlement = computed(() => this.auth.hasPermission(Permission.SETTLEMENT_VIEW));
+  /** Ficha do credor (contratos e preço das integrações): mesmas permissões do menu "Credores". */
+  protected readonly creditorPermissions = [Permission.CREDITOR_VIEW] as const;
+  protected readonly canOpenCreditor = computed(() =>
+    this.auth.hasPermission(Permission.ORGANIZATION_AREA_VIEW) && this.auth.hasPermission(Permission.CREDITOR_VIEW));
 
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group({
@@ -238,7 +276,13 @@ export class CreditorPosition {
   protected readonly billingError = signal(false);
   protected readonly settlementError = signal(false);
   protected readonly loading = signal(false);
+  /** Faturamento ainda sem resposta do servidor (não se sabe se o credor tem cobrança). */
+  protected readonly billingPending = computed(() => this.canBilling() && !this.billing() && !this.billingError());
+  /** Card do faturamento da API: só com cobrança parametrizada (critério do servidor) ou para mostrar a falha. */
+  protected readonly showBilling = computed(() => this.canBilling() && (this.billingError() || !!this.billing()?.chargesConfigured));
+  protected readonly billingWithoutCharges = computed(() => this.canBilling() && !this.billingError() && this.billing()?.chargesConfigured === false);
   private timer: Subscription | null = null;
+  private inFlight: Subscription | null = null;
 
   protected readonly billingRows = computed(() => {
     const b = this.billing();
@@ -269,6 +313,11 @@ export class CreditorPosition {
   constructor() {
     this.form.controls.creditor.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => {
       void this.router.navigate([], { queryParams: { credor: v[0] ?? null }, queryParamsHandling: 'merge', replaceUrl: true });
+      // outro credor: descarta os blocos do anterior (o card da API depende da cobrança do credor escolhido)
+      this.billing.set(null);
+      this.settlement.set(null);
+      this.billingError.set(false);
+      this.settlementError.set(false);
       this.refresh();
     });
     this.form.controls.auto.valueChanges.pipe(startWith(this.form.controls.auto.value), takeUntilDestroyed())
@@ -280,37 +329,35 @@ export class CreditorPosition {
 
   /** Recarrega os dois blocos (cada um só se o perfil puder vê-lo). */
   protected refresh(): void {
+    // a troca de credor (ou um novo refresh) cancela a requisição anterior: a resposta (ou a falha) de outro credor
+    // nunca decide se o card do faturamento aparece. Cancela antes de ligar o `loading`: o `finalize` da anterior
+    // roda no cancelamento e desligaria o carregamento da nova.
+    this.inFlight?.unsubscribe();
+    this.inFlight = null;
     const id = this.form.controls.creditor.value[0];
     if (!id) {
       this.billing.set(null);
       this.settlement.set(null);
+      this.loading.set(false);
       return;
     }
     this.loading.set(true);
-    const none = of(null);
-    forkJoin({
-      billing: this.canBilling()
-        ? this.billingApi.position(id).pipe(catchError(() => {
-            this.billingError.set(true);
-            return none;
-          }))
-        : none,
-      settlement: this.canSettlement()
-        ? this.settlementApi.position(id).pipe(catchError(() => {
-            this.settlementError.set(true);
-            return none;
-          }))
-        : none,
+    this.inFlight = forkJoin({
+      billing: this.canBilling() ? settle(this.billingApi.position(id)) : of(SKIPPED),
+      settlement: this.canSettlement() ? settle(this.settlementApi.position(id)) : of(SKIPPED),
     })
       .pipe(finalize(() => this.loading.set(false)), takeUntilDestroyed(this.destroyRef))
       .subscribe(({ billing, settlement }) => {
-        if (billing) {
-          this.billingError.set(false);
-          this.billing.set(billing);
+        if (id !== this.form.controls.creditor.value[0]) {
+          return;
         }
-        if (settlement) {
-          this.settlementError.set(false);
-          this.settlement.set(settlement);
+        this.billingError.set(!billing.ok);
+        if (billing.value) {
+          this.billing.set(billing.value);
+        }
+        this.settlementError.set(!settlement.ok);
+        if (settlement.value) {
+          this.settlement.set(settlement.value);
         }
       });
   }

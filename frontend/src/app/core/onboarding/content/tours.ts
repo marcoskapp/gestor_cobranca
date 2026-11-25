@@ -1473,7 +1473,7 @@ export const TOURS: readonly TourDefinition[] = [
     summary: 'Faturamento da API e repasse do período em aberto, atualizados agora.',
     steps: [
       { anchor: 'position-filters', title: 'Credor e atualização', body: 'Escolha o credor. A tela se atualiza a cada minuto; o botão atualiza na hora.' },
-      { anchor: 'position-billing', title: 'Faturamento da API', body: 'Valor até agora, franquias, crescimento comparado ao ciclo anterior e projeção pela média diária.' },
+      { anchor: 'position-billing', title: 'Faturamento da API', body: 'Valor até agora, franquias, crescimento ante o ciclo anterior e projeção. Só aparece quando o contrato do credor tem preço de uso da API.' },
       { anchor: 'position-settlement', title: 'Repasse estimado', body: 'Calculado como o demonstrativo calcularia se fechado agora. Pendências de conciliação ficam fora do líquido.' },
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],

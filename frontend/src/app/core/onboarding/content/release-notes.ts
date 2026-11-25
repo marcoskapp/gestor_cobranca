@@ -3,6 +3,17 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 41,
+    date: '2026-11-25',
+    title: 'Faturamento da API só para quem tem preço; ajustes no menu e nas filas',
+    items: [
+      { text: 'A posição do credor e os extratos da API deixam de mostrar faturamento (e R$ 0,00) quando o contrato do credor não tem preço de uso: só o consumo aparece.', route: '/posicao-credor' },
+      { text: 'Menu lateral: o item aberto não quebra mais a linha (ex.: "Plataformas de telefonia" e "Cobrança da plataforma") e é marcado por uma barra à esquerda.' },
+      { text: 'Filas de cobrança: o código da fila aparece separado do nome, em cinza.', route: '/cobranca/filas' },
+      { text: 'Espaço padrão entre cartões, tabelas e botões em todas as telas (ex.: Classificação de desempenho e Operadores e suboperadores) e atalhos de configuração separados do texto.' },
+    ],
+  },
+  {
     version: 40,
     date: '2026-11-25',
     title: 'Portal do credor: pagamento recebido diretamente',

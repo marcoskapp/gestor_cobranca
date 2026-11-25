@@ -28,7 +28,7 @@ export const MANUAL: ModuleManual = {
       title: 'Posição do credor',
       objective: 'Acompanhar a qualquer momento o faturamento da integração e o repasse ao credor, sem esperar o fechamento.',
       purpose: [
-        'O bloco de faturamento mostra o ciclo de consumo em andamento: valor até agora (mensalidade do ciclo mais o excedente), uso das franquias, crescimento dia a dia comparado ao ciclo anterior e uma projeção pela média diária.',
+        'O bloco de faturamento mostra o ciclo de consumo em andamento: valor até agora (mensalidade do ciclo mais o excedente), uso das franquias, crescimento dia a dia comparado ao ciclo anterior e uma projeção pela média diária. Só aparece quando o contrato do credor tem preço de uso da integração (mensalidade ou excedente); sem preço, uma linha avisa que não há cobrança.',
         'O bloco de repasse calcula o período em aberto do mesmo jeito que o demonstrativo calcularia se fosse fechado agora, sem gravar nada. Pagamentos aguardando conciliação ou sem regra ficam fora do líquido e aparecem à parte.',
         'A tela se atualiza a cada minuto. O consumo da integração chega em lotes de cerca de um minuto; a hora da última atualização aparece no bloco.',
       ],

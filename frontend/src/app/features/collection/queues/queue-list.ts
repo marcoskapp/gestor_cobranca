@@ -98,12 +98,13 @@ export function autoDistributionText(q: QueueView): string | null {
     >
       <ng-template appCell="priority" [appCellOf]="rows()" let-q><span class="app-numeric">{{ q.priority }}</span></ng-template>
       <ng-template appCell="name" [appCellOf]="rows()" let-q>
-        <!-- linha da fila → casos dessa fila (lista de casos filtrada por ?fila=) -->
+        <!-- linha da fila → casos dessa fila (lista de casos filtrada por ?fila=). O código vai dentro de cada ramo:
+             o compilador descarta o espaço logo depois do fechamento de um bloco, e o nome grudava no código. -->
         @if (canSeeCases()) {
-          <a [routerLink]="['/cobranca/casos']" [queryParams]="{ fila: q.id }" [attr.aria-label]="'Casos da fila ' + q.name"><strong>{{ q.name }}</strong></a>
+          <a [routerLink]="['/cobranca/casos']" [queryParams]="{ fila: q.id }" [attr.aria-label]="'Casos da fila ' + q.name"><strong>{{ q.name }}</strong></a>&ngsp;<span class="app-muted app-mono">{{ q.code }}</span>
         } @else {
-          <strong>{{ q.name }}</strong>
-        }&ngsp;<span class="app-muted app-mono">{{ q.code }}</span>
+          <strong>{{ q.name }}</strong>&ngsp;<span class="app-muted app-mono">{{ q.code }}</span>
+        }
         @if (q.description) {
           <div class="app-muted">{{ q.description }}</div>
         }

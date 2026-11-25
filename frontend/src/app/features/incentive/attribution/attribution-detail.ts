@@ -49,7 +49,7 @@ import { pct } from '../data/incentive.rules';
           </a>
         }
       </app-page-header>
-      <div class="in-grid">
+      <div class="in-grid app-columns">
         <div class="in-main app-stack">
           <section class="app-card" aria-labelledby="at-credits">
             <h2 class="app-card__title" id="at-credits">Créditos</h2>

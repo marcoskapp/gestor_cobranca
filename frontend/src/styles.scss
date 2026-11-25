@@ -122,17 +122,25 @@ time {
   border: var(--bs-border-width) solid var(--app-border);
   border-radius: var(--bs-border-radius-lg);
   background: var(--app-surface);
-
-  // Cartões empilhados no fluxo normal da página. Em grade ou flex o espaço é o `gap` do contêiner:
-  // use `.app-columns`/`.app-stack` abaixo (nunca zere esta margem tela a tela).
-  & + & {
-    margin-top: var(--app-gap);
-  }
 }
 
-// Leiaute de cartões. Num contêiner grid/flex a margem entre irmãos (`.app-card + .app-card`) desceria
-// só o segundo cartão da linha (cartões lado a lado desalinhados) e somaria ao `gap` numa coluna; nestes
-// contêineres o espaçamento vem só do `gap` e os cartões filhos diretos não recebem a margem.
+// Espaço depois de um cartão no fluxo normal da página: o bloco seguinte (outro cartão, a tabela
+// `app-data-table` — que também é um cartão —, a barra de ações do formulário, um título de seção ou um
+// texto) fica a `--app-gap` dele; a tabela, como cartão, também dá esse espaço ao que vem depois. Vale
+// para qualquer vizinho, e não só `.app-card + .app-card`: as regressões de "cartão colado" vinham de
+// tabela, barra de ações ou nota logo depois de um cartão. A especificidade (0,2,0) substitui o `margin-top`
+// das classes globais de uma só classe e dos seletores de elemento (ex.: `.app-form-actions`,
+// `.app-section-title`); a margem de baixo do cartão ainda se funde com ela no fluxo normal. Utilitários `mt-*`
+// e classes do componente (que levam o atributo do encapsulamento) continuam valendo. Nunca zere esta margem
+// tela a tela.
+// Num contêiner grid/flex (`.app-columns`/`.app-stack`) o espaço é só o `gap`: lá a margem desceria o
+// segundo cartão da linha (cartões lado a lado desalinhados) e somaria ao `gap` numa coluna.
+:is(.app-card, app-data-table) + :not(:is(.app-columns, .app-stack) > *) {
+  margin-top: var(--app-gap);
+}
+
+// Leiaute de cartões. Num contêiner grid/flex o espaçamento vem só do `gap` e os filhos diretos não
+// recebem a margem de cima (regra acima).
 // - `.app-columns`: grade; as colunas (`grid-template-columns`, quebras por largura) ficam com a tela.
 // - `.app-stack`: coluna de cartões (coluna principal ou lateral de uma ficha).
 .app-columns {
@@ -147,9 +155,6 @@ time {
   min-width: 0;
 }
 
-:is(.app-columns, .app-stack) > .app-card {
-  margin-top: 0;
-}
 
 .app-card__title {
   margin: 0 0 var(--app-space-3);

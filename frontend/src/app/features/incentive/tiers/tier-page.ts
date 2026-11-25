@@ -318,7 +318,7 @@ const dateText = (iso: string | null | undefined) => (iso ? iso.split('-').rever
                     </ul>
                   </div>
                 }
-                <div class="d-flex gap-2">
+                <div class="app-form-actions">
                   <button class="btn btn-primary" type="submit" [disabled]="busy()">Salvar parâmetros</button>
                 </div>
               </form>

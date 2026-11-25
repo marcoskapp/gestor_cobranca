@@ -156,7 +156,7 @@ class BillingService implements PublicApiBillingUseCases {
                 pending.pricing().map(IntegrationPricingView::id).orElse(null),
                 pending.pricing().map(IntegrationPricingView::version).orElse(null), c.totals.requests(),
                 c.billable.requests(), c.billable.mbIn(), c.billable.mbOut(), c.billable.records(), c.result.total(),
-                "BRL", c.lines, c.breakdown, c.usageHash, null, null, null);
+                "BRL", c.lines, c.breakdown, c.usageHash, null, null, null, hasCharges(pending.pricing()));
     }
 
     @Override
@@ -217,7 +217,8 @@ class BillingService implements PublicApiBillingUseCases {
                 current.pricing().map(IntegrationPricingView::registeredAt).orElse(null), c.totals.requests(),
                 c.billable.requests(), c.billable.mbIn(), c.billable.mbOut(), c.billable.records(), c.result.total(),
                 "BRL", c.lines, allowances, c.breakdown, daily, previous, previousDaily, projection,
-                updatedAt.orElse(null), properties.usageFlushInterval().toSeconds(), millis);
+                updatedAt.orElse(null), properties.usageFlushInterval().toSeconds(), millis,
+                terms.map(PriceTerms::hasCharges).orElse(false));
     }
 
     /**
@@ -614,6 +615,11 @@ class BillingService implements PublicApiBillingUseCases {
                 sha256(json.toJson(hashed)));
     }
 
+    /** Condições do ciclo com cobrança parametrizada (algum preço maior que zero). */
+    private static boolean hasCharges(Optional<IntegrationPricingView> pricing) {
+        return pricing.map(BillingService::terms).map(PriceTerms::hasCharges).orElse(false);
+    }
+
     private static PriceTerms terms(IntegrationPricingView p) {
         return new PriceTerms(p.monthlyFee(), p.includedRequests(), p.pricePerRequest(), p.includedMbIn(),
                 p.pricePerMbIn(), p.includedMbOut(), p.pricePerMbOut(), p.includedRecords(), p.pricePerRecord());
@@ -653,12 +659,15 @@ class BillingService implements PublicApiBillingUseCases {
         Cycle cycle = new Cycle(s.getPeriodStart(), s.getPeriodEnd(), s.getUsageClosingDay());
         Proration proration = s.getCycleDays() == null ? BillingCycles.proration(cycle)
                 : new Proration(s.getCycleDays(), s.getReferenceCycleDays());
+        List<StatementLine> lines = json.fromJson(s.getLines(), LINES);
+        // extrato gravado: as linhas guardam os preços das condições aplicadas (a mensalidade com o valor cheio)
+        boolean charged = ChargeLines.anyPriced(lines.stream().map(StatementLine::unitPrice).toList());
         return new StatementView(s.getId(), s.getCreditorId(), s.getPeriodStart(), s.getPeriodEnd(),
                 cycle.endedAt(now, ZONE), s.getRevision(), s.getUsageClosingDay(), proration.cycleDays(),
                 proration.referenceDays(), s.getContractId(),
                 s.getContractNumber(), s.getPricingId(), s.getPricingVersion(), s.getRequests(), s.getBillableRequests(),
                 s.getBillableMbIn(), s.getBillableMbOut(), s.getRecords(), s.getTotalAmount(), s.getCurrency(),
-                json.fromJson(s.getLines(), LINES), json.fromJson(s.getBreakdown(), BREAKDOWN), s.getUsageHash(),
-                s.getClosedAt(), s.getClosedBy(), s.getReason());
+                lines, json.fromJson(s.getBreakdown(), BREAKDOWN), s.getUsageHash(),
+                s.getClosedAt(), s.getClosedBy(), s.getReason(), charged);
     }
 }

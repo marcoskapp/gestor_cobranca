@@ -136,6 +136,8 @@ export interface StatementView {
   closedAt: string | null;
   closedBy: string | null;
   reason: string | null;
+  /** Definido pelo servidor: as condições aplicadas ao ciclo cobram algo (mensalidade ou preço do excedente > 0). Falso: a tela não mostra valores, só o consumo. */
+  chargesConfigured: boolean;
 }
 
 /** `PublicApiBillingUseCases.GrowthPoint`: acumulado até o fim do dia do ciclo. */
@@ -186,4 +188,6 @@ export interface BillingPositionView {
   updatedAt: string | null;
   flushIntervalSeconds: number;
   calculationMillis: number;
+  /** Definido pelo servidor: as condições do ciclo em andamento cobram algo. Falso: o card "Faturamento da API" não aparece. */
+  chargesConfigured: boolean;
 }

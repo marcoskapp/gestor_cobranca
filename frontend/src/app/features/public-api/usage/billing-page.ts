@@ -7,6 +7,7 @@ import { Permission } from '../../../core/auth/permission';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { NotificationService } from '../../../core/notification/notification.service';
 import { Amount } from '../../../shared/components/amount/amount';
+import { ConfigLink } from '../../../shared/components/config-link/config-link';
 import { ConfirmService } from '../../../shared/components/confirm-dialog/confirm.service';
 import { CellDef } from '../../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
@@ -27,11 +28,13 @@ import { StatementViewPanel } from './statement-view';
 /**
  * Faturamento da API pública (modelo pronto para faturar, sem cobrança): extrato por ciclo de consumo de cada credor,
  * com prévia, fechamento (os ciclos encerrados fecham sozinhos na madrugada seguinte), revisão com motivo e exportação.
- * Os preços e o dia de fechamento ficam no contrato do credor (ficha do credor → contratos → integrações).
+ * Os preços e o dia de fechamento ficam no contrato do credor (ficha do credor → contratos → integrações). Sem
+ * cobrança parametrizada (critério do servidor, `chargesConfigured`), a prévia não mostra valores nem o fechamento
+ * manual, e o extrato fechado aparece como "Sem cobrança" (só o consumo), nunca "R$ 0,00".
  */
 @Component({
   selector: 'app-public-api-billing',
-  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, CellDef, DataTable, EntityPicker, Icon, PageHeader, StatementViewPanel],
+  imports: [ReactiveFormsModule, ...FORM_FIELD, Amount, CellDef, ConfigLink, DataTable, EntityPicker, Icon, PageHeader, StatementViewPanel],
   template: `
     <app-page-header title="Extratos da API pública" subtitle="Extrato por ciclo de consumo de cada credor, com os preços do contrato. Reprodutível: o mesmo consumo e as mesmas condições geram sempre o mesmo valor." />
 
@@ -49,12 +52,21 @@ import { StatementViewPanel } from './statement-view';
         </div>
         <div class="app-filters__actions">
           <button class="btn btn-outline-primary" type="button" (click)="loadPreview()" [disabled]="!previewForm.controls.creditor.value.length">Calcular prévia</button>
-          @if (canManage() && preview()?.ended) {
+          @if (canManage() && preview()?.ended && preview()?.chargesConfigured) {
             <button class="btn btn-primary" type="button" (click)="close()" [disabled]="busy()">Fechar ciclo</button>
           }
         </div>
       </form>
       @if (preview(); as s) {
+        @if (!s.chargesConfigured) {
+          <div class="alert alert-info bp-small mt-3 mb-0" role="status">
+            {{ creditors.name(s.creditorId) || 'Este credor' }} não tem preço de uso da API (mensalidade ou excedente)
+            cadastrado no contrato: não há valor a faturar. Abaixo, só o consumo do ciclo.
+            @if (canOpenCreditor()) {
+              &ngsp;<app-config-link [route]="'/organizacao/credores/' + s.creditorId" label="Contratos do credor (preço das integrações)" [permissions]="creditorPermissions" />
+            }
+          </div>
+        }
         <app-statement-view [statement]="s" [creditorName]="creditors.name(s.creditorId)" />
       }
     </section>
@@ -83,8 +95,14 @@ import { StatementViewPanel } from './statement-view';
         <ng-template appCell="period" [appCellOf]="query.rows()" let-s>{{ cycle(s) }}<div class="app-muted bp-small">revisão {{ s.revision }}</div></ng-template>
         <ng-template appCell="creditor" [appCellOf]="query.rows()" let-s>{{ creditors.name(s.creditorId) }}</ng-template>
         <ng-template appCell="usage" [appCellOf]="query.rows()" let-s><span class="bp-small">{{ n(s.billableRequests) }} cham. · {{ n(s.billableMbIn) }} MB rec. · {{ n(s.billableMbOut) }} MB env. · {{ n(s.records) }} reg.</span></ng-template>
-        <ng-template appCell="plan" [appCellOf]="query.rows()" let-s>{{ s.pricingVersion ? s.contractNumber + ' · v' + s.pricingVersion : 'Sem condições' }}</ng-template>
-        <ng-template appCell="total" [appCellOf]="query.rows()" let-s><app-amount [value]="s.totalAmount" /></ng-template>
+        <ng-template appCell="plan" [appCellOf]="query.rows()" let-s>{{ s.chargesConfigured ? s.contractNumber + ' · v' + s.pricingVersion : 'Sem preço no contrato' }}</ng-template>
+        <ng-template appCell="total" [appCellOf]="query.rows()" let-s>
+          @if (s.chargesConfigured) {
+            <app-amount [value]="s.totalAmount" />
+          } @else {
+            <span class="app-muted">Sem cobrança</span>
+          }
+        </ng-template>
         <ng-template appCell="actions" [appCellOf]="query.rows()" let-s>
           <button class="btn btn-sm btn-link" type="button" (click)="selected.set(s)">Detalhar</button>
           @if (canManage()) {
@@ -114,6 +132,9 @@ export class BillingPage {
   private readonly notifications = inject(NotificationService);
   protected readonly creditorSource = inject(CreditorLookup);
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.PUBLIC_API_BILLING_MANAGE));
+  protected readonly creditorPermissions = [Permission.CREDITOR_VIEW] as const;
+  protected readonly canOpenCreditor = computed(() =>
+    this.auth.hasPermission(Permission.ORGANIZATION_AREA_VIEW) && this.auth.hasPermission(Permission.CREDITOR_VIEW));
   protected readonly canExport = computed(() => this.auth.hasPermission(Permission.REPORT_EXPORT));
   protected readonly busy = signal(false);
   protected readonly preview = signal<StatementView | null>(null);

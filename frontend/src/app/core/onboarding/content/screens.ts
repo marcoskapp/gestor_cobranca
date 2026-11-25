@@ -656,12 +656,21 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'settlement.position',
-    version: 2,
+    version: 3,
     path: '/posicao-credor',
     tourId: 'settlement.position',
-    changes: [{ version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] }],
+    changes: [
+      { version: 2, items: ['Ícone "i" ao lado de cada indicador: o que é o número, como é calculado e como usar na decisão, ao passar o mouse, tocar ou com Tab.'] },
+      { version: 3, items: ['O faturamento da API só aparece quando o contrato do credor tem preço de uso da API (mensalidade ou excedente); sem preço, uma linha avisa que não há cobrança, com atalho aos contratos do credor.'] },
+    ],
   },
-  { key: 'publicapi.billing', version: 2, path: '/integracoes/extratos', tourId: 'publicapi.billing' },
+  {
+    key: 'publicapi.billing',
+    version: 3,
+    path: '/integracoes/extratos',
+    tourId: 'publicapi.billing',
+    changes: [{ version: 3, items: ['Credor sem preço de uso no contrato: a prévia avisa que não há valor a faturar e o extrato aparece como "Sem cobrança", só com o consumo.'] }],
+  },
   {
     key: 'payment.detail',
     version: 5,

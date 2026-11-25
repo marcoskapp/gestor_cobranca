@@ -1,8 +1,10 @@
 package br.com.gestorcobranca.publicapi.domain.model;
 
+import br.com.gestorcobranca.publicapi.domain.service.ChargeLines;
 import br.com.gestorcobranca.shared.domain.Guard;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Condições de preço aplicadas a um ciclo de consumo, copiadas da versão das condições de cobrança das integrações do
@@ -22,6 +24,14 @@ public record PriceTerms(BigDecimal monthlyFee, long includedRequests, BigDecima
         nonNegative(pricePerRecord, "price_per_record");
         Guard.require(includedRequests >= 0 && includedMbIn >= 0 && includedMbOut >= 0 && includedRecords >= 0,
                 "price_terms.allowance_invalid", "Franquias devem ser zero ou positivas");
+    }
+
+    /**
+     * As condições cobram algo: mensalidade ou algum preço do excedente maior que zero. Condições todas zeradas
+     * (mesmo com franquias) não têm cobrança parametrizada e o faturamento da API do credor não é mostrado.
+     */
+    public boolean hasCharges() {
+        return ChargeLines.anyPriced(List.of(monthlyFee, pricePerRequest, pricePerMbIn, pricePerMbOut, pricePerRecord));
     }
 
     private static void nonNegative(BigDecimal value, String field) {

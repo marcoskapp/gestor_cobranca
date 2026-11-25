@@ -3,6 +3,7 @@ package br.com.gestorcobranca.publicapi.domain;
 import br.com.gestorcobranca.publicapi.domain.model.BillableUsage;
 import br.com.gestorcobranca.publicapi.domain.model.PriceTerms;
 import br.com.gestorcobranca.publicapi.domain.model.UsageTotals;
+import br.com.gestorcobranca.publicapi.domain.service.ChargeLines;
 import br.com.gestorcobranca.publicapi.domain.service.PriceCalculator;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,33 @@ class PriceCalculatorTest {
     private static PriceTerms terms() {
         return new PriceTerms(new BigDecimal("100.00"), 1_000, new BigDecimal("0.010000"), 10, new BigDecimal("0.500000"),
                 10, new BigDecimal("0.250000"), 500, new BigDecimal("0.020000"));
+    }
+
+    @Test
+    void termsHaveChargesWhenTheMonthlyFeeOrAnyUnitPriceIsAboveZero() {
+        BigDecimal zero = BigDecimal.ZERO;
+        // tudo zerado, mesmo com franquias: sem cobrança parametrizada (o faturamento não é mostrado)
+        assertThat(new PriceTerms(zero, 1_000, zero, 10, zero, 10, zero, 500, zero).hasCharges()).isFalse();
+        assertThat(new PriceTerms(new BigDecimal("0.00"), 0, new BigDecimal("0.000000"), 0, zero, 0, zero, 0, zero)
+                .hasCharges()).isFalse();
+        // só a mensalidade, ou só um preço de excedente, já é cobrança
+        assertThat(new PriceTerms(new BigDecimal("0.01"), 0, zero, 0, zero, 0, zero, 0, zero).hasCharges()).isTrue();
+        assertThat(new PriceTerms(zero, 1_000, new BigDecimal("0.000001"), 0, zero, 0, zero, 0, zero).hasCharges()).isTrue();
+        assertThat(new PriceTerms(zero, 0, zero, 0, zero, 0, zero, 0, new BigDecimal("0.02")).hasCharges()).isTrue();
+        assertThat(terms().hasCharges()).isTrue();
+    }
+
+    @Test
+    void storedLinesHaveChargesWhenAnyUnitPriceIsAboveZero() {
+        // extrato fechado: as linhas guardam os preços aplicados; sem linhas (sem condições), sem cobrança
+        assertThat(ChargeLines.anyPriced(List.of())).isFalse();
+        assertThat(ChargeLines.anyPriced(java.util.Arrays.asList(BigDecimal.ZERO, null, new BigDecimal("0.00")))).isFalse();
+        assertThat(ChargeLines.anyPriced(List.of(BigDecimal.ZERO, new BigDecimal("0.50")))).isTrue();
+        PriceCalculator.Result zeroed = PriceCalculator.calculate(new PriceTerms(BigDecimal.ZERO, 0, BigDecimal.ZERO, 0,
+                BigDecimal.ZERO, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO), new BillableUsage(10, 1, 1, 1));
+        assertThat(ChargeLines.anyPriced(zeroed.lines().stream().map(PriceCalculator.Line::unitPrice).toList())).isFalse();
+        PriceCalculator.Result priced = PriceCalculator.calculate(terms(), new BillableUsage(0, 0, 0, 0));
+        assertThat(ChargeLines.anyPriced(priced.lines().stream().map(PriceCalculator.Line::unitPrice).toList())).isTrue();
     }
 
     @Test

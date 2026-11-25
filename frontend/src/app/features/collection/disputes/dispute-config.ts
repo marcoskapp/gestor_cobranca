@@ -214,7 +214,7 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
       <li ngbNavItem="modelos">
         <button ngbNavLink type="button">Modelos</button>
         <ng-template ngbNavContent>
-          <div class="dc-templates" data-tour="dispute-config-templates">
+          <div class="dc-templates app-columns" data-tour="dispute-config-templates">
             <nav class="app-card" aria-label="Modelos">
               <h2 class="app-card__title">Pedido ao credor (por tipo)</h2>
               <div class="list-group list-group-flush mb-3">
@@ -303,9 +303,6 @@ const range = (key: keyof typeof DISPUTE_CONFIG_LIMITS) => [Validators.required,
       align-items: start;
       @media (max-width: 991.98px) {
         grid-template-columns: minmax(0, 1fr);
-      }
-      > .app-card {
-        margin-top: 0;
       }
     }
   `,

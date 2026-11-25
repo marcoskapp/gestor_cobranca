@@ -86,12 +86,28 @@
   gap: 12px;
   font-size: 14px;
 
+  // O item ativo se distingue pelo fundo da pílula (`.nav-pills`), por uma barra à esquerda (pseudoelemento
+  // absoluto: não ocupa espaço) e por `aria-current` para leitor de tela; nunca por peso de fonte, padding ou borda,
+  // para o rótulo ocupar a mesma largura nos dois estados (com peso maior, um rótulo que cabia numa linha quebrava ao
+  // abrir a rota, ex.: "Plataformas de telefonia"). A barra é o sinal que não depende de cor (WCAG 1.4.1 e 1.4.11).
+  position: relative;
+
   &:hover:not(.active) {
     background-color: var(--bs-secondary-bg);
   }
 
-  &.active {
-    font-weight: var(--app-weight-medium);
+  &.active::before {
+    content: '';
+    position: absolute;
+    inset-block: 6px;
+    inset-inline-start: 0;
+    width: 3px;
+    border-radius: 2px;
+    background-color: var(--bs-nav-pills-link-active-color);
+
+    @media (forced-colors: active) {
+      background-color: Highlight;
+    }
   }
 }
 

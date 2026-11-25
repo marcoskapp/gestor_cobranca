@@ -25,7 +25,9 @@ public final class PriceCalculator {
      * @param quantity  quantidade faturável do ciclo (1 para a mensalidade)
      * @param included  franquia do ciclo (já proporcional no ciclo de transição)
      * @param billable  excedente cobrado
-     * @param unitPrice preço unitário do contrato (para a mensalidade, o valor cheio)
+     * @param unitPrice preço unitário do contrato (para a mensalidade, o valor cheio); sustenta o {@code chargesConfigured}
+     *                  do extrato fechado ({@link ChargeLines#anyPriced}), que precisa equivaler a
+     *                  {@code PriceTerms.hasCharges()} das condições do ciclo
      * @param amount    valor da linha (2 casas; mensalidade proporcional no ciclo de transição)
      */
     public record Line(String metric, long quantity, long included, long billable, BigDecimal unitPrice,

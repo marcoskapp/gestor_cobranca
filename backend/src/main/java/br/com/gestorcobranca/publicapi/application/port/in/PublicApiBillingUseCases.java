@@ -91,13 +91,16 @@ public interface PublicApiBillingUseCases {
      * @param billableMbIn    MB recebidos faturáveis (soma dos tokens)
      * @param billableMbOut   MB enviados faturáveis (soma dos tokens)
      * @param usageHash       SHA-256 do consumo usado (verificação de reprodutibilidade)
+     * @param chargesConfigured as condições aplicadas ao ciclo cobram algo (mensalidade ou algum preço do excedente
+     *                        maior que zero); falso sem condições ou com condições zeradas — a tela não mostra valores
+     *                        de faturamento, só o consumo
      */
     record StatementView(UUID id, UUID creditorId, LocalDate periodStart, LocalDate periodEnd, boolean ended,
                          int revision, int usageClosingDay, int cycleDays, int referenceCycleDays, UUID contractId, String contractNumber, UUID pricingId,
                          Integer pricingVersion, long requests, long billableRequests, long billableMbIn,
                          long billableMbOut, long records, BigDecimal totalAmount, String currency,
                          List<StatementLine> lines, List<StatementBreakdown> breakdown, String usageHash,
-                         Instant closedAt, UUID closedBy, String reason) {
+                         Instant closedAt, UUID closedBy, String reason, boolean chargesConfigured) {
     }
 
     /**
@@ -116,6 +119,9 @@ public interface PublicApiBillingUseCases {
      * @param previousDaily    acumulado por dia do ciclo anterior, para comparar no mesmo dia do ciclo
      * @param updatedAt        última gravação em lote do consumo do credor no ciclo (o consumo chega em lotes a cada
      *                         {@code flushIntervalSeconds})
+     * @param chargesConfigured as condições do ciclo em andamento cobram algo (mensalidade ou algum preço do excedente
+     *                         maior que zero); falso sem condições ou com condições zeradas — a tela omite o
+     *                         faturamento da API do credor (não mostra R$ 0,00)
      */
     record BillingPositionView(UUID creditorId, LocalDate periodStart, LocalDate periodEnd, int usageClosingDay,
                                int cycleDays, int referenceCycleDays, String cycleKind,
@@ -127,7 +133,7 @@ public interface PublicApiBillingUseCases {
                                List<AllowanceUse> allowances, List<StatementBreakdown> breakdown,
                                List<GrowthPoint> daily, PreviousCycle previous, List<GrowthPoint> previousDaily,
                                Projection projection, Instant updatedAt, long flushIntervalSeconds,
-                               long calculationMillis) {
+                               long calculationMillis, boolean chargesConfigured) {
     }
 
     /** @param percent uso da franquia em % (2 casas); nulo quando a franquia é zero */

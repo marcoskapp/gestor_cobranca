@@ -302,6 +302,7 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         assertThat(statement.periodEnd()).isEqualTo(cycleEnd);
         assertThat(statement.usageClosingDay()).isEqualTo(10);
         assertThat(statement.pricingVersion()).isEqualTo(1);
+        assertThat(statement.chargesConfigured()).isTrue();
         assertThat(statement.requests()).isEqualTo(1510);
         assertThat(statement.billableRequests()).isEqualTo(1350);
         // MB por token e direção, arredondado para cima: 1 byte → 1 MB, 1.048.576 → 1 MB, 1.048.577 → 2 MB
@@ -457,6 +458,7 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         assertThat(p.billableMbIn()).isEqualTo(1);
         // 50,00 + (1.200 − 1.000) × 0,01 + (1 − 1) MB recebido
         assertThat(p.amountSoFar()).isEqualByComparingTo("52.00");
+        assertThat(p.chargesConfigured()).isTrue();
         assertThat(p.allowances()).filteredOn(a -> a.metric().equals("REQUESTS")).singleElement()
                 .satisfies(a -> assertThat(a.percent()).isEqualByComparingTo("120.00"));
         assertThat(p.daily()).hasSize(today.getDayOfMonth());
@@ -570,6 +572,7 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         assertThat(p.cycleKind()).isEqualTo("NO_CONTRACT");
         assertThat(p.pricingVersion()).isNull();
         assertThat(p.amountSoFar()).isEqualByComparingTo("0.00");
+        assertThat(p.chargesConfigured()).isFalse();
         assertThat(p.periodStart()).isAfter(end);
     }
 
@@ -684,5 +687,61 @@ class PublicApiUsageIT extends PublicApiTestSupport {
         // nada a fechar: o ciclo está em curso
         closeAllByJob();
         assertThat(statementsOf(creditorA)).isEmpty();
+    }
+
+    @Test
+    void contractWithAllPricesAtZeroHasNoChargesConfiguredInThePositionAndPreview() throws Exception {
+        java.time.ZoneId zone = TimeConfig.BUSINESS_ZONE;
+        LocalDate today = LocalDate.now(zone);
+        IssuedToken token = issue(creditorA, Set.of("portfolios:read"), null, List.of());
+        contractPeriod(creditorA, today.minusYears(1).withDayOfMonth(1), null);
+        UUID contractId = system(() -> contracts.listByCreditor(creditorA)).getFirst().id();
+        // condições cadastradas com franquias, mas mensalidade e preços zerados: não há cobrança parametrizada
+        asManager(() -> pricing.define(contractId, new IntegrationPricingCommand(5, BigDecimal.ZERO, 1000,
+                BigDecimal.ZERO, 10, BigDecimal.ZERO, 10, BigDecimal.ZERO, 500, BigDecimal.ZERO, null)));
+        insertUsage(creditorA, token.details().id(), today.atStartOfDay(zone).toInstant().plusSeconds(60),
+                "/public-api/v1/portfolios", 1500, 0, 0, 0, 0, 0, 0);
+
+        PublicApiBillingUseCases.BillingPositionView p = asManager(() -> billing.position(creditorA));
+        assertThat(p.pricingVersion()).isEqualTo(1);
+        assertThat(p.billableRequests()).isEqualTo(1500);
+        assertThat(p.chargesConfigured()).isFalse();
+        assertThat(asManager(() -> billing.preview(creditorA)).chargesConfigured()).isFalse();
+        // credor sem contrato com condições: também sem cobrança
+        assertThat(asManager(() -> billing.position(creditorB)).chargesConfigured()).isFalse();
+
+        // um preço de excedente maior que zero (alteração: vale do próximo ciclo) não muda o ciclo em andamento
+        asManager(() -> pricing.define(contractId, new IntegrationPricingCommand(5, BigDecimal.ZERO, 1000,
+                new BigDecimal("0.01"), 10, BigDecimal.ZERO, 10, BigDecimal.ZERO, 500, BigDecimal.ZERO, null)));
+        assertThat(asManager(() -> billing.position(creditorA)).chargesConfigured()).isFalse();
+    }
+
+    @Test
+    void closedStatementOfCycleWithAllPricesAtZeroHasNoChargesConfigured() {
+        IssuedToken token = issue(creditorA, Set.of("portfolios:read"), null, List.of());
+        LocalDate cycleStart = LocalDate.now(TimeConfig.BUSINESS_ZONE).minusMonths(3).withDayOfMonth(11);
+        Instant startInstant = cycleStart.atStartOfDay(TimeConfig.BUSINESS_ZONE).toInstant();
+        UUID contractId = system(() -> contracts.listByCreditor(creditorA)).getFirst().id();
+        // condições registradas antes do ciclo, com franquias e todos os preços zerados
+        system(() -> jdbc.update("""
+                insert into organization.contract_integration_pricing (id, tenant_id, version, created_at, updated_at,
+                    contract_id, creditor_id, pricing_version, usage_closing_day, monthly_fee, included_requests,
+                    price_per_request, included_mb_in, price_per_mb_in, included_mb_out, price_per_mb_out,
+                    included_records, price_per_record, registered_at)
+                values (?, ?, 0, now(), now(), ?, ?, 1, 10, 0, 1000, 0, 1, 0, 0, 0, 500, 0, ?)""",
+                UUID.randomUUID(), tenant, contractId, creditorA,
+                java.sql.Timestamp.from(startInstant.minus(java.time.Duration.ofDays(60)))));
+        // consumo acima das franquias no ciclo: o extrato fecha (há consumo), mas sem valor a faturar
+        insertUsage(creditorA, token.details().id(), startInstant.plusSeconds(3 * 3600), "/public-api/v1/portfolios",
+                1500, 0, 0, 0, 0, 0, 0);
+
+        asManager(() -> billing.closeEndedCycles(creditorA));
+        StatementView statement = statementsOf(creditorA).stream()
+                .filter(s -> s.periodStart().equals(cycleStart)).findFirst().orElseThrow();
+        assertThat(statement.billableRequests()).isEqualTo(1500);
+        assertThat(statement.totalAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        // as linhas gravadas (lidas do banco) não têm preço: a lista e o detalhe dizem "sem cobrança"
+        assertThat(statement.chargesConfigured()).isFalse();
+        assertThat(asManager(() -> billing.statement(statement.id())).chargesConfigured()).isFalse();
     }
 }

@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "681f05febed4544c",
+ "contentVersion": "8afba6994e846072",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -4366,7 +4366,7 @@
    "title": "Posição do credor",
    "objective": "Acompanhar a qualquer momento o faturamento da integração e o repasse ao credor, sem esperar o fechamento.",
    "purpose": [
-    "O bloco de faturamento mostra o ciclo de consumo em andamento: valor até agora (mensalidade do ciclo mais o excedente), uso das franquias, crescimento dia a dia comparado ao ciclo anterior e uma projeção pela média diária.",
+    "O bloco de faturamento mostra o ciclo de consumo em andamento: valor até agora (mensalidade do ciclo mais o excedente), uso das franquias, crescimento dia a dia comparado ao ciclo anterior e uma projeção pela média diária. Só aparece quando o contrato do credor tem preço de uso da integração (mensalidade ou excedente); sem preço, uma linha avisa que não há cobrança.",
     "O bloco de repasse calcula o período em aberto do mesmo jeito que o demonstrativo calcularia se fosse fechado agora, sem gravar nada. Pagamentos aguardando conciliação ou sem regra ficam fora do líquido e aparecem à parte.",
     "A tela se atualiza a cada minuto. O consumo da integração chega em lotes de cerca de um minuto; a hora da última atualização aparece no bloco."
    ],
@@ -7294,7 +7294,7 @@
    "purpose": [
     "Os preços (mensalidade, franquias e excedente por chamada, por MB recebido e enviado e por registro) e o dia de fechamento ficam no contrato do credor. O primeiro cadastro vale já no ciclo em andamento, inteiro (com o consumo de antes do cadastro); as alterações valem a partir do próximo ciclo.",
     "O ciclo fecha no fim do dia de fechamento (meses sem o dia fecham no último dia) e o próximo começa às 00:00 do dia seguinte; ciclos encerrados fecham sozinhos de madrugada, e ciclo sem consumo só gera extrato se houver mensalidade — mesmo que o credor nunca tenha usado as integrações. Os ciclos começam no início da vigência do contrato: o primeiro ciclo (do início do contrato ao primeiro dia de fechamento), o último (até o fim da vigência) e o de transição, ao mudar o dia de fechamento, têm mensalidade e franquias proporcionais aos dias. Não há cobrança retroativa: os ciclos encerrados antes do primeiro cadastro das condições não geram extrato.",
-    "Só chamadas bem-sucedidas são cobradas. Dados em MB inteiros (1 MB = 1.048.576 bytes), arredondados para cima por token no ciclo. Nova revisão exige motivo; o extrato guarda uma marca do consumo que prova o cálculo."
+    "Só chamadas bem-sucedidas são cobradas. Dados em MB inteiros (1 MB = 1.048.576 bytes), arredondados para cima por token no ciclo. Nova revisão exige motivo; o extrato guarda uma marca do consumo que prova o cálculo. Credor sem preço de uso da integração no contrato não tem valor a faturar: a prévia avisa e o extrato aparece como \"Sem cobrança\", só com o consumo."
    ],
    "profiles": [
     "ADMIN",

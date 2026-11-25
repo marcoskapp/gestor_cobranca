@@ -58,7 +58,7 @@ O **desktop operacional** é o alvo primário (1366–1920 px). Tablet e celular
 
 Tabelas largas rolam horizontalmente dentro do cartão (sem quebrar o layout) a partir de 576 px; abaixo disso o `app-data-table` vira lista empilhada (título, metadados, selo e linha clicável — §12), com "Mais detalhes" para as colunas fora do resumo. Em painéis estreitos numa tela larga (ficha do devedor no painel da estação), a área marcada com `appCompactTables` empilha a tabela que não cabe na largura disponível, sem rolagem lateral. Filtros recolhem num botão "Filtros (n)" abaixo de 768 px (§12.3).
 
-**Leiaute de cartões.** Cartões empilhados no fluxo normal recebem o espaço da regra global `.app-card + .app-card`. Cartões dentro de grade ou flex (lado a lado, coluna principal ou lateral de uma ficha) ficam num contêiner `.app-columns` (grade; a tela define `grid-template-columns`) ou `.app-stack` (coluna): o espaço vem do `gap` e os cartões filhos diretos não recebem a margem — sem ela o segundo cartão da linha desceria e ficaria desalinhado. Não zere a margem tela a tela; a auditoria da interface (`scripts/sandbox/audit.sh`) acusa cartões da mesma linha com topos diferentes (tolerância de 1 px) e o documento rolando além da área de conteúdo.
+**Leiaute de cartões.** No fluxo normal, o bloco que vem logo depois de um cartão (`.app-card` ou `app-data-table`, que também é um cartão) fica a `--app-gap` dele pela regra global `:is(.app-card, app-data-table) + *` — outro cartão, a tabela, a barra de ações do formulário (`.app-form-actions`, nunca um `d-flex` avulso), um título de seção ou uma nota. A regra vale para qualquer vizinho porque as regressões de "cartão colado" vinham justamente de tabela, botão ou nota logo depois de um cartão (a regra antiga só cobria `.app-card + .app-card`). Cartões dentro de grade ou flex (lado a lado, coluna principal ou lateral de uma ficha) ficam num contêiner `.app-columns` (grade; a tela define `grid-template-columns`, mesmo quando a grade tem classe própria, como `.in-grid app-columns`) ou `.app-stack` (coluna): o espaço vem do `gap` e os filhos diretos não recebem a margem — sem ela o segundo item da linha desceria e ficaria desalinhado. Não zere a margem tela a tela; a auditoria da interface (`scripts/sandbox/audit.sh`) acusa cartões da mesma linha com topos diferentes (tolerância de 1 px) e o documento rolando além da área de conteúdo.
 
 ## 5. Linguagem e formatação
 
@@ -66,6 +66,7 @@ Tabelas largas rolam horizontalmente dentro do cartão (sem quebrar o layout) a 
 - Moeda: `app-amount` (`Intl.NumberFormat('pt-BR', BRL)`), algarismos tabulares, espaço não separável após `R$`, formato compacto com valor exato acessível.
 - Moeda digitada: máscara `appMoney` (centavos pela direita, sem separadores digitados, "R$" no `input-group-text`) — contrato na §13.4.
 - Datas: `appDate` (`dd/MM/yyyy` e `dd/MM/yyyy HH:mm`), `LocalDate` sem conversão de fuso.
+- Nome e código de um cadastro (fila, tabulação, perfil de alçada): nome em destaque, um espaço e o código em `app-muted app-mono` (`<strong>{{ nome }}</strong>&ngsp;<span class="app-muted app-mono">{{ código }}</span>`). O `&ngsp;` fica entre os dois elementos, dentro do mesmo bloco: logo depois do fechamento de um `@if`/`@else` (`}&ngsp;`) o compilador o descarta e o nome gruda no código.
 - Documentos: `app-document` mascara por padrão (`***.982.247-**`); revelar emite `reveal` para a tela buscar no servidor, que exige `DEBTOR_SENSITIVE_VIEW` e registra `SENSITIVE_DATA_VIEWED`. O componente nunca desmascara um valor que já possui.
 
 ## 6. Estados de tela
@@ -98,7 +99,7 @@ Desde a onda 1 da migração (decisões 220+), a interface usa **Bootstrap 5.3 +
 
 Componentes compartilhados (`frontend/src/app/shared/`): ver §12.
 
-Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores), busca rápida (`CommandPaletteService`, `Ctrl/⌘ + K`, `NgbModal`), alternância de tema, ajuda e menu do usuário (`ngbDropdown`, com tema e densidade); menu lateral por permissão (pílulas do Bootstrap) recolhível em trilho (`navigationCollapsed` persistido; `Alt + M`) e em painel `NgbOffcanvas` abaixo de 960 px; `app-breadcrumbs` (breadcrumb do Bootstrap; `BreadcrumbService.setCurrentLabel` para nome do registro).
+Shell (`core/layout/`): cabeçalho com contexto (assessoria + escopo de credores), busca rápida (`CommandPaletteService`, `Ctrl/⌘ + K`, `NgbModal`), alternância de tema, ajuda e menu do usuário (`ngbDropdown`, com tema e densidade); menu lateral por permissão (pílulas do Bootstrap) recolhível em trilho (`navigationCollapsed` persistido; `Alt + M`) e em painel `NgbOffcanvas` abaixo de 960 px; o item ativo se distingue pelo fundo da pílula, por uma barra à esquerda (pseudoelemento, sem ocupar espaço; o sinal que não depende de cor) e por `aria-current`, sem mudar peso da fonte, padding ou borda, para o rótulo ocupar a mesma largura e quebrar igual nos dois estados; `app-breadcrumbs` (breadcrumb do Bootstrap; `BreadcrumbService.setCurrentLabel` para nome do registro).
 
 ## 8. Onboarding
 
@@ -852,7 +853,7 @@ canais, as contas Pix) obrigavam a pessoa a sair do formulário, achar a tela no
 
 | Peça | Contrato |
 | --- | --- |
-| `app-config-link` (`shared/components/config-link`) | Link pequeno ("Gerenciar perfis de alçada ↗") logo abaixo do campo ou no bloco que usa o item; abre a tela de configuração **em nova aba** (`target="_blank"`, `rel="noopener"`), com "(abre em nova aba)" para o leitor de tela; só aparece com as permissões da tela de destino (as mesmas do menu). |
+| `app-config-link` (`shared/components/config-link`) | Link pequeno ("Gerenciar perfis de alçada ↗") logo abaixo do campo ou no bloco que usa o item; abre a tela de configuração **em nova aba** (`target="_blank"`, `rel="noopener"`), com "(abre em nova aba)" para o leitor de tela; só aparece com as permissões da tela de destino (as mesmas do menu). Na mesma linha de um texto, separe com `&ngsp;` antes do link (a quebra de linha antes de um `@if` é descartada pelo compilador e o texto gruda no link: "TelefoniaPlataformas de telefonia"). |
 | Uso atual | Política do assistente: perfil de alçada e perfil exigido na fila (`/negociacao/alcadas`, `AUTHORITY_MANAGE`), canais (`/conversas/canais`, `CHANNEL_MANAGE`) e contas Pix (`/pagamentos/contas-pix`, `INTEGRATION_MANAGE`). Resposta sugerida ao titular e cadastro de operadores: cadastrar operador e registrar base legal (com `queryParams`: `?chave=`, `?credor=`) e a configuração de cada provedor (conformidade.md §8.4). O prompt não tem atalho: versões imutáveis, entram com a atualização do sistema (a dica explica). |
 
 ## 21. Tabelas longas nos painéis: "Mostrar mais" (17/11/2026)

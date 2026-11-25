@@ -8,7 +8,8 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
 
 /**
  * Linhas do extrato de um ciclo (quantidade inteira, franquia, cobrável, valor), total, detalhamento por token e hash
- * do consumo usado no cálculo.
+ * do consumo usado no cálculo. Sem cobrança parametrizada (`chargesConfigured`, do servidor), as linhas de valor e o
+ * total são omitidos: fica só o consumo.
  */
 @Component({
   selector: 'app-statement-view',
@@ -17,7 +18,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
     @let s = statement();
     <p class="sv-small app-muted">
       {{ creditorName() }} · ciclo {{ cycle(s) }} ({{ s.cycleDays }} dias, fecha no dia {{ s.usageClosingDay }}) ·
-      {{ s.pricingVersion ? 'Contrato ' + s.contractNumber + ', condições v' + s.pricingVersion : 'Contrato sem condições de cobrança' }}
+      {{ s.chargesConfigured ? 'Contrato ' + s.contractNumber + ', condições v' + s.pricingVersion : 'Contrato sem preço de uso da API' }}
       @if (s.closedAt) {
         · fechado em {{ s.closedAt | appDate }} (revisão {{ s.revision }})
       } @else {
@@ -27,34 +28,36 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
         · motivo: {{ s.reason }}
       }
     </p>
-    @if (proration(s); as p) {
+    @if (s.chargesConfigured && proration(s); as p) {
       <div class="alert alert-info sv-small py-2" role="note">
         Ciclo de transição (mudança do dia de fechamento): mensalidade e franquias proporcionais a {{ p }}. Mensalidade
         arredondada a centavos (meio para o par); franquias arredondadas para cima.
       </div>
     }
-    <div class="table-responsive">
-      <table class="table table-sm">
-        <caption class="visually-hidden">Linhas do extrato</caption>
-        <thead>
-          <tr><th scope="col">Item</th><th scope="col" class="text-end">Consumo</th><th scope="col" class="text-end">Franquia</th><th scope="col" class="text-end">Cobrável</th><th scope="col" class="text-end">Valor</th></tr>
-        </thead>
-        <tbody>
-          @for (l of s.lines; track l.metric) {
-            <tr>
-              <td>{{ labels[l.metric] }}</td>
-              <td class="text-end app-numeric">{{ n(l.quantity) }}</td>
-              <td class="text-end app-numeric">{{ n(l.included) }}</td>
-              <td class="text-end app-numeric">{{ n(l.billable) }}</td>
-              <td class="text-end"><app-amount [value]="l.amount" /></td>
-            </tr>
-          } @empty {
-            <tr><td colspan="5" class="app-muted">O contrato não tem condições de cobrança das integrações vigentes no início do ciclo: só o consumo é registrado.</td></tr>
-          }
-          <tr><th scope="row" colspan="4">Total</th><td class="text-end"><strong><app-amount [value]="s.totalAmount" /></strong></td></tr>
-        </tbody>
-      </table>
-    </div>
+    @if (s.chargesConfigured) {
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <caption class="visually-hidden">Linhas do extrato</caption>
+          <thead>
+            <tr><th scope="col">Item</th><th scope="col" class="text-end">Consumo</th><th scope="col" class="text-end">Franquia</th><th scope="col" class="text-end">Cobrável</th><th scope="col" class="text-end">Valor</th></tr>
+          </thead>
+          <tbody>
+            @for (l of s.lines; track l.metric) {
+              <tr>
+                <td>{{ labels[l.metric] }}</td>
+                <td class="text-end app-numeric">{{ n(l.quantity) }}</td>
+                <td class="text-end app-numeric">{{ n(l.included) }}</td>
+                <td class="text-end app-numeric">{{ n(l.billable) }}</td>
+                <td class="text-end"><app-amount [value]="l.amount" /></td>
+              </tr>
+            }
+            <tr><th scope="row" colspan="4">Total</th><td class="text-end"><strong><app-amount [value]="s.totalAmount" /></strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="sv-small">Sem cobrança: o contrato não tem preço de uso da API (mensalidade ou excedente) para este ciclo. Só o consumo é registrado.</p>
+    }
     @if (tokens(s).length) {
       <div class="table-responsive">
         <table class="table table-sm">
@@ -77,7 +80,7 @@ const NUMBER = new Intl.NumberFormat('pt-BR');
         </table>
       </div>
     }
-    <p class="app-muted sv-small">Cobram-se só chamadas bem-sucedidas (2xx/3xx). Dados em MB inteiros (1 MB = 1.048.576 bytes), arredondados para cima por token e direção no ciclo.</p>
+    <p class="app-muted sv-small">{{ s.chargesConfigured ? 'Cobram-se' : 'Contam-se' }} só chamadas bem-sucedidas (2xx/3xx). Dados em MB inteiros (1 MB = 1.048.576 bytes), arredondados para cima por token e direção no ciclo.</p>
     <p class="app-mono sv-small sv-hash">Hash do consumo: {{ s.usageHash }}</p>
   `,
   styles: `

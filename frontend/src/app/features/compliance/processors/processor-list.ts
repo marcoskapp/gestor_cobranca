@@ -76,7 +76,8 @@ export function processorState(p: DataProcessorView): { label: string; tone: 'ok
                 <strong>{{ m.name }}</strong>
                 <span class="app-muted"> · {{ m.source }}</span>
                 @if (config(m.providerKey); as c) {
-                  <app-config-link [route]="c.route" [label]="c.label" [permissions]="c.permissions" />
+                  <!-- &ngsp;: espaço garantido entre a origem e o atalho (a quebra de linha antes do @if é descartada) -->
+                  &ngsp;<app-config-link [route]="c.route" [label]="c.label" [permissions]="c.permissions" />
                 }
               </span>
               <button class="btn btn-sm btn-outline-primary" type="button" (click)="register(m)">Cadastrar</button>

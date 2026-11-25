@@ -150,7 +150,7 @@ interface RateRow {
       }
     </app-page-header>
 
-    <div class="ix-layout">
+    <div class="ix-layout app-columns">
       <app-data-table
         caption="Índices de correção"
         [rows]="rows()"

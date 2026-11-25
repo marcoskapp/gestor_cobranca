@@ -70,6 +70,8 @@ describe('ProcessorList (operadores e suboperadores)', () => {
     const el = (await render()).nativeElement as HTMLElement;
     expect(el.querySelector('.pl-missing')?.textContent).toContain('Twilio');
     expect(el.querySelector('.pl-missing a')?.getAttribute('href')).toBe('/telefonia/plataformas');
+    // a origem e o atalho são palavras separadas (o compilador descarta a quebra de linha entre eles: "TelefoniaPlataformas")
+    expect(el.querySelector('.pl-missing li')?.textContent?.replace(/\s+/g, ' ')).toMatch(/· Telefonia \S/);
     expect(el.textContent).toContain('Mensageria Fictícia Ltda.');
     expect(el.textContent).toContain('Estados Unidos');
     expect(el.textContent).toContain('Cláusulas-padrão aprovadas pela ANPD');
