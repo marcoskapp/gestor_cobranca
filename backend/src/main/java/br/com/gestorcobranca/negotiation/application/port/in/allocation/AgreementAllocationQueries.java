@@ -7,10 +7,9 @@ import java.util.UUID;
 
 /**
  * Leituras do acordo para validar o destino e alocar um pagamento (payment). O escopo é o mesmo da consulta de acordos
- * (credor do ator; devedor do portal só os próprios). Ator interno precisa de {@code AGREEMENT_VIEW} ou de
- * {@code PAYMENT_REGISTER_EXTERNAL} (quem informa pagamento, inclusive o token de integração só com
- * {@code payments:write} — decisão 1518); a pessoa do credor (ator {@code CREDITOR}), que nunca consulta acordos, é
- * dispensada — a autorização da ação é do caso de uso do payment, conferida antes. O resultado nunca vai para a tela.
+ * (credor do ator; devedor do portal só os próprios). Ator interno precisa de {@code AGREEMENT_VIEW}; a pessoa do
+ * credor (ator {@code CREDITOR}) e o token de integração com {@code PAYMENT_REGISTER_EXTERNAL} ({@code payments:write}
+ * sem {@code agreements:read} — decisão 1518), que nunca consultam acordos, são dispensados — a autorização da ação é do caso de uso do payment, conferida antes. O resultado nunca vai para a tela.
  */
 public interface AgreementAllocationQueries {
 

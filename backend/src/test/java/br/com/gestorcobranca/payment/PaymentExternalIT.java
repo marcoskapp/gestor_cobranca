@@ -349,6 +349,25 @@ class PaymentExternalIT extends PaymentTestSupport {
         assertThat(count("select count(*) from payment.payment where external_reference = 'IA-2'")).isZero();
     }
 
+    /**
+     * A dispensa de {@code AGREEMENT_VIEW} na alocação vale só para o token de integração (decisão 1518,
+     * SEG-20261125-01): a pessoa da assessoria com {@code PAYMENT_REGISTER_EXTERNAL} e sem {@code AGREEMENT_VIEW} não
+     * informa pagamento para parcela de acordo, e nada é gravado.
+     */
+    @Test
+    void staffWithoutAgreementViewCannotTargetAnAgreement() {
+        provision("pessoa-sem-acordo");
+        AgreementView agreement = formalizeAgreement(1);
+        ExternalPaymentCommand toAgreement = new ExternalPaymentCommand(creditorA, debtor, new BigDecimal("10.00"),
+                paidAt, "PIX", "CREDITOR_DIRECT", "PSA-1", null,
+                new TargetInput("AGREEMENT", agreement.id(), List.of(agreement.installments().getFirst().id()), null));
+        Actor staff = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "PERSONALIZADO",
+                EnumSet.of(Permission.PAYMENT_REGISTER_EXTERNAL, Permission.PAYMENT_VIEW), CreditorScope.ALL);
+        assertThatThrownBy(() -> tenantExecution.callAs(staff, () -> payments.registerExternal(toAgreement, pdf(), null)))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThat(count("select count(*) from payment.payment where external_reference = 'PSA-1'")).isZero();
+    }
+
     private <T> T asIntegration(UUID tokenId, java.util.function.Supplier<T> action) {
         return asIntegration(tokenId, creditorB, action);
     }

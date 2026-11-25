@@ -85,8 +85,9 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
   `CREDITOR_CUMULATIVE`), sob a trava `payment.external.creditor_integration:<assessoria>:<credor>`, pega antes das de
   quem informa e do devedor. A tela mostra "Integração do credor (token …)": o nome e o prefixo vêm da porta
   `payment :: spi` `IntegrationTokenLabels`, implementada pelo publicapi (`PaymentView.integration`). A consulta das
-  parcelas e dos títulos cobertos por acordo na alocação (`negotiation :: allocation`) aceita `AGREEMENT_VIEW` ou
-  `PAYMENT_REGISTER_EXTERNAL` — antes o token sem `agreements:read` tinha o registro recusado. Os pagamentos antigos da
+  parcelas e dos títulos cobertos por acordo na alocação (`negotiation :: allocation`) dispensa `AGREEMENT_VIEW` para o
+  token de integração com `PAYMENT_REGISTER_EXTERNAL` (pessoa da assessoria continua precisando dela) — antes o token
+  sem `agreements:read` tinha o registro recusado. Os pagamentos antigos da
   integração foram marcados pela auditoria do registro (ator `INTEGRATION`).
 - **Conteúdo ativo no comprovante** (decisão 1441): PDF com JavaScript, ação automática, arquivos embutidos, XFA ou mídia interativa, ou que não abre, é recusado no `EvidenceStore` em todo registro (`payment.evidence_active_content`, `payment.evidence_unreadable`).
 - **Quanto passa do limite** (revisão de produto 11/2026, item 3.1; `ux.md` §18): o registro grava no pagamento por que ele
