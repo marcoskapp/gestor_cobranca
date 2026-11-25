@@ -87,7 +87,10 @@ final class PublicApiModels {
 
     @Schema(name = "ImportIssue", description = "Ocorrência de uma linha (valor sempre mascarado)")
     record ImportIssueDto(long rowNumber, @Schema(allowableValues = {"ERROR", "WARNING"}) String severity, String field,
-                          String code, String message, String valueExcerpt) {
+                          @Schema(description = "Código estável da ocorrência (ex.: title.subject_anonymized — o título "
+                                  + "ou contrato pertence a um titular cujos dados foram eliminados; envie o arquivo sem "
+                                  + "a linha)") String code,
+                          String message, String valueExcerpt) {
         static ImportIssueDto of(ImportIssueView v) {
             return new ImportIssueDto(v.rowNumber(), v.severity(), v.field(), v.code(), v.message(), v.valueExcerpt());
         }

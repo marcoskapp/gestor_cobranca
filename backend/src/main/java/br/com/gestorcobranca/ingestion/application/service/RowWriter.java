@@ -1,16 +1,17 @@
 package br.com.gestorcobranca.ingestion.application.service;
 
-import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
+import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.CollateralAppraisalRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.CollateralRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContactRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContractNatureRecord;
-import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ObligationPartyRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContractRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.DebtorRecord;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ObligationPartyRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.RepresentativeRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.TitleRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.UpsertResult;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.ingestion.domain.model.CanonicalField;
 import br.com.gestorcobranca.ingestion.domain.model.ImportBatchRow;
@@ -23,8 +24,9 @@ import br.com.gestorcobranca.ingestion.domain.model.RowOutcome;
 import br.com.gestorcobranca.ingestion.domain.repository.ImportBatchRowRepository;
 import br.com.gestorcobranca.ingestion.domain.repository.ImportRowIssueRepository;
 import br.com.gestorcobranca.ingestion.domain.service.DebtWarnings;
-import br.com.gestorcobranca.ingestion.domain.service.TitleSituationPolicy;
 import br.com.gestorcobranca.ingestion.domain.service.TitleSituationPolicy.Decision;
+import br.com.gestorcobranca.ingestion.domain.service.TitleSituationPolicy;
+import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.DomainException;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
@@ -61,9 +63,11 @@ class RowWriter {
     private final ImportRowIssueRepository issues;
     private final TransactionTemplate requiresNew;
     private final IngestionMetrics metrics;
+    private final AnonymizedSubjectQueries anonymizedSubjects;
 
     RowWriter(DebtIngestionPort debt, DebtTitleUseCases debtTitles, ImportBatchRowRepository rows,
-              ImportRowIssueRepository issues, PlatformTransactionManager transactionManager, IngestionMetrics metrics) {
+              ImportRowIssueRepository issues, PlatformTransactionManager transactionManager, IngestionMetrics metrics,
+              AnonymizedSubjectQueries anonymizedSubjects) {
         this.debt = debt;
         this.debtTitles = debtTitles;
         this.rows = rows;
@@ -71,6 +75,7 @@ class RowWriter {
         this.requiresNew = new TransactionTemplate(transactionManager);
         this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.metrics = metrics;
+        this.anonymizedSubjects = anonymizedSubjects;
     }
 
     /** Identificação do lote para a gravação. */
@@ -137,6 +142,13 @@ class RowWriter {
         Decision decision = TitleSituationPolicy.decide(row.situation(),
                 titleId == null ? null : debtTitles.get(titleId).status());
         if (!decision.write()) {
+            // linha "pago/cancelado" não mexe no título conservado de titular anonimizado (decisão 1470); a recusa por
+            // bloco já pega a linha, aqui é a defesa contra a anonimização no meio do bloco
+            if (titleId != null && anonymizedSubjects.anonymizedKeys(target.creditorId(),
+                    List.of(row.titleExternalId()), List.of()).titles().contains(row.titleExternalId())) {
+                throw new BusinessRuleException(DebtIngestionPort.SUBJECT_ANONYMIZED,
+                        DebtIngestionPort.subjectAnonymizedMessage(false));
+            }
             if (decision.suspendExisting()) {
                 debtTitles.suspend(titleId, TitleSituationPolicy.suspensionReason(row.situation(), target.batchReference()), null);
             }

@@ -135,6 +135,11 @@ class IngestionMetrics {
                 .publishPercentiles(0.5, 0.95).register(registry));
     }
 
+    /** Linha recusada antes da gravação ({@code reason}: {@code subject_anonymized} — titular eliminado, decisão 1470). */
+    void rowsRejected(String reason) {
+        registry.counter("ingestion.rows.rejected", "reason", reason).increment();
+    }
+
     /** Linha regravada após conflito de unicidade com outra carga simultânea. */
     void rowRetried() {
         registry.counter("ingestion.rows.retried").increment();

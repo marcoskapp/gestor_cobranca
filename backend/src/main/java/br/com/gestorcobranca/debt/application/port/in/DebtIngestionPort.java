@@ -23,6 +23,12 @@ public interface DebtIngestionPort {
      */
     String SUBJECT_ANONYMIZED = "title.subject_anonymized";
 
+    /** Mensagem única da recusa {@link #SUBJECT_ANONYMIZED} (neutra: vale para pedido do titular e retenção). */
+    static String subjectAnonymizedMessage(boolean contract) {
+        return (contract ? "O contrato de origem" : "O título") + " pertence a um titular cujos dados foram eliminados "
+                + "(LGPD); peça ao credor um arquivo sem esta linha";
+    }
+
     /** Casa pelo documento; contatos novos do registro são acrescentados (origem IMPORT). */
     UpsertResult upsertDebtor(DebtorRecord record);
 

@@ -319,8 +319,15 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
   transação da linha desfaz o devedor criado para ela). `AnonymizedSubjectQueries` (debt `usecases`) devolve as
   referências conservadas do titular (`referencesOf`, com a referência mascarada por `Document.maskIfDocument`) e, em
   lote, os identificadores de título e de contrato de devedor anonimizado (`anonymizedKeys`). Teste:
-  `DebtModuleIT#importOfTitleOfAnonymizedDebtorIsRejectedWithoutCreatingDebtor`. Título novo ou coobrigado do titular
-  ainda não é reconhecido (decisão 1471, próxima fatia).
+  `DebtModuleIT#importOfTitleOfAnonymizedDebtorIsRejectedWithoutCreatingDebtor`. No ingestion, a recusa é **por bloco**,
+  antes de validar e gravar, também na prévia (`ImportBatchProcessor#processBlock`, uma consulta `anonymizedKeys` por
+  bloco com os títulos e contratos das linhas): ocorrência de erro `title.subject_anonymized` no campo `id_titulo` ou
+  `contrato`, mensagem neutra, valor por linha da conferência sem o índice do documento (D01k) e métrica
+  `ingestion.rows.rejected{reason=subject_anonymized}`; a recusa vem antes da duplicidade. Linha "pago/cancelado"
+  (que não grava o título) de título de titular anonimizado é recusada no `RowWriter` em vez de suspendê-lo, defesa
+  para a anonimização no meio do bloco (decisão 1477). API pública: o `code` é documentado no `ImportIssue`, sem
+  mudar o contrato (changelog 1.0.0). Teste: `AnonymizedSubjectImportIT`. Título novo ou coobrigado do titular ainda
+  não é reconhecido (decisão 1471, fatia própria).
 - Sem o arquivo: download do original, nova conferência a partir do lote e reprocessamento respondem
   **409 `import_batch.file_deleted`**; um job de processamento que encontre o lote sem arquivo falha de forma
   definitiva. A tela do lote mostra a data do descarte e esconde o download e o reprocessamento (`fileDeletedAt` na

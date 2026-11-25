@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.ingestion.application.service;
 
+import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries;
+import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries.AnonymizedKeys;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ImportSummary;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
@@ -145,6 +147,7 @@ class ImportBatchProcessor {
     private final JobQueue jobQueue;
     private final BlindIndex blindIndex;
     private final ReviewProperties reviewProperties;
+    private final AnonymizedSubjectQueries anonymizedSubjects;
 
     ImportBatchProcessor(ImportBatchRepository batches, ImportBatchRowRepository rows, ImportRowIssueRepository issues,
                          ImportLayoutRepository layouts, ImportRecordReader reader, FileStorage fileStorage,
@@ -153,7 +156,8 @@ class ImportBatchProcessor {
                          IngestionMetrics metrics, IngestionProperties properties, Clock clock,
                          PlatformTransactionManager transactionManager, JsonCodec json, RowValueStore rowValues,
                          ImportReviewRepository reviews, ImportReviewAlertRepository alerts, JobQueue jobQueue,
-                         BlindIndex blindIndex, ReviewProperties reviewProperties) {
+                         BlindIndex blindIndex, ReviewProperties reviewProperties,
+                         AnonymizedSubjectQueries anonymizedSubjects) {
         this.batches = batches;
         this.rows = rows;
         this.issues = issues;
@@ -181,6 +185,7 @@ class ImportBatchProcessor {
         this.jobQueue = jobQueue;
         this.blindIndex = blindIndex;
         this.reviewProperties = reviewProperties;
+        this.anonymizedSubjects = anonymizedSubjects;
     }
 
     enum SliceOutcome {
@@ -464,6 +469,13 @@ class ImportBatchProcessor {
 
     // ---------------------------------------------------------------- blocos
 
+    static final String REASON_SUBJECT_ANONYMIZED = "subject_anonymized";
+
+    /** Número do contrato da linha, como a carga o grava (sem espaços nas pontas), ou nulo. */
+    private static String contractKey(SourceRow row) {
+        return row.get(CanonicalField.CONTRACT_NUMBER).map(String::trim).filter(n -> !n.isEmpty()).orElse(null);
+    }
+
     /** Acumula linhas após o checkpoint em blocos e os processa. */
     private final class SliceRun implements ImportRecordReader.RecordSink {
 
@@ -533,6 +545,11 @@ class ImportBatchProcessor {
             Map<String, ImportBatchRow> known = keys.isEmpty() ? Map.of() : readTx.execute(s ->
                     rows.findByBatchIdAndExternalIdIn(batchId, keys).stream()
                             .collect(Collectors.toMap(ImportBatchRow::getExternalId, Function.identity())));
+            // titular anonimizado não volta pela carga, nem na prévia (decisão 1470): recusa antes de validar e gravar
+            List<String> contractKeys = current.stream().map(ImportBatchProcessor::contractKey).filter(Objects::nonNull)
+                    .distinct().toList();
+            AnonymizedKeys anonymized = keys.isEmpty() && contractKeys.isEmpty() ? new AnonymizedKeys(Set.of(), Set.of())
+                    : readTx.execute(s -> anonymizedSubjects.anonymizedKeys(target.creditorId(), keys, contractKeys));
             Map<String, Long> firstInBlock = new HashMap<>();
             BlockTally tally = new BlockTally();
             List<ImportBatchRow> toRegister = new ArrayList<>();
@@ -563,6 +580,21 @@ class ImportBatchProcessor {
                 } else if (key != null) {
                     duplicateOf = firstInBlock.putIfAbsent(key, source.rowNumber());
                 }
+                Optional<RowIssue> subjectAnonymized = subjectAnonymized(source, key, anonymized);
+                if (subjectAnonymized.isPresent()) {
+                    tally.rejectedRow(1, 0);
+                    blockIssues.add(subjectAnonymized.get());
+                    metrics.rowsRejected(REASON_SUBJECT_ANONYMIZED);
+                    if (collectValues) {
+                        // sem identificadores nem índice do documento: a linha é de um titular eliminado (D01k)
+                        values.add(RowValueExtractor.extract(source, false, numberFormat, raw -> null)
+                                .withoutIdentifiers());
+                    }
+                    if (key != null && duplicateOf == null) {
+                        toRegister.add(ImportBatchRow.registered(batchId, key, source.rowNumber()));
+                    }
+                    continue;
+                }
                 RowValidation validation = validator.validate(source, duplicateOf);
                 if (collectValues) {
                     values.add(RowValueExtractor.extract(source, validation.valid().isPresent(), numberFormat, debtorKey));
@@ -588,6 +620,9 @@ class ImportBatchProcessor {
                 int budget = properties.maxIssuesPerBatch() - issuesRecorded - rowIssuesStored - blockIssues.size();
                 RowWriter.Result result = rowWriter.write(target, parsed, validation.warnings(), budget);
                 if (result.rejected()) {
+                    if (result.errors().stream().anyMatch(e -> DebtIngestionPort.SUBJECT_ANONYMIZED.equals(e.code()))) {
+                        metrics.rowsRejected(REASON_SUBJECT_ANONYMIZED);
+                    }
                     tally.rejectedRow(result.errors().size(), validation.warnings().size());
                     blockIssues.addAll(validation.warnings());
                     blockIssues.addAll(result.errors());
@@ -600,6 +635,21 @@ class ImportBatchProcessor {
                 }
             }
             commit(current.getLast().rowNumber(), tally, toRegister, blockIssues, values, rowIssuesStored, last);
+        }
+
+        private Optional<RowIssue> subjectAnonymized(SourceRow source, String key, AnonymizedKeys anonymized) {
+            if (anonymized.isEmpty()) {
+                return Optional.empty();
+            }
+            CanonicalField field = key != null && anonymized.titles().contains(key) ? CanonicalField.TITLE_EXTERNAL_ID
+                    : Optional.ofNullable(contractKey(source)).filter(anonymized.contracts()::contains).isPresent()
+                    ? CanonicalField.CONTRACT_NUMBER : null;
+            if (field == null) {
+                return Optional.empty();
+            }
+            return Optional.of(RowIssue.of(source.rowNumber(), IssueSeverity.ERROR, field.column(),
+                    DebtIngestionPort.SUBJECT_ANONYMIZED,
+                    DebtIngestionPort.subjectAnonymizedMessage(field == CanonicalField.CONTRACT_NUMBER)));
         }
 
         /** Linha já tratada antes de uma queda: contada pelo resultado gravado, sem nova gravação. */

@@ -244,17 +244,16 @@ class DebtIngestionService implements DebtIngestionPort {
      * Título ou contrato que já pertence a um devedor anonimizado não volta por carga (SEG-20261124-D01h, decisões
      * 1468 e 1470): a linha é recusada e a transação dela desfaz o devedor criado para ela.
      */
-    private void requireSubjectNotAnonymized(UUID ownerDebtorId, UUID rowDebtorId, String what) {
+    private void requireSubjectNotAnonymized(UUID ownerDebtorId, UUID rowDebtorId, boolean contract) {
         if (!ownerDebtorId.equals(rowDebtorId)
                 && debtors.findById(ownerDebtorId).filter(Debtor::isAnonymized).isPresent()) {
-            throw new BusinessRuleException(SUBJECT_ANONYMIZED, what + " pertence a um titular cujos dados foram "
-                    + "eliminados (LGPD); peça ao credor um arquivo sem esta linha");
+            throw new BusinessRuleException(SUBJECT_ANONYMIZED, DebtIngestionPort.subjectAnonymizedMessage(contract));
         }
     }
 
     private Outcome updateTitle(DebtTitle title, TitleRecord record, UUID contractId, Money principal,
                                 UUID importBatchId, Instant now, List<String> warnings) {
-        requireSubjectNotAnonymized(title.getDebtorId(), record.debtorId(), "O título");
+        requireSubjectNotAnonymized(title.getDebtorId(), record.debtorId(), false);
         Guard.require(title.getDebtorId().equals(record.debtorId()), "title.debtor_mismatch",
                 "Título já pertence a outro devedor; o identificador externo não pode mudar de titular");
         if (!title.getPortfolioId().equals(record.portfolioId())) {
@@ -335,7 +334,7 @@ class DebtIngestionService implements DebtIngestionPort {
             return Optional.of(created);
         }
         OriginContract contract = existing.get();
-        requireSubjectNotAnonymized(contract.getDebtorId(), debtor.getId(), "O contrato de origem");
+        requireSubjectNotAnonymized(contract.getDebtorId(), debtor.getId(), true);
         Guard.require(contract.getDebtorId().equals(debtor.getId()), "origin_contract.debtor_mismatch",
                 "Contrato de origem já pertence a outro devedor");
         String previousProduct = contract.getProduct();

@@ -37,11 +37,24 @@ class DocumentTest {
     @ParameterizedTest
     @ValueSource(strings = {"52998224725-001", "0052998224725", "52998224725001",
             "529982247-25-001", "529.982.247.25", "CT 529 982 247 25 P1", "CT-0000052998224725", "52998224725/2",
-            "X529.982.24725"})
+            "X529.982.24725", "CT_529_982_247_25", "529:982:247:25", "529|982|247|25", "529\t982\t247\t25",
+            "529\u00a0982\u00a0247\u00a025", "52998224725#1"})
     void embeddedCpfNeverStaysInClear(String reference) {
         String masked = Document.maskIfDocument(reference);
         assertThat(masked.replaceAll("\\D", "")).doesNotContain("52998224725");
         assertThat(masked).contains("*");
+    }
+
+    @Test
+    void anyNumericPrefixNeverUncoversTheEmbeddedCpf() {
+        for (int p = 0; p < 10_000; p++) {
+            assertThat(Document.maskIfDocument(p + "52998224725").replaceAll("\\D", ""))
+                    .as("prefixo %d", p).doesNotContain("52998224725");
+            assertThat(Document.maskIfDocument(p + " | 529.982.247-25").replaceAll("\\D", ""))
+                    .as("prefixo %d com separador", p).doesNotContain("52998224725");
+        }
+        // dígitos de largura total também
+        assertThat(Document.maskIfDocument("CT ５２９９８２２４７２５")).contains("*");
     }
 
     @Test

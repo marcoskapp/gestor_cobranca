@@ -18,4 +18,13 @@ public record RowValue(long rowNumber, boolean valid, BigDecimal principal, bool
                        boolean principalAmbiguous, BigDecimal balance, boolean balanceInvalid, BigDecimal contractAmount,
                        boolean contractInvalid, LocalDate dueDate, String situation, String product, String contractNumber,
                        String externalId, String debtorKey) {
+
+    /**
+     * Só os valores dos totais, sem identificadores nem índice do documento: linha de titular eliminado (D01h, D01k;
+     * {@code import_row_value} não pode ser alterada depois de gravada).
+     */
+    public RowValue withoutIdentifiers() {
+        return new RowValue(rowNumber, valid, principal, principalInvalid, principalAmbiguous, balance, balanceInvalid,
+                contractAmount, contractInvalid, dueDate, situation, product, null, null, null);
+    }
 }

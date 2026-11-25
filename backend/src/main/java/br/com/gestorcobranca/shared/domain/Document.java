@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.shared.domain;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -39,8 +40,12 @@ public record Document(DocumentType type, String number) {
 
     private static final Pattern DOCUMENT_TEXT = Pattern.compile("[\\d.\\-/\\s]+");
     private static final Pattern NON_DIGIT = Pattern.compile("\\D");
-    /** Trecho numérico: dígitos com pontuação ou espaços entre eles (linear: uma classe, sem aninhamento). */
-    private static final Pattern NUMERIC_TOKEN = Pattern.compile("[0-9](?:[0-9.\\-/ ]*[0-9])?");
+    /**
+     * Trecho numérico: dígitos com qualquer separador que não seja letra entre eles (pontuação, espaço, tabulação,
+     * espaço não separável, {@code _ : |}…), para nenhum separador esconder um documento da máscara. Linear: uma classe,
+     * sem aninhamento.
+     */
+    private static final Pattern NUMERIC_TOKEN = Pattern.compile("[0-9](?:[^\\p{L}]*[0-9])?");
 
     /**
      * O texto inteiro é um CPF ou CNPJ válido (só dígitos, pontuação e espaços; 11 ou 14 dígitos com dígitos
@@ -64,12 +69,16 @@ public record Document(DocumentType type, String number) {
      * (dígitos com ou sem pontuação e espaços — ex.: o identificador de título {@code 52998224725-001},
      * {@code 0052998224725}, {@code 529982247-25-001}) tem os mesmos dígitos de {@link #masked()} trocados por
      * {@code *}, no lugar, mantendo o resto. Mascarar por coincidência (cerca de 1% das janelas de 11 dígitos) é o lado
-     * seguro. CPF sem os zeros à esquerda não é reconhecido.
+     * seguro. CPF sem os zeros à esquerda não é reconhecido. Só para identificadores curtos (referência de título ou
+     * contrato): em texto livre, números sem relação se juntariam num trecho e seriam mascarados por coincidência.
+     * Resíduo aceito: letras usadas como separador entre os grupos ({@code 529a982b247c25}) não são reconhecidas.
      */
     public static String maskIfDocument(String text) {
         if (text == null) {
             return null;
         }
+        // dígitos de largura total e outras formas compatíveis viram ASCII (o texto é só para exibição)
+        text = Normalizer.normalize(text, Normalizer.Form.NFKC);
         Optional<Document> whole = detect(text);
         if (whole.isPresent()) {
             return whole.get().masked();
