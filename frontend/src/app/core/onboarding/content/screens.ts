@@ -193,8 +193,6 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
     ],
   },
-  // a configuração vem antes da ficha (":id" casaria "contatos-recebidos")
-  { key: 'debt.contact-novelty', version: 1, path: '/devedores/contatos-recebidos' },
   {
     key: 'debt.debtor-detail',
     version: 11,
@@ -1111,7 +1109,12 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
     ],
   },
-  { key: 'organization.settings', version: 1, path: '/organizacao/configuracoes' },
+  {
+    key: 'organization.settings',
+    version: 2,
+    path: '/organizacao/configuracoes',
+    changes: [{ version: 2, items: ['Nova seção "Contatos recebidos", que antes tinha tela própria no menu: o prazo em que o telefone, e-mail ou endereço recebido numa nova carga aparece como "Novo". Quem não configura a assessoria vê só essa seção.'] }],
+  },
   {
     key: 'organization.costs',
     version: 2,

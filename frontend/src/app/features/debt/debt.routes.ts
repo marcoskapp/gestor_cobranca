@@ -1,8 +1,12 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/auth.guards';
 import { Permission } from '../../core/auth/permission';
 
-/** `/devedores`: busca e ficha (`DebtorController` exige `DEBTOR_VIEW`) e a configuração dos contatos recebidos. */
+/**
+ * `/devedores`: busca e ficha (`DebtorController` exige `DEBTOR_VIEW`). A configuração dos contatos recebidos fica em
+ * Configurações da assessoria (`/organizacao/configuracoes#contatos-recebidos`).
+ */
 export const DEBTOR_ROUTES: Routes = [
   {
     path: '',
@@ -13,12 +17,10 @@ export const DEBTOR_ROUTES: Routes = [
     loadComponent: () => import('./debtors/debtor-list/debtor-list').then((m) => m.DebtorList),
   },
   {
-    // Configurações › Contatos recebidos (janela do selo "Novo"); antes de ':id'
+    // antiga tela "Contatos recebidos", hoje seção de Configurações da assessoria: mantém favoritos e links; antes de ':id'
     path: 'contatos-recebidos',
-    title: 'Contatos recebidos',
-    canActivate: [permissionGuard],
-    data: { permissions: [Permission.DEBTOR_MANAGE] },
-    loadComponent: () => import('./settings/contact-novelty-settings').then((m) => m.ContactNoveltySettings),
+    pathMatch: 'full',
+    redirectTo: () => inject(Router).createUrlTree(['/organizacao/configuracoes'], { fragment: 'contatos-recebidos' }),
   },
   {
     path: ':id',

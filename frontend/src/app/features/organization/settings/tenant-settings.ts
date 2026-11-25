@@ -1,6 +1,7 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { Component, ElementRef, Injector, afterNextRender, computed, effect, inject, signal, untracked } from '@angular/core';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
@@ -16,15 +17,25 @@ import { AppValidators, Limits } from '../../../shared/validation/validators';
 import { TenantSettingsApi } from '../data/organization.api';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { Icon } from '../../../shared/components/icon/icon';
+import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { Skeleton } from '../../../shared/components/skeleton/skeleton';
+import { CONTACT_NOVELTY_ANCHOR, ContactNoveltySection } from '../../debt/settings/contact-novelty-section';
 
-/** Configurações gerais da assessoria e janela de contato permitida (regras de comunicação). */
+/**
+ * Configurações da assessoria, em seções conforme a permissão (seção sem permissão fica oculta):
+ * - identificação, dados gerais e janela de contato permitida (regras de comunicação): `ORG_SETTINGS_MANAGE`;
+ * - contatos recebidos (janela do selo "Novo" do contato que chega numa nova carga): `DEBTOR_MANAGE`, a mesma que o
+ *   servidor exige; âncora `#contatos-recebidos` (para onde redireciona o antigo `/devedores/contatos-recebidos`).
+ * A rota aceita qualquer das duas; o servidor confere cada uma.
+ */
 @Component({
   selector: 'app-tenant-settings',
-  imports: [Icon, ...FORM_FIELD,
+  imports: [Icon, EmptyState, Skeleton, ...FORM_FIELD,
     ReactiveFormsModule,
     PageHeader,
     StatusChip,
     DocumentPipe,
+    ContactNoveltySection,
   ],
   templateUrl: './tenant-settings.html',
 })
@@ -32,12 +43,27 @@ export class TenantSettings {
   private readonly api = inject(TenantSettingsApi);
   private readonly notifications = inject(NotificationService);
   private readonly auth = inject(AuthService);
+  private readonly injector = inject(Injector);
 
   protected readonly limits = Limits;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.ORG_SETTINGS_MANAGE));
+  protected readonly canManageContactNovelty = computed(() => this.auth.hasPermission(Permission.DEBTOR_MANAGE));
+  /** O subtítulo descreve só as seções que a pessoa vê. */
+  protected readonly subtitle = computed(() => {
+    const parts = [
+      ...(this.canManage() ? ['dados cadastrais', 'janela de contato com devedores'] : []),
+      ...(this.canManageContactNovelty() ? ['prazo do selo “Novo” dos contatos recebidos'] : []),
+    ];
+    const joined = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} e ${parts.at(-1)}` : (parts[0] ?? '');
+    return joined ? `${joined.charAt(0).toUpperCase()}${joined.slice(1)}.` : '';
+  });
   protected readonly saving = signal(false);
   protected readonly generalErrors = signal<string[]>([]);
-  protected readonly tenant = rxResource({ stream: () => this.api.current() });
+  // sem ORG_SETTINGS_MANAGE a seção não aparece: nem busca os dados da assessoria
+  protected readonly tenant = rxResource({ params: () => (this.canManage() ? true : undefined), stream: () => this.api.current() });
+  private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private scrolledTo: string | null = null;
   protected readonly current = computed(() => (this.tenant.hasValue() ? this.tenant.value() : undefined));
 
   protected readonly form = inject(FormBuilder).nonNullable.group(
@@ -73,12 +99,30 @@ export class TenantSettings {
         contactOnSaturday: t.contactOnSaturday,
         contactOnSunday: t.contactOnSunday,
       });
-      if (this.canManage()) {
-        this.form.enable();
-      } else {
-        this.form.disable();
+    });
+
+    // link para uma seção (`#contatos-recebidos`): rola até ela quando o que vem antes já carregou, para não deslocar
+    effect(() => {
+      const anchor = this.fragment();
+      const above = this.canManage() && this.tenant.isLoading();
+      if (anchor !== CONTACT_NOVELTY_ANCHOR) {
+        this.scrolledTo = null;
+      } else if (this.canManageContactNovelty() && !above && this.scrolledTo !== anchor) {
+        this.scrolledTo = anchor; // uma vez por link (recarregar os dados depois não puxa a página de volta)
+        untracked(() => this.scrollTo(anchor));
       }
     });
+  }
+
+  private scrollTo(anchor: string): void {
+    afterNextRender(
+      () => {
+        const heading = this.host.nativeElement.querySelector<HTMLElement>(`#${anchor}`);
+        heading?.scrollIntoView?.({ block: 'start' });
+        heading?.focus({ preventScroll: true });
+      },
+      { injector: this.injector },
+    );
   }
 
   protected message(control: 'legalName' | 'tradeName'): string {

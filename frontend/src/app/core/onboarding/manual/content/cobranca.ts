@@ -233,24 +233,6 @@ export const MANUAL: ModuleManual = {
       terms: ['devedor', 'escopo-de-credores', 'contato-novo'],
     },
     {
-      id: 'debt.contact-novelty',
-      title: 'Contatos recebidos',
-      objective: 'Defina por quantos dias o contato recebido numa nova carga aparece como "Novo" para a operação.',
-      purpose: [
-        'Quando o credor manda um telefone, e-mail ou endereço que o devedor ainda não tinha, o contato ganha o selo "Novo" na ficha e no caso, entra no filtro da lista de devedores e pode formar fila e segmento próprios.',
-        'O selo vale até a primeira tentativa por esse contato; depois, mostra se atendeu ou não até o fim do prazo. Contatos da carga que criou o devedor nunca são novos. O padrão do sistema é de 30 dias, de 1 a 180.',
-      ],
-      profiles: ['GESTOR', 'ANALISTA_CARTEIRA', 'SUPERVISOR'],
-      inputs: ['Contatos recebidos pelas importações de carteira.'],
-      outputs: ['Prazo do selo "Novo" usado na ficha, no caso, nas filas, nos segmentos e no discador.'],
-      related: [
-        { screen: 'debt.debtors', why: 'Filtrar os devedores com contato novo.' },
-        { screen: 'collection.queues', why: 'Fila só de devedores com contato novo.' },
-        { screen: 'ingestion.batch-detail', why: 'Quantos devedores receberam contato novo na carga.' },
-      ],
-      terms: ['contato-novo', 'lote-de-importacao'],
-    },
-    {
       id: 'debt.debtor-detail',
       title: 'Ficha do devedor',
       objective: 'Tudo sobre o devedor: posição da dívida, dados, títulos, contatos, interações, razão, titularidade e restrições.',

@@ -325,9 +325,9 @@ export const NAVIGATION: readonly NavSection[] = [
       { label: 'Credores', icon: 'buildings', route: '/organizacao/credores', permissions: [P.ORGANIZATION_AREA_VIEW], alsoRequires: [P.CREDITOR_VIEW] },
       { label: 'Carteiras', icon: 'folder2-open', route: '/organizacao/carteiras', permissions: [P.ORGANIZATION_AREA_VIEW], alsoRequires: [P.PORTFOLIO_VIEW] },
       { label: 'Importação de carteiras', icon: 'file-earmark-arrow-up', route: '/importacao', permissions: [P.IMPORT_VIEW] },
-      { label: 'Configurações', icon: 'gear', route: '/organizacao/configuracoes', permissions: [P.ORG_SETTINGS_MANAGE] },
+      // inclui a seção "Contatos recebidos" (DEBTOR_MANAGE), que antes era um item próprio
+      { label: 'Configurações', icon: 'gear', route: '/organizacao/configuracoes', permissions: [P.ORG_SETTINGS_MANAGE, P.DEBTOR_MANAGE] },
       { label: 'Custos operacionais', icon: 'receipt-cutoff', route: '/organizacao/custos', permissions: [P.COST_MANAGE, P.COST_RATE_MANAGE] },
-      { label: 'Contatos recebidos', icon: 'bookmark-plus', route: '/devedores/contatos-recebidos', permissions: [P.DEBTOR_MANAGE] },
     ],
   },
   {

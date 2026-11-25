@@ -36,8 +36,9 @@ describe('conteúdo do onboarding', () => {
   it('telas de devedores, títulos e compliance estão registradas', () => {
     expect(findScreen('/devedores')?.key).toBe('debt.debtors');
     expect(findScreen('/devedores/d-1')?.key).toBe('debt.debtor-detail');
-    // a configuração dos contatos recebidos vem antes da ficha (":id" casaria "contatos-recebidos")
-    expect(findScreen('/devedores/contatos-recebidos')?.key).toBe('debt.contact-novelty');
+    // a configuração dos contatos recebidos é uma seção de Configurações da assessoria (a rota antiga redireciona)
+    expect(findScreen('/organizacao/configuracoes#contatos-recebidos')?.key).toBe('organization.settings');
+    expect(SCREENS.some((s) => s.path === '/devedores/contatos-recebidos')).toBe(false);
     expect(findScreen('/titulos?devedor=d-1')?.key).toBe('debt.titles');
     expect(findScreen('/titulos/t-1')?.key).toBe('debt.title-detail');
     expect(findScreen('/compliance/solicitacoes-titulares/q-1')?.key).toBe('compliance.request-detail');
@@ -78,7 +79,7 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/assistente', ASSISTANT_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(70);
+    expect(items.length).toBe(69);
     for (const item of items) {
       expect([...routePermissionsOf(item)].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }

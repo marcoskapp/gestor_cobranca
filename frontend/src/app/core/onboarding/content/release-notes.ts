@@ -3,6 +3,14 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 42,
+    date: '2026-11-25',
+    title: 'Contatos recebidos dentro das Configurações da assessoria',
+    items: [
+      { text: '"Contatos recebidos" (prazo do selo “Novo”) agora é uma seção de Organização › Configurações: um item a menos no menu. Quem não configura a assessoria vê só essa seção.', route: '/organizacao/configuracoes' },
+    ],
+  },
+  {
     version: 41,
     date: '2026-11-25',
     title: 'Faturamento da API só para quem tem preço; ajustes no menu e nas filas',
@@ -132,7 +140,7 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
     title: 'Contato novo, cobrança de empresas e melhor forma de contato',
     items: [
       { text: 'Contato recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa; filas, segmentos e a lista de devedores filtram por ele, e o discador liga primeiro para o número novo.', route: '/devedores' },
-      { text: 'Prazo do selo "Novo" ajustável por assessoria (padrão de 30 dias).', route: '/devedores/contatos-recebidos' },
+      { text: 'Prazo do selo "Novo" ajustável por assessoria (padrão de 30 dias).', route: '/organizacao/configuracoes' },
       { text: 'Empresas: nome fantasia, matriz e filiais, pessoa de contato com o papel dela e representantes que podem negociar; no portal, o acordo da empresa fecha com um representante confirmado ou passa a um atendente.', route: '/devedores' },
       { text: 'Carteira de consumo ou empresarial, e registro de recuperação judicial ou falência, que suspende a cobrança da empresa em todos os credores.', route: '/organizacao/carteiras' },
       { text: 'Cartão "Melhor forma de contato" no caso e na ficha do devedor, e a nova tela de inteligência de contato: melhor horário, canal preferido, tentativas até o atendimento e contatos até o acordo cumprido.', route: '/score/contato' },

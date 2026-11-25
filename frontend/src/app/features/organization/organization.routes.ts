@@ -9,10 +9,11 @@ import { Permission } from '../../core/auth/permission';
 export const ORGANIZATION_ROUTES: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'credores' },
   {
+    // seções por permissão: dados da assessoria (ORG_SETTINGS_MANAGE) e contatos recebidos (DEBTOR_MANAGE)
     path: 'configuracoes',
     title: 'Configurações da assessoria',
     canActivate: [permissionGuard],
-    data: { permissions: [Permission.ORG_SETTINGS_MANAGE] },
+    data: { permissions: [Permission.ORG_SETTINGS_MANAGE, Permission.DEBTOR_MANAGE] },
     loadComponent: () => import('./settings/tenant-settings').then((m) => m.TenantSettings),
   },
   {

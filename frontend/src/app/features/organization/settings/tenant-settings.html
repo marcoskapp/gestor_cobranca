@@ -1,57 +1,62 @@
-<app-page-header title="Configurações da assessoria" subtitle="Dados cadastrais e janela de contato com devedores." />
+<app-page-header title="Configurações da assessoria" [subtitle]="subtitle()" />
 
-@if (tenant.isLoading() && !current()) {
-  <div class="progress" role="progressbar" aria-label="Carregando configurações">
-    <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
-  </div>
-}
-@if (tenant.status() === 'error') {
-  <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>Não foi possível carregar as configurações.</span></div>
-}
+<!-- identificação e dados gerais: só quem configura a assessoria (ORG_SETTINGS_MANAGE) -->
+@if (canManage()) {
+  @if (tenant.isLoading() && !current()) {
+    <app-skeleton variant="card" [rows]="4" />
+  } @else if (tenant.status() === 'error' && !current()) {
+    <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar os dados da assessoria." message="Verifique a conexão e tente novamente.">
+      <button class="btn btn-outline-primary" type="button" (click)="tenant.reload()">Tentar novamente</button>
+    </app-empty-state>
+  }
 
-@if (current(); as t) {
-  <section class="app-card" aria-labelledby="identificacao">
-    <h2 class="app-card__title" id="identificacao">Identificação</h2>
-    <dl class="app-definition-list">
-      <dt>Identificador de acesso</dt>
-      <dd class="app-mono">{{ t.slug }}</dd>
-      <dt>CNPJ</dt>
-      <dd>{{ t.cnpj | document }}</dd>
-      <dt>Situação</dt>
-      <dd><app-status-chip domain="tenant" [status]="t.status" /></dd>
-    </dl>
-  </section>
+  @if (current(); as t) {
+    <section class="app-card" aria-labelledby="identificacao">
+      <h2 class="app-card__title" id="identificacao">Identificação</h2>
+      <dl class="app-definition-list">
+        <dt>Identificador de acesso</dt>
+        <dd class="app-mono">{{ t.slug }}</dd>
+        <dt>CNPJ</dt>
+        <dd>{{ t.cnpj | document }}</dd>
+        <dt>Situação</dt>
+        <dd><app-status-chip domain="tenant" [status]="t.status" /></dd>
+      </dl>
+    </section>
 
-  <form class="app-card" [formGroup]="form" (ngSubmit)="save()" novalidate aria-labelledby="dados-gerais">
-    <h2 class="app-card__title" id="dados-gerais">Dados gerais e janela de contato</h2>
-    @for (e of generalErrors(); track e) {
-      <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
-    }
-    <div class="app-form-grid row-gap-3">
-      <app-field label="Razão social" [error]="message('legalName')">
-        <input appInput formControlName="legalName" [maxlength]="limits.legalName" />
-      </app-field>
-      <app-field label="Nome fantasia" [error]="message('tradeName')">
-        <input appInput formControlName="tradeName" [maxlength]="limits.legalName" />
-      </app-field>
-      <app-field label="Início da janela de contato">
-        <input appInput type="time" formControlName="contactWindowStart" step="60" />
-      </app-field>
-      <app-field label="Fim da janela de contato">
-        <input appInput type="time" formControlName="contactWindowEnd" step="60" />
-      </app-field>
-      <div class="app-span-all">
-        <div class="form-check"><input class="form-check-input" type="checkbox" id="tenant-contactOnSaturday" formControlName="contactOnSaturday"  /><label class="form-check-label" for="tenant-contactOnSaturday">Permitir contato aos sábados</label></div>
-        <div class="form-check"><input class="form-check-input" type="checkbox" id="tenant-contactOnSunday" formControlName="contactOnSunday"  /><label class="form-check-label" for="tenant-contactOnSunday">Permitir contato aos domingos</label></div>
+    <form class="app-card" [formGroup]="form" (ngSubmit)="save()" novalidate aria-labelledby="dados-gerais">
+      <h2 class="app-card__title" id="dados-gerais">Dados gerais e janela de contato</h2>
+      @for (e of generalErrors(); track e) {
+        <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>
+      }
+      <div class="app-form-grid row-gap-3">
+        <app-field label="Razão social" [error]="message('legalName')">
+          <input appInput formControlName="legalName" [maxlength]="limits.legalName" />
+        </app-field>
+        <app-field label="Nome fantasia" [error]="message('tradeName')">
+          <input appInput formControlName="tradeName" [maxlength]="limits.legalName" />
+        </app-field>
+        <app-field label="Início da janela de contato">
+          <input appInput type="time" formControlName="contactWindowStart" step="60" />
+        </app-field>
+        <app-field label="Fim da janela de contato">
+          <input appInput type="time" formControlName="contactWindowEnd" step="60" />
+        </app-field>
+        <div class="app-span-all">
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="tenant-contactOnSaturday" formControlName="contactOnSaturday"  /><label class="form-check-label" for="tenant-contactOnSaturday">Permitir contato aos sábados</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="tenant-contactOnSunday" formControlName="contactOnSunday"  /><label class="form-check-label" for="tenant-contactOnSunday">Permitir contato aos domingos</label></div>
+        </div>
       </div>
-    </div>
-    @if (form.hasError('window')) {
-      <div class="invalid-feedback d-block" role="alert">O fim da janela deve ser posterior ao início.</div>
-    }
-    @if (canManage()) {
+      @if (form.hasError('window')) {
+        <div class="invalid-feedback d-block" role="alert">O fim da janela deve ser posterior ao início.</div>
+      }
       <div class="app-form-actions">
-        <button class="btn btn-primary" type="submit" [disabled]="saving() || form.pristine">Salvar</button>
+        <button class="btn btn-primary" type="submit" [disabled]="saving() || form.pristine">Salvar dados gerais</button>
       </div>
-    }
-  </form>
+    </form>
+  }
+}
+
+<!-- janela do selo "Novo" dos contatos recebidos: quem edita devedores (DEBTOR_MANAGE) -->
+@if (canManageContactNovelty()) {
+  <app-contact-novelty-section />
 }

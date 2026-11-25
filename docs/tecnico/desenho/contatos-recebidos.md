@@ -35,8 +35,12 @@ ficam com `received_after_registration = false` (nenhum é marcado como novo ret
 Prazo por assessoria: `debt.contact_novelty_settings` (uma linha por assessoria — `id` PK e `unique (tenant_id)`, como
 as demais configurações do módulo, ver §9 —, `window_days` com
 `check (window_days between 1 and 180)`, RLS por `shared.enable_tenant_rls`, auditoria), com padrão do
-sistema `app.debt.contact-novelty.window-days = 30`. Tela em **Configurações › Contatos recebidos** (permissão
-`DEBTOR_MANAGE`, a mesma do cadastro de contatos).
+sistema `app.debt.contact-novelty.window-days = 30`. Configurado na seção **Contatos recebidos** de **Organização ›
+Configurações** (`/organizacao/configuracoes#contatos-recebidos`; permissão `DEBTOR_MANAGE`, a mesma do cadastro de
+contatos). A seção só aparece com `DEBTOR_MANAGE`, que o servidor exige na leitura e na gravação; a tela abre com
+`ORG_SETTINGS_MANAGE` **ou** `DEBTOR_MANAGE`, e cada seção aparece só para a sua permissão (quem tem só `DEBTOR_MANAGE`,
+como supervisor e analista de carteira, vê só esta seção e não carrega os dados da assessoria). A antiga rota
+`/devedores/contatos-recebidos` redireciona para a âncora, para não quebrar favoritos e links.
 
 ## 3. Fluxo
 
@@ -153,6 +157,7 @@ traz telefone novo → evento, critério de fila e segmento; ligação pelo núm
 * **APIs**: `GET/PUT /api/v1/debtors/contact-novelty-settings` (`DEBTOR_MANAGE`), `GET /api/v1/debtors?newContact=true`
   e `?newContactBatchId=`, `GET /api/v1/ingestion/batches/{id}/contact-receipt` (`IMPORT_VIEW`); `receipt` nos contatos da
   ficha do devedor, do resumo e da ficha do caso; `newContactOnly`/`personType` na fila; `hasNewContact`/`personType` no
-  segmento. Tela nova em **Organização › Contatos recebidos** (`/devedores/contatos-recebidos`), logo depois de
-  Configurações no menu.
+  segmento. A configuração, que nasceu como tela própria (**Organização › Contatos recebidos**,
+  `/devedores/contatos-recebidos`), passou a ser a seção `#contatos-recebidos` de **Organização › Configurações**
+  (§2), com o item de menu removido e a rota antiga redirecionando.
 

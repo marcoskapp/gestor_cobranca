@@ -99,6 +99,18 @@ describe('rotas da aplicação', () => {
     expect(TestBed.inject(Router).url).toBe('/acesso-negado');
   }, 20_000);
 
+  it('a antiga tela "Contatos recebidos" redireciona para a seção em Configurações da assessoria', async () => {
+    user.set(fakeUser({ permissions: ['DEBTOR_MANAGE', 'DEBTOR_VIEW'] }));
+    const harness = await RouterTestingHarness.create('/devedores/contatos-recebidos');
+    expect(TestBed.inject(Router).url).toBe('/organizacao/configuracoes#contatos-recebidos');
+    expect(harness.routeNativeElement?.textContent).toContain('Configurações da assessoria');
+    // sem ORG_SETTINGS_MANAGE nem DEBTOR_MANAGE, a tela continua fechada
+    user.set(fakeUser({ permissions: ['DEBTOR_VIEW'] }));
+    await harness.navigateByUrl('/devedores');
+    await harness.navigateByUrl('/devedores/contatos-recebidos');
+    expect(TestBed.inject(Router).url).toBe('/acesso-negado');
+  }, 20_000);
+
   it('"/cobranca" leva à estação de cobrança para quem trabalha casos', async () => {
     user.set(fakeUser({ permissions: ['CASE_WORK', 'CASE_VIEW'] }));
     const harness = await RouterTestingHarness.create('/cobranca');

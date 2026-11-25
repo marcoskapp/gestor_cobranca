@@ -54,7 +54,7 @@ const DEFAULT_ROLES: Record<string, readonly string[]> = {
  * (quem tem a tarefa da área continua com ela). As seções recolhíveis cuidam dos perfis amplos (gestor, administrador).
  */
 const MENU_COUNTS: Record<string, number> = {
-  ADMIN: 100,
+  ADMIN: 99,
   GESTOR: 82,
   SUPERVISOR: 52,
   OPERADOR: 16,
@@ -118,6 +118,14 @@ describe('menu por tarefa (D6)', () => {
       expect(labelsOf(role), role).toContain('Carteiras');
     }
     expect(labelsOf('QUALIDADE')).toContain('Formulários de monitoria');
+  });
+
+  it('contatos recebidos é uma seção de Configurações: quem edita devedores vê "Configurações", sem item próprio', () => {
+    for (const role of ['ADMIN', 'GESTOR', 'SUPERVISOR', 'ANALISTA_CARTEIRA']) {
+      expect(labelsOf(role), role).toContain('Configurações');
+      expect(labelsOf(role), role).not.toContain('Contatos recebidos');
+    }
+    expect(labelsOf('OPERADOR')).not.toContain('Configurações');
   });
 
   it('nenhum perfil vê seção vazia nem item repetido', () => {
