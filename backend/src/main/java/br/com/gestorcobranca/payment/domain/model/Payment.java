@@ -17,6 +17,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.UnaryOperator;
 
 /**
  * Pagamento recebido (RB06). Integrado ({@link PaymentSource#PROVIDER}: notificação do PSP
@@ -34,6 +35,11 @@ public class Payment extends TenantScopedEntity {
 
     public static final int NOTE_MAX = 1000;
     public static final int REFERENCE_MAX = 100;
+    /**
+     * Prefixo da referência depois da anonimização do titular (SEG-20261124-H04, decisão 1463); o resto é o HMAC do
+     * texto, calculado fora do domínio. Reservado: recusado na entrada.
+     */
+    public static final String ANONYMIZED_REFERENCE_PREFIX = "anon:";
 
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 20, updatable = false)
@@ -65,7 +71,8 @@ public class Payment extends TenantScopedEntity {
     @Column(name = "provider_transaction_id", length = 64)
     private String providerTransactionId;
 
-    @Column(name = "external_reference", length = 100, updatable = false)
+    /** Muda só na anonimização do titular ({@link #anonymize}), que a troca pela forma anonimizada. */
+    @Column(name = "external_reference", length = 100)
     private String externalReference;
 
     @Enumerated(EnumType.STRING)
@@ -256,9 +263,12 @@ public class Payment extends TenantScopedEntity {
         Guard.require(note == null || note.length() <= NOTE_MAX, "payment.note_too_long", "Observação até 1000 caracteres");
         Guard.require(externalReference == null || externalReference.length() <= REFERENCE_MAX,
                 "payment.reference_too_long", "Referência até 100 caracteres");
+        String reference = blankToNull(externalReference);
+        Guard.require(reference == null || !reference.startsWith(ANONYMIZED_REFERENCE_PREFIX),
+                "payment.reference_reserved", "A referência não pode começar com \"" + ANONYMIZED_REFERENCE_PREFIX + "\"");
         Payment p = new Payment(PaymentSource.EXTERNAL, method, creditorId, debtorId, amount, paidAt);
         p.externalOrigin = origin;
-        p.externalReference = blankToNull(externalReference);
+        p.externalReference = reference;
         p.note = blankToNull(note);
         if (target != null) {
             p.targetKind = target.kind();
@@ -367,15 +377,22 @@ public class Payment extends TenantScopedEntity {
     /**
      * LGPD (SEG-20261124-D01): titular anonimizado — o comprovante (nome e CPF do pagador) e os textos livres saem; ficam
      * o SHA-256 do comprovante (prova de que existiu e de qual era), valores, datas, situação e quem informou e revisou.
+     * A referência informada (texto livre, pode citar o pagador — SEG-20261124-H04) vira {@code anon:} + HMAC do texto
+     * ({@code referenceDigest}, com a chave de blind index e a assessoria): o extrato continua reconhecendo o pagamento
+     * já baixado, sem guardar o texto nem permitir revertê-lo por força bruta.
      *
+     * @param referenceDigest HMAC (hex) da referência no escopo da assessoria
      * @return chave do arquivo a apagar do armazenamento depois da transação, ou nula se não havia
      */
-    public String anonymize() {
+    public String anonymize(UnaryOperator<String> referenceDigest) {
         String key = evidenceKey;
         this.evidenceKey = null;
         this.evidenceName = null;
         this.note = null;
         this.reviewNote = null;
+        if (externalReference != null && !externalReference.startsWith(ANONYMIZED_REFERENCE_PREFIX)) {
+            this.externalReference = ANONYMIZED_REFERENCE_PREFIX + referenceDigest.apply(externalReference);
+        }
         return key;
     }
 
@@ -476,8 +493,15 @@ public class Payment extends TenantScopedEntity {
         return providerTransactionId;
     }
 
+    /** Referência informada; nula depois da anonimização do titular (a forma anonimizada não é exibida). */
     public String getExternalReference() {
-        return externalReference;
+        return externalReference == null || externalReference.startsWith(ANONYMIZED_REFERENCE_PREFIX)
+                ? null : externalReference;
+    }
+
+    /** Há referência informada, mesmo que já anonimizada. */
+    public boolean hasExternalReference() {
+        return externalReference != null;
     }
 
     public ExternalOrigin getExternalOrigin() {

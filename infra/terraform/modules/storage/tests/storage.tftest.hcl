@@ -104,3 +104,26 @@ run "bucket_de_segredos" {
     error_message = "leitura negada a todos fora do papel das instâncias e dos administradores"
   }
 }
+
+run "versao_anterior_de_arquivo_descartado_expira_em_30_dias" {
+  command = plan
+
+  assert {
+    condition = anytrue([for r in aws_s3_bucket_lifecycle_configuration.app.rule :
+      r.id == "tenants-noncurrent-expiration" && r.status == "Enabled"
+      && one(r.filter).prefix == "tenants/"
+      && one(r.noncurrent_version_expiration).noncurrent_days == 30
+    ])
+    error_message = "versão anterior de arquivo da aplicação (tenants/) expira em 30 dias (decisão 1462)"
+  }
+}
+
+run "prazo_do_descarte_limitado_a_30_dias" {
+  command = plan
+
+  variables {
+    app_discarded_noncurrent_expiration_days = 31
+  }
+
+  expect_failures = [var.app_discarded_noncurrent_expiration_days]
+}

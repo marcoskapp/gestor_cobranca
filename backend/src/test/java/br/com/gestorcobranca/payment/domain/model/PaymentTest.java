@@ -122,4 +122,20 @@ class PaymentTest {
         assertThatThrownBy(() -> Payment.fromProvider(PaymentMethod.PIX, creditor, debtor, Money.of("1.00"), now, null,
                 null, ReviewMode.DUAL_CONTROL, now)).isInstanceOf(BusinessRuleException.class);
     }
+
+    @Test
+    void anonymizationReplacesTheReferenceTextByItsDigestAndTheReservedPrefixIsRefused() {
+        Payment p = informed(false);
+        assertThat(p.anonymize(ref -> "hmac-de-" + ref)).isEqualTo("k");
+
+        assertThat(p.getExternalReference()).isNull();
+        assertThat(p.hasExternalReference()).isTrue();
+        // reprocessamento do evento: não recalcula sobre a forma já anonimizada
+        p.anonymize(ref -> { throw new AssertionError("não deveria recalcular"); });
+        assertThat(p.hasExternalReference()).isTrue();
+
+        assertThatThrownBy(() -> Payment.informed(PaymentMethod.TRANSFER, creditor, debtor, Money.of("1.00"), now,
+                ExternalOrigin.AGENCY_ACCOUNT, "anon:Fulano", null, null, evidence, informer, false, now))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("anon:");
+    }
 }

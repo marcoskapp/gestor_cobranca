@@ -24,7 +24,12 @@ public interface FileStorage {
     /** URL temporária de download (padrão: 5 min). O chamador registra o acesso. */
     String temporaryDownloadUrl(String key, Duration validity);
 
-    /** Remoção física — usada apenas pelo processo de retenção e descarte (LGPD). */
+    /**
+     * Descarte: o arquivo deixa de ser legível pela aplicação. Usado pela retenção e pela anonimização (LGPD) e para
+     * desfazer upload de transação desfeita ou arquivo obsoleto. No S3 versionado, a versão anterior fica recuperável
+     * pela operação por até 30 dias (1 dia para importação) e então expira (decisões 878 e 1462); por isso as chaves
+     * nunca são reaproveitadas.
+     */
     void delete(String key);
 
     record StoredFile(UUID id, String key, String originalName, String contentType, long size, String sha256) {

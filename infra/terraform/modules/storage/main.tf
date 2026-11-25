@@ -152,6 +152,28 @@ resource "aws_s3_bucket_lifecycle_configuration" "app" {
     }
   }
 
+  # Descarte de dado pessoal (LGPD) em geral: a aplicação só grava em chave nova (UUID) sob tenants/
+  # e nunca sobrescreve, então toda versão não corrente ali é um arquivo descartado (retenção ou
+  # anonimização do titular). Ela expira neste prazo, em vez dos 365 dias da regra geral; vale o
+  # menor prazo entre as regras (importação: 1 dia). Decisão 1462.
+  rule {
+    id     = "tenants-noncurrent-expiration"
+    status = "Enabled"
+
+    filter {
+      prefix = "tenants/"
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.app_discarded_noncurrent_expiration_days
+    }
+
+    # o delete marker que sobra sem versão anterior não guarda dado; sai para não acumular
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
   rule {
     id     = "noncurrent-versions"
     status = "Enabled"

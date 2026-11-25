@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import java.util.UUID;
 
 /**
@@ -62,10 +63,13 @@ class StatementMatcher {
     private final PaymentMetrics metrics;
     private final JsonCodec json;
     private final Clock clock;
+    private final PaymentReferenceDigest referenceDigest;
 
     StatementMatcher(BankStatementRepository statements, PaymentRepository payments, PaymentInstructionRepository instructions,
                      PaymentAllocationRepository allocations, PaymentRecorder recorder, Divergences divergences,
-                     PaymentSettingsProvider settings, PaymentMetrics metrics, JsonCodec json, Clock clock) {
+                     PaymentSettingsProvider settings, PaymentMetrics metrics, JsonCodec json, Clock clock,
+                     PaymentReferenceDigest referenceDigest) {
+        this.referenceDigest = referenceDigest;
         this.statements = statements;
         this.payments = payments;
         this.instructions = instructions;
@@ -124,7 +128,12 @@ class StatementMatcher {
             Optional<Payment> byTransaction = payments.findByProviderTransactionIdForUpdate(txId)
                     .filter(p -> inScope(source, p));
             if (byTransaction.isEmpty()) {
-                List<Payment> external = payments.findByExternalReferenceAndStatus(txId, PaymentStatus.CONFIRMED).stream()
+                // a referência de pagamento de titular anonimizado fica só na forma anonimizada (SEG-20261124-H04)
+                List<Payment> external = Stream.concat(
+                                payments.findByExternalReferenceAndStatus(txId, PaymentStatus.CONFIRMED).stream(),
+                                payments.findByExternalReferenceAndStatus(
+                                        referenceDigest.anonymized(source.getTenantId(), txId),
+                                        PaymentStatus.CONFIRMED).stream())
                         .filter(p -> inScope(source, p)).toList();
                 byTransaction = external.size() == 1 ? Optional.of(external.getFirst()) : Optional.empty();
             }
@@ -177,7 +186,7 @@ class StatementMatcher {
             divergence(DivergenceType.SELF_RECONCILIATION, source, line, p, null);
             return new Outcome(StatementLineStatus.DIVERGENT, p.getId());
         }
-        if (txId != null && p.getProviderTransactionId() == null && p.getExternalReference() == null) {
+        if (txId != null && p.getProviderTransactionId() == null && !p.hasExternalReference()) {
             p.attachProviderTransaction(txId);
         }
         reconcile(p, line, source);

@@ -97,7 +97,9 @@ class PaymentRecorder {
                 .creditor(p.getCreditorId()).created("method", p.getMethod()).created("amount", p.getAmount())
                 .created("paidAt", p.getPaidAt()).created("origin", p.getExternalOrigin())
                 .created("reviewRequired", p.isReviewRequired()).created("evidenceSha256", p.getEvidenceSha256())
-                .meta("externalReference", p.getExternalReference()).meta("targetKind", p.getTargetKind())
+                // a referência é texto livre e pode citar o pagador (SEG-20261124-H04): a trilha selada não guarda o texto,
+                // que fica só no pagamento (anonimizado com o titular)
+                .meta("hasExternalReference", p.hasExternalReference()).meta("targetKind", p.getTargetKind())
                 .meta("reviewReason", reviewReason).meta("statementLineId", p.getStatementLineId()));
     }
 

@@ -37,10 +37,13 @@ class PaymentAnonymizer {
     private final FileCleanup fileCleanup;
     private final PaymentMetrics metrics;
     private final AuditTrail auditTrail;
+    private final PaymentReferenceDigest referenceDigest;
 
     PaymentAnonymizer(PaymentRepository payments, BankStatementRepository statements, PaymentReversalRepository reversals,
                       DivergenceRepository divergences, PaymentInstructionRepository instructions,
-                      FileCleanup fileCleanup, PaymentMetrics metrics, AuditTrail auditTrail) {
+                      FileCleanup fileCleanup, PaymentMetrics metrics, AuditTrail auditTrail,
+                      PaymentReferenceDigest referenceDigest) {
+        this.referenceDigest = referenceDigest;
         this.payments = payments;
         this.statements = statements;
         this.reversals = reversals;
@@ -55,7 +58,7 @@ class PaymentAnonymizer {
         List<Payment> all = payments.findByDebtorId(debtorId);
         List<String> keys = new ArrayList<>();
         for (Payment p : all) {
-            String key = p.anonymize();
+            String key = p.anonymize(ref -> referenceDigest.digest(p.getTenantId(), ref));
             payments.save(p);
             if (key != null) {
                 keys.add(key);

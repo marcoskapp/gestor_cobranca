@@ -250,6 +250,37 @@ class PaymentReconciliationIT extends PaymentTestSupport {
         assertThat(asFinance1(() -> payments.get(own.id())).status()).isEqualTo("RECONCILED");
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    org.springframework.context.ApplicationEventPublisher publisher;
+
+    /** SEG-20261124-H04 (decisão 1463): a referência anonimizada continua reconhecida pelo extrato, sem voltar em claro. */
+    @Test
+    void anonymizedDebtorExternalPaymentIsStillRecognizedByTheStatement() {
+        provision("anon-statement");
+        PaymentView paid = external("90.00", "DOC-ANON", titleB);
+        assertThat(paid.status()).isEqualTo("CONFIRMED");
+        UUID eventId = br.com.gestorcobranca.shared.domain.Ids.newId();
+        tenantExecution.inTenant(tenant, "test.publish", () -> publisher.publishEvent(
+                new br.com.gestorcobranca.shared.events.debt.DebtorAnonymized(eventId, tenant, Instant.now(), debtor)));
+        awaitTrue("consumo do payment", () -> count("select count(*) from shared.consumed_event "
+                + "where consumer = 'payment.debtor-anonymized' and event_id = ?", eventId) == 1);
+        assertThat(count("select count(*) from payment.payment where external_reference = 'DOC-ANON'")).isZero();
+
+        // enviado por F2 (F1 informou o pagamento)
+        StatementImportView imported = importCsv("extrato-anon.csv", """
+                data;valor;tipo;id_transacao;referencia;descricao
+                %s;90,00;C;DOC-ANON;;TED RECEBIDA
+                """.formatted(today));
+        assertThat(imported.status()).isEqualTo("PROCESSED");
+        assertThat(imported.divergentLines()).isZero();
+        assertThat(lineStatus(paid.id())).isEqualTo("RECONCILED");
+        assertThat(asFinance2(() -> payments.get(paid.id())).status()).isEqualTo("RECONCILED");
+        assertThat(count("select count(*) from payment.payment where debtor_id = ?", debtor)).isEqualTo(1);
+        // o texto não volta pela conciliação (o identificador da linha não é gravado no pagamento)
+        assertThat(count("select count(*) from payment.payment where id = ? and provider_transaction_id is null",
+                paid.id())).isEqualTo(1);
+    }
+
     @Test
     void pendingStatementLineNeverHoldsThePixTransactionOfTheProvider() {
         provision("reconcile-e2e");

@@ -51,7 +51,7 @@ flowchart TB
 | EC2 / Auto Scaling Group | `t4g.medium` (2 vCPU, 4 GiB), Amazon Linux 2023, IMDSv2 obrigatório, sem chave SSH | Graviton custa menos por desempenho; o ASG garante substituição automática e crescimento |
 | Acesso às instâncias | AWS Systems Manager Session Manager | Elimina bastion e porta 22 aberta; toda sessão fica auditada |
 | RDS PostgreSQL 16 | `db.t4g.medium`, gp3 50 GiB com autoscaling de armazenamento, criptografia KMS, backups 14 dias, deletion protection, `rds.force_ssl=1` | Banco gerenciado com recuperação ponto-a-ponto |
-| S3 | Bloqueio de acesso público, criptografia SSE, versionamento, *lifecycle* (Standard-IA após 90 dias, Glacier para arquivos de evidência antigos) | Arquivos com custo decrescente ao envelhecer |
+| S3 | Bloqueio de acesso público, criptografia SSE, versionamento, *lifecycle* (Standard-IA após 90 dias, Glacier para arquivos de evidência antigos; versão anterior de arquivo apagado pela aplicação expira em 30 dias — 1 dia para importação — e as demais versões anteriores em 365 dias, decisões 878 e 1462) | Arquivos com custo decrescente ao envelhecer |
 | CloudWatch | 3 grupos de log com retenções distintas, métricas `GestorCobranca`, painel operacional e alarmes | Observabilidade exigida pelo projeto |
 | NAT Gateway | 1 unidade (em uma AZ) na fase inicial | Saída para provedores externos sem expor as instâncias |
 

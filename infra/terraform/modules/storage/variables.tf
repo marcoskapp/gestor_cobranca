@@ -59,6 +59,17 @@ variable "app_import_noncurrent_expiration_days" {
   }
 }
 
+variable "app_discarded_noncurrent_expiration_days" {
+  description = "Dias até expirar a versão anterior dos arquivos da aplicação (prefixo tenants/): a aplicação não sobrescreve chaves, então só há versão anterior de arquivo descartado (retenção ou anonimização do titular, LGPD)."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.app_discarded_noncurrent_expiration_days >= 1 && var.app_discarded_noncurrent_expiration_days <= 30
+    error_message = "Use de 1 a 30 dias: a versão anterior guarda o dado pessoal já descartado."
+  }
+}
+
 variable "alb_logs_expiration_days" {
   description = "Retenção dos access logs do ALB e dos logs de acesso do S3 (dias)."
   type        = number

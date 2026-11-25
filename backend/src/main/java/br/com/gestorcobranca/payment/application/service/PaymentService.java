@@ -97,6 +97,7 @@ class PaymentService implements PaymentUseCases {
     private final PaymentProperties properties;
     private final AgreementBreakSuspensionUseCases breakSuspensions;
     private final StatementLineReview statementLineReview;
+    private final PaymentReferenceDigest referenceDigest;
 
     PaymentService(PaymentRepository payments, PaymentAllocationRepository allocations, PaymentReversalRepository reversals,
                    TargetResolver resolver, AllocationService allocationService, PaymentConfirmation confirmation,
@@ -104,7 +105,9 @@ class PaymentService implements PaymentUseCases {
                    PaymentSettingsProvider settings, IdempotencyService idempotency, FileStorage fileStorage,
                    AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, PaymentMetrics metrics,
                    JsonCodec json, Clock clock, ExternalPaymentLocks externalLocks, PaymentProperties properties,
-                   AgreementBreakSuspensionUseCases breakSuspensions, StatementLineReview statementLineReview) {
+                   AgreementBreakSuspensionUseCases breakSuspensions, StatementLineReview statementLineReview,
+                   PaymentReferenceDigest referenceDigest) {
+        this.referenceDigest = referenceDigest;
         this.payments = payments;
         this.allocations = allocations;
         this.reversals = reversals;
@@ -480,10 +483,17 @@ class PaymentService implements PaymentUseCases {
         return PaymentViews.targetItems(p, json);
     }
 
+    /**
+     * Hash do pedido para a idempotência ({@code shared.idempotency_key}, sem limpeza): a referência entra como HMAC,
+     * nunca crua — os demais campos estão no próprio pagamento e o texto seria recuperável por força bruta depois da
+     * anonimização do titular (SEG-20261125-05, decisão 1463).
+     */
     private String hash(ExternalPaymentCommand c) {
+        String reference = c.externalReference() == null ? "null"
+                : referenceDigest.digest(currentActor.tenantId(), c.externalReference());
         String canonical = String.join("|", String.valueOf(c.creditorId()), String.valueOf(c.debtorId()),
                 c.amount().stripTrailingZeros().toPlainString(), String.valueOf(c.paidAt()), String.valueOf(c.method()),
-                String.valueOf(c.origin()), String.valueOf(c.externalReference()), String.valueOf(c.target()));
+                String.valueOf(c.origin()), reference, String.valueOf(c.target()));
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(canonical.getBytes(StandardCharsets.UTF_8)));

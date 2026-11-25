@@ -107,6 +107,15 @@ class PaymentExternalIT extends PaymentTestSupport {
         PaymentView repeated = asOperator(() -> payments.registerExternal(toTitleB("100.00", "DOC-1"), pdf(), "idem-1"));
         assertThat(repeated.id()).isEqualTo(small.id());
         assertThat(count("select count(*) from payment.payment")).isEqualTo(1);
+        // SEG-20261125-05: o hash do pedido guardado para a idempotência não leva a referência crua (seria recuperável
+        // por força bruta depois da anonimização); leva o HMAC
+        ExternalPaymentCommand sent = toTitleB("100.00", "DOC-1");
+        String rawCanonical = String.join("|", String.valueOf(sent.creditorId()), String.valueOf(sent.debtorId()),
+                sent.amount().stripTrailingZeros().toPlainString(), String.valueOf(sent.paidAt()),
+                String.valueOf(sent.method()), String.valueOf(sent.origin()), "DOC-1", String.valueOf(sent.target()));
+        assertThat(count("select count(*) from shared.idempotency_key where request_hash = ?", sha256Hex(rawCanonical)))
+                .isZero();
+        assertThat(count("select count(*) from shared.idempotency_key where resource_id = ?", small.id())).isEqualTo(1);
 
         // acima do limite: aguarda segunda pessoa com PAYMENT_REVIEW; quem informou não revisa
         PaymentView big = asFinance1(() -> payments.registerExternal(toTitleB("900.00", "DOC-2"), pdf(), null));
@@ -367,6 +376,9 @@ class PaymentExternalIT extends PaymentTestSupport {
     @org.springframework.beans.factory.annotation.Autowired
     br.com.gestorcobranca.shared.storage.FileStorage fileStorage;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    br.com.gestorcobranca.shared.crypto.BlindIndex blindIndex;
+
     @Test
     void debtorAnonymizationRemovesEvidenceFileAndFreeTextButKeepsTheHash() {
         provision("anonymize");
@@ -387,7 +399,14 @@ class PaymentExternalIT extends PaymentTestSupport {
         assertThat(after.evidenceAvailable()).isFalse();
         assertThat(after.evidenceSha256()).isEqualTo(paid.evidenceSha256());
         assertThat(after.note()).isNull();
+        assertThat(after.externalReference()).isNull();
         assertThat(after.status()).isEqualTo("REVERSED");
+        // H04: o texto da referência sai; fica só a forma HMAC (com chave e assessoria), que o extrato ainda reconhece
+        assertThat(count("select count(*) from payment.payment where id = ? and external_reference = ?", paid.id(),
+                "anon:" + blindIndex.of(tenant, "payment.external_reference", "DOC-A"))).isEqualTo(1);
+        // nem a trilha selada guarda o texto da referência
+        assertThat(count("select count(*) from shared.audit_event where entity_id = ? and metadata::text like '%DOC-A%'",
+                paid.id())).isZero();
         assertThat(count("select count(*) from payment.payment where id = ? and evidence_key is null "
                 + "and evidence_name is null and note_encrypted is null and review_note_encrypted is null", paid.id()))
                 .isEqualTo(1);
@@ -397,6 +416,15 @@ class PaymentExternalIT extends PaymentTestSupport {
                 paid.id())).isEqualTo(1);
         assertThat(count("select count(*) from shared.audit_event where action = 'payment.debtor_anonymized' "
                 + "and entity_id = ?", debtor)).isEqualTo(1);
+    }
+
+    private static String sha256Hex(String text) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private boolean evidenceStored(String key) {
