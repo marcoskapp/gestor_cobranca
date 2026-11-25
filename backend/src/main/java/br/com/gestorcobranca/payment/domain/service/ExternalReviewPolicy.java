@@ -11,26 +11,34 @@ import java.util.Objects;
  * <ul>
  *   <li>por destino: pagamentos externos do mesmo devedor no mesmo credor (cobre parcela, acordo e
  *       títulos, que pertencem sempre a um devedor e um credor);</li>
- *   <li>por quem informa: tudo o que o mesmo usuário informou.</li>
+ *   <li>por quem informa: tudo o que o mesmo usuário (ou token de integração) informou;</li>
+ *   <li>por credor, só para a integração do credor: tudo o que os tokens do mesmo credor informaram (vários tokens
+ *       não multiplicam o teto — H07, decisão 1466).</li>
  * </ul>
  * Contam os pagamentos externos informados na janela e confirmados <strong>sem</strong> revisão (os
  * revisados já tiveram a segunda pessoa).
  */
 public final class ExternalReviewPolicy {
 
-    public enum Reason { AMOUNT, DESTINATION_CUMULATIVE, INFORMER_CUMULATIVE }
+    public enum Reason { AMOUNT, DESTINATION_CUMULATIVE, INFORMER_CUMULATIVE, CREDITOR_CUMULATIVE }
 
     /**
      * @param perPayment     acima deste valor o pagamento sozinho já exige revisão
      * @param perDestination soma máxima confirmada sem revisão para o mesmo devedor/credor na janela
      * @param perInformer    soma máxima confirmada sem revisão por quem informa na janela
+     * @param perCreditor    soma máxima confirmada sem revisão pela integração do mesmo credor na janela (nulo fora
+     *                       da integração)
      */
-    public record Limits(Money perPayment, Money perDestination, Money perInformer) {
+    public record Limits(Money perPayment, Money perDestination, Money perInformer, Money perCreditor) {
 
         public Limits {
             Objects.requireNonNull(perPayment, "perPayment");
             Objects.requireNonNull(perDestination, "perDestination");
             Objects.requireNonNull(perInformer, "perInformer");
+        }
+
+        public Limits(Money perPayment, Money perDestination, Money perInformer) {
+            this(perPayment, perDestination, perInformer, null);
         }
     }
 
@@ -58,6 +66,15 @@ public final class ExternalReviewPolicy {
      * @param informerSoFar    soma já confirmada sem revisão do mesmo usuário na janela
      */
     public static Decision decide(Money amount, Money destinationSoFar, Money informerSoFar, Limits limits) {
+        return decide(amount, destinationSoFar, informerSoFar, null, limits);
+    }
+
+    /**
+     * @param creditorSoFar soma já confirmada sem revisão pela integração do mesmo credor na janela (nulo fora da
+     *                      integração; com {@link Limits#perCreditor()} nulo, não é conferida)
+     */
+    public static Decision decide(Money amount, Money destinationSoFar, Money informerSoFar, Money creditorSoFar,
+                                  Limits limits) {
         if (amount.isGreaterThan(limits.perPayment())) {
             return new Decision(true, Reason.AMOUNT, limits.perPayment(), amount);
         }
@@ -68,6 +85,12 @@ public final class ExternalReviewPolicy {
         Money informer = informerSoFar.plus(amount);
         if (informer.isGreaterThan(limits.perInformer())) {
             return new Decision(true, Reason.INFORMER_CUMULATIVE, limits.perInformer(), informer);
+        }
+        if (creditorSoFar != null && limits.perCreditor() != null) {
+            Money creditor = creditorSoFar.plus(amount);
+            if (creditor.isGreaterThan(limits.perCreditor())) {
+                return new Decision(true, Reason.CREDITOR_CUMULATIVE, limits.perCreditor(), creditor);
+            }
         }
         return Decision.AUTO;
     }

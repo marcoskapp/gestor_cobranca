@@ -33,7 +33,7 @@
 
   <div class="pd-status" data-tour="payment-status">
     <app-status-chip domain="payment" [status]="p.status" />
-    <span>{{ methods[p.method] }} · {{ sources[p.source] }}</span>
+    <span>{{ methods[p.method] }} · {{ sourceText(p) }}</span>
     @if (p.reviewThresholdExceeded) {
       <span class="badge rounded-pill border fw-normal d-inline-flex align-items-center gap-1 bg-info-subtle text-info-emphasis border-info-subtle"><app-icon name="people" />Acima do limite: segunda pessoa</span>
     }
@@ -219,7 +219,12 @@
           }
           @if (p.informedBy) {
             <dt>{{ fromStatement(p) ? 'Extrato importado por' : 'Informado por' }}</dt>
-            <dd>{{ informer(p) }}</dd>
+            <dd>
+              {{ informer(p) }}
+              @if (p.integration?.tokenName) {
+                &ngsp;<app-config-link [route]="'/integracoes/tokens/' + p.integration!.tokenId" label="Abrir token" [permissions]="tokenPermissions" />
+              }
+            </dd>
           }
           @if (p.note) {
             <dt>Observação</dt>

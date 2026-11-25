@@ -1,7 +1,7 @@
 import { toAmount } from '../../../shared/components/amount/amount';
 import type { IconName } from '../../../shared/components/icon/icon-names';
 import type { TargetSelection } from '../components/payment-target';
-import { RECONCILIATION_MODE_LABELS, REVERSAL_REASON_LABELS, REVIEW_MODE_LABELS, STRATEGY_LABELS } from './payment.labels';
+import { RECONCILIATION_MODE_LABELS, REVERSAL_REASON_LABELS, REVIEW_MODE_LABELS, SOURCE_LABELS, STRATEGY_LABELS } from './payment.labels';
 import { AllocationView, InstructionView, PaymentView, PixAccountView, RequestedTargetView, StatementImportView, TargetRequest } from './payment.models';
 
 // --------------------------------------------------------------------------- arquivos
@@ -215,10 +215,13 @@ export function paymentTimeline(p: PaymentView): TimelineEntry[] {
     entries.push({
       at: p.informedAt,
       icon: 'pencil-square',
-      title: p.creditorPortal ? 'Pagamento informado pela pessoa do credor no portal' : 'Pagamento informado',
+      title: p.creditorPortal ? 'Pagamento informado pela pessoa do credor no portal'
+        : p.integration ? 'Pagamento informado pela integração do credor' : 'Pagamento informado',
       detail: p.creditorPortal ? 'Sempre revisado por outra pessoa da assessoria.'
+        : p.integration ? [integrationTokenText(p.integration), p.reviewThresholdExceeded ? 'acima do limite: aguardando aprovação de outra pessoa' : null].filter(Boolean).join(' · ') + '.'
         : p.reviewThresholdExceeded ? 'Acima do limite: aguardando aprovação de outra pessoa.' : null,
-      userId: p.creditorPortal ? null : p.informedBy,
+      // pessoa do credor e token de integração não são usuários da assessoria
+      userId: p.creditorPortal || p.integration ? null : p.informedBy,
       tone: 'neutral',
     });
   }
@@ -401,7 +404,38 @@ export function fromStatementReview(p: Pick<PaymentView, 'source' | 'reviewMode'
   return p.source === 'PROVIDER' && p.reviewMode === 'DUAL_CONTROL';
 }
 
-/** Quem informou, para exibição: a pessoa do credor (portal) não é usuária da assessoria. */
-export function informerLabel(p: Pick<PaymentView, 'informedBy' | 'creditorPortal'>, name: (id: string) => string): string {
-  return p.creditorPortal ? 'Pessoa do credor (portal do credor)' : p.informedBy ? name(p.informedBy) : 'Sistema';
+/**
+ * Quem informou, para exibição: a pessoa do credor (portal) e a integração do credor (token da API) não são usuárias
+ * da assessoria.
+ */
+export function informerLabel(p: Pick<PaymentView, 'informedBy' | 'creditorPortal' | 'integration'>, name: (id: string) => string): string {
+  if (p.creditorPortal) {
+    return 'Pessoa do credor (portal do credor)';
+  }
+  if (p.integration) {
+    return `Integração do credor · ${integrationTokenText(p.integration)}`;
+  }
+  return p.informedBy ? name(p.informedBy) : 'Sistema';
+}
+
+/**
+ * Integração (token) do credor: nome e prefixo de exibição, como na tela de tokens ("Nome (prefixo)"); acesso
+ * revogado ou integração que não existe mais, dito em texto.
+ */
+export function integrationTokenText(i: NonNullable<PaymentView['integration']>): string {
+  if (!i.tokenName) {
+    return 'integração não identificada';
+  }
+  return `${i.tokenName}${i.tokenPrefix ? ' (' + i.tokenPrefix + ')' : ''}${i.tokenRevoked ? ', acesso revogado' : ''}`;
+}
+
+/** Origem do registro para exibição: o canal do informe vale mais que o tipo (externo inclui portal e integração). */
+export function sourceLabel(p: Pick<PaymentView, 'source' | 'creditorPortal' | 'integration'>): string {
+  if (p.creditorPortal) {
+    return 'Informado pelo credor no portal';
+  }
+  if (p.integration) {
+    return 'Informado pela integração do credor';
+  }
+  return p.source === 'EXTERNAL' ? 'Informado por operador' : SOURCE_LABELS.PROVIDER;
 }

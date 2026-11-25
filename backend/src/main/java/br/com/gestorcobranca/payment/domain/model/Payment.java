@@ -118,7 +118,10 @@ public class Payment extends TenantScopedEntity {
     @Column(name = "review_considered_amount", updatable = false)
     private Money reviewConsideredAmount;
 
-    /** Canal do informe: {@code CREDITOR_PORTAL} quando a própria pessoa do credor informou no portal (nulo nos demais). */
+    /**
+     * Canal do informe: {@code CREDITOR_PORTAL} quando a própria pessoa do credor informou no portal;
+     * {@code INTEGRATION} quando a integração do credor (token da API pública) informou (nulo nos demais).
+     */
     @Column(name = "informed_channel", length = 20, updatable = false)
     private String informedChannel;
 
@@ -346,6 +349,25 @@ public class Payment extends TenantScopedEntity {
 
     public boolean isFromCreditorPortal() {
         return CHANNEL_CREDITOR_PORTAL.equals(informedChannel);
+    }
+
+    public static final String CHANNEL_INTEGRATION = "INTEGRATION";
+
+    /**
+     * Registro feito pela integração do credor (API pública, token de integração — H07, decisão 1466): só o
+     * pagamento recebido diretamente pelo credor; o canal vem do tipo do ator, nunca do pedido. Não muda a revisão
+     * (os limites valem como para os demais, com o teto acumulado por credor).
+     */
+    public void informedByIntegration() {
+        Guard.requireState(informedChannel == null && source == PaymentSource.EXTERNAL, "payment.channel_invalid",
+                "Canal do registro inválido");
+        Guard.require(externalOrigin == ExternalOrigin.CREDITOR_DIRECT, "payment.integration_origin_invalid",
+                "A integração do credor só informa pagamento recebido diretamente pelo credor");
+        informedChannel = CHANNEL_INTEGRATION;
+    }
+
+    public boolean isFromIntegration() {
+        return CHANNEL_INTEGRATION.equals(informedChannel);
     }
 
     /**

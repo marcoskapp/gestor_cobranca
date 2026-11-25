@@ -66,6 +66,9 @@ public interface PaymentRepository {
     /** Soma dos pagamentos externos confirmados sem revisão, informados pelo usuário a partir de {@code since}. */
     Money sumExternalInformedBy(UUID informedBy, Instant since);
 
+    /** Soma confirmada sem revisão pela integração do credor (todos os tokens) desde {@code since} (teto por credor). */
+    Money sumIntegrationInformedForCreditor(UUID creditorId, Instant since);
+
     /**
      * Pagamentos confirmados/conciliados com saldo não alocado ou com valor não aplicado pelo
      * negotiation ainda não realocado, do mais antigo ao mais recente.

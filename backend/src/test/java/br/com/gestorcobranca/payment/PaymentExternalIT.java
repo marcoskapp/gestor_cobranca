@@ -285,6 +285,82 @@ class PaymentExternalIT extends PaymentTestSupport {
         assertThat(asFinance1(() -> payments.approve(second.id(), "Conferido no extrato")).status()).isEqualTo("CONFIRMED");
     }
 
+    /**
+     * H07 (decisão 1466): a integração do credor (token da API pública) só informa o que o credor recebeu; o canal
+     * vem do tipo do ator e fica gravado; abaixo dos limites confirma sem revisão; o teto por credor soma todos os
+     * tokens do credor (e nada dos operadores).
+     */
+    @Test
+    void creditorIntegrationRecordsTheChannelAndTheCreditorTotalSumsAllItsTokens() {
+        provision("integracao");
+        UUID tokenA = Ids.newId();
+        UUID tokenB = Ids.newId();
+        java.util.function.Function<String, ExternalPaymentCommand> direct = reference -> new ExternalPaymentCommand(
+                creditorB, debtor, new BigDecimal("100.00"), paidAt, "PIX", "CREDITOR_DIRECT", reference, null,
+                new TargetInput("TITLES", null, List.of(titleB), null));
+
+        // a integração não informa o que entrou na conta da assessoria
+        assertThatThrownBy(() -> asIntegration(tokenA, () -> payments.registerExternal(toTitleB("100.00", "I-0"), pdf(), null)))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("recebido diretamente pelo credor");
+
+        PaymentView first = asIntegration(tokenA, () -> payments.registerExternal(direct.apply("I-1"), pdf(), null));
+        assertThat(first.status()).isEqualTo("CONFIRMED");
+        assertThat(first.reviewMode()).isEqualTo("AUTO_LOW_RISK");
+        assertThat(first.informedBy()).isEqualTo(tokenA);
+        // o token não é de um cadastro do publicapi aqui: o pagamento traz o id sem nome
+        assertThat(first.integration()).isNotNull();
+        assertThat(first.integration().tokenId()).isEqualTo(tokenA);
+        assertThat(first.integration().tokenName()).isNull();
+        assertThat(count("select count(*) from payment.payment where id = ? and informed_channel = 'INTEGRATION'",
+                first.id())).isEqualTo(1);
+        asIntegration(tokenB, () -> payments.registerExternal(direct.apply("I-2"), pdf(), null));
+        // o operador que informa um recebimento do credor não entra no canal nem no teto da integração
+        PaymentView byOperator = asOperator(() -> payments.registerExternal(direct.apply("I-3"), pdf(), null));
+        assertThat(byOperator.integration()).isNull();
+
+        Instant since = Instant.now().minus(1, ChronoUnit.DAYS);
+        assertThat(system(() -> paymentRepository.sumIntegrationInformedForCreditor(creditorB, since)).amount())
+                .isEqualByComparingTo("200.00");
+        assertThat(system(() -> paymentRepository.sumIntegrationInformedForCreditor(creditorA, since)).amount())
+                .isEqualByComparingTo("0");
+    }
+
+    /**
+     * Token só com {@code payments:write} (sem {@code AGREEMENT_VIEW}) registra para parcela de acordo do próprio credor
+     * (decisão 1518); o acordo de outro credor não existe para ele (404) e nada é gravado.
+     */
+    @Test
+    void creditorIntegrationReachesOnlyItsOwnCreditorsAgreements() {
+        provision("integracao-acordo");
+        AgreementView agreement = formalizeAgreement(2);
+        UUID installment = agreement.installments().getFirst().id();
+        ExternalPaymentCommand toAgreement = new ExternalPaymentCommand(creditorA, debtor, new BigDecimal("10.00"),
+                paidAt, "PIX", "CREDITOR_DIRECT", "IA-1", null,
+                new TargetInput("AGREEMENT", agreement.id(), List.of(installment), null));
+        PaymentView ok = asIntegration(Ids.newId(), creditorA, () -> payments.registerExternal(toAgreement, pdf(), null));
+        assertThat(ok.status()).isEqualTo("CONFIRMED");
+        assertThat(ok.integration()).isNotNull();
+
+        ExternalPaymentCommand cross = new ExternalPaymentCommand(creditorB, debtor, new BigDecimal("10.00"), paidAt,
+                "PIX", "CREDITOR_DIRECT", "IA-2", null,
+                new TargetInput("AGREEMENT", agreement.id(), List.of(installment), null));
+        assertThatThrownBy(() -> asIntegration(Ids.newId(), creditorB, () -> payments.registerExternal(cross, pdf(), null)))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(count("select count(*) from payment.payment where external_reference = 'IA-2'")).isZero();
+    }
+
+    private <T> T asIntegration(UUID tokenId, java.util.function.Supplier<T> action) {
+        return asIntegration(tokenId, creditorB, action);
+    }
+
+    /** Ator do token de integração com as permissões do escopo {@code payments:write} ({@code TokenScope}). */
+    private <T> T asIntegration(UUID tokenId, UUID creditorId, java.util.function.Supplier<T> action) {
+        return tenantExecution.callAs(new Actor(Actor.ActorType.INTEGRATION, tokenId, tenant, null,
+                "integration:" + tokenId.toString().substring(0, 8),
+                EnumSet.of(Permission.PAYMENT_REGISTER_EXTERNAL, Permission.PAYMENT_VIEW),
+                CreditorScope.of(List.of(creditorId))), action);
+    }
+
     @Test
     void concurrentSplitRegistrationsCannotBothEscapeReview() throws Exception {
         provision("concorrente");

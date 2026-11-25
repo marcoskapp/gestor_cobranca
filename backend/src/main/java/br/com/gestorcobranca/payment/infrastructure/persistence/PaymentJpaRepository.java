@@ -103,6 +103,18 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
         return Money.ofNullable(sumExternalByInformer(informedBy, since));
     }
 
+    @Query(value = """
+            select coalesce(sum(amount), 0) from payment.payment
+             where informed_channel = 'INTEGRATION' and not review_required and status <> 'REJECTED'
+               and creditor_id = :creditorId and informed_at >= :since
+            """, nativeQuery = true)
+    BigDecimal sumIntegrationForCreditor(@Param("creditorId") UUID creditorId, @Param("since") Instant since);
+
+    @Override
+    default Money sumIntegrationInformedForCreditor(UUID creditorId, Instant since) {
+        return Money.ofNullable(sumIntegrationForCreditor(creditorId, since));
+    }
+
     @Override
     default List<Payment> findChanges(UUID creditorId, ChangeQuery query) {
         return findAll(ChangeSpecifications.<Payment>window(query, List.of(creditorId)), ChangeSpecifications.page(query))

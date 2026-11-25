@@ -58,6 +58,8 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
       return [{ label: 'Soma do devedor neste credor', hint: `pagamentos ${window}`, requested: formatAmount(a.consideredAmount ?? 0), limit: formatAmount(a.limit ?? 0), excess: excessText(a.excess, a.limit) }];
     case 'INFORMER_CUMULATIVE':
       return [{ label: 'Soma de quem informou', hint: `pagamentos ${window}`, requested: formatAmount(a.consideredAmount ?? 0), limit: formatAmount(a.limit ?? 0), excess: excessText(a.excess, a.limit) }];
+    case 'CREDITOR_CUMULATIVE':
+      return [{ label: 'Soma da integração do credor', hint: `pagamentos de todas as integrações (tokens) do credor ${window}`, requested: formatAmount(a.consideredAmount ?? 0), limit: formatAmount(a.limit ?? 0), excess: excessText(a.excess, a.limit) }];
     case 'CREDITOR_PORTAL':
       return [{ label: 'Informado pelo próprio credor no portal', hint: 'pagamento feito diretamente ao credor: confira o comprovante', requested: formatAmount(p.amount), limit: 'sempre revisado', excess: null }];
     case 'STATEMENT_LINE':
@@ -221,7 +223,10 @@ export class PaymentApproval {
   protected readonly canViewDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
   protected readonly creditors = nameMap(inject(CreditorNames), () => [this.payment()?.creditorId]);
   protected readonly debtors = nameMap(inject(DebtorNames), () => [this.payment()?.debtorId], { batch: 100 });
-  private readonly users = nameMap(inject(UserNames), () => [this.payment()?.informedBy], { batch: USER_NAMES_BATCH });
+  private readonly users = nameMap(inject(UserNames), () => {
+    const p = this.payment();
+    return [p && !p.creditorPortal && !p.integration ? p.informedBy : null];
+  }, { batch: USER_NAMES_BATCH });
   protected readonly crumb = recordLabel(() => {
     const p = this.payment();
     return p ? this.debtors.name(p.debtorId) : null;
@@ -243,7 +248,7 @@ export class PaymentApproval {
   protected readonly requester = computed<ApprovalParty>(() => {
     const p = this.payment();
     return {
-      name: p?.creditorPortal ? informerLabel(p, (id) => this.users.name(id))
+      name: p?.creditorPortal || p?.integration ? informerLabel(p, (id) => this.users.name(id))
         : p?.informedBy ? (p.informedBy === this.auth.user()?.id ? 'Você' : this.users.name(p.informedBy)) : '—',
       role: p && fromStatementReview(p) ? 'importou o extrato' : 'informou o pagamento',
     };

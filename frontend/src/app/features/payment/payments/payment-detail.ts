@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { Observable, catchError, finalize, forkJoin, map, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Permission } from '../../../core/auth/permission';
+import { ConfigLink } from '../../../shared/components/config-link/config-link';
 import { toApiError, userMessage } from '../../../core/http/problem';
 import { BreadcrumbService } from '../../../core/layout/breadcrumbs/breadcrumbs';
 import { NotificationService } from '../../../core/notification/notification.service';
@@ -29,9 +30,9 @@ import { AgreementView } from '../../negotiation/data/agreement.models';
 import { CreditorNames } from '../../organization/data/organization.lookups';
 import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
-import { METHOD_LABELS, ORIGIN_LABELS, OUTCOME_LABELS, PAYMENT_ERROR_LABELS, REVIEW_MODE_LABELS, SOURCE_LABELS } from '../data/payment.labels';
+import { METHOD_LABELS, ORIGIN_LABELS, OUTCOME_LABELS, PAYMENT_ERROR_LABELS, REVIEW_MODE_LABELS } from '../data/payment.labels';
 import { AllocationView, LineView, PaymentView } from '../data/payment.models';
-import { informerLabel, allocationTarget, fromStatementReview, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
+import { informerLabel, sourceLabel, allocationTarget, fromStatementReview, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
 import { breakHoldBadge } from '../data/review-status';
 import { ReallocateDialog, ReallocateDialogData } from '../reallocation/reallocate-dialog';
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
@@ -46,7 +47,7 @@ import { RelatedRecord } from '../../../shared/components/related-records/relate
  */
 @Component({
   selector: 'app-payment-detail',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, KpiCard, MoreActions, RelatedRecords, CreditorPortalNote],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, KpiCard, MoreActions, RelatedRecords, CreditorPortalNote, ConfigLink],
   templateUrl: './payment-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './payment-detail.scss'],
 })
@@ -68,7 +69,9 @@ export class PaymentDetail {
 
   protected readonly methods = METHOD_LABELS;
   protected readonly origins = ORIGIN_LABELS;
-  protected readonly sources = SOURCE_LABELS;
+  protected readonly sourceText = sourceLabel;
+  /** Atalho para a ficha do token (mesma permissão da rota `/integracoes/tokens/:id`). */
+  protected readonly tokenPermissions = [Permission.PUBLIC_API_TOKEN_VIEW] as const;
   protected readonly reviewModes = REVIEW_MODE_LABELS;
   protected readonly outcomes = OUTCOME_LABELS;
   protected readonly target = allocationTarget;
@@ -88,7 +91,7 @@ export class PaymentDetail {
     inject(UserNames),
     () => {
       const p = this.payment();
-      return p ? [p.creditorPortal ? null : p.informedBy, p.reviewedBy, p.reversal?.reversedBy] : [];
+      return p ? [p.creditorPortal || p.integration ? null : p.informedBy, p.reviewedBy, p.reversal?.reversedBy] : [];
     },
     { batch: USER_NAMES_BATCH },
   );

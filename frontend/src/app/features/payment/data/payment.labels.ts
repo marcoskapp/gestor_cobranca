@@ -38,8 +38,8 @@ export const ORIGIN_LABELS: Record<ExternalOrigin, string> = {
 };
 
 export const SOURCE_LABELS: Record<PaymentSource, string> = {
-  PROVIDER: 'Integrado (Pix/extrato)',
-  EXTERNAL: 'Informado por operador',
+  PROVIDER: 'Automático (Pix ou extrato)',
+  EXTERNAL: 'Informado (operador, credor ou integração)',
 };
 
 export const REVIEW_MODE_LABELS: Record<ReviewMode, string> = {

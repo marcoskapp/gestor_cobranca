@@ -3,6 +3,15 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 44,
+    date: '2026-11-25',
+    title: 'Pagamentos informados pela integração do credor',
+    items: [
+      { text: 'O pagamento que a integração do credor informa (recebido diretamente pelo credor) mostra "Integração do credor" e o nome da integração (token), em vez de um operador; na lista, a origem diz "Informado pela integração do credor".', route: '/pagamentos' },
+      { text: 'Novo limite para a integração: a soma de todas as integrações (tokens) do mesmo credor nas últimas 24 h; acima dele, o pagamento vai para Aprovação de pagamentos ("Soma da integração do credor").', route: '/pagamentos/aprovacoes' },
+    ],
+  },
+  {
     version: 43,
     date: '2026-11-25',
     title: 'Prazo do selo “Novo” mais fácil de achar',

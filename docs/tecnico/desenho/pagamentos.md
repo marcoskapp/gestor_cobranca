@@ -76,6 +76,18 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
 - **Aviso antecipado na tela** (decisão do responsável à 856; decisão 893): `GET /payment/settings/external-review` (`PAYMENT_REGISTER_EXTERNAL`, `PaymentSettingsUseCases.externalReviewLimit`) devolve só `externalReviewThreshold` — nada mais dos parâmetros, que seguem exigindo `PAYMENT_VIEW` ou `ORG_SETTINGS_MANAGE`. O diálogo "Informar pagamento" (lista de pagamentos, acordo, contestação) consulta esse endpoint para todos que registram e avisa acima do limite; o aviso é só antecipação: o registro no servidor continua decidindo, inclusive pelos limites acumulados, que a tela não mostra. Teste: `PaymentExternalIT.registerOnlyProfileReceivesJustTheSecondReviewThreshold`.
 - `Idempotency-Key` (escopo `payment.external`): mesma chave e conteúdo → mesmo pagamento.
 - **Informado pela pessoa do credor no portal** (fatia 6 do portal, [portal-credor.md](portal-credor.md) §3e; decisões 1435–1443): `Payment.informedByCreditor` — sempre `INFORMED` com revisão de outra pessoa, qualquer que seja o valor (motivo `CREDITOR_PORTAL`, canal `informed_channel = CREDITOR_PORTAL`, origem `CREDITOR_DIRECT`, `informed_by` = pessoa do credor); destino derivado dos números dos títulos; comprovante verificado antes da transação (veredito gravado); recusa com o motivo codificado para o credor (`Payment.rejectForCreditor`; `reject` comum recusa esse canal). `check`s na `V0812`.
+- **Informado pela integração do credor** (H07, decisões 1466 e 1515–1519): o registro pela API pública
+  (`POST /public-api/v1/payments`, token com `payments:write`) grava `informed_channel = INTEGRATION` (`V0813`) — o
+  canal vem do tipo do ator (`INTEGRATION`), nunca do pedido, e só existe com origem `CREDITOR_DIRECT`
+  (`Payment.informedByIntegration`, `check` `ck_payment_integration_channel`). Abaixo dos limites confirma sem revisão
+  (`AUTO_LOW_RISK`); além dos limites por pagamento, devedor e quem informa (o token), vale o **teto acumulado por
+  credor** somando todos os tokens do credor na janela (`creditorFactor`, padrão 4 × o limite por pagamento; motivo
+  `CREDITOR_CUMULATIVE`), sob a trava `payment.external.creditor_integration:<assessoria>:<credor>`, pega antes das de
+  quem informa e do devedor. A tela mostra "Integração do credor (token …)": o nome e o prefixo vêm da porta
+  `payment :: spi` `IntegrationTokenLabels`, implementada pelo publicapi (`PaymentView.integration`). A consulta das
+  parcelas e dos títulos cobertos por acordo na alocação (`negotiation :: allocation`) aceita `AGREEMENT_VIEW` ou
+  `PAYMENT_REGISTER_EXTERNAL` — antes o token sem `agreements:read` tinha o registro recusado. Os pagamentos antigos da
+  integração foram marcados pela auditoria do registro (ator `INTEGRATION`).
 - **Conteúdo ativo no comprovante** (decisão 1441): PDF com JavaScript, ação automática, arquivos embutidos, XFA ou mídia interativa, ou que não abre, é recusado no `EvidenceStore` em todo registro (`payment.evidence_active_content`, `payment.evidence_unreadable`).
 - **Quanto passa do limite** (revisão de produto 11/2026, item 3.1; `ux.md` §18): o registro grava no pagamento por que ele
   foi para a aprovação — `review_reason` (`AMOUNT`, `DESTINATION_CUMULATIVE`, `INFORMER_CUMULATIVE`; `STATEMENT_LINE` para o crédito de extrato, sem limite nem valor comparado — `V0810`), `review_limit` (o

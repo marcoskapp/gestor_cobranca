@@ -276,7 +276,7 @@ describe('conteúdo do onboarding', () => {
     // v17: aba "Acordos"; v18: prévia do template com o nome e o credor preenchidos, acompanhando a digitação
     expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(18);
     expect(findTour('collection.station')?.version).toBe(4);
-    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(6);
+    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(7);
     // aprovações no padrão único (revisão 11/2026, 3.1): decisão da fila antes do detalhe (":id" casaria o caminho)
     expect(findScreen('/pagamentos/aprovacoes/pay-1')?.key).toBe('payment.approval');
     expect(findScreen('/titulos/correcoes-de-valor/aj-1')?.key).toBe('debt.title-amount-approval');

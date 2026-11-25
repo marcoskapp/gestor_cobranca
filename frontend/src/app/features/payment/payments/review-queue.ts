@@ -178,7 +178,7 @@ export class ReviewQueue {
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.reviewQueue(page, f), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((p) => p.creditorId));
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((p) => p.debtorId), { batch: 100 });
-  protected readonly users = nameMap(inject(UserNames), () => this.query.rows().filter((p) => !p.creditorPortal).map((p) => p.informedBy), { batch: USER_NAMES_BATCH });
+  protected readonly users = nameMap(inject(UserNames), () => this.query.rows().filter((p) => !p.creditorPortal && !p.integration).map((p) => p.informedBy), { batch: USER_NAMES_BATCH });
   protected readonly informer = (p: PaymentView) => informerLabel(p, (id) => this.users.name(id));
 
   protected readonly columns: TableColumn[] = [

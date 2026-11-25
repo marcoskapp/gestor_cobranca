@@ -26,6 +26,11 @@ class PostgresExternalPaymentLocks implements ExternalPaymentLocks {
     }
 
     @Override
+    public void lockCreditorIntegration(UUID tenantId, UUID creditorId) {
+        lock("payment.external.creditor_integration:" + tenantId + ":" + creditorId);
+    }
+
+    @Override
     public void lockCreditorPortalReports(UUID tenantId, UUID creditorId) {
         lock("payment.creditor_portal:" + tenantId + ":" + creditorId);
     }

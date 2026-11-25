@@ -29,7 +29,7 @@ import { PaymentLauncher } from '../data/payment-launcher';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, SOURCE_LABELS } from '../data/payment.labels';
 import { PaymentFilter, PaymentView } from '../data/payment.models';
-import { fromStatementReview } from '../data/payment.rules';
+import { fromStatementReview, sourceLabel } from '../data/payment.rules';
 
 /** Pagamentos recebidos (Pix integrado, extrato e informados), filtráveis por situação, origem, credor e período. */
 @Component({
@@ -228,6 +228,9 @@ export class PaymentList {
 
   protected sourceText(p: PaymentView): string {
     if (p.source === 'EXTERNAL') {
+      if (p.creditorPortal || p.integration) {
+        return sourceLabel(p);
+      }
       return p.externalOrigin ? `Informado · ${ORIGIN_LABELS[p.externalOrigin]}` : 'Informado';
     }
     if (p.reviewMode === 'STATEMENT') {

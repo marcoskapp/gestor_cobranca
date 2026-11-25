@@ -430,6 +430,8 @@ app:
       destination-factor: 1
       # soma por usuário que informa
       informer-factor: 4
+      # soma da integração de um credor, todos os tokens juntos (H07, decisão 1516)
+      creditor-factor: 4
     # Situação de revisão no acordo e na ficha do caso: recusados recentes exibidos para o negociador agir.
     review-status:
       rejected-window: P30D

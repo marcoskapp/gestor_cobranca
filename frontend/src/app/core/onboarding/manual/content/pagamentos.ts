@@ -91,7 +91,7 @@ export const MANUAL: ModuleManual = {
         'Enquanto o pagamento aguarda, a quebra do acordo fica suspensa. O selo mostra até quando; com o prazo vencido, a quebra já voltou a valer e o pagamento aparece em destaque.',
       ],
       profiles: ['FINANCEIRO', 'SUPERVISOR'],
-      inputs: ['Pagamentos informados acima do limite definido em Parâmetros de pagamentos.', 'Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova).', 'Pagamentos que a pessoa do credor informou no portal do credor, recebidos diretamente por ele (sempre revisados, qualquer valor). Na recusa, escolha o motivo que o credor vê; a observação fica só com a assessoria. "Comprovante não verificado" indica que a verificação de vírus está desligada: abra com cuidado.'],
+      inputs: ['Pagamentos informados acima do limite definido em Parâmetros de pagamentos.', 'Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova).', 'Pagamentos que a pessoa do credor informou no portal do credor, recebidos diretamente por ele (sempre revisados, qualquer valor). Na recusa, escolha o motivo que o credor vê; a observação fica só com a assessoria. "Comprovante não verificado" indica que a verificação de vírus está desligada: abra com cuidado.', 'Pagamentos que a integração do credor informou (recebidos diretamente por ele) acima do limite; em "Informado por" aparece "Integração do credor", com o nome da integração.'],
       outputs: ['Pagamento confirmado e alocado, ou recusado com motivo.'],
       related: [
         { screen: 'payment.settings', why: 'Limite que exige aprovação.' },
@@ -104,7 +104,7 @@ export const MANUAL: ModuleManual = {
       title: 'Aprovação de pagamento',
       objective: 'Decida um pagamento informado vendo por que ele passou do limite e quanto passa.',
       purpose: [
-        'Mostra o limite ultrapassado no registro: o do pagamento sozinho, a soma do devedor no credor ou a soma de quem informou nas últimas horas, com o excesso em valor e %. Embaixo, o que foi informado, o destino solicitado e o comprovante.',
+        'Mostra o limite ultrapassado no registro: o do pagamento sozinho, a soma do devedor no credor, a soma de quem informou ou a soma da integração do credor (todas as integrações do credor juntas) nas últimas horas, com o excesso em valor e %. Embaixo, o que foi informado, o destino solicitado e o comprovante.',
         'Crédito de extrato importado aparece como "Crédito em extrato importado" e é sempre revisado: confira o crédito no extrato do banco. Se a cobrança já tiver sido paga pelo Pix, recuse o pagamento do extrato para não baixar em dobro.',
         '"Aprovar e abrir a próxima" e "Recusar e abrir a próxima" seguem na mesma fila filtrada, com o contador "1 de N". Quem informou não aprova, inclusive administradores.',
       ],

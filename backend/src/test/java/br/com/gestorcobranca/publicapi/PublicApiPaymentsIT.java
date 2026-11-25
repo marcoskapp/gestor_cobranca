@@ -1,0 +1,146 @@
+package br.com.gestorcobranca.publicapi;
+
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.DebtorRecord;
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.TitleRecord;
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases;
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.PaymentView;
+import br.com.gestorcobranca.publicapi.application.port.in.IntegrationTokenUseCases;
+import br.com.gestorcobranca.publicapi.application.port.in.IssueIntegrationToken.IssuedToken;
+import br.com.gestorcobranca.shared.domain.Ids;
+import br.com.gestorcobranca.support.TestPdfs;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Pagamento recebido diretamente pelo credor informado pela integração do credor (H07, decisões 1466 e 1515–1518),
+ * de ponta a ponta pela API pública: o token só com {@code payments:write} registra (antes era recusado), o canal
+ * {@code INTEGRATION} fica gravado com o nome do token na tela, e a soma de todos os tokens do mesmo credor tem teto
+ * próprio ({@code CREDITOR_CUMULATIVE}), conferido no banco com os {@code check}s da {@code V0813}.
+ */
+class PublicApiPaymentsIT extends PublicApiTestSupport {
+
+    @Autowired
+    DebtIngestionPort ingestion;
+    @Autowired
+    PaymentUseCases payments;
+    @Autowired
+    IntegrationTokenUseCases tokens;
+
+    @Test
+    void creditorIntegrationRegistersWithPaymentsWriteOnlyAndTheCreditorTotalSumsAllTokens() throws Exception {
+        // limite padrão de R$ 500,00 por pagamento e por devedor; R$ 2.000,00 por token e pela soma do credor (4 ×)
+        List<UUID> titles = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            titles.add(titleOfNewDebtor(i));
+        }
+        IssuedToken first = issue(creditorA, Set.of("payments:write"), null, List.of());
+        IssuedToken second = issue(creditorA, Set.of("payments:write"), null, List.of());
+
+        // 4 × R$ 450,00 (dois por token): cada devedor, cada token e o credor abaixo dos limites
+        List<String> statuses = new ArrayList<>();
+        List<UUID> ids = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            HttpResponse<String> r = register(i % 2 == 0 ? first : second, titles.get(i), "450.00", "API-" + i);
+            assertThat(r.statusCode()).as(r.body()).isEqualTo(201);
+            statuses.add((String) body(r).get("status"));
+            ids.add(UUID.fromString((String) body(r).get("id")));
+        }
+        assertThat(statuses).containsOnly("CONFIRMED");
+
+        // o quinto (token 1: R$ 1.350,00 no token, abaixo dos R$ 2.000,00) leva a soma do credor a R$ 2.250,00
+        HttpResponse<String> fifth = register(first, titles.get(4), "450.00", "API-4");
+        assertThat(fifth.statusCode()).as(fifth.body()).isEqualTo(201);
+        assertThat(body(fifth).get("status")).isEqualTo("INFORMED");
+        UUID fifthId = UUID.fromString((String) body(fifth).get("id"));
+        assertThat(system(() -> jdbc.queryForObject("""
+                select count(*) from payment.payment
+                 where id = ? and informed_channel = 'INTEGRATION' and review_reason = 'CREDITOR_CUMULATIVE'
+                   and review_limit = 2000.00 and review_considered_amount = 2250.00""", Long.class, fifthId)))
+                .isEqualTo(1);
+        assertThat(system(() -> jdbc.queryForObject("""
+                select count(*) from shared.business_event
+                 where event_type = 'payment.informed' and attributes->>'reviewReason' = 'CREDITOR_CUMULATIVE'
+                   and attributes->>'channel' = 'INTEGRATION'""", Long.class))).isEqualTo(1);
+
+        // na assessoria, quem informou é a integração do credor, com o nome atual do token
+        PaymentView view = asManager(() -> payments.get(ids.getFirst()));
+        assertThat(view.integration()).isNotNull();
+        assertThat(view.integration().tokenId()).isEqualTo(first.details().id());
+        assertThat(view.integration().tokenName()).isEqualTo(first.details().name());
+        assertThat(view.integration().tokenPrefix()).isNotBlank();
+        assertThat(view.integration().tokenRevoked()).isFalse();
+        asManager(() -> tokens.revoke(second.details().id(), "Teste de revogação"));
+        assertThat(asManager(() -> payments.get(ids.get(1))).integration().tokenRevoked()).isTrue();
+        assertThat(system(() -> jdbc.queryForObject(
+                "select count(*) from payment.payment where informed_channel = 'INTEGRATION'", Long.class))).isEqualTo(5);
+    }
+
+    private UUID titleOfNewDebtor(int seed) {
+        return system(() -> {
+            UUID debtor = ingestion.upsertDebtor(new DebtorRecord(cpf(seed), "Devedora Fictícia " + seed,
+                    LocalDate.of(1980, 1, 1), List.of(), null)).id();
+            return ingestion.upsertTitle(new TitleRecord(creditorA, portfolioA, debtor, "T-API-" + seed, null, 1,
+                    LocalDate.of(2026, 3, 10), new BigDecimal("1000.00"), null, null), Ids.newId()).id();
+        });
+    }
+
+    private HttpResponse<String> register(IssuedToken token, UUID titleId, String amount, String reference)
+            throws IOException, InterruptedException {
+        UUID debtorId = system(() -> jdbc.queryForObject("select debtor_id from debt.debt_title where id = ?", UUID.class,
+                titleId));
+        String query = Map.of("debtorId", debtorId.toString(), "amount", amount,
+                        "paidAt", Instant.now().minus(1, ChronoUnit.HOURS).toString(), "method", "PIX",
+                        "targetKind", "TITLES", "itemIds", titleId.toString(), "externalReference", reference)
+                .entrySet().stream()
+                .map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
+                .reduce((a, b) -> a + "&" + b).orElseThrow();
+        String boundary = "----gc" + UUID.randomUUID().toString().replace("-", "");
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"evidence\"; filename=\"comprovante.pdf\"\r\n"
+                + "Content-Type: application/pdf\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+        body.write(TestPdfs.blank());
+        body.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/public-api/v1/payments?" + query))
+                .header("Authorization", "Bearer " + token.token())
+                .header("Idempotency-Key", "pay-" + reference + "-" + UUID.randomUUID().toString().substring(0, 8))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build();
+        return http.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private static String cpf(int seed) {
+        String base = "%09d".formatted(200_000_000 + seed * 7);
+        int d1 = digit(base, 10);
+        int d2 = digit(base + d1, 11);
+        return base + d1 + d2;
+    }
+
+    private static int digit(String digits, int weight) {
+        int sum = 0;
+        for (int i = 0; i < digits.length(); i++) {
+            sum += (digits.charAt(i) - '0') * (weight - i);
+        }
+        int rest = sum % 11;
+        return rest < 2 ? 0 : 11 - rest;
+    }
+}

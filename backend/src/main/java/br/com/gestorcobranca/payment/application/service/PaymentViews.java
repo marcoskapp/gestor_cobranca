@@ -2,6 +2,8 @@ package br.com.gestorcobranca.payment.application.service;
 
 import br.com.gestorcobranca.payment.application.port.in.PaymentInstructionUseCases.InstructionView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.AllocationView;
+import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.IntegrationView;
+import br.com.gestorcobranca.payment.application.port.spi.IntegrationTokenLabels;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.LineView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.PaymentView;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.RequestedTargetView;
@@ -23,6 +25,7 @@ import tools.jackson.core.type.TypeReference;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,8 +42,9 @@ final class PaymentViews {
      * @param targetItems ids do destino solicitado ({@code target_items}) já decodificados; ignorados sem
      *                    {@code target_kind}
      */
+    /** @param tokenLabels rótulos dos tokens de integração (só usados nos pagamentos do canal {@code INTEGRATION}) */
     static PaymentView payment(Payment p, List<PaymentAllocation> allocations, Optional<PaymentReversal> reversal,
-                               List<UUID> targetItems) {
+                               List<UUID> targetItems, Map<UUID, IntegrationTokenLabels.TokenLabel> tokenLabels) {
         Money pendingReallocation = p.isEffective()
                 ? allocations.stream().map(PaymentAllocation::availableForReallocation).reduce(p.unallocated(), Money::plus)
                 : Money.ZERO;
@@ -56,7 +60,13 @@ final class PaymentViews {
                 p.isFromCreditorPortal() ? new br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.CreditorPortalView(p.getCreditorTitleNumbers(),
                         p.getEvidenceScanVerdict(), p.getEvidenceScanEngine(), p.getEvidenceScannedAt(),
                         p.getCreditorRejectionReason()) : null,
+                p.isFromIntegration() ? integration(p.getInformedBy(), tokenLabels.get(p.getInformedBy())) : null,
                 p.getVersion() == null ? 0 : p.getVersion());
+    }
+
+    private static IntegrationView integration(UUID tokenId, IntegrationTokenLabels.TokenLabel label) {
+        return label == null ? new IntegrationView(tokenId, null, null, false)
+                : new IntegrationView(tokenId, label.name(), label.displayPrefix(), label.revoked());
     }
 
     /** Ids do destino solicitado ({@code target_items}, JSON gravado no registro do pagamento externo). */

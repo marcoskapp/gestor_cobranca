@@ -65,10 +65,16 @@ class AgreementAllocationService implements AgreementAllocationQueries {
         return active;
     }
 
-    /** Ator interno continua precisando de {@code AGREEMENT_VIEW}; a pessoa do credor nunca consulta acordos. */
+    /**
+     * Quem aloca um pagamento precisa das parcelas e dos títulos cobertos pelo acordo, sem que isso vire consulta de
+     * acordos: vale {@code AGREEMENT_VIEW} ou {@code PAYMENT_REGISTER_EXTERNAL} (inclusive o token de integração com
+     * {@code payments:write}, que não tem {@code agreements:read} — antes o registro dele era recusado). A pessoa do
+     * credor nunca consulta acordos (fica no portal). Interface de consumo restrito ao payment (decisão 1435), que
+     * confere o credor e o devedor do destino; aqui o escopo por credor continua conferido.
+     */
     private void requireReader() {
         Actor actor = currentActor.get();
-        if (!actor.isCreditor()) {
+        if (!actor.isCreditor() && !actor.has(Permission.PAYMENT_REGISTER_EXTERNAL)) {
             accessScope.requirePermission(Permission.AGREEMENT_VIEW);
         }
     }

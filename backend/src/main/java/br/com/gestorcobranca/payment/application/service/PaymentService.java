@@ -26,6 +26,7 @@ import br.com.gestorcobranca.payment.domain.repository.PaymentAllocationReposito
 import br.com.gestorcobranca.payment.domain.repository.PaymentRepository;
 import br.com.gestorcobranca.payment.domain.repository.PaymentReversalRepository;
 import br.com.gestorcobranca.payment.domain.service.ExternalReviewPolicy;
+import br.com.gestorcobranca.payment.application.port.spi.IntegrationTokenLabels;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
@@ -39,6 +40,7 @@ import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
+import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.storage.FileCategory;
@@ -98,6 +100,7 @@ class PaymentService implements PaymentUseCases {
     private final AgreementBreakSuspensionUseCases breakSuspensions;
     private final StatementLineReview statementLineReview;
     private final PaymentReferenceDigest referenceDigest;
+    private final IntegrationTokenLabels tokenLabels;
 
     PaymentService(PaymentRepository payments, PaymentAllocationRepository allocations, PaymentReversalRepository reversals,
                    TargetResolver resolver, AllocationService allocationService, PaymentConfirmation confirmation,
@@ -106,8 +109,9 @@ class PaymentService implements PaymentUseCases {
                    AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, PaymentMetrics metrics,
                    JsonCodec json, Clock clock, ExternalPaymentLocks externalLocks, PaymentProperties properties,
                    AgreementBreakSuspensionUseCases breakSuspensions, StatementLineReview statementLineReview,
-                   PaymentReferenceDigest referenceDigest) {
+                   PaymentReferenceDigest referenceDigest, IntegrationTokenLabels tokenLabels) {
         this.referenceDigest = referenceDigest;
+        this.tokenLabels = tokenLabels;
         this.payments = payments;
         this.allocations = allocations;
         this.reversals = reversals;
@@ -204,16 +208,23 @@ class PaymentService implements PaymentUseCases {
         Guard.require(command.target() != null, "payment.target_required",
                 "Informe o destino do pagamento (parcelas de acordo ou títulos)");
         Destination destination = validatedDestination(command.target(), command.creditorId(), command.debtorId());
+        // canal pelo tipo do ator, nunca pelo pedido: a integração do credor só informa o que o credor recebeu (H07)
+        boolean integration = currentActor.get().type() == Actor.ActorType.INTEGRATION;
+        Guard.require(!integration || origin == ExternalOrigin.CREDITOR_DIRECT, "payment.integration_origin_invalid",
+                "A integração do credor só informa pagamento recebido diretamente pelo credor");
         UUID id = idempotency.execute("payment.external", idempotencyKey, hash(command), () -> {
             Payment.Evidence stored = evidenceStore.store(evidence);
             Money amount = Money.of(command.amount());
             Instant now = Instant.now(clock);
-            ExternalReviewPolicy.Decision decision = externalReview(command, amount, now);
+            ExternalReviewPolicy.Decision decision = externalReview(command, amount, now, integration);
             boolean reviewRequired = decision.reviewRequired();
             Payment informed = Payment.informed(method, command.creditorId(), command.debtorId(), amount,
                     command.paidAt(), origin, command.externalReference(), command.note(),
                     new Payment.Target(destination.kind(), destination.agreementId(), json.toJson(destination.items()),
                             destination.strategy()), stored, currentActor.actorId(), reviewRequired, now);
+            if (integration) {
+                informed.informedByIntegration();
+            }
             if (reviewRequired) {
                 informed.reviewTriggeredBy(decision.reason().name(), decision.limit(), decision.considered());
             }
@@ -229,11 +240,16 @@ class PaymentService implements PaymentUseCases {
     }
 
     /**
-     * Limite por pagamento da assessoria e limites acumulados na janela (por devedor/credor e por quem
-     * informa), sob lock para que registros simultâneos não escapem da soma.
+     * Limite por pagamento da assessoria e limites acumulados na janela (por devedor/credor, por quem informa e, na
+     * integração do credor, por credor somando todos os tokens), sob lock para que registros simultâneos não escapem
+     * da soma (ordem: credor da integração, quem informa, devedor).
      */
-    private ExternalReviewPolicy.Decision externalReview(ExternalPaymentCommand command, Money amount, Instant now) {
+    private ExternalReviewPolicy.Decision externalReview(ExternalPaymentCommand command, Money amount, Instant now,
+                                                         boolean integration) {
         UUID informer = currentActor.actorId();
+        if (integration) {
+            externalLocks.lockCreditorIntegration(currentActor.tenantId(), command.creditorId());
+        }
         externalLocks.lockExternalRegistration(currentActor.tenantId(), informer, command.creditorId(), command.debtorId());
         PaymentProperties.ExternalReview config = properties.externalReview();
         Money perPayment = settings.current().externalReviewThreshold();
@@ -241,8 +257,10 @@ class PaymentService implements PaymentUseCases {
         return ExternalReviewPolicy.decide(amount,
                 payments.sumExternalInformedForDebtor(command.creditorId(), command.debtorId(), since),
                 payments.sumExternalInformedBy(informer, since),
+                integration ? payments.sumIntegrationInformedForCreditor(command.creditorId(), since) : null,
                 new ExternalReviewPolicy.Limits(perPayment, perPayment.times(config.destinationFactor()),
-                        perPayment.times(config.informerFactor())));
+                        perPayment.times(config.informerFactor()),
+                        integration ? perPayment.times(config.creditorFactor()) : null));
     }
 
     @Override
@@ -480,15 +498,23 @@ class PaymentService implements PaymentUseCases {
         List<UUID> ids = page.getContent().stream().map(Payment::getId).toList();
         Map<UUID, List<PaymentAllocation>> byPayment = ids.isEmpty() ? Map.of() : allocations.findByPaymentIdIn(ids)
                 .stream().collect(Collectors.groupingBy(PaymentAllocation::getPaymentId));
+        Map<UUID, IntegrationTokenLabels.TokenLabel> labels = tokenLabels(page.getContent());
         return PageResponse.of(page, p -> PaymentViews.payment(p, byPayment.getOrDefault(p.getId(), List.of()).stream()
                 .sorted(java.util.Comparator.comparing(PaymentAllocation::getCreatedAt)).toList(),
                 p.getStatus() == PaymentStatus.REVERSED ? reversals.findByPaymentId(p.getId()) : java.util.Optional.empty(),
-                targetItems(p)));
+                targetItems(p), labels));
     }
 
     private PaymentView view(Payment p) {
         return PaymentViews.payment(p, allocations.findByPaymentIdOrderByCreatedAtAsc(p.getId()),
-                reversals.findByPaymentId(p.getId()), targetItems(p));
+                reversals.findByPaymentId(p.getId()), targetItems(p), tokenLabels(List.of(p)));
+    }
+
+    /** Rótulos dos tokens que registraram os pagamentos do canal integração (uma consulta por página). */
+    private Map<UUID, IntegrationTokenLabels.TokenLabel> tokenLabels(List<Payment> page) {
+        Set<UUID> tokenIds = page.stream().filter(Payment::isFromIntegration).map(Payment::getInformedBy)
+                .collect(Collectors.toSet());
+        return tokenIds.isEmpty() ? Map.of() : tokenLabels.labels(tokenIds);
     }
 
     /** Ids do destino solicitado (JSON gravado no registro do pagamento externo). */

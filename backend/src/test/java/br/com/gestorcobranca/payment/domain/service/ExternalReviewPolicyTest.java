@@ -51,4 +51,23 @@ class ExternalReviewPolicyTest {
         assertThat(ExternalReviewPolicy.decide(Money.of("400.00"), Money.ZERO, Money.of("1600.01"), limits).reason())
                 .isEqualTo(Reason.INFORMER_CUMULATIVE);
     }
+
+    @Test
+    void creditorIntegrationTotalSumsAllTokensOfTheCreditor() {
+        Limits integration = new Limits(Money.of("500.00"), Money.of("500.00"), Money.of("2000.00"), Money.of("2000.00"));
+        // cada token abaixo do seu teto, mas a soma do credor passa do teto por credor
+        var decision = ExternalReviewPolicy.decide(Money.of("400.00"), Money.ZERO, Money.of("400.00"),
+                Money.of("1800.00"), integration);
+        assertThat(decision.reason()).isEqualTo(Reason.CREDITOR_CUMULATIVE);
+        assertThat(decision.limit()).isEqualTo(Money.of("2000.00"));
+        assertThat(decision.considered()).isEqualTo(Money.of("2200.00"));
+        assertThat(ExternalReviewPolicy.decide(Money.of("200.00"), Money.ZERO, Money.of("200.00"), Money.of("1800.00"),
+                integration).reviewRequired()).isFalse();
+        // fora da integração (sem soma nem teto por credor) a regra não se aplica
+        assertThat(ExternalReviewPolicy.decide(Money.of("400.00"), Money.ZERO, Money.of("400.00"), limits)
+                .reviewRequired()).isFalse();
+        // os limites por pagamento, destino e quem informa continuam vindo antes
+        assertThat(ExternalReviewPolicy.decide(Money.of("600.00"), Money.ZERO, Money.ZERO, Money.of("1800.00"),
+                integration).reason()).isEqualTo(Reason.AMOUNT);
+    }
 }

@@ -84,12 +84,15 @@ class PaymentRecorder {
                 i.getPaidAt()));
     }
 
-    /** @param reviewReason motivo da exigência de revisão (AMOUNT, DESTINATION_CUMULATIVE, INFORMER_CUMULATIVE) ou nulo */
+    /**
+     * @param reviewReason motivo da exigência de revisão (AMOUNT, DESTINATION_CUMULATIVE, INFORMER_CUMULATIVE,
+     *                     CREDITOR_CUMULATIVE, STATEMENT_LINE, CREDITOR_PORTAL) ou nulo
+     */
     void informed(Payment p, String reviewReason) {
         metrics.payment(p.getSource().name(), p.getMethod().name(), "INFORMED");
         businessEvents.log(base(BusinessEventTypes.PAYMENT_INFORMED, p, List.of()).amount(p.getAmount())
                 .attr("origin", p.getExternalOrigin()).attr("reviewRequired", p.isReviewRequired())
-                .attr("reviewReason", reviewReason)
+                .attr("reviewReason", reviewReason).attr("channel", p.getInformedChannel())
                 .attr("targetKind", p.getTargetKind()).attr("hasEvidence", p.getEvidenceSha256() != null)
                 .attr("informedBy", p.getInformedBy() == null ? null : p.getInformedBy().toString())
                 .attr("daysSincePayment", Duration.between(p.getPaidAt(), Instant.now(clock)).toDays()));
@@ -100,7 +103,8 @@ class PaymentRecorder {
                 // a referência é texto livre e pode citar o pagador (SEG-20261124-H04): a trilha selada não guarda o texto,
                 // que fica só no pagamento (anonimizado com o titular)
                 .meta("hasExternalReference", p.hasExternalReference()).meta("targetKind", p.getTargetKind())
-                .meta("reviewReason", reviewReason).meta("statementLineId", p.getStatementLineId()));
+                .meta("reviewReason", reviewReason).meta("channel", p.getInformedChannel())
+                .meta("statementLineId", p.getStatementLineId()));
     }
 
     /**

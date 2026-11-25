@@ -578,7 +578,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.instruction', version: 1, path: '/pagamentos/instrucoes/:id', tourId: 'payment.instruction' },
   {
     key: 'payment.review',
-    version: 6,
+    version: 7,
     path: '/pagamentos/aprovacoes',
     tourId: 'payment.review',
     changes: [
@@ -587,17 +587,19 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 4, items: ['No celular, os filtros ficam no botão "Filtros (n)", com quantos estão aplicados.'] },
       { version: 5, items: ['Crédito de extrato importado que cita uma cobrança do sistema entra aqui para outra pessoa aprovar ("Extrato importado"); quem importou o extrato não aprova.'] },
       { version: 6, items: ['Pagamento informado pelo próprio credor no portal: aparece como "Pessoa do credor (portal do credor)", com os títulos informados e o resultado da verificação de vírus do comprovante; na recusa, escolha o motivo que o credor vê.'] },
+      { version: 7, items: ['Pagamento informado pela integração do credor aparece em "Informado por" como "Integração do credor", com o nome da integração.'] },
     ],
   },
   // decisão da fila antes do detalhe do pagamento (":id" casaria o caminho)
   {
     key: 'payment.approval',
-    version: 3,
+    version: 4,
     path: '/pagamentos/aprovacoes/:id',
     tourId: 'approval.decision',
     changes: [
       { version: 2, items: ['Pagamento vindo de extrato importado mostra "Crédito em extrato importado": confira o crédito no extrato do banco antes de aprovar.'] },
       { version: 3, items: ['Pagamento informado pelo próprio credor no portal mostra os títulos informados e se o comprovante passou pela verificação de segurança; na recusa, escolha o motivo que o credor vê.'] },
+      { version: 4, items: ['Pagamento informado pela integração do credor mostra a integração (token) que informou; novo motivo "Soma da integração do credor": todas as integrações do credor juntas passaram do limite.'] },
     ],
   },
   { key: 'payment.reallocation', version: 1, path: '/pagamentos/sobras', tourId: 'payment.reallocation' },
@@ -673,7 +675,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'payment.detail',
-    version: 5,
+    version: 6,
     path: '/pagamentos/:id',
     tourId: 'payment.detail',
     changes: [
@@ -681,6 +683,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Estornar passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
       { version: 4, items: ['O nome do devedor abre a ficha dele.', 'Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, acordos e títulos que receberam o pagamento.'] },
       { version: 5, items: ['Pagamento informado pelo próprio credor no portal: aparece como "Pessoa do credor (portal do credor)", com os títulos informados e o resultado da verificação de vírus do comprovante; na recusa, escolha o motivo que o credor vê.'] },
+      { version: 6, items: ['Pagamento informado pela integração do credor aparece como "Integração do credor", com o nome da integração e o atalho para a ficha do token (para quem administra integrações).'] },
     ],
   },
   { key: 'settlement.rules', version: 1, path: '/prestacao-de-contas/regras', tourId: 'settlement.rules' },

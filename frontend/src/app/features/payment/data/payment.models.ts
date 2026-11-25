@@ -219,7 +219,17 @@ export interface PaymentView {
   breakSuspension?: BreakSuspensionView | null;
   /** Informe feito pela pessoa do credor no portal do credor (nulo nos demais). */
   creditorPortal?: CreditorPortalView | null;
+  /** Registro feito pela integração do credor (token da API, H07; nulo nos demais). */
+  integration?: IntegrationView | null;
   version: number;
+}
+
+/** Token de integração do credor que registrou o pagamento (nome atual; nulo se o token não existe mais). */
+export interface IntegrationView {
+  tokenId: string;
+  tokenName: string | null;
+  tokenPrefix: string | null;
+  tokenRevoked: boolean;
 }
 
 /** Motivo da recusa que o credor vê no portal (a nota da revisão é interna). */
@@ -417,7 +427,7 @@ export interface PaymentSettingsRequest {
 export interface ReviewAssessmentView {
   paymentId: string;
   /** Nulo em pagamento registrado antes de o motivo ser gravado (compara com o limite atual por pagamento). */
-  reason: 'AMOUNT' | 'DESTINATION_CUMULATIVE' | 'INFORMER_CUMULATIVE' | 'STATEMENT_LINE' | 'CREDITOR_PORTAL' | null;
+  reason: 'AMOUNT' | 'DESTINATION_CUMULATIVE' | 'INFORMER_CUMULATIVE' | 'CREDITOR_CUMULATIVE' | 'STATEMENT_LINE' | 'CREDITOR_PORTAL' | null;
   limit: number | null;
   consideredAmount: number | null;
   excess: number | null;

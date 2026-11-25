@@ -219,7 +219,7 @@ Todos sob `/public-api/v1`, JSON, token obrigatório, escopo indicado. Listas us
 | `GET /collection-cases`, `/collection-cases/{id}` | `collection:read` | `CaseUseCases.changes/get` |
 | `GET /agreements`, `/agreements/{id}` | `agreements:read` | `AgreementUseCases.changes/get` |
 | `GET /payments`, `/payments/{id}` | `payments:read` | `PaymentUseCases.changes/get` |
-| `POST /payments` (multipart com evidência, Idempotency-Key) | `payments:write` | `PaymentUseCases.registerExternal` (origem `CREDITOR_DIRECT`; revisão por segunda pessoa acima do limite) |
+| `POST /payments` (multipart com evidência, Idempotency-Key) | `payments:write` (basta sozinho: a alocação lê o que o acordo cobre sem `agreements:read`, decisão 1518) | `PaymentUseCases.registerExternal` (origem `CREDITOR_DIRECT`, canal `INTEGRATION` gravado pelo tipo do ator; revisão por segunda pessoa acima do limite por pagamento, por devedor, por token e pela soma de todos os tokens do credor — `CREDITOR_CUMULATIVE`, decisão 1516). O publicapi implementa a porta `payment :: spi` `IntegrationTokenLabels` (nome e prefixo do token na tela do pagamento) |
 | `GET /disputes`, `/disputes/{id}` | `disputes:read` | `DisputeUseCases.changes/get` |
 | `POST /disputes` | `disputes:write` | `DisputeUseCases.open` (origem `CREDITOR`) |
 | `GET /disputes/{id}/creditor-requests`, `GET /disputes/{id}/creditor-responses` | `disputes:read` | `DisputeUseCases.creditorRequests/creditorResponses` (situação dos documentos) |

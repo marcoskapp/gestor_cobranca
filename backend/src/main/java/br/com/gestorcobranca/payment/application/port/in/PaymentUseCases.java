@@ -197,6 +197,14 @@ public interface PaymentUseCases {
                               Instant evidenceScannedAt, String creditorRejectionReason) {
     }
 
+    /**
+     * Pagamento registrado pela integração do credor (canal {@code INTEGRATION}, H07): o token que informou (nome
+     * atual e prefixo de exibição; nulos se o token não for mais encontrado). Recebido diretamente pelo credor e,
+     * abaixo dos limites, confirmado sem revisão.
+     */
+    record IntegrationView(UUID tokenId, String tokenName, String tokenPrefix, boolean tokenRevoked) {
+    }
+
     record PaymentView(UUID id, String source, String method, String status, UUID creditorId, UUID debtorId,
                        BigDecimal amount, Instant paidAt, UUID instructionId, String providerTransactionId,
                        String externalReference, String externalOrigin, String note, UUID informedBy, Instant informedAt,
@@ -205,7 +213,8 @@ public interface PaymentUseCases {
                        Instant reversedAt, BigDecimal allocatedAmount, BigDecimal unallocatedAmount,
                        BigDecimal pendingReallocation, boolean evidenceAvailable, String evidenceSha256,
                        List<AllocationView> allocations, ReversalView reversal, RequestedTargetView requestedTarget,
-                       BreakSuspensionView breakSuspension, CreditorPortalView creditorPortal, long version) {
+                       BreakSuspensionView breakSuspension, CreditorPortalView creditorPortal,
+                       IntegrationView integration, long version) {
 
         /**
          * Com a suspensão da quebra do acordo de destino (pagamento em revisão: destaque na fila quando o
@@ -217,7 +226,7 @@ public interface PaymentUseCases {
                     reviewThresholdExceeded, reviewMode, reviewedBy, reviewedAt, reviewNote, confirmedAt, reconciledAt,
                     reconciliationMode, reversedAt, allocatedAmount, unallocatedAmount, pendingReallocation,
                     evidenceAvailable, evidenceSha256, allocations, reversal, requestedTarget, suspension, creditorPortal,
-                    version);
+                    integration, version);
         }
     }
 }

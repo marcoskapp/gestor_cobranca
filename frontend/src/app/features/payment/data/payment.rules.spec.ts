@@ -6,6 +6,7 @@ import {
   evidenceProblem,
   expirationText,
   importIndicators,
+  informerLabel,
   isFingerprint,
   paidAtInstant,
   paymentActions,
@@ -13,6 +14,7 @@ import {
   reallocationSources,
   requiresSecondReview,
   requestedTargetText,
+  sourceLabel,
   statementFileProblem,
   toTargetRequest,
 } from './payment.rules';
@@ -135,5 +137,18 @@ describe('regras de pagamentos', () => {
     expect(requestedTargetText({ kind: 'AGREEMENT', itemIds: ['i-9'], strategy: null })).toBe('Acordo · 1 parcela(s) escolhida(s)');
     expect(requestedTargetText({ kind: 'TITLES', itemIds: ['t-1', 't-2'], strategy: 'OLDEST_FIRST' }, { titleLabels: new Map([['t-1', 'CRED-1/4'], ['t-2', 'CRED-1/5']]) })).toBe('Títulos CRED-1/4, CRED-1/5 · vencidos primeiro');
     expect(requestedTargetText({ kind: 'TITLES', itemIds: ['t-1'], strategy: 'PROPORTIONAL' })).toBe('1 título(s) avulso(s) · proporcional ao saldo');
+  });
+
+  it('pagamento da integração do credor mostra o token e a origem certa (não "operador")', () => {
+    const viaApi = payment({ source: 'EXTERNAL', informedBy: 't-1', integration: { tokenId: 't-1', tokenName: 'ERP do credor', tokenPrefix: 'gc_ab12', tokenRevoked: false } });
+    expect(informerLabel(viaApi, () => 'não usado')).toBe('Integração do credor · ERP do credor (gc_ab12)');
+    expect(sourceLabel(viaApi)).toBe('Informado pela integração do credor');
+    const revoked = payment({ source: 'EXTERNAL', informedBy: 't-1', integration: { tokenId: 't-1', tokenName: 'ERP', tokenPrefix: null, tokenRevoked: true } });
+    expect(informerLabel(revoked, () => '')).toBe('Integração do credor · ERP, acesso revogado');
+    const missing = payment({ source: 'EXTERNAL', informedBy: 't-9', integration: { tokenId: 't-9', tokenName: null, tokenPrefix: null, tokenRevoked: false } });
+    expect(informerLabel(missing, () => '')).toBe('Integração do credor · integração não identificada');
+    const byOperator = payment({ source: 'EXTERNAL', informedBy: 'u-1', integration: null });
+    expect(informerLabel(byOperator, () => 'Ana')).toBe('Ana');
+    expect(sourceLabel(byOperator)).toBe('Informado por operador');
   });
 });

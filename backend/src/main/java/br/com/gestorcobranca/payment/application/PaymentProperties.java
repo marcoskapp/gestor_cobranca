@@ -34,7 +34,7 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
         statement = statement == null ? new Statement(null, null, null) : statement;
         expirationCheckInterval = expirationCheckInterval == null ? Duration.ofMinutes(15) : expirationCheckInterval;
         sandbox = sandbox == null ? new Sandbox(false) : sandbox;
-        externalReview = externalReview == null ? new ExternalReview(null, null, null) : externalReview;
+        externalReview = externalReview == null ? new ExternalReview(null, null, null, null) : externalReview;
         reviewStatus = reviewStatus == null ? new ReviewStatus(null, null) : reviewStatus;
     }
 
@@ -70,17 +70,22 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
      * @param window            janela de acumulação (padrão 24 h)
      * @param destinationFactor múltiplo do limite por pagamento para a soma por devedor no credor (padrão 1)
      * @param informerFactor    múltiplo do limite por pagamento para a soma por usuário que informa (padrão 4)
+     * @param creditorFactor    múltiplo do limite por pagamento para a soma da integração de um credor, todos os
+     *                          tokens juntos (padrão 4, igual ao de quem informa; H07)
      */
-    public record ExternalReview(Duration window, BigDecimal destinationFactor, BigDecimal informerFactor) {
+    public record ExternalReview(Duration window, BigDecimal destinationFactor, BigDecimal informerFactor,
+                                 BigDecimal creditorFactor) {
 
         public ExternalReview {
             window = window == null ? Duration.ofHours(24) : window;
             destinationFactor = destinationFactor == null ? BigDecimal.ONE : destinationFactor;
             informerFactor = informerFactor == null ? new BigDecimal("4") : informerFactor;
+            creditorFactor = creditorFactor == null ? new BigDecimal("4") : creditorFactor;
             if (window.isNegative() || window.isZero()) {
                 throw new IllegalArgumentException("app.payment.external-review.window deve ser positiva");
             }
-            if (destinationFactor.compareTo(BigDecimal.ONE) < 0 || informerFactor.compareTo(BigDecimal.ONE) < 0) {
+            if (destinationFactor.compareTo(BigDecimal.ONE) < 0 || informerFactor.compareTo(BigDecimal.ONE) < 0
+                    || creditorFactor.compareTo(BigDecimal.ONE) < 0) {
                 throw new IllegalArgumentException("app.payment.external-review: fatores devem ser >= 1");
             }
         }
