@@ -703,6 +703,17 @@ export const TOURS: readonly TourDefinition[] = [
     ],
   },
   {
+    id: 'organization.settings',
+    version: 1,
+    title: 'Configurações da assessoria',
+    summary: 'Dados da assessoria, janela padrão de contato e prazo do selo “Novo” dos contatos recebidos.',
+    steps: [
+      { anchor: 'page-header', title: 'Uma seção por responsabilidade', body: 'Cada seção aparece para quem pode alterá-la: dados da assessoria para quem a configura; contatos recebidos para quem edita devedores.' },
+      { anchor: 'tenant-general', title: 'Dados gerais e janela de contato', body: 'Razão social e nome fantasia identificam a assessoria. A janela de contato vale como padrão quando o credor não tem uma própria.' },
+      { anchor: 'contact-novelty-settings', title: 'Contatos recebidos', body: 'Por quantos dias o contato que chega numa nova carga aparece como “Novo” na ficha do devedor, no caso, nas filas e nos segmentos.' },
+    ],
+  },
+  {
     id: 'organization.costs',
     version: 2,
     title: 'Custos operacionais',

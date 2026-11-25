@@ -32,6 +32,7 @@ import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { FORM_FIELD } from '../../../../shared/forms/field';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
+import { ConfigLink } from '../../../../shared/components/config-link/config-link';
 
 const DOCUMENT_LIKE = /^[\d.\-/\s]+$/;
 
@@ -82,7 +83,7 @@ export function parseDebtorQuery(
       padding-bottom: 6px;
     }
   `,
-  imports: [FilterBar, ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, DocumentDisplay, HasPermission, AppDatePipe, Icon, NgbTooltip, ...FORM_FIELD],
+  imports: [FilterBar, ReactiveFormsModule, RouterLink, DataTable, CellDef, EntityPicker, PageHeader, StatusChip, DocumentDisplay, HasPermission, AppDatePipe, Icon, NgbTooltip, ConfigLink, ...FORM_FIELD],
   template: `
     <app-page-header title="Devedores" subtitle="Pessoas e empresas com títulos em cobrança nas carteiras do seu escopo.">
       <button class="btn btn-primary" type="button" *appHasPermission="permission.DEBTOR_MANAGE" (click)="create()">
@@ -114,12 +115,13 @@ export function parseDebtorQuery(
       <div class="app-filters__wide">
         <app-entity-picker [control]="filters.controls.portfolio" [source]="portfolioSource" label="Carteira" [single]="true" />
       </div>
-      <div class="dl-toggles" data-tour="debtor-new-contact-filter">
+      <div class="dl-toggles flex-column align-items-start" data-tour="debtor-new-contact-filter">
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" role="switch" id="dl-new-contact" formControlName="newContact" aria-describedby="dl-new-contact-hint" />
           <label class="form-check-label" for="dl-new-contact">Com contato novo</label>
         </div>
         <span id="dl-new-contact-hint" class="visually-hidden">Contato recebido numa nova carga, ainda sem tentativa.</span>
+        <app-config-link route="/organizacao/configuracoes" fragment="contatos-recebidos" label="Ajustar o prazo do selo “Novo”" [permissions]="contactNoveltyPermissions" />
       </div>
     </form>
     </app-filter-bar>
@@ -178,6 +180,8 @@ export class DebtorList {
   protected readonly creditorSource = inject(CreditorLookup);
 
   protected readonly permission = Permission;
+  /** Atalho para o prazo do selo "Novo" (seção de Configurações): a permissão da seção, não a da tela. */
+  protected readonly contactNoveltyPermissions = [Permission.DEBTOR_MANAGE];
   protected readonly personTypes = PERSON_TYPE_LABELS;
 
   private readonly fb = inject(FormBuilder).nonNullable;

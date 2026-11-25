@@ -8,7 +8,7 @@ import { ConfigLink } from './config-link';
 describe('ConfigLink (atalho para a tela de configuração)', () => {
   let permissions: string[];
 
-  function render(): HTMLElement {
+  function render(fragment?: string): HTMLElement {
     TestBed.configureTestingModule({
       imports: [ConfigLink],
       providers: [
@@ -20,6 +20,9 @@ describe('ConfigLink (atalho para a tela de configuração)', () => {
     f.componentRef.setInput('route', '/negociacao/alcadas');
     f.componentRef.setInput('label', 'Gerenciar perfis de alçada');
     f.componentRef.setInput('permissions', ['AUTHORITY_MANAGE']);
+    if (fragment) {
+      f.componentRef.setInput('fragment', fragment);
+    }
     f.detectChanges();
     return f.nativeElement as HTMLElement;
   }
@@ -31,6 +34,11 @@ describe('ConfigLink (atalho para a tela de configuração)', () => {
     expect(a.getAttribute('target')).toBe('_blank');
     expect(a.getAttribute('rel')).toBe('noopener');
     expect(a.textContent).toContain('(abre em nova aba)');
+  });
+
+  it('com seção, o link leva à âncora da tela de destino', () => {
+    permissions = ['AUTHORITY_MANAGE'];
+    expect(render('perfis').querySelector('a')!.getAttribute('href')).toBe('/negociacao/alcadas#perfis');
   });
 
   it('sem a permissão, o atalho não aparece', () => {

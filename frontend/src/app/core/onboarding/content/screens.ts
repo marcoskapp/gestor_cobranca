@@ -179,7 +179,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'admin.units', version: 1, path: '/admin/unidades' },
   {
     key: 'debt.debtors',
-    version: 3,
+    version: 4,
     path: '/devedores',
     tourId: 'debt.debtors',
     changes: [
@@ -191,6 +191,7 @@ export const SCREENS: readonly ScreenGuide[] = [
           'Aberta pelo relatório da importação, a lista mostra os devedores que receberam contato novo naquela carga; "Ver todos os devedores" sai do filtro.',
         ],
       },
+      { version: 4, items: ['Abaixo do filtro "Com contato novo", o atalho "Ajustar o prazo do selo “Novo”" abre a seção Contatos recebidos das Configurações (para quem edita devedores).'] },
     ],
   },
   {
@@ -400,7 +401,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'collection.agenda', version: 1, path: '/cobranca/agenda', tourId: 'collection.agenda' },
   {
     key: 'collection.queues',
-    version: 6,
+    version: 7,
     path: '/cobranca/filas',
     tourId: 'collection.queues',
     changes: [
@@ -421,6 +422,7 @@ export const SCREENS: readonly ScreenGuide[] = [
           '"Distribuir" mostra antes a prévia: quantos casos iriam a cada operador e, nas filas por nível, a cada nível e faixa de potencial (por nível só para quem vê o desempenho de todas as pessoas da fila; os demais veem os totais por faixa).',
         ],
       },
+      { version: 7, items: ['No critério "Só devedores com contato novo", o atalho "Ajustar o prazo do selo “Novo”" abre a seção Contatos recebidos das Configurações (para quem edita devedores).'] },
     ],
   },
   {
@@ -1111,9 +1113,13 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'organization.settings',
-    version: 2,
+    version: 3,
     path: '/organizacao/configuracoes',
-    changes: [{ version: 2, items: ['Nova seção "Contatos recebidos", que antes tinha tela própria no menu: o prazo em que o telefone, e-mail ou endereço recebido numa nova carga aparece como "Novo". Quem não configura a assessoria vê só essa seção.'] }],
+    tourId: 'organization.settings',
+    changes: [
+      { version: 2, items: ['Nova seção "Contatos recebidos", que antes tinha tela própria no menu: o prazo em que o telefone, e-mail ou endereço recebido numa nova carga aparece como "Novo". Quem não configura a assessoria vê só essa seção.'] },
+      { version: 3, items: ['Tour guiado da tela e "Contatos recebidos" na busca rápida (Ctrl + K).'] },
+    ],
   },
   {
     key: 'organization.costs',

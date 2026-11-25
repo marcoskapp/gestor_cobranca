@@ -23,7 +23,7 @@
       </dl>
     </section>
 
-    <form class="app-card" [formGroup]="form" (ngSubmit)="save()" novalidate aria-labelledby="dados-gerais">
+    <form class="app-card" data-tour="tenant-general" [formGroup]="form" (ngSubmit)="save()" novalidate aria-labelledby="dados-gerais">
       <h2 class="app-card__title" id="dados-gerais">Dados gerais e janela de contato</h2>
       @for (e of generalErrors(); track e) {
         <div class="alert alert-danger d-flex align-items-start gap-2" role="alert"><app-icon name="exclamation-circle" /><span>{{ e }}</span></div>

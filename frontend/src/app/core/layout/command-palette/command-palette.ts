@@ -226,15 +226,28 @@ export class CommandPalette {
   private readonly navigation = computed<PaletteCommand[]>(() => {
     this.auth.user();
     return navigationFor((permission) => this.auth.hasPermission(permission)).flatMap((section) =>
-      section.items
-        .map((item) => ({
+      section.items.flatMap((item) => [
+        {
           id: `nav:${item.route}`,
           label: item.label,
           group: NAV_GROUP,
           icon: item.icon,
           hint: section.label ?? undefined,
           run: () => void this.router.navigateByUrl(item.route),
-        })),
+        },
+        // seções da tela como destino próprio, só com a permissão da seção (a tela pode abrir com outra)
+        ...(item.sections ?? [])
+          .filter((s) => (s.permissions.length ? s.permissions : item.permissions).some((p) => this.auth.hasPermission(p)))
+          .map((s) => ({
+            id: `nav:${item.route}#${s.fragment}`,
+            label: s.label,
+            group: NAV_GROUP,
+            icon: item.icon,
+            hint: item.label,
+            keywords: s.keywords,
+            run: () => void this.router.navigate([item.route], { fragment: s.fragment }),
+          })),
+      ]),
     );
   });
 

@@ -18,6 +18,8 @@ import { DIALOG_DIRECTIVES } from '../../../shared/dialog/dialog.directives';
 import { DIALOG_DATA, DialogRef } from '../../../shared/dialog/dialog-ref';
 import { Icon } from '../../../shared/components/icon/icon';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
+import { ConfigLink } from '../../../shared/components/config-link/config-link';
+import { Permission } from '../../../core/auth/permission';
 
 /** Faixas mínimo ≤ máximo nos critérios da fila. */
 export function rangeValidator(min: string, max: string) {
@@ -74,7 +76,7 @@ export function distributionValidator(group: AbstractControl): ValidationErrors 
  */
 @Component({
   selector: 'app-queue-form',
-  imports: [ReactiveFormsModule, EntityPicker, Icon, AppDatePipe, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
+  imports: [ReactiveFormsModule, EntityPicker, Icon, AppDatePipe, ConfigLink, ...FORM_FIELD, ...DIALOG_DIRECTIVES],
   host: { class: 'd-flex flex-column overflow-hidden' },
   styles: `
     .qf-time {
@@ -147,7 +149,7 @@ export function distributionValidator(group: AbstractControl): ValidationErrors 
           <div class="form-check form-switch app-span-all" data-tour="queue-new-contact">
             <input class="form-check-input" type="checkbox" role="switch" id="queue-new-contact" formControlName="newContactOnly" aria-describedby="queue-new-contact-hint" />
             <label class="form-check-label" for="queue-new-contact">Só devedores com contato novo</label>
-            <div class="form-text" id="queue-new-contact-hint">Telefone, e-mail ou endereço recebido numa nova carga e ainda sem tentativa. O caso sai da fila quando todos os contatos novos do devedor forem tentados ou, vencido o prazo, na revisão diária da madrugada.</div>
+            <div class="form-text"><span id="queue-new-contact-hint">Telefone, e-mail ou endereço recebido numa nova carga e ainda sem tentativa. O caso sai da fila quando todos os contatos novos do devedor forem tentados ou, vencido o prazo, na revisão diária da madrugada.</span>&ngsp;<app-config-link route="/organizacao/configuracoes" fragment="contatos-recebidos" label="Ajustar o prazo do selo “Novo”" [permissions]="contactNoveltyPermissions" /></div>
           </div>
           <app-field label="Tipo de pessoa" hint="Pessoa física (CPF) ou jurídica (CNPJ).">
             <select appInput formControlName="personType">
@@ -251,6 +253,8 @@ export class QueueForm {
   protected readonly strategies = Object.entries(STRATEGY_LABELS).map(([value, label]) => ({ value: value as QueueStrategy, label }));
   protected readonly saving = signal(false);
   protected readonly errors = signal<string[]>([]);
+  /** Atalho para o prazo do selo "Novo" (seção de Configurações): a permissão da seção, não a da tela. */
+  protected readonly contactNoveltyPermissions = [Permission.DEBTOR_MANAGE];
 
   private readonly fb = inject(FormBuilder).nonNullable;
   protected readonly form = this.fb.group(

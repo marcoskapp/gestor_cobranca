@@ -56,3 +56,23 @@ describe('DebtorList — contato novo', () => {
     expect(router.url).toContain('contato-novo=1');
   });
 });
+
+describe('DebtorList — atalho para o prazo do selo "Novo"', () => {
+  const settingsLink = (el: HTMLElement) => el.querySelector('a[href="/organizacao/configuracoes#contatos-recebidos"]');
+
+  it('com DEBTOR_MANAGE (a permissão da seção), o filtro leva à seção Contatos recebidos', async () => {
+    const { http } = setup(DebtorList, ['DEBTOR_VIEW', 'DEBTOR_MANAGE']);
+    await TestBed.inject(Router).navigateByUrl('/devedores');
+    const fixture = await render(DebtorList, http, () => emptyPage);
+    const link = settingsLink(fixture.nativeElement as HTMLElement);
+    expect(link?.textContent).toContain('Ajustar o prazo do selo “Novo”');
+    expect(link?.getAttribute('target')).toBe('_blank');
+  });
+
+  it('sem DEBTOR_MANAGE, o atalho não aparece', async () => {
+    const { http } = setup(DebtorList, ['DEBTOR_VIEW']);
+    await TestBed.inject(Router).navigateByUrl('/devedores');
+    const fixture = await render(DebtorList, http, () => emptyPage);
+    expect(settingsLink(fixture.nativeElement as HTMLElement)).toBeNull();
+  });
+});

@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 43,
+    date: '2026-11-25',
+    title: 'Prazo do selo “Novo” mais fácil de achar',
+    items: [
+      { text: 'A busca rápida (Ctrl + K) acha "Contatos recebidos" (também por "contato novo" ou "selo novo") e abre direto na seção das Configurações.', route: '/organizacao/configuracoes#contatos-recebidos' },
+      { text: 'No cadastro de fila (critério "Só devedores com contato novo") e no filtro "Com contato novo" da lista de devedores, o atalho "Ajustar o prazo do selo “Novo”" abre essa seção em nova aba (para quem edita devedores).', route: '/cobranca/filas' },
+      { text: 'Configurações da assessoria ganhou um tour guiado.', route: '/organizacao/configuracoes' },
+    ],
+  },
+  {
     version: 42,
     date: '2026-11-25',
     title: 'Contatos recebidos dentro das Configurações da assessoria',

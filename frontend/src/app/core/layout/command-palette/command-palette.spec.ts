@@ -140,6 +140,29 @@ describe('CommandPalette — busca de devedor e caso', () => {
     expect(fixture.nativeElement.textContent).toContain('Não foi possível buscar devedores e casos agora.');
   });
 
+  it('seção de tela (Contatos recebidos) aparece só com a permissão da seção e navega com o fragment', async () => {
+    permissions.set(['ORG_SETTINGS_MANAGE']);
+    const without = render();
+    await type(without, 'contato novo');
+    expect(options(without).join(' ')).not.toContain('Contatos recebidos');
+    await type(without, 'configurações');
+    expect(options(without).join(' ')).toContain('Configurações');
+
+    permissions.set(['DEBTOR_MANAGE']);
+    const fixture = render();
+    await type(fixture, 'selo novo');
+    const found = options(fixture);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain('Contatos recebidos');
+    expect(found[0]).toContain('Configurações');
+
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    (fixture.nativeElement.querySelector('[role="option"]') as HTMLElement).click();
+    expect(close).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(['/organizacao/configuracoes'], { fragment: 'contatos-recebidos' });
+  });
+
   it('"Recentes" ficam só em memória e somem na troca de usuário', () => {
     const recents = TestBed.inject(RecentRecords);
     recents.add({ kind: 'debtor', id: 'd-1', label: 'Ana' });

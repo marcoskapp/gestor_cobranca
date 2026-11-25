@@ -14,7 +14,7 @@ import { Icon } from '../icon/icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (visible()) {
-      <a class="config-link" [routerLink]="route()" [queryParams]="queryParams() ?? null" target="_blank" rel="noopener">
+      <a class="config-link" [routerLink]="route()" [queryParams]="queryParams() ?? null" [fragment]="fragment() ?? undefined" target="_blank" rel="noopener">
         {{ label() }}<app-icon name="box-arrow-up-right" /><span class="visually-hidden"> (abre em nova aba)</span>
       </a>
     }
@@ -31,9 +31,14 @@ export class ConfigLink {
   readonly route = input.required<string>();
   /** Filtro ou item da tela de destino (só ids e códigos — nunca dado pessoal; ux.md §16). */
   readonly queryParams = input<Record<string, string> | null>(null);
+  /**
+   * Seção da tela de destino (âncora `id`, ex.: `contatos-recebidos`). Com seção, `permissions` são as da seção, que
+   * podem ser mais restritas que as da tela.
+   */
+  readonly fragment = input<string | null>(null);
   /** Texto do link (ex.: "Gerenciar perfis de alçada"). */
   readonly label = input.required<string>();
-  /** Permissões da tela de destino (basta uma), as mesmas do menu. */
+  /** Permissões da tela de destino (basta uma), as mesmas do menu; com `fragment`, as da seção. */
   readonly permissions = input.required<readonly string[]>();
 
   protected readonly visible = computed(() => this.auth.hasAnyPermission(this.permissions()));

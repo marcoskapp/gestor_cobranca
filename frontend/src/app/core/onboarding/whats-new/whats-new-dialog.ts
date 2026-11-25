@@ -69,14 +69,25 @@ export class WhatsNewDialog {
   private readonly router = inject(Router);
   private readonly ref = inject(DialogRef);
   protected readonly notes = RELEASE_NOTES;
-  private readonly allowed = new Set(
+  private readonly has = (p: string) => this.auth.hasAnyPermission([p]);
+  private readonly allowed = new Map(
     NAVIGATION.flatMap((s) => s.items)
-      .filter((i) => canOpen(i, (p) => this.auth.hasAnyPermission([p])))
-      .map((i) => i.route),
+      .filter((i) => canOpen(i, this.has))
+      .map((i) => [i.route, i] as const),
   );
 
+  /**
+   * Rota com seção (`/organizacao/configuracoes#contatos-recebidos`) vale pela tela, sem o `#`; seção registrada no
+   * menu (`NavItem.sections`) exige também a permissão da seção.
+   */
   protected canOpen(item: ReleaseNoteItem): boolean {
-    return !!item.route && this.allowed.has(item.route);
+    if (!item.route) {
+      return false;
+    }
+    const [path, fragment] = item.route.split('#', 2);
+    const screen = this.allowed.get(path);
+    const section = fragment ? screen?.sections?.find((s) => s.fragment === fragment) : undefined;
+    return !!screen && (!section || !section.permissions.length || section.permissions.some(this.has));
   }
 
   protected open(item: ReleaseNoteItem): void {

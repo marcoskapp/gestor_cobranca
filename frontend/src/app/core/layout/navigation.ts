@@ -25,6 +25,22 @@ export interface NavItem {
   alsoRequires?: readonly string[];
   /** Nome do item para quem só tem `permission` entre as do item (ex.: "Meu desempenho" para o negociador). */
   ownLabel?: { permission: string; label: string };
+  /**
+   * Seções da tela que a busca rápida (Ctrl + K) oferece como destino próprio (navegação com `fragment`). Cada seção
+   * só aparece para quem tem uma das suas `permissions` (a da seção, não a da tela). Ex.: "Contatos recebidos" em
+   * Configurações.
+   */
+  sections?: readonly NavItemSection[];
+}
+
+/** Seção de uma tela do menu alcançável pela busca rápida (âncora `id` na tela = `fragment`). */
+export interface NavItemSection {
+  label: string;
+  fragment: string;
+  /** Basta uma (vazio = as do item). */
+  permissions: readonly string[];
+  /** Termos adicionais de busca (sinônimos). */
+  keywords?: readonly string[];
 }
 
 export interface NavSection {
@@ -326,7 +342,20 @@ export const NAVIGATION: readonly NavSection[] = [
       { label: 'Carteiras', icon: 'folder2-open', route: '/organizacao/carteiras', permissions: [P.ORGANIZATION_AREA_VIEW], alsoRequires: [P.PORTFOLIO_VIEW] },
       { label: 'Importação de carteiras', icon: 'file-earmark-arrow-up', route: '/importacao', permissions: [P.IMPORT_VIEW] },
       // inclui a seção "Contatos recebidos" (DEBTOR_MANAGE), que antes era um item próprio
-      { label: 'Configurações', icon: 'gear', route: '/organizacao/configuracoes', permissions: [P.ORG_SETTINGS_MANAGE, P.DEBTOR_MANAGE] },
+      {
+        label: 'Configurações',
+        icon: 'gear',
+        route: '/organizacao/configuracoes',
+        permissions: [P.ORG_SETTINGS_MANAGE, P.DEBTOR_MANAGE],
+        sections: [
+          {
+            label: 'Contatos recebidos',
+            fragment: 'contatos-recebidos',
+            permissions: [P.DEBTOR_MANAGE],
+            keywords: ['contato novo', 'selo novo', 'prazo do selo', 'telefone novo', 'e-mail novo'],
+          },
+        ],
+      },
       { label: 'Custos operacionais', icon: 'receipt-cutoff', route: '/organizacao/custos', permissions: [P.COST_MANAGE, P.COST_RATE_MANAGE] },
     ],
   },
