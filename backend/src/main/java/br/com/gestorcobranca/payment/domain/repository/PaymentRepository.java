@@ -23,6 +23,15 @@ public interface PaymentRepository {
 
     Optional<Payment> findById(UUID id);
 
+    /** Informes do portal do credor ainda em análise (limite por credor, RS-36; índice {@code ix_payment_creditor_portal}). */
+    long countCreditorPortalInReview(UUID creditorId);
+
+    /** Informe do portal em análise com os mesmos títulos, valor e data (duplicidade entre pessoas do credor). */
+    boolean existsCreditorPortalDuplicate(UUID creditorId, String titleNumbers, Money amount, Instant paidAt);
+
+    /** Informes do portal do credor, do mais recente ao mais antigo. */
+    List<Payment> findCreditorPortalReports(UUID creditorId, int limit);
+
     /** Bloqueia o pagamento (alocação, estorno e conciliação são serializados por pagamento). */
     Optional<Payment> findByIdForUpdate(UUID id);
 

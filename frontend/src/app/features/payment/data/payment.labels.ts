@@ -1,5 +1,6 @@
 import {
   AllocationOutcome,
+  CreditorRejectionReason,
   DivergenceResolution,
   DivergenceType,
   ExternalOrigin,
@@ -127,7 +128,26 @@ export const EXPIRATION_OPTIONS: readonly { value: number | null; label: string 
 ];
 
 /** Mensagens das recusas de regra que a tela apresenta por conta própria. */
+/** Rótulo curto do motivo da recusa, para a assessoria escolher (o texto que o credor lê está logo abaixo). */
+export const CREDITOR_REJECTION_REASON_LABELS: Record<CreditorRejectionReason, string> = {
+  PROOF_INVALID: 'O comprovante não permite confirmar o pagamento',
+  AMOUNT_OR_DATE_MISMATCH: 'Valor ou data não conferem com o comprovante',
+  WRONG_TITLES: 'Os títulos não correspondem ao pagamento',
+  DUPLICATE: 'Pagamento já registrado',
+  OTHER: 'Outro (o credor é orientado a falar com a assessoria)',
+};
+
+/** Texto que o credor lê no portal para cada motivo (o mesmo de `creditor/data/creditor.models.ts`). */
+export const CREDITOR_REJECTION_REASON_PORTAL_TEXT: Record<CreditorRejectionReason, string> = {
+  PROOF_INVALID: 'O comprovante não permite confirmar o pagamento (ilegível, incompleto ou de outra operação).',
+  AMOUNT_OR_DATE_MISMATCH: 'O valor ou a data do comprovante não conferem com o informado.',
+  WRONG_TITLES: 'Os títulos informados não correspondem ao pagamento.',
+  DUPLICATE: 'Este pagamento já estava registrado.',
+  OTHER: 'A assessoria não pôde confirmar o pagamento. Fale com a assessoria para os detalhes.',
+};
+
 export const PAYMENT_ERROR_LABELS: Record<string, string> = {
+  'payment.creditor_rejection_reason_required': 'Escolha o motivo da recusa que o credor vai ver.',
   'payment.self_review': 'Você informou este pagamento. A aprovação precisa ser feita por outra pessoa com permissão de revisão.',
   'payment.instruction_already_paid': 'A cobrança citada no extrato já foi paga por outro pagamento. Recuse este para não baixar em dobro.',
   'payment.self_reconciliation': 'Você informou este pagamento e não pode conciliá-lo. Peça a outra pessoa do financeiro.',

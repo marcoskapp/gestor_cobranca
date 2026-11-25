@@ -25,6 +25,8 @@ import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
+import br.com.gestorcobranca.shared.security.StepUpProofs;
+import br.com.gestorcobranca.shared.security.StepUpPurpose;
 import br.com.gestorcobranca.shared.storage.FileCategory;
 import br.com.gestorcobranca.shared.storage.FileStorage;
 import org.springframework.stereotype.Service;
@@ -66,11 +68,12 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
     private final SettlementMetrics metrics;
     private final JsonCodec json;
     private final Clock clock;
+    private final StepUpProofs stepUpProofs;
 
     CreditorSettlementService(SettlementStatementRepository statements, SettlementPositionService positions,
                               FileStorage storage, AccessScope accessScope, CurrentActor currentActor,
                               AccessLogger accessLogger, AuditTrail auditTrail, BusinessEventLogger businessEvents,
-                              SettlementMetrics metrics, JsonCodec json, Clock clock) {
+                              SettlementMetrics metrics, JsonCodec json, Clock clock, StepUpProofs stepUpProofs) {
         this.statements = statements;
         this.positions = positions;
         this.storage = storage;
@@ -82,6 +85,7 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
         this.metrics = metrics;
         this.json = json;
         this.clock = clock;
+        this.stepUpProofs = stepUpProofs;
     }
 
     @Override
@@ -138,16 +142,19 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
     @Override
     public CreditorStatementDetail acknowledge(UUID statementId, CreditorResponseCommand c) {
         UUID creditorId = creditor(Permission.CREDITOR_STATEMENT_RESPOND);
-        Guard.require(c != null && c.mfaVerifiedAt() != null, "statement.mfa_required",
+        Guard.require(c != null && c.stepUpProof() != null, "statement.mfa_required",
                 "Confirme com o código do autenticador");
         SettlementStatement s = load(statementId, creditorId, true);
         List<SettlementExport> files = requireSameFiles(s, c.fileSha256());
+        // comprovante opaco da nova verificação, emitido nesta transação para esta pessoa, sessão e demonstrativo (F07)
+        Instant mfaVerifiedAt = stepUpProofs.consume(c.stepUpProof(), StepUpPurpose.STATEMENT_ACKNOWLEDGE,
+                statementId.toString());
         Actor actor = currentActor.get();
         Instant now = Instant.now(clock);
         StatementStatus previous = s.getStatus();
         s.acknowledge(actor.id(), ResponseOrigin.CREDITOR_PORTAL, c.note(), now);
         statements.save(s);
-        StatementCreditorTerm term = term(s, "ACKNOWLEDGED", actor, now, c, files);
+        StatementCreditorTerm term = term(s, "ACKNOWLEDGED", actor, now, c, mfaVerifiedAt, files);
         auditTrail.record(AuditEntry.of("settlement_statement.acknowledged", RESOURCE, s.getId())
                 .creditor(s.getCreditorId()).change("status", previous, s.getStatus())
                 .created("origin", ResponseOrigin.CREDITOR_PORTAL).created("termId", term.getId()).created("termSha256", term.getTermSha256()));
@@ -170,7 +177,7 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
         StatementStatus previous = s.getStatus();
         s.contest(actor.id(), ResponseOrigin.CREDITOR_PORTAL, c.note(), now);
         statements.save(s);
-        StatementCreditorTerm term = term(s, "CONTESTED", actor, now, c, files);
+        StatementCreditorTerm term = term(s, "CONTESTED", actor, now, c, null, files);
         auditTrail.record(AuditEntry.of("settlement_statement.contested", RESOURCE, s.getId()).creditor(s.getCreditorId())
                 .change("status", previous, s.getStatus()).reason(s.getCreditorResponseNote())
                 .created("origin", ResponseOrigin.CREDITOR_PORTAL).created("termId", term.getId()).created("termSha256", term.getTermSha256()));
@@ -216,7 +223,7 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
     }
 
     private StatementCreditorTerm term(SettlementStatement s, String decision, Actor actor, Instant now,
-                                       CreditorResponseCommand c, List<SettlementExport> files) {
+                                       CreditorResponseCommand c, Instant mfaVerifiedAt, List<SettlementExport> files) {
         List<Map<String, Object>> fileList = files.stream()
                 .sorted(Comparator.comparing(SettlementExport::getSha256))
                 .map(f -> {
@@ -228,7 +235,7 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
                     return m;
                 }).toList();
         Instant recordedAt = now.truncatedTo(ChronoUnit.MICROS);
-        Instant mfaAt = c.mfaVerifiedAt() == null ? null : c.mfaVerifiedAt().truncatedTo(ChronoUnit.MICROS);
+        Instant mfaAt = mfaVerifiedAt == null ? null : mfaVerifiedAt.truncatedTo(ChronoUnit.MICROS);
         String note = s.getCreditorResponseNote();
         String canonical = StatementTermDigest.canonical(s.getTenantId(), s.getId(), decision, actor.id(),
                 actor.sessionId(), recordedAt, mfaAt, s.getNetTransferAmount().amount(), note,

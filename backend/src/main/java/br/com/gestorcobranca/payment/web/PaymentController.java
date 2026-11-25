@@ -128,8 +128,8 @@ class PaymentController {
 
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('PAYMENT_REVIEW')")
-    PaymentView reject(@PathVariable UUID id, @Valid @RequestBody NoteRequest request) {
-        return payments.reject(id, request.note());
+    PaymentView reject(@PathVariable UUID id, @Valid @RequestBody RejectRequest request) {
+        return payments.reject(id, request.note(), request.creditorReason());
     }
 
     @PostMapping("/{id}/reverse")
@@ -186,6 +186,12 @@ class PaymentController {
     }
 
     record NoteRequest(@Size(max = 1000) String note) {
+    }
+
+    /** @param creditorReason motivo que o credor vê (só para informe do portal do credor) */
+    record RejectRequest(@Size(max = 1000) String note,
+                         @jakarta.validation.constraints.Pattern(regexp = "PROOF_INVALID|AMOUNT_OR_DATE_MISMATCH|WRONG_TITLES|DUPLICATE|OTHER")
+                         String creditorReason) {
     }
 
     record ReverseRequest(@NotBlank @Size(max = 30) String reason, @NotBlank @Size(max = 1000) String note) {

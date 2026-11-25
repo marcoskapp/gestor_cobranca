@@ -315,10 +315,23 @@ class PaymentService implements PaymentUseCases {
 
     @Override
     public PaymentView reject(UUID paymentId, String note) {
+        return reject(paymentId, note, null);
+    }
+
+    @Override
+    public PaymentView reject(UUID paymentId, String note, String creditorReason) {
         accessScope.requirePermission(Permission.PAYMENT_REVIEW);
         Payment p = lockForCommand(paymentId);
         Instant now = Instant.now(clock);
-        p.reject(currentActor.actorId(), note, now);
+        if (p.isFromCreditorPortal()) {
+            p.rejectForCreditor(currentActor.actorId(), note, PaymentEnums.parse(
+                    br.com.gestorcobranca.payment.domain.model.CreditorRejectionReason.class, creditorReason,
+                    "payment.creditor_rejection_reason_required", "Motivo para o credor"), now);
+        } else {
+            Guard.require(creditorReason == null || creditorReason.isBlank(), "payment.creditor_reason_not_applicable",
+                    "Motivo para o credor só vale para pagamento informado pelo credor no portal");
+            p.reject(currentActor.actorId(), note, now);
+        }
         payments.save(p);
         metrics.review("REJECTED", Duration.between(p.getInformedAt(), now));
         recorder.rejected(p);

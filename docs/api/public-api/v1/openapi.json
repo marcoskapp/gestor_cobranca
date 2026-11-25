@@ -6221,7 +6221,7 @@
         "tags" : [ "Pagamentos" ]
       },
       "post" : {
-        "description" : "Evidência (PDF, PNG ou JPEG) obrigatória. Destino: parcelas de um acordo (`targetKind=AGREEMENT`) ou títulos avulsos (`TITLES`). Acima do limite de risco da assessoria o pagamento fica INFORMED até a revisão.",
+        "description" : "Evidência (PDF, PNG ou JPEG) obrigatória; PDF com conteúdo ativo (JavaScript, arquivo embutido, ação automática, XFA) ou que não abre (protegido por senha ou corrompido) é recusado com 422 `payment.evidence_active_content` ou `payment.evidence_unreadable`. Destino: parcelas de um acordo (`targetKind=AGREEMENT`) ou títulos avulsos (`TITLES`). Acima do limite de risco da assessoria o pagamento fica INFORMED até a revisão.",
         "operationId" : "register",
         "parameters" : [ {
           "in" : "header",

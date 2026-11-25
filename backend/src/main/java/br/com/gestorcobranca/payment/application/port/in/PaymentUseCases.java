@@ -77,6 +77,13 @@ public interface PaymentUseCases {
 
     PaymentView reject(UUID paymentId, String note);
 
+    /**
+     * Recusa com o motivo que o credor vê (obrigatório para informe do portal do credor; a nota continua interna).
+     *
+     * @param creditorReason PROOF_INVALID, AMOUNT_OR_DATE_MISMATCH, WRONG_TITLES, DUPLICATE ou OTHER
+     */
+    PaymentView reject(UUID paymentId, String note, String creditorReason);
+
     PaymentView reverse(UUID paymentId, ReverseCommand command);
 
     /** Pagamentos com saldo não alocado ou não aplicado pelo negotiation (fila de realocação). */
@@ -180,7 +187,16 @@ public interface PaymentUseCases {
      * @param requestedTarget          destino solicitado do pagamento externo (nulo nos integrados)
      * @param breakSuspension          externo em revisão com acordo de destino: suspensão da quebra mais recente do
      *                                 acordo (só na fila de revisão e no detalhe, para quem tem {@code AGREEMENT_VIEW})
+     * @param creditorPortal           informe feito pela pessoa do credor no portal (nulo nos demais)
      */
+    /**
+     * Informe da pessoa do credor no portal: os números de título como informados, a verificação do comprovante antes
+     * de gravar (CLEAN ou NOT_SCANNED — "não verificado" para quem revisa) e o motivo codificado da recusa.
+     */
+    record CreditorPortalView(String titleNumbers, String evidenceScanVerdict, String evidenceScanEngine,
+                              Instant evidenceScannedAt, String creditorRejectionReason) {
+    }
+
     record PaymentView(UUID id, String source, String method, String status, UUID creditorId, UUID debtorId,
                        BigDecimal amount, Instant paidAt, UUID instructionId, String providerTransactionId,
                        String externalReference, String externalOrigin, String note, UUID informedBy, Instant informedAt,
@@ -189,7 +205,7 @@ public interface PaymentUseCases {
                        Instant reversedAt, BigDecimal allocatedAmount, BigDecimal unallocatedAmount,
                        BigDecimal pendingReallocation, boolean evidenceAvailable, String evidenceSha256,
                        List<AllocationView> allocations, ReversalView reversal, RequestedTargetView requestedTarget,
-                       BreakSuspensionView breakSuspension, long version) {
+                       BreakSuspensionView breakSuspension, CreditorPortalView creditorPortal, long version) {
 
         /**
          * Com a suspensão da quebra do acordo de destino (pagamento em revisão: destaque na fila quando o
@@ -200,7 +216,8 @@ public interface PaymentUseCases {
                     providerTransactionId, externalReference, externalOrigin, note, informedBy, informedAt,
                     reviewThresholdExceeded, reviewMode, reviewedBy, reviewedAt, reviewNote, confirmedAt, reconciledAt,
                     reconciliationMode, reversedAt, allocatedAmount, unallocatedAmount, pendingReallocation,
-                    evidenceAvailable, evidenceSha256, allocations, reversal, requestedTarget, suspension, version);
+                    evidenceAvailable, evidenceSha256, allocations, reversal, requestedTarget, suspension, creditorPortal,
+                    version);
         }
     }
 }

@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "802183f196484ab4",
+ "contentVersion": "681f05febed4544c",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -4067,7 +4067,8 @@
    ],
    "inputs": [
     "Pagamentos informados acima do limite definido em Parâmetros de pagamentos.",
-    "Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova)."
+    "Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova).",
+    "Pagamentos que a pessoa do credor informou no portal do credor, recebidos diretamente por ele (sempre revisados, qualquer valor). Na recusa, escolha o motivo que o credor vê; a observação fica só com a assessoria. \"Comprovante não verificado\" indica que a verificação de vírus está desligada: abra com cuidado."
    ],
    "outputs": [
     "Pagamento confirmado e alocado, ou recusado com motivo."

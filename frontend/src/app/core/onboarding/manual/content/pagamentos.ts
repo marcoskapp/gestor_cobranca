@@ -91,7 +91,7 @@ export const MANUAL: ModuleManual = {
         'Enquanto o pagamento aguarda, a quebra do acordo fica suspensa. O selo mostra até quando; com o prazo vencido, a quebra já voltou a valer e o pagamento aparece em destaque.',
       ],
       profiles: ['FINANCEIRO', 'SUPERVISOR'],
-      inputs: ['Pagamentos informados acima do limite definido em Parâmetros de pagamentos.', 'Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova).'],
+      inputs: ['Pagamentos informados acima do limite definido em Parâmetros de pagamentos.', 'Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova).', 'Pagamentos que a pessoa do credor informou no portal do credor, recebidos diretamente por ele (sempre revisados, qualquer valor). Na recusa, escolha o motivo que o credor vê; a observação fica só com a assessoria. "Comprovante não verificado" indica que a verificação de vírus está desligada: abra com cuidado.'],
       outputs: ['Pagamento confirmado e alocado, ou recusado com motivo.'],
       related: [
         { screen: 'payment.settings', why: 'Limite que exige aprovação.' },

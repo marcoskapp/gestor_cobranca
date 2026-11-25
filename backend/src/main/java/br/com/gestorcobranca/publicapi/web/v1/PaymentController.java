@@ -94,7 +94,9 @@ class PaymentController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('SCOPE_payments:write')")
     @Operation(summary = "Informar pagamento recebido pelo credor", description = "Evidência (PDF, PNG ou JPEG) "
-            + "obrigatória. Destino: parcelas de um acordo (`targetKind=AGREEMENT`) ou títulos avulsos (`TITLES`). "
+            + "obrigatória; PDF com conteúdo ativo (JavaScript, arquivo embutido, ação automática, XFA) ou que não abre "
+            + "(protegido por senha ou corrompido) é recusado com 422 `payment.evidence_active_content` ou "
+            + "`payment.evidence_unreadable`. Destino: parcelas de um acordo (`targetKind=AGREEMENT`) ou títulos avulsos (`TITLES`). "
             + "Acima do limite de risco da assessoria o pagamento fica INFORMED até a revisão.",
             parameters = @Parameter(name = "Idempotency-Key", in = ParameterIn.HEADER, required = true,
                     schema = @Schema(type = "string")))

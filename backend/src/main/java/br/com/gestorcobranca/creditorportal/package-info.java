@@ -10,7 +10,8 @@
  * decisão. Sem tabela própria no MVP (faixa V2600–V2699 reservada).
  */
 @ApplicationModule(displayName = "Creditor portal",
-        allowedDependencies = {"shared", "identity :: creditor", "settlement :: creditor", "collection :: creditor"})
+        allowedDependencies = {"shared", "identity :: creditor", "settlement :: creditor", "collection :: creditor",
+                "payment :: creditor"})
 package br.com.gestorcobranca.creditorportal;
 
 import org.springframework.modulith.ApplicationModule;

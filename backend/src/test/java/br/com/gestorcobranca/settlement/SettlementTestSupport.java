@@ -89,7 +89,8 @@ abstract class SettlementTestSupport extends IntegrationTest {
     }
 
     static final String CPF = "529.982.247-25";
-    static final byte[] PDF = "%PDF-1.4\n% comprovante de teste\n".getBytes(StandardCharsets.US_ASCII);
+    /** PDF válido (o comprovante é aberto e conferido: conteúdo ativo é recusado). */
+    static final byte[] PDF = br.com.gestorcobranca.support.TestPdfs.blank();
 
     @Autowired
     SettlementClock clock;

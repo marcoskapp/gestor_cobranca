@@ -182,7 +182,7 @@ class CollectionMetrics {
         registry.counter("collection.disputes.mail_replies.received", "outcome", outcome, "reason", reason).increment();
     }
 
-    /** @param outcome accepted, rejected_type, rejected_size ou rejected_limit */
+    /** @param outcome accepted, rejected_type, rejected_size, rejected_limit ou rejected_active_content */
     void disputeMailAttachment(String outcome) {
         registry.counter("collection.disputes.mail_replies.attachments", "outcome", outcome).increment();
     }

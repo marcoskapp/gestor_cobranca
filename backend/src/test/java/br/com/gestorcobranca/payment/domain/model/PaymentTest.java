@@ -138,4 +138,31 @@ class PaymentTest {
                 ExternalOrigin.AGENCY_ACCOUNT, "anon:Fulano", null, null, evidence, informer, false, now))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("anon:");
     }
+
+    @Test
+    void creditorPortalReportIsAlwaysReviewedAndRejectionCarriesTheReasonTheCreditorSees() {
+        Payment p = Payment.informedByCreditor(PaymentMethod.PIX, creditor, debtor, Money.of("10.00"),
+                now.minusSeconds(60), null, null, null, evidence, "T-1", "CLEAN", "clamd", now, informer, now);
+        assertThat(p.getStatus()).isEqualTo(PaymentStatus.INFORMED);
+        assertThat(p.isReviewRequired()).isTrue();
+        assertThat(p.isFromCreditorPortal()).isTrue();
+        assertThat(p.getExternalOrigin()).isEqualTo(ExternalOrigin.CREDITOR_DIRECT);
+        assertThat(p.getReviewReason()).isEqualTo(Payment.REVIEW_REASON_CREDITOR_PORTAL);
+        UUID reviewer = UUID.randomUUID();
+        assertThatThrownBy(() -> p.reject(reviewer, "nota", now)).isInstanceOf(BusinessRuleException.class);
+        assertThatThrownBy(() -> p.rejectForCreditor(reviewer, "nota", null, now)).isInstanceOf(BusinessRuleException.class);
+        p.rejectForCreditor(reviewer, "Comprovante de outra conta", CreditorRejectionReason.PROOF_INVALID, now);
+        assertThat(p.getStatus()).isEqualTo(PaymentStatus.REJECTED);
+        assertThat(p.getCreditorRejectionReason()).isEqualTo("PROOF_INVALID");
+    }
+
+    @Test
+    void creditorPortalReportNeedsVerifiedEvidenceAndTheReasonOnlyAppliesToIt() {
+        assertThatThrownBy(() -> Payment.informedByCreditor(PaymentMethod.PIX, creditor, debtor, Money.of("10.00"),
+                now.minusSeconds(60), null, null, null, evidence, "T-1", "INFECTED", "clamd", now, informer, now))
+                .isInstanceOf(BusinessRuleException.class);
+        Payment common = informed(true);
+        assertThatThrownBy(() -> common.rejectForCreditor(UUID.randomUUID(), "nota", CreditorRejectionReason.OTHER, now))
+                .isInstanceOf(DomainException.class);
+    }
 }

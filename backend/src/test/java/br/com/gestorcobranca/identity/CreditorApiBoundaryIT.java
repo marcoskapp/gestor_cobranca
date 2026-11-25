@@ -60,6 +60,10 @@ class CreditorApiBoundaryIT extends IntegrationTest {
         mvc.perform(get("/api/creditor/v1/disputes/" + Ids.newId()).with(authentication(debtor)))
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/creditor/v1/disputes")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/creditor/v1/payments").with(authentication(user))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/creditor/v1/payments/titles").param("number", "T-1").with(authentication(debtor)))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/creditor/v1/payments")).andExpect(status().isUnauthorized());
         // anônimo: 401
         mvc.perform(get("/api/creditor/v1/overview")).andExpect(status().isUnauthorized());
         mvc.perform(get("/v3/api-docs.yaml")).andExpect(status().isUnauthorized());

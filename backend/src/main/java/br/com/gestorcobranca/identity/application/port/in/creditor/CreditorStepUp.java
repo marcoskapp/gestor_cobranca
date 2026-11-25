@@ -1,6 +1,6 @@
 package br.com.gestorcobranca.identity.application.port.in.creditor;
 
-import java.time.Instant;
+import br.com.gestorcobranca.shared.security.StepUpPurpose;
 
 /**
  * Nova verificação do MFA da pessoa do credor <b>na própria requisição da ação</b> (aceite da prestação de contas,
@@ -14,9 +14,13 @@ import java.time.Instant;
 public interface CreditorStepUp {
 
     /**
-     * @param purpose ação verificada (vai para o log de acesso), ex.: {@code statement_acknowledge}
-     * @return instante da verificação (o módulo dono grava junto da ação)
+     * Exige a transação da ação (propagação {@code MANDATORY}).
+     *
+     * @param purpose    ação verificada (vai para o log de acesso)
+     * @param subjectRef alvo da ação (o mesmo que o módulo dono confere)
+     * @return comprovante opaco de uso único, que o módulo dono confere em
+     *         {@link br.com.gestorcobranca.shared.security.StepUpProofs#consume} na mesma transação (SEG-F07)
      * @throws br.com.gestorcobranca.shared.domain.BusinessRuleException código inválido ou repetido
      */
-    Instant verify(String code, String purpose);
+    String verify(String code, StepUpPurpose purpose, String subjectRef);
 }

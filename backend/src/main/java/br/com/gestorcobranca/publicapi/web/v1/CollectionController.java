@@ -186,7 +186,9 @@ class CollectionController {
     @PreAuthorize("hasAuthority('SCOPE_disputes:write')")
     @Operation(summary = "Responder ao pedido da assessoria na contestação, com documentos",
             description = "Partes: `response` (JSON, mesmo conteúdo da resposta sem documentos) e `files` (até 5 arquivos "
-                    + "PDF, PNG ou JPEG de até 10 MB cada; o tipo é conferido pelo conteúdo, não pela extensão). Os "
+                    + "PDF, PNG ou JPEG de até 10 MB cada; o tipo é conferido pelo conteúdo, não pela extensão; PDF com "
+                    + "conteúdo ativo ou que não abre é recusado com 422 `dispute.evidence_pdf_active_content` ou "
+                    + "`dispute.evidence_pdf_unreadable`). Os "
                     + "documentos passam por verificação de segurança (quarentena) antes de chegar à assessoria: "
                     + "acompanhe por `GET /disputes/{id}/creditor-responses` (`documentsInVerification`, "
                     + "`documentsAccepted`, `documentsRejected`). Limite próprio de envios com documentos por token "

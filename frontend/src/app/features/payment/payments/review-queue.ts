@@ -31,7 +31,7 @@ import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS } from '../data/payment.labels';
 import { PaymentView } from '../data/payment.models';
-import { fromStatementReview } from '../data/payment.rules';
+import { fromStatementReview, informerLabel } from '../data/payment.rules';
 import { breakHoldBadge } from '../data/review-status';
 
 /**
@@ -119,12 +119,18 @@ import { breakHoldBadge } from '../data/review-status';
           </div>
         }
       </ng-template>
-      <ng-template appCell="informedBy" [appCellOf]="query.rows()" let-p>{{ users.name(p.informedBy) }}</ng-template>
+      <ng-template appCell="informedBy" [appCellOf]="query.rows()" let-p>{{ informer(p) }}</ng-template>
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
         @if (p.evidenceAvailable) {
-          <button class="btn btn-sm btn-link" type="button" (click)="download(p)" [disabled]="downloading() === p.id" aria-label="Baixar comprovante" ngbTooltip="Baixar comprovante">
-            <app-icon name="paperclip" />
-          </button>
+          @if (p.creditorPortal?.evidenceScanVerdict === 'NOT_SCANNED') {
+            <button class="btn btn-sm btn-link" type="button" (click)="download(p)" [disabled]="downloading() === p.id" aria-label="Baixar comprovante não verificado (abra com cuidado)" ngbTooltip="Comprovante não verificado contra vírus: abra com cuidado">
+              <app-icon name="exclamation-triangle" />
+            </button>
+          } @else {
+            <button class="btn btn-sm btn-link" type="button" (click)="download(p)" [disabled]="downloading() === p.id" aria-label="Baixar comprovante" ngbTooltip="Baixar comprovante">
+              <app-icon name="paperclip" />
+            </button>
+          }
         }
         <a class="btn btn-sm btn-outline-primary" [routerLink]="['/pagamentos/aprovacoes', p.id]" [queryParams]="linkParams()">Revisar</a>
       </ng-template>
@@ -172,7 +178,8 @@ export class ReviewQueue {
   protected readonly query = pagedQuery(this.filter, (f, page) => this.api.reviewQueue(page, f), { url: true });
   protected readonly creditors = nameMap(inject(CreditorNames), () => this.query.rows().map((p) => p.creditorId));
   protected readonly debtors = nameMap(inject(DebtorNames), () => this.query.rows().map((p) => p.debtorId), { batch: 100 });
-  protected readonly users = nameMap(inject(UserNames), () => this.query.rows().map((p) => p.informedBy), { batch: USER_NAMES_BATCH });
+  protected readonly users = nameMap(inject(UserNames), () => this.query.rows().filter((p) => !p.creditorPortal).map((p) => p.informedBy), { batch: USER_NAMES_BATCH });
+  protected readonly informer = (p: PaymentView) => informerLabel(p, (id) => this.users.name(id));
 
   protected readonly columns: TableColumn[] = [
     { key: 'informedAt', header: 'Informado em', mobile: 'title' },

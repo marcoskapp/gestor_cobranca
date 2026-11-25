@@ -70,6 +70,35 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
     }
 
     @Override
+    @Query("""
+            select count(p) from Payment p
+             where p.creditorId = :creditorId and p.informedChannel = 'CREDITOR_PORTAL'
+               and p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
+            """)
+    long countCreditorPortalInReview(UUID creditorId);
+
+    @Override
+    @Query("""
+            select count(p) > 0 from Payment p
+             where p.creditorId = :creditorId and p.informedChannel = 'CREDITOR_PORTAL'
+               and p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.INFORMED
+               and p.creditorTitleNumbers = :titleNumbers and p.amount = :amount and p.paidAt = :paidAt
+            """)
+    boolean existsCreditorPortalDuplicate(UUID creditorId, String titleNumbers, Money amount, Instant paidAt);
+
+    @Override
+    default List<Payment> findCreditorPortalReports(UUID creditorId, int limit) {
+        return creditorPortalReports(creditorId, org.springframework.data.domain.Limit.of(limit));
+    }
+
+    @Query("""
+            select p from Payment p
+             where p.creditorId = :creditorId and p.informedChannel = 'CREDITOR_PORTAL'
+             order by p.informedAt desc, p.id
+            """)
+    List<Payment> creditorPortalReports(UUID creditorId, org.springframework.data.domain.Limit limit);
+
+    @Override
     default Money sumExternalInformedBy(UUID informedBy, Instant since) {
         return Money.ofNullable(sumExternalByInformer(informedBy, since));
     }

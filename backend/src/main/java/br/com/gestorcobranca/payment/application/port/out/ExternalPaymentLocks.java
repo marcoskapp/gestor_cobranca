@@ -11,4 +11,7 @@ import java.util.UUID;
 public interface ExternalPaymentLocks {
 
     void lockExternalRegistration(UUID tenantId, UUID informedBy, UUID creditorId, UUID debtorId);
+
+    /** Informes do portal do credor: a contagem do limite em análise por credor (RS-36) sob a mesma trava. */
+    void lockCreditorPortalReports(UUID tenantId, UUID creditorId);
 }

@@ -2,17 +2,15 @@ package br.com.gestorcobranca.payment.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
-import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
-import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementFilter;
-import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
-import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.InstallmentView;
+import br.com.gestorcobranca.negotiation.application.port.in.allocation.AgreementAllocationQueries;
+import br.com.gestorcobranca.negotiation.application.port.in.allocation.AgreementAllocationQueries.AllocationAgreement;
+import br.com.gestorcobranca.negotiation.application.port.in.allocation.AgreementAllocationQueries.AllocationInstallment;
 import br.com.gestorcobranca.payment.domain.model.PaymentAllocation;
 import br.com.gestorcobranca.payment.domain.repository.PaymentAllocationRepository;
 import br.com.gestorcobranca.payment.domain.service.AllocationPlanner.InstallmentBalance;
 import br.com.gestorcobranca.payment.domain.service.AllocationPlanner.TitleBalance;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Money;
-import br.com.gestorcobranca.shared.paging.PageQuery;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -38,11 +36,11 @@ class TargetResolver {
     private static final Set<String> OPEN_INSTALLMENT = Set.of("OPEN", "PARTIALLY_PAID", "OVERDUE");
     private static final Set<String> PAYABLE_TITLE = Set.of("OPEN", "SUSPENDED");
 
-    private final AgreementUseCases agreements;
+    private final AgreementAllocationQueries agreements;
     private final DebtTitleUseCases titles;
     private final PaymentAllocationRepository allocations;
 
-    TargetResolver(AgreementUseCases agreements, DebtTitleUseCases titles, PaymentAllocationRepository allocations) {
+    TargetResolver(AgreementAllocationQueries agreements, DebtTitleUseCases titles, PaymentAllocationRepository allocations) {
         this.agreements = agreements;
         this.titles = titles;
         this.allocations = allocations;
@@ -89,16 +87,21 @@ class TargetResolver {
         boolean payable() {
             return PAYABLE_TITLE.contains(status) && !underAgreement && openBalance.isPositive();
         }
+
+        /** Em aberto e aceita pagamento (avulso ou pelo acordo que o cobre). */
+        boolean openForPayment() {
+            return PAYABLE_TITLE.contains(status) && openBalance.isPositive();
+        }
     }
 
     AgreementTarget agreement(UUID agreementId) {
-        AgreementView a = agreements.get(agreementId);
+        AllocationAgreement a = agreements.agreement(agreementId);
         Map<UUID, Money> inFlight = new HashMap<>();
         for (PaymentAllocation allocation : allocations.findInFlightByAgreement(agreementId)) {
             allocation.getLines().forEach(l -> inFlight.merge(l.installmentId(), l.amount(), Money::plus));
         }
         List<InstallmentInfo> installments = new ArrayList<>();
-        for (InstallmentView i : a.installments()) {
+        for (AllocationInstallment i : a.installments()) {
             Money amount = Money.of(i.amount());
             Money remaining = OPEN_INSTALLMENT.contains(i.status())
                     ? amount.minus(Money.ofNullable(i.paidAmount())).minus(inFlight.getOrDefault(i.id(), Money.ZERO))
@@ -132,10 +135,7 @@ class TargetResolver {
             if (!pairs.add(t.creditorId() + "|" + t.debtorId())) {
                 continue;
             }
-            for (String status : ACTIVE_AGREEMENT) {
-                agreements.search(new AgreementFilter(t.creditorId(), t.debtorId(), null, status), PageQuery.of(0, 200))
-                        .content().forEach(a -> covered.addAll(a.titleIds()));
-            }
+            agreements.active(t.creditorId(), t.debtorId()).forEach(a -> covered.addAll(a.titleIds()));
         }
         return covered;
     }

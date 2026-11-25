@@ -166,8 +166,8 @@ class PublicApiDisputesIT extends PublicApiTestSupport {
         DisputeView dispute = disputeWithRequest();
         String token = issue(creditorA, allScopes(), null, null).token();
         String answer = "{\"position\":\"CONFIRMS_DEBT\",\"note\":\"Contrato e extrato anexos\"}";
-        byte[] contract = "%PDF-1.4 contrato assinado".getBytes(StandardCharsets.US_ASCII);
-        byte[] infected = "%PDF-1.4 X5O!P%@AP EICAR-STANDARD-ANTIVIRUS-TEST-FILE".getBytes(StandardCharsets.US_ASCII);
+        byte[] contract = br.com.gestorcobranca.support.TestPdfs.withTitle("contrato assinado");
+        byte[] infected = br.com.gestorcobranca.support.TestPdfs.withTitle("X5O!P%@AP EICAR-STANDARD-ANTIVIRUS-TEST-FILE");
 
         // conteúdo que não é PDF/PNG/JPEG é recusado, qualquer que seja a extensão
         HttpResponse<String> fake = respondWithFiles(token, dispute.id(), answer,

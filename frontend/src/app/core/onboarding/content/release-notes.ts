@@ -3,6 +3,15 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 40,
+    date: '2026-11-25',
+    title: 'Portal do credor: pagamento recebido diretamente',
+    items: [
+      { text: 'No portal do credor, a pessoa do credor informa o pagamento que o devedor fez diretamente a ela, com os números dos títulos, o comprovante e o código do autenticador. O informe chega sempre em Aprovação de pagamentos; na recusa, a assessoria escolhe o motivo que o credor vê.', route: '/pagamentos/aprovacoes' },
+      { text: 'Comprovantes e documentos em PDF com conteúdo ativo (JavaScript, arquivo embutido ou ação automática) passam a ser recusados em todos os registros de pagamento e nas respostas de contestação.', route: '/pagamentos' },
+    ],
+  },
+  {
     version: 39,
     date: '2026-11-24',
     title: 'Portal do credor: contestações',

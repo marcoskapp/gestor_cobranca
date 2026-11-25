@@ -38,6 +38,26 @@ public class IdempotencyService {
      * @param requestHash hash estável do conteúdo do comando
      * @param action      cria o recurso e devolve seu id
      */
+    /** Recurso já criado com a chave (mesmo conteúdo); conteúdo diferente → 409. Sem efeito. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public java.util.Optional<UUID> find(String scope, String key, String requestHash) {
+        if (key == null || key.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        List<Object[]> existing = jdbcTemplate.query("""
+                        select request_hash, resource_id from shared.idempotency_key
+                        where tenant_id = ? and scope = ? and idem_key = ?
+                        """, (rs, i) -> new Object[]{rs.getString(1), rs.getObject(2, UUID.class)},
+                currentActor.tenantId(), scope, key);
+        if (existing.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        if (!existing.getFirst()[0].equals(requestHash)) {
+            throw new ConflictException("idempotency.key_reused", "Idempotency-Key já utilizada com conteúdo diferente");
+        }
+        return java.util.Optional.of((UUID) existing.getFirst()[1]);
+    }
+
     @Transactional(propagation = Propagation.MANDATORY)
     public UUID execute(String scope, String key, String requestHash, Supplier<UUID> action) {
         if (key == null || key.isBlank()) {

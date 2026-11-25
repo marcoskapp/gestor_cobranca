@@ -22,11 +22,14 @@ import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
 import { DebtorNames } from '../../debt/data/debt.lookups';
 import { CreditorNames } from '../../organization/data/organization.lookups';
+import { DialogService } from '../../../shared/dialog/dialog.service';
+import { CreditorRejectDialog, CreditorRejection } from '../components/creditor-reject-dialog';
 import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, PAYMENT_ERROR_LABELS } from '../data/payment.labels';
 import { PaymentView, ReviewAssessmentView } from '../data/payment.models';
-import { fromStatementReview } from '../data/payment.rules';
+import { fromStatementReview, informerLabel } from '../data/payment.rules';
+import { CreditorPortalNote } from '../components/creditor-portal-note';
 import { breakHoldBadge } from '../data/review-status';
 
 /** Filtros da fila que seguem na URL da decisão (os mesmos da lista). */
@@ -55,6 +58,8 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
       return [{ label: 'Soma do devedor neste credor', hint: `pagamentos ${window}`, requested: formatAmount(a.consideredAmount ?? 0), limit: formatAmount(a.limit ?? 0), excess: excessText(a.excess, a.limit) }];
     case 'INFORMER_CUMULATIVE':
       return [{ label: 'Soma de quem informou', hint: `pagamentos ${window}`, requested: formatAmount(a.consideredAmount ?? 0), limit: formatAmount(a.limit ?? 0), excess: excessText(a.excess, a.limit) }];
+    case 'CREDITOR_PORTAL':
+      return [{ label: 'Informado pelo próprio credor no portal', hint: 'pagamento feito diretamente ao credor: confira o comprovante', requested: formatAmount(p.amount), limit: 'sempre revisado', excess: null }];
     case 'STATEMENT_LINE':
       return [{ label: 'Crédito em extrato importado', hint: 'arquivo enviado por uma pessoa: confira o crédito no extrato do banco', requested: formatAmount(p.amount), limit: 'sempre revisado', excess: null }];
     default:
@@ -78,7 +83,7 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
  */
 @Component({
   selector: 'app-payment-approval',
-  imports: [RouterLink, ApprovalDecision, Amount, AppDatePipe, EmptyState, Icon, KpiCard, PageHeader, RequestedTarget, Skeleton],
+  imports: [CreditorPortalNote, RouterLink, ApprovalDecision, Amount, AppDatePipe, EmptyState, Icon, KpiCard, PageHeader, RequestedTarget, Skeleton],
   template: `
     @if (resource.isLoading() && !payment()) {
       <app-skeleton variant="card" [rows]="6" />
@@ -106,6 +111,7 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
       @if (error()) {
         <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
       }
+      <app-creditor-portal-note [payment]="p" />
       @if (p.status !== 'INFORMED') {
         <div class="alert alert-secondary d-flex gap-2 align-items-start" role="note">
           <app-icon name="check2-circle" />
@@ -195,6 +201,7 @@ export class PaymentApproval {
   private readonly api = inject(PaymentsApi);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
+  private readonly dialog = inject(DialogService);
   private readonly notifications = inject(NotificationService);
   protected readonly methods = METHOD_LABELS;
   protected readonly origins = ORIGIN_LABELS;
@@ -236,7 +243,8 @@ export class PaymentApproval {
   protected readonly requester = computed<ApprovalParty>(() => {
     const p = this.payment();
     return {
-      name: p?.informedBy ? (p.informedBy === this.auth.user()?.id ? 'Você' : this.users.name(p.informedBy)) : '—',
+      name: p?.creditorPortal ? informerLabel(p, (id) => this.users.name(id))
+        : p?.informedBy ? (p.informedBy === this.auth.user()?.id ? 'Você' : this.users.name(p.informedBy)) : '—',
       role: p && fromStatementReview(p) ? 'importou o extrato' : 'informou o pagamento',
     };
   });
@@ -287,6 +295,11 @@ export class PaymentApproval {
   }
 
   protected reject(p: PaymentView): void {
+    if (p.creditorPortal) {
+      this.dialog.open<CreditorRejectDialog, void, CreditorRejection>(CreditorRejectDialog, {}).afterClosed()
+        .subscribe((r) => r && this.decide(p, 'reject', r.note, r.creditorReason));
+      return;
+    }
     this.confirm
       .confirm({
         title: fromStatementReview(p) ? 'Recusar pagamento do extrato' : 'Recusar pagamento informado',
@@ -310,10 +323,10 @@ export class PaymentApproval {
       .subscribe((name) => this.notifications.success(`Comprovante baixado: ${name}`));
   }
 
-  private decide(p: PaymentView, action: 'approve' | 'reject', note: string | null): void {
+  private decide(p: PaymentView, action: 'approve' | 'reject', note: string | null, creditorReason: string | null = null): void {
     this.busy.set(true);
     this.error.set(null);
-    const call = action === 'approve' ? this.api.approve(p.id, note) : this.api.reject(p.id, note ?? '');
+    const call = action === 'approve' ? this.api.approve(p.id, note) : this.api.reject(p.id, note ?? '', creditorReason);
     // ocupado até a próxima abrir (ou a fila voltar)
     call.subscribe({
       next: () => {

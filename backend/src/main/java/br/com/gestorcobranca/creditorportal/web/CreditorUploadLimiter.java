@@ -28,12 +28,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 class CreditorUploadLimiter {
 
     static final int LIMIT_PER_MINUTE = 10;
+    /** Buscas de título por número no informe de pagamento (por pessoa e minuto). */
+    static final int SEARCH_LIMIT_PER_MINUTE = 30;
 
     private final CurrentActor currentActor;
     private final AccessLogger accessLogger;
     private final MeterRegistry registry;
     private final Clock clock;
-    private final Map<UUID, Window> windows = new ConcurrentHashMap<>();
+    private final Map<String, Window> windows = new ConcurrentHashMap<>();
 
     CreditorUploadLimiter(CurrentActor currentActor, AccessLogger accessLogger, MeterRegistry registry, Clock clock) {
         this.currentActor = currentActor;
@@ -43,20 +45,25 @@ class CreditorUploadLimiter {
     }
 
     void acquire(String operation, HttpServletResponse response) {
+        acquire(operation, LIMIT_PER_MINUTE, response);
+    }
+
+    /** Janela própria por pessoa e operação (ex.: envio com documentos, busca de títulos). */
+    void acquire(String operation, int limitPerMinute, HttpServletResponse response) {
         UUID person = currentActor.actorId();
         long epochSecond = Instant.now(clock).getEpochSecond();
         long minute = epochSecond / 60;
-        Window window = windows.compute(person, (k, current) ->
+        Window window = windows.compute(person + ":" + operation, (k, current) ->
                 current == null || current.minute() != minute ? new Window(minute, new AtomicInteger()) : current);
-        if (window.count().incrementAndGet() <= LIMIT_PER_MINUTE) {
+        if (window.count().incrementAndGet() <= limitPerMinute) {
             return;
         }
         response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(60 - (epochSecond % 60)));
         registry.counter("creditor_portal.document_uploads.rejected", "operation", operation).increment();
         accessLogger.log(AccessEvent.of(AccessEventType.RATE_LIMITED, currentActor.get(),
-                Map.of("operation", operation, "limit", String.valueOf(LIMIT_PER_MINUTE), "scope", "creditor_upload")));
+                Map.of("operation", operation, "limit", String.valueOf(limitPerMinute), "scope", "creditor_upload")));
         throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                "Muitos envios com documentos em pouco tempo. Aguarde um minuto e tente de novo.");
+                "Muitas tentativas em pouco tempo. Aguarde um minuto e tente de novo.");
     }
 
     @Scheduled(fixedDelay = 60_000)

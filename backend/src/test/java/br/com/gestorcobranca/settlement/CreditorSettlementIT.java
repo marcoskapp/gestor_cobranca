@@ -32,6 +32,7 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -49,6 +50,9 @@ class CreditorSettlementIT extends SettlementTestSupport {
 
     @MockitoBean
     CreditorStepUp stepUp;
+    /** A conferência real do comprovante tem o IT da identidade ({@code CreditorPortalIdentityIT}); aqui é simulada. */
+    @MockitoBean
+    br.com.gestorcobranca.shared.security.StepUpProofs stepUpProofs;
     @Autowired
     CreditorStatementUseCases portal;
     @Autowired
@@ -60,9 +64,12 @@ class CreditorSettlementIT extends SettlementTestSupport {
     @Test
     void creditorSeesOnlyItsSentStatementsAcknowledgesWithMfaAndContests() throws Exception {
         provision("credst");
-        reset(stepUp);
+        reset(stepUp, stepUpProofs);
         Instant verifiedAt = Instant.now();
-        when(stepUp.verify(anyString(), eq("statement_acknowledge"))).thenReturn(verifiedAt);
+        when(stepUp.verify(anyString(), eq(br.com.gestorcobranca.shared.security.StepUpPurpose.STATEMENT_ACKNOWLEDGE),
+                anyString())).thenReturn("comprovante");
+        when(stepUpProofs.consume(eq("comprovante"), eq(br.com.gestorcobranca.shared.security.StepUpPurpose.STATEMENT_ACKNOWLEDGE),
+                anyString())).thenReturn(verifiedAt);
 
         // período em aberto: o credor vê a própria posição sem permissão interna (primeiro cálculo é dele, sem cache)
         assertThat(asCreditor(creditorA, Permission.CREDITOR_ONLY, portal::openPeriod).direction())
@@ -113,7 +120,7 @@ class CreditorSettlementIT extends SettlementTestSupport {
         assertThatThrownBy(() -> asCreditor(creditorA, Set.of(Permission.CREDITOR_PORTAL_OVERVIEW),
                 () -> portal.acknowledge(first.id(), new AcknowledgeCommand("123456", null, hashes, "203.0.113.7"))))
                 .isInstanceOf(ScopeAccessDeniedException.class);
-        verify(stepUp, never()).verify(anyString(), anyString());
+        verify(stepUp, never()).verify(anyString(), any(), anyString());
         assertThatThrownBy(() -> asCreditor(creditorA, Permission.CREDITOR_ONLY,
                 () -> portal.acknowledge(first.id(), new AcknowledgeCommand("123456", null, List.of(csv.sha256()),
                         "203.0.113.7"))))
@@ -128,7 +135,10 @@ class CreditorSettlementIT extends SettlementTestSupport {
                         "203.0.113.7")));
         assertThat(acknowledged.statement().status()).isEqualTo("ACKNOWLEDGED");
         assertThat(acknowledged.respondedInPortal()).isTrue();
-        verify(stepUp, org.mockito.Mockito.atLeastOnce()).verify("123456", "statement_acknowledge");
+        verify(stepUp, org.mockito.Mockito.atLeastOnce()).verify("123456",
+                br.com.gestorcobranca.shared.security.StepUpPurpose.STATEMENT_ACKNOWLEDGE, first.id().toString());
+        verify(stepUpProofs, org.mockito.Mockito.atLeastOnce()).consume("comprovante",
+                br.com.gestorcobranca.shared.security.StepUpPurpose.STATEMENT_ACKNOWLEDGE, first.id().toString());
         assertThat(count("select count(*) from settlement.statement where id = ? and creditor_response_origin = "
                 + "'CREDITOR_PORTAL' and creditor_response_by = ?", first.id(), creditorUser)).isEqualTo(1);
         assertThat(count("select count(*) from settlement.statement_creditor_term where statement_id = ? and decision = "
@@ -151,7 +161,7 @@ class CreditorSettlementIT extends SettlementTestSupport {
         // arquivo de outro demonstrativo pelo endereço deste: 404
         assertThatThrownBy(() -> asCreditor(creditorA, Permission.CREDITOR_ONLY, () -> portal.download(first.id(), csv2.id())))
                 .isInstanceOf(ResourceNotFoundException.class);
-        reset(stepUp);
+        reset(stepUp, stepUpProofs);
         assertThatThrownBy(() -> asCreditor(creditorA, Permission.CREDITOR_ONLY,
                 () -> portal.contest(second.id(), new ContestCommand(" ", "203.0.113.7"))))
                 .isInstanceOf(BusinessRuleException.class);
@@ -159,7 +169,7 @@ class CreditorSettlementIT extends SettlementTestSupport {
                 () -> portal.contest(second.id(), new ContestCommand("Faltou o pagamento do dia 3", "203.0.113.7")));
         assertThat(contested.statement().status()).isEqualTo("CONTESTED");
         assertThat(contested.responseNote()).isEqualTo("Faltou o pagamento do dia 3");
-        verify(stepUp, never()).verify(anyString(), anyString());
+        verify(stepUp, never()).verify(anyString(), any(), anyString());
         assertThat(count("select count(*) from settlement.statement_creditor_term where statement_id = ? and decision = "
                 + "'CONTESTED' and mfa_verified_at is null and note = 'Faltou o pagamento do dia 3'", second.id())).isEqualTo(1);
         // a assessoria não registra aceite por cima da contestação feita pelo credor no portal (decisão 1420)

@@ -21,6 +21,7 @@ export type StatusDomain =
   | 'creditorStatement'
   | 'creditorFileCheck'
   | 'creditorDispute'
+  | 'creditorPayment'
   | 'tenant'
   | 'contract'
   | 'portfolio'
@@ -128,6 +129,13 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     SENT: { label: 'Aguardando resposta do credor', tone: 'warning' },
     ACKNOWLEDGED: { label: 'Aceito', tone: 'success' },
     CONTESTED: { label: 'Contestado', tone: 'info' },
+  },
+  // pagamento direto informado pela pessoa do credor no portal (sempre revisado pela assessoria)
+  creditorPayment: {
+    IN_REVIEW: { label: 'Em análise pela assessoria', tone: 'warning' },
+    CONFIRMED: { label: 'Confirmado', tone: 'success' },
+    REJECTED: { label: 'Recusado', tone: 'danger' },
+    REVERSED: { label: 'Estornado', tone: 'neutral' },
   },
   // contestação no portal do credor (só as com pedido da assessoria ao credor)
   creditorDispute: {

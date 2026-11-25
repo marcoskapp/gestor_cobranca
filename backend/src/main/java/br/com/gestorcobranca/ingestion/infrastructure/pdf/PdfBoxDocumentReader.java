@@ -6,13 +6,8 @@ import br.com.gestorcobranca.ingestion.domain.model.pdf.PdfText;
 import br.com.gestorcobranca.ingestion.domain.model.pdf.TextLine;
 import br.com.gestorcobranca.ingestion.domain.model.pdf.TextPage;
 import br.com.gestorcobranca.ingestion.domain.model.pdf.TextWord;
+import br.com.gestorcobranca.shared.storage.PdfActiveContent;
 import org.apache.pdfbox.Loader;
-import org.apache.pdfbox.cos.COSArray;
-import org.apache.pdfbox.cos.COSBase;
-import org.apache.pdfbox.cos.COSDictionary;
-import org.apache.pdfbox.cos.COSName;
-import org.apache.pdfbox.cos.COSObject;
-import org.apache.pdfbox.cos.COSObjectKey;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
@@ -29,14 +24,9 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Deque;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Leitor de PDF com o Apache PDFBox.
@@ -145,48 +135,9 @@ class PdfBoxDocumentReader implements PdfDocumentReader {
                 "Não foi possível ler o PDF (arquivo corrompido ou incompleto). Gere o arquivo de novo");
     }
 
-    /** Procura {@code /JS} ou {@code /S /JavaScript} em qualquer dicionário do documento. */
+    /** Procura {@code /JS} ou {@code /S /JavaScript} em qualquer dicionário do documento (regra única em {@code shared}). */
     static boolean hasJavaScript(PDDocument document) throws IOException {
-        if (document.getDocumentCatalog().getNames() != null
-                && document.getDocumentCatalog().getNames().getJavaScript() != null) {
-            return true;
-        }
-        Deque<COSBase> pending = new ArrayDeque<>();
-        Set<COSBase> seen = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
-        pending.add(document.getDocumentCatalog().getCOSObject());
-        for (COSObjectKey key : document.getDocument().getXrefTable().keySet()) {
-            COSObject object = document.getDocument().getObjectFromPool(key);
-            if (object != null) {
-                pending.add(object);
-            }
-        }
-        while (!pending.isEmpty()) {
-            COSBase base = pending.pop();
-            if (base instanceof COSObject indirect) {
-                base = indirect.getObject();
-            }
-            if (base == null || !seen.add(base)) {
-                continue;
-            }
-            if (base instanceof COSDictionary dict) {
-                if (dict.containsKey(COSName.JS) || COSName.JAVA_SCRIPT.equals(dict.getCOSName(COSName.S))) {
-                    return true;
-                }
-                for (Map.Entry<COSName, COSBase> e : dict.entrySet()) {
-                    // filhos indiretos já estão na fila pela tabela de referências; diretos são percorridos aqui
-                    if (!(e.getValue() instanceof COSObject)) {
-                        pending.push(e.getValue());
-                    }
-                }
-            } else if (base instanceof COSArray array) {
-                for (COSBase item : array) {
-                    if (!(item instanceof COSObject)) {
-                        pending.push(item);
-                    }
-                }
-            }
-        }
-        return false;
+        return PdfActiveContent.hasJavaScript(document);
     }
 
     // ------------------------------------------------------------------ texto

@@ -115,4 +115,14 @@ class PaymentMetrics {
     void eventConsumed(String type) {
         registry.counter("payment.events.consumed", "type", type).increment();
     }
+
+    /** Verificação do comprovante do portal do credor: {@code verdict} clean, not_scanned ou infected. */
+    void creditorEvidenceScan(String engine, String verdict) {
+        registry.counter("payment.creditor_portal.evidence_scans", "engine", engine, "verdict", verdict).increment();
+    }
+
+    /** Informes do portal do credor: {@code outcome} reported, rejected_limit ou rejected_duplicate. */
+    void creditorPortalReport(String outcome) {
+        registry.counter("payment.creditor_portal.reports", "outcome", outcome).increment();
+    }
 }

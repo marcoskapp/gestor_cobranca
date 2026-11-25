@@ -109,8 +109,9 @@ export class PaymentsApi {
     return this.http.post<PaymentView>(`${this.base}/${id}/approve`, { note }, { context: silentErrorContext() });
   }
 
-  reject(id: string, note: string): Observable<PaymentView> {
-    return this.http.post<PaymentView>(`${this.base}/${id}/reject`, { note }, { context: silentErrorContext() });
+  /** @param creditorReason motivo que o credor vê (obrigatório no informe do portal do credor) */
+  reject(id: string, note: string, creditorReason: string | null = null): Observable<PaymentView> {
+    return this.http.post<PaymentView>(`${this.base}/${id}/reject`, { note, creditorReason }, { context: silentErrorContext() });
   }
 
   reverse(id: string, request: ReverseRequest): Observable<PaymentView> {

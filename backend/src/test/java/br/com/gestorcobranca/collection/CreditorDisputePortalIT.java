@@ -71,7 +71,7 @@ class CreditorDisputePortalIT extends CollectionTestSupport {
         DisputeView withoutRequest = openDispute(creditorA);
         asSupervisor(() -> disputes.assign(dispute.id(), operatorX, "Analista"));
         var evidence = asOperator(operatorX, () -> disputes.attachEvidence(dispute.id(), new EvidenceUpload(
-                "comprovante.pdf", "application/pdf", 9, pdf())));
+                "comprovante.pdf", "application/pdf", br.com.gestorcobranca.support.TestPdfs.blank().length, pdf())));
         CreditorRequestDraft draft = asOperator(operatorX, () -> disputes.draftCreditorRequest(dispute.id()));
         CreditorRequestView request = asOperator(operatorX, () -> disputes.requestCreditor(dispute.id(),
                 new CreditorRequestCommand(draft.subject() + " {{link_evidencias}}", draft.body(), null, Set.of(),
@@ -117,7 +117,7 @@ class CreditorDisputePortalIT extends CollectionTestSupport {
                 + "and details ->> 'origin' = 'creditor_portal' and details ->> 'resource' = 'dispute_evidence'"))
                 .isEqualTo(1);
         var internalOnly = asOperator(operatorX, () -> disputes.attachEvidence(dispute.id(), new EvidenceUpload(
-                "nota-interna.pdf", "application/pdf", 9, pdf())));
+                "nota-interna.pdf", "application/pdf", br.com.gestorcobranca.support.TestPdfs.blank().length, pdf())));
         assertThatThrownBy(() -> asCreditor(creditorA, READ_ONLY, () -> portal.download(dispute.id(), internalOnly.id())))
                 .isInstanceOf(ResourceNotFoundException.class);
 
@@ -128,6 +128,12 @@ class CreditorDisputePortalIT extends CollectionTestSupport {
         // mais de 5 documentos é recusado antes de gravar
         assertThatThrownBy(() -> asCreditor(creditorA, LEGAL, () -> portal.respond(dispute.id(), answer,
                 Collections.nCopies(6, upload("x.pdf"))))).isInstanceOf(BusinessRuleException.class);
+
+        // PDF com JavaScript é recusado antes de gravar (RS-39)
+        byte[] active = br.com.gestorcobranca.support.TestPdfs.withJavaScript();
+        assertThatThrownBy(() -> asCreditor(creditorA, LEGAL, () -> portal.respond(dispute.id(), answer,
+                List.of(new Upload("script.pdf", "application/pdf", active.length, new ByteArrayInputStream(active))))))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("JavaScript");
 
         Instant before = Instant.now().minusSeconds(5);
         DisputeDetail answered = asCreditor(creditorA, LEGAL, () -> portal.respond(dispute.id(), answer,
@@ -195,11 +201,11 @@ class CreditorDisputePortalIT extends CollectionTestSupport {
     }
 
     private static InputStream pdf() {
-        return new ByteArrayInputStream("%PDF-1.4\n".getBytes(StandardCharsets.US_ASCII));
+        return new ByteArrayInputStream(br.com.gestorcobranca.support.TestPdfs.blank());
     }
 
     private static Upload upload(String name) {
-        return new Upload(name, "application/pdf", 9, pdf());
+        return new Upload(name, "application/pdf", br.com.gestorcobranca.support.TestPdfs.blank().length, pdf());
     }
 
     private static String randomCpf() {

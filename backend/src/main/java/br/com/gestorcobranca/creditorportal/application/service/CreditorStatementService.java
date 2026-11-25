@@ -10,10 +10,10 @@ import br.com.gestorcobranca.settlement.application.port.in.creditor.CreditorSet
 import br.com.gestorcobranca.settlement.application.port.in.creditor.CreditorSettlementUseCases.CreditorStatementSummary;
 import br.com.gestorcobranca.settlement.application.port.in.creditor.CreditorSettlementUseCases.CreditorTotals;
 import br.com.gestorcobranca.shared.domain.Guard;
+import br.com.gestorcobranca.shared.security.StepUpPurpose;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,8 +21,6 @@ import java.util.UUID;
 @Service
 @Transactional
 class CreditorStatementService implements CreditorStatementUseCases {
-
-    static final String ACKNOWLEDGE_PURPOSE = "statement_acknowledge";
 
     private final CreditorSettlementUseCases settlement;
     private final CreditorStepUp stepUp;
@@ -66,9 +64,9 @@ class CreditorStatementService implements CreditorStatementUseCases {
         // sem efeito, antes do código: perfil que não responde (ou demonstrativo que não é dele) não gasta tentativa
         settlement.requireCanRespond(statementId);
         // confere o código antes de qualquer efeito; se o aceite falhar depois, a transação inteira volta
-        Instant verifiedAt = stepUp.verify(c.code(), ACKNOWLEDGE_PURPOSE);
+        String proof = stepUp.verify(c.code(), StepUpPurpose.STATEMENT_ACKNOWLEDGE, statementId.toString());
         return detail(settlement.acknowledge(statementId,
-                new CreditorResponseCommand(c.note(), c.fileSha256(), c.clientIp(), verifiedAt)));
+                new CreditorResponseCommand(c.note(), c.fileSha256(), c.clientIp(), proof)));
     }
 
     @Override

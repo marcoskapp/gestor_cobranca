@@ -199,3 +199,57 @@ export const CREDITOR_DISPUTE_OUTCOME_LABELS: Record<CreditorDisputeOutcome, str
   PARTIALLY_UPHELD: 'Encerrada: devedor com razão em parte',
   WITHDRAWN: 'Encerrada: o devedor desistiu',
 };
+
+/** Pagamento direto informado pela pessoa do credor (fatia 6): sempre em análise pela assessoria. */
+export type CreditorPaymentStatus = 'IN_REVIEW' | 'CONFIRMED' | 'REJECTED' | 'REVERSED';
+export type CreditorPaymentMethod = 'PIX' | 'BOLETO' | 'CARD' | 'TRANSFER' | 'CASH' | 'OTHER';
+export type CreditorRejectionReason = 'PROOF_INVALID' | 'AMOUNT_OR_DATE_MISMATCH' | 'WRONG_TITLES' | 'DUPLICATE' | 'OTHER';
+
+export interface CreditorTitleMatch {
+  number: string;
+  installmentNumber: number | null;
+  dueDate: string | null;
+  openBalance: number;
+  /** O título está num acordo: o valor vai para as parcelas em aberto do acordo. */
+  underAgreement: boolean;
+}
+
+export interface CreditorReportedPayment {
+  id: string;
+  status: CreditorPaymentStatus;
+  amount: number;
+  paidOn: string;
+  method: CreditorPaymentMethod;
+  titleNumbers: string[];
+  reference: string | null;
+  informedAt: string;
+  decidedAt: string | null;
+  rejectionReason: CreditorRejectionReason | null;
+}
+
+export interface CreditorPaymentReportRequest {
+  titleNumbers: string[];
+  amount: number;
+  paidOn: string;
+  method: CreditorPaymentMethod;
+  reference: string | null;
+  note: string | null;
+  code: string;
+}
+
+export const CREDITOR_PAYMENT_METHOD_LABELS: Record<CreditorPaymentMethod, string> = {
+  PIX: 'Pix',
+  BOLETO: 'Boleto',
+  CARD: 'Cartão',
+  TRANSFER: 'Transferência',
+  CASH: 'Dinheiro',
+  OTHER: 'Outro',
+};
+
+export const CREDITOR_REJECTION_REASON_LABELS: Record<CreditorRejectionReason, string> = {
+  PROOF_INVALID: 'O comprovante não permite confirmar o pagamento (ilegível, incompleto ou de outra operação).',
+  AMOUNT_OR_DATE_MISMATCH: 'O valor ou a data do comprovante não conferem com o informado.',
+  WRONG_TITLES: 'Os títulos informados não correspondem ao pagamento.',
+  DUPLICATE: 'Este pagamento já estava registrado.',
+  OTHER: 'A assessoria não pôde confirmar o pagamento. Fale com a assessoria para os detalhes.',
+};

@@ -89,6 +89,12 @@ export const CREDITOR_ROUTES: Routes = [
         canActivate: [creditorAccessGuard(CreditorPermission.OVERVIEW)],
         loadComponent: () => import('./pages/creditor-dispute-detail').then((m) => m.CreditorDisputeDetailPage),
       },
+      {
+        path: 'pagamentos',
+        title: 'Pagamentos informados',
+        canActivate: [creditorAccessGuard(CreditorPermission.OVERVIEW)],
+        loadComponent: () => import('./pages/creditor-payments').then((m) => m.CreditorPayments),
+      },
       { path: '**', redirectTo: 'inicio' },
     ],
   },

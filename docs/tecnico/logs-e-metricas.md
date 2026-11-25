@@ -325,7 +325,7 @@ Ids, enums e valores apenas — nunca documento, nome, observação, descrição
 | Evento | Quando | Atributos |
 | --- | --- | --- |
 | `payment_instruction.created` | instrução criada | `type`, `targetKind`, `agreementId`, `installmentNumber`, `dueDate`, `expiresInMinutes`; `channel`; `amount` |
-| `payment.informed` | pagamento externo registrado, ou criado por linha de extrato que cita uma instrução (`source=PROVIDER`, sempre em revisão) | `origin`, `reviewRequired`, `reviewReason` (`AMOUNT`, `DESTINATION_CUMULATIVE`, `INFORMER_CUMULATIVE`, `STATEMENT_LINE`; ausente se confirmado sem revisão), `targetKind`, `hasEvidence`, `informedBy`, `daysSincePayment`; `amount` |
+| `payment.informed` | pagamento externo registrado, ou criado por linha de extrato que cita uma instrução (`source=PROVIDER`, sempre em revisão) | `origin`, `reviewRequired`, `reviewReason` (`AMOUNT`, `DESTINATION_CUMULATIVE`, `INFORMER_CUMULATIVE`, `STATEMENT_LINE`, `CREDITOR_PORTAL` — informado pela pessoa do credor no portal; ausente se confirmado sem revisão), `targetKind`, `hasEvidence`, `informedBy`, `daysSincePayment`; `amount` |
 | `payment.confirmed` | confirmado (provedor, extrato, baixo risco ou aprovação) | `trigger` (`provider`, `auto_low_risk`, `review`; `statement` só em pagamentos anteriores à decisão 1450), `reviewMode`, `allocations`, `allocatedAmount`, `unallocatedAmount`, `leftoverReason`, `targetKind`, `agreementId`, `instructionType`, `delayMinutes`; `channel` da instrução; `amount`; `durationMs` do pagamento à confirmação |
 | `payment.rejected` | informado recusado na revisão | `origin`, `reviewedBy`; `durationMs` na fila |
 | `payment.reconciled` | conciliado | `mode` (`PROVIDER_API`, `STATEMENT`, `MANUAL`), `statementImportId`, `daysFromPayment` |
@@ -560,6 +560,18 @@ Log de acesso: `FILE_DOWNLOADED` (`resource=dispute_evidence`, `origin=creditor_
 (`resource=dispute`) para contestação de outro credor (a resposta é 404), `ACCESS_DENIED` (`resource=dispute`) para
 outro tipo de ator e `RATE_LIMITED` (`scope=creditor_upload`) no limite de envios. Métricas: `collection.disputes.creditor_responses{source=CREDITOR_PORTAL}` e `creditor_portal.document_uploads.rejected{operation}`.
 
+**Pagamento informado no portal** (creditorportal → payment, fatia 6): evento `payment.informed` com
+`reviewReason=CREDITOR_PORTAL` e `origin=CREDITOR_DIRECT` (sempre em revisão; `informedBy` = id da pessoa do credor);
+`payment.rejected`/`payment.confirmed` na decisão. Auditoria `payment.informed` e `payment.creditor_portal_reported`
+(`actor_type=CREDITOR`; `titles`, `targetKind`, `sessionId`, `mfaVerifiedAt`, `evidenceScanVerdict`, `evidenceScanEngine`).
+Log de acesso: `MFA_SUCCESS`/`MFA_FAILURE` com `detail.purpose=payment_report`, `MALWARE_DETECTED`
+(`resource=payment_evidence`, `origin=creditor_portal`, sem nome de arquivo), `ACCESS_DENIED` (`resource=payment`) para
+outro tipo de ator e `RATE_LIMITED` (`scope=creditor_upload`, `operation=payment_report` ou `payment_title_search`).
+Métricas: `payment.creditor_portal.evidence_scans{engine,verdict}` (`clean`, `not_scanned`, `infected`, `unavailable` — alarmes sugeridos: qualquer `infected`, e `unavailable` acima de 5 em 5 minutos) e
+`payment.creditor_portal.reports{outcome}` (`reported`, `rejected_limit`, `rejected_duplicate`); o limite de envios
+reaproveita `creditor_portal.document_uploads.rejected{operation}`. Nenhum número de título, valor, nome de arquivo ou
+código vai para log técnico ou métrica.
+
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
 ```
@@ -682,7 +694,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `collection.disputes.creditor_overdue{type}`, `collection.disputes.creditor_responses{source}` | pedidos ao credor vencidos; respostas do credor (tela, API, e-mail, portal do credor) |
 | `collection.disputes.debtor_notices{channel,outcome}`, `collection.disputes.adjustments{action,status}` | respostas ao devedor; ajustes sugeridos, feitos e dispensados |
 | `collection.disputes.mail_replies.received{outcome,reason}` | e-mails ao subdomínio de respostas: `accepted`, `quarantined` (motivo: `sender_not_registered`, `authentication_failed`, `virus`, `spam`, `rate_limited`, `too_large`, `too_many_attachments`, `route_expired`, `dispute_closed`, `malformed`), `unrouted` (`no_reply_address`, `unknown_token`), `duplicate` — `authentication_failed`/`virus` em alta pedem atenção (falsificação) |
-| `collection.disputes.mail_replies.attachments{outcome}` | anexos dos e-mails aceitos: `accepted`, `rejected_type`, `rejected_size`, `rejected_limit` |
+| `collection.disputes.mail_replies.attachments{outcome}` | anexos dos e-mails aceitos: `accepted`, `rejected_type`, `rejected_size`, `rejected_limit`, `rejected_active_content` (PDF com conteúdo ativo ou que não abre, decisão 1441) |
 | `collection.disputes.mail_replies.decisions{outcome}`, `collection.disputes.mail_replies.time_to_confirmation` | `confirmed`, `dismissed`, `released`; tempo do recebimento à confirmação (p50/p95) — fila de e-mails sem leitura |
 | `integration.calls{provider=sqs\|s3,operation=inbound_mail,outcome}` | leitura da fila e do bucket do SES inbound; erros contínuos = fila parada (veja também a DLQ no CloudWatch) |
 | `collection.disputes.document_scans{engine,outcome}`, `collection.disputes.document_scan.duration{engine}` | verificação de malware dos documentos do credor pela API: `clean`, `not_scanned`, `infected`, `unavailable` (daemon fora; job tenta de novo) — `infected` > 0 e `unavailable` contínuo pedem alarme |

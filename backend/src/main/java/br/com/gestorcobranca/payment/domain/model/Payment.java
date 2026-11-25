@@ -118,6 +118,28 @@ public class Payment extends TenantScopedEntity {
     @Column(name = "review_considered_amount", updatable = false)
     private Money reviewConsideredAmount;
 
+    /** Canal do informe: {@code CREDITOR_PORTAL} quando a própria pessoa do credor informou no portal (nulo nos demais). */
+    @Column(name = "informed_channel", length = 20, updatable = false)
+    private String informedChannel;
+
+    /** Números dos títulos que a pessoa do credor informou (como digitados, separados por vírgula). */
+    @Column(name = "creditor_title_numbers", length = 2000, updatable = false)
+    private String creditorTitleNumbers;
+
+    /** Verificação do comprovante antes de gravar: CLEAN ou NOT_SCANNED (verificação desligada). */
+    @Column(name = "evidence_scan_verdict", length = 20, updatable = false)
+    private String evidenceScanVerdict;
+
+    @Column(name = "evidence_scan_engine", length = 40, updatable = false)
+    private String evidenceScanEngine;
+
+    @Column(name = "evidence_scanned_at", updatable = false)
+    private Instant evidenceScannedAt;
+
+    /** Motivo codificado da recusa visível ao credor ({@link CreditorRejectionReason}); a nota da revisão é interna. */
+    @Column(name = "creditor_rejection_reason", length = 30)
+    private String creditorRejectionReason;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "review_mode", nullable = false, length = 20)
     private ReviewMode reviewMode;
@@ -295,6 +317,50 @@ public class Payment extends TenantScopedEntity {
         return p;
     }
 
+    public static final String CHANNEL_CREDITOR_PORTAL = "CREDITOR_PORTAL";
+    public static final String REVIEW_REASON_CREDITOR_PORTAL = "CREDITOR_PORTAL";
+
+    /**
+     * Pagamento recebido diretamente pelo credor e informado pela própria pessoa do credor no portal (RS-33): sempre
+     * {@code INFORMED} com revisão de outra pessoa da assessoria — nunca confirmado na hora, qualquer que seja o valor.
+     */
+    public static Payment informedByCreditor(PaymentMethod method, UUID creditorId, UUID debtorId, Money amount,
+                                             Instant paidAt, String reference, String note, Target target,
+                                             Evidence evidence, String titleNumbers, String scanVerdict,
+                                             String scanEngine, Instant scannedAt, UUID creditorPerson, Instant now) {
+        Guard.require(titleNumbers != null && !titleNumbers.isBlank() && titleNumbers.length() <= 2000,
+                "payment.creditor_titles_required", "Informe os títulos pagos");
+        Guard.require("CLEAN".equals(scanVerdict) || "NOT_SCANNED".equals(scanVerdict), "payment.evidence_not_verified",
+                "Comprovante sem verificação");
+        Guard.require(scannedAt != null, "payment.evidence_not_verified", "Comprovante sem verificação");
+        Payment p = informed(method, creditorId, debtorId, amount, paidAt, ExternalOrigin.CREDITOR_DIRECT, reference, note,
+                target, evidence, creditorPerson, true, now);
+        p.informedChannel = CHANNEL_CREDITOR_PORTAL;
+        p.reviewReason = REVIEW_REASON_CREDITOR_PORTAL;
+        p.creditorTitleNumbers = titleNumbers;
+        p.evidenceScanVerdict = scanVerdict;
+        p.evidenceScanEngine = scanEngine;
+        p.evidenceScannedAt = scannedAt;
+        return p;
+    }
+
+    public boolean isFromCreditorPortal() {
+        return CHANNEL_CREDITOR_PORTAL.equals(informedChannel);
+    }
+
+    /**
+     * Recusa do informe do portal do credor: além da nota interna, o motivo codificado que o credor vê (a nota nunca
+     * vai ao credor — pode citar o devedor ou observações da assessoria).
+     */
+    public void rejectForCreditor(UUID reviewer, String reviewNote, CreditorRejectionReason reason, Instant now) {
+        Guard.requireState(isFromCreditorPortal(), "payment.not_from_creditor_portal",
+                "Pagamento não foi informado pelo credor no portal");
+        Guard.require(reason != null, "payment.creditor_rejection_reason_required",
+                "Escolha o motivo que o credor vai ver");
+        rejectInternal(reviewer, reviewNote, now);
+        this.creditorRejectionReason = reason.name();
+    }
+
     /**
      * Registra por que o pagamento informado foi para a aprovação de outra pessoa (antes de gravar): o limite
      * ultrapassado e o valor comparado com ele, para quem decide ver quanto passa do limite.
@@ -320,6 +386,12 @@ public class Payment extends TenantScopedEntity {
     }
 
     public void reject(UUID reviewer, String reviewNote, Instant now) {
+        Guard.require(!isFromCreditorPortal(), "payment.creditor_rejection_reason_required",
+                "Escolha o motivo que o credor vai ver");
+        rejectInternal(reviewer, reviewNote, now);
+    }
+
+    private void rejectInternal(UUID reviewer, String reviewNote, Instant now) {
         requireReview(reviewer, reviewNote);
         Guard.require(reviewNote != null && !reviewNote.isBlank(), "payment.rejection_reason_required",
                 "Informe o motivo da recusa");
@@ -606,6 +678,30 @@ public class Payment extends TenantScopedEntity {
 
     public String getReviewReason() {
         return reviewReason;
+    }
+
+    public String getInformedChannel() {
+        return informedChannel;
+    }
+
+    public String getCreditorTitleNumbers() {
+        return creditorTitleNumbers;
+    }
+
+    public String getEvidenceScanVerdict() {
+        return evidenceScanVerdict;
+    }
+
+    public String getEvidenceScanEngine() {
+        return evidenceScanEngine;
+    }
+
+    public Instant getEvidenceScannedAt() {
+        return evidenceScannedAt;
+    }
+
+    public String getCreditorRejectionReason() {
+        return creditorRejectionReason;
     }
 
     public Money getReviewLimit() {

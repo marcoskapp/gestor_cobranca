@@ -62,10 +62,60 @@ class EvidenceStore {
         } catch (IOException e) {
             throw new UncheckedIOException("Falha ao ler a evidência enviada", e);
         }
-        StoredFile stored = fileStorage.store(FileCategory.EVIDENCE, upload.fileName(), contentType, limited(in),
+        InputStream content = limited(in);
+        if ("application/pdf".equals(contentType)) {
+            // PDF com conteúdo ativo (ou que não abre para conferir) é recusado antes de gravar (SEG-H02, RS-39)
+            content = new java.io.ByteArrayInputStream(withoutActiveContent(readAll(content)));
+        }
+        StoredFile stored = fileStorage.store(FileCategory.EVIDENCE, upload.fileName(), contentType, content,
                 upload.size());
         cleanup.deleteOnRollback(stored.key());
         return new Payment.Evidence(stored.key(), stored.originalName(), contentType, stored.size(), stored.sha256());
+    }
+
+    /**
+     * Comprovante já verificado fora da transação (portal do credor: tipo pelo conteúdo, conteúdo ativo e malware —
+     * {@code CreditorEvidenceScreening}). Grava exatamente o conteúdo verificado e confere o SHA-256 gravado.
+     */
+    Payment.Evidence storeVerified(String fileName, String contentType, byte[] content, String sha256) {
+        Guard.require(content != null && content.length > 0, "payment.evidence_required", "Evidência do pagamento obrigatória");
+        StoredFile stored = fileStorage.store(FileCategory.EVIDENCE, fileName, contentType,
+                new java.io.ByteArrayInputStream(content), content.length);
+        cleanup.deleteOnRollback(stored.key());
+        if (!stored.sha256().equalsIgnoreCase(sha256)) {
+            throw new IllegalStateException("Comprovante gravado difere do verificado");
+        }
+        return new Payment.Evidence(stored.key(), stored.originalName(), contentType, stored.size(), stored.sha256());
+    }
+
+    /** O tipo declarado bate com a assinatura do conteúdo (PDF, PNG ou JPEG). */
+    static boolean signatureMatches(String contentType, byte[] head) {
+        byte[] signature = SIGNATURES.get(contentType);
+        return signature != null && head.length >= signature.length
+                && Arrays.equals(Arrays.copyOf(head, signature.length), signature);
+    }
+
+    static byte[] withoutActiveContent(byte[] pdf) {
+        switch (br.com.gestorcobranca.shared.storage.PdfActiveContent.inspect(pdf)) {
+            case ACTIVE_CONTENT -> throw new BusinessRuleException("payment.evidence_active_content",
+                    "O PDF contém JavaScript ou conteúdo ativo (arquivo embutido, ação automática) e foi recusado por "
+                            + "segurança. Gere o comprovante de novo (por exemplo, \"imprimir como PDF\")");
+            case UNREADABLE -> throw new BusinessRuleException("payment.evidence_unreadable",
+                    "Não foi possível abrir o PDF para conferir (protegido por senha ou corrompido). Envie o comprovante "
+                            + "sem senha");
+            case SAFE -> {
+                return pdf;
+            }
+        }
+        return pdf;
+    }
+
+    private static byte[] readAll(InputStream in) {
+        try {
+            return in.readAllBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Falha ao ler a evidência enviada", e);
+        }
     }
 
     private InputStream limited(InputStream in) {

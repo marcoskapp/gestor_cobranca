@@ -131,6 +131,24 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    /** O comprovante da nova verificação do MFA só é emitido e conferido pelo identity (SEG-F07, decisão 1436). */
+    @Test
+    void onlyIdentityImplementsStepUpProofs() {
+        classes().that().implement(ROOT + ".shared.security.StepUpProofs")
+                .should().resideInAPackage(ROOT + ".identity..")
+                .because("um comprovante emitido fora do identity dispensaria a verificação do código")
+                .check(classes);
+    }
+
+    /** A leitura de acordos para a alocação (sem {@code AGREEMENT_VIEW} para a pessoa do credor) é só do payment. */
+    @Test
+    void onlyPaymentUsesAgreementAllocationQueries() {
+        noClasses().that().resideOutsideOfPackages(ROOT + ".payment..", ROOT + ".negotiation..")
+                .should().dependOnClassesThat().resideInAPackage(ROOT + ".negotiation.application.port.in.allocation..")
+                .because("a projeção do acordo para a alocação nunca é exibida (decisão 1435, SEG-H01)")
+                .check(classes);
+    }
+
     @Test
     void springDataRepositoriesLiveInPersistence() {
         classes().that().areAssignableTo(org.springframework.data.repository.Repository.class)

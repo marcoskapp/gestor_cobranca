@@ -578,7 +578,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.instruction', version: 1, path: '/pagamentos/instrucoes/:id', tourId: 'payment.instruction' },
   {
     key: 'payment.review',
-    version: 5,
+    version: 6,
     path: '/pagamentos/aprovacoes',
     tourId: 'payment.review',
     changes: [
@@ -586,15 +586,19 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Filtros de credor e de onde o pagamento entrou; "Revisar" abre a decisão com quanto passa do limite, "Aprovar e abrir a próxima" e o contador "1 de N".'] },
       { version: 4, items: ['No celular, os filtros ficam no botão "Filtros (n)", com quantos estão aplicados.'] },
       { version: 5, items: ['Crédito de extrato importado que cita uma cobrança do sistema entra aqui para outra pessoa aprovar ("Extrato importado"); quem importou o extrato não aprova.'] },
+      { version: 6, items: ['Pagamento informado pelo próprio credor no portal: aparece como "Pessoa do credor (portal do credor)", com os títulos informados e o resultado da verificação de vírus do comprovante; na recusa, escolha o motivo que o credor vê.'] },
     ],
   },
   // decisão da fila antes do detalhe do pagamento (":id" casaria o caminho)
   {
     key: 'payment.approval',
-    version: 2,
+    version: 3,
     path: '/pagamentos/aprovacoes/:id',
     tourId: 'approval.decision',
-    changes: [{ version: 2, items: ['Pagamento vindo de extrato importado mostra "Crédito em extrato importado": confira o crédito no extrato do banco antes de aprovar.'] }],
+    changes: [
+      { version: 2, items: ['Pagamento vindo de extrato importado mostra "Crédito em extrato importado": confira o crédito no extrato do banco antes de aprovar.'] },
+      { version: 3, items: ['Pagamento informado pelo próprio credor no portal mostra os títulos informados e se o comprovante passou pela verificação de segurança; na recusa, escolha o motivo que o credor vê.'] },
+    ],
   },
   { key: 'payment.reallocation', version: 1, path: '/pagamentos/sobras', tourId: 'payment.reallocation' },
   { key: 'payment.reconciliation', version: 1, path: '/pagamentos/conciliacao', tourId: 'payment.reconciliation' },
@@ -660,13 +664,14 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'publicapi.billing', version: 2, path: '/integracoes/extratos', tourId: 'publicapi.billing' },
   {
     key: 'payment.detail',
-    version: 4,
+    version: 5,
     path: '/pagamentos/:id',
     tourId: 'payment.detail',
     changes: [
       { version: 2, items: ['Pagamento aguardando aprovação mostra o destino solicitado por quem informou.'] },
       { version: 3, items: ['Estornar passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
       { version: 4, items: ['O nome do devedor abre a ficha dele.', 'Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, acordos e títulos que receberam o pagamento.'] },
+      { version: 5, items: ['Pagamento informado pelo próprio credor no portal: aparece como "Pessoa do credor (portal do credor)", com os títulos informados e o resultado da verificação de vírus do comprovante; na recusa, escolha o motivo que o credor vê.'] },
     ],
   },
   { key: 'settlement.rules', version: 1, path: '/prestacao-de-contas/regras', tourId: 'settlement.rules' },

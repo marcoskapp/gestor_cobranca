@@ -78,8 +78,15 @@ class DisputeEvidenceStore {
         FileSignatures.Sniffed sniffed = FileSignatures.sniff(upload.content());
         String contentType = sniffed.contentType().orElseThrow(() -> new BusinessRuleException(
                 "dispute.evidence_type_invalid", "Documento deve ser PDF, PNG ou JPEG (conferido pelo conteúdo)"));
-        StoredFile stored = fileStorage.store(FileCategory.QUARANTINE, upload.fileName(), contentType, sniffed.content(),
-                upload.size());
+        StoredFile stored;
+        if ("application/pdf".equals(contentType)) {
+            byte[] pdf = withoutActiveContent(sniffed.content());
+            stored = fileStorage.store(FileCategory.QUARANTINE, upload.fileName(), contentType,
+                    new java.io.ByteArrayInputStream(pdf), pdf.length);
+        } else {
+            stored = fileStorage.store(FileCategory.QUARANTINE, upload.fileName(), contentType, sniffed.content(),
+                    upload.size());
+        }
         fileCleanup.deleteOnRollback(stored.key());
         DisputeDocumentQuarantine document = quarantine.save(new DisputeDocumentQuarantine(dispute, creditorResponseId,
                 stored.key(), stored.originalName(), contentType, stored.size(), stored.sha256()));
@@ -96,11 +103,38 @@ class DisputeEvidenceStore {
     }
 
     /**
+     * PDF de fora da assessoria com JavaScript (ou que não dá para abrir e conferir) é recusado antes de gravar (RS-39):
+     * o arquivo seria aberto depois num leitor que executa o conteúdo ativo.
+     */
+    private byte[] withoutActiveContent(java.io.InputStream content) {
+        byte[] bytes;
+        try {
+            // até o máximo configurado, sem confiar no tamanho declarado (RC-04)
+            bytes = content.readNBytes(Math.toIntExact(properties.disputes().apiMaxDocumentBytes()) + 1);
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException("Falha ao ler o documento enviado", e);
+        }
+        Guard.require(bytes.length <= properties.disputes().apiMaxDocumentBytes(), "dispute.evidence_too_large",
+                "Documento excede o tamanho máximo");
+        switch (br.com.gestorcobranca.shared.storage.PdfActiveContent.inspect(bytes)) {
+            case ACTIVE_CONTENT -> throw new BusinessRuleException("dispute.evidence_pdf_active_content",
+                    "O PDF contém JavaScript ou conteúdo ativo (arquivo embutido, ação automática) e foi recusado por segurança. Gere o arquivo de novo sem scripts (por exemplo, \"imprimir como PDF\")");
+            case UNREADABLE -> throw new BusinessRuleException("dispute.evidence_pdf_unreadable",
+                    "Não foi possível abrir o PDF para conferir (protegido por senha ou corrompido). Envie o arquivo sem senha");
+            case SAFE -> {
+                return bytes;
+            }
+        }
+        return bytes;
+    }
+
+    /**
      * Anexo do e-mail do credor: mesmo pipeline dos documentos da API (tipo pelo conteúdo, tamanho, limite da
      * contestação, quarentena e verificação de malware). Anexo fora das regras não interrompe o e-mail: é recusado e
      * fica só no original.
      *
-     * @return {@code accepted}, {@code rejected_type}, {@code rejected_size} ou {@code rejected_limit}
+     * @return {@code accepted}, {@code rejected_type}, {@code rejected_size}, {@code rejected_limit} ou
+     *         {@code rejected_active_content} (PDF com conteúdo ativo ou que não abre)
      */
     String quarantineMailAttachment(Dispute dispute, String fileName, byte[] content, UUID mailReplyId) {
         if (content == null || content.length == 0 || content.length > properties.disputes().apiMaxDocumentBytes()) {
@@ -116,6 +150,12 @@ class DisputeEvidenceStore {
             return "rejected_type";
         }
         String contentType = sniffed.contentType().get();
+        // conteúdo ativo em PDF (ou PDF que não abre) é recusado também no anexo de e-mail (decisão 1441, AQ-02)
+        if ("application/pdf".equals(contentType)
+                && br.com.gestorcobranca.shared.storage.PdfActiveContent.inspect(content)
+                != br.com.gestorcobranca.shared.storage.PdfActiveContent.Verdict.SAFE) {
+            return "rejected_active_content";
+        }
         StoredFile stored = fileStorage.store(FileCategory.QUARANTINE, fileName, contentType, sniffed.content(),
                 content.length);
         fileCleanup.deleteOnRollback(stored.key());

@@ -57,6 +57,7 @@
   } @else if (p.status === 'REVERSED' && p.reversal) {
     <div class="alert alert-danger d-flex gap-2 align-items-start" role="note"><app-icon name="arrow-counterclockwise" /><span>Estornado em {{ p.reversal.reversedAt | appDate }}. Os destinos voltaram a ter saldo em aberto.</span></div>
   }
+  <app-creditor-portal-note [payment]="p" />
   @if (p.status === 'INFORMED' && holdBadge(p); as badge) {
     <div class="alert d-flex gap-2 align-items-start" [class.alert-warning]="badge.tone === 'warning'" [class.alert-danger]="badge.tone === 'danger'" role="note" data-testid="break-hold">
       <app-icon [name]="badge.tone === 'danger' ? 'exclamation-circle' : 'hourglass-split'" />
@@ -218,7 +219,7 @@
           }
           @if (p.informedBy) {
             <dt>{{ fromStatement(p) ? 'Extrato importado por' : 'Informado por' }}</dt>
-            <dd>{{ userName(p.informedBy) }}</dd>
+            <dd>{{ informer(p) }}</dd>
           }
           @if (p.note) {
             <dt>Observação</dt>
@@ -232,6 +233,10 @@
           <h2 class="app-card__title" id="pm-evidence">Comprovante</h2>
           @if (p.evidenceAvailable) {
             <dl class="app-definition-list">
+              @if (p.creditorPortal; as cp) {
+                <dt>Verificação de vírus</dt>
+                <dd>{{ cp.evidenceScanVerdict === 'CLEAN' ? 'Verificado em ' + (cp.evidenceScannedAt | appDate) : 'Não verificado (verificação desligada): abra com cuidado' }}</dd>
+              }
               <dt>SHA-256</dt>
               <dd class="app-mono pm-break" [attr.title]="p.evidenceSha256">{{ p.evidenceSha256 }}</dd>
             </dl>

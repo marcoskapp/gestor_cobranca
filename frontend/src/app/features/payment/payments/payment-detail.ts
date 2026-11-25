@@ -17,6 +17,8 @@ import { StatusChip } from '../../../shared/components/status-chip/status-chip';
 import { NameSource, nameMap } from '../../../shared/data/name-map';
 import { valueOr } from '../../../shared/data/resource-value';
 import { DialogService } from '../../../shared/dialog/dialog.service';
+import { CreditorPortalNote } from '../components/creditor-portal-note';
+import { CreditorRejectDialog, CreditorRejection } from '../components/creditor-reject-dialog';
 import { Option } from '../../../shared/models/lookup';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
@@ -29,7 +31,7 @@ import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, OUTCOME_LABELS, PAYMENT_ERROR_LABELS, REVIEW_MODE_LABELS, SOURCE_LABELS } from '../data/payment.labels';
 import { AllocationView, LineView, PaymentView } from '../data/payment.models';
-import { allocationTarget, fromStatementReview, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
+import { informerLabel, allocationTarget, fromStatementReview, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
 import { breakHoldBadge } from '../data/review-status';
 import { ReallocateDialog, ReallocateDialogData } from '../reallocation/reallocate-dialog';
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
@@ -44,7 +46,7 @@ import { RelatedRecord } from '../../../shared/components/related-records/relate
  */
 @Component({
   selector: 'app-payment-detail',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, KpiCard, MoreActions, RelatedRecords],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, KpiCard, MoreActions, RelatedRecords, CreditorPortalNote],
   templateUrl: './payment-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './payment-detail.scss'],
 })
@@ -86,7 +88,7 @@ export class PaymentDetail {
     inject(UserNames),
     () => {
       const p = this.payment();
-      return p ? [p.informedBy, p.reviewedBy, p.reversal?.reversedBy] : [];
+      return p ? [p.creditorPortal ? null : p.informedBy, p.reviewedBy, p.reversal?.reversedBy] : [];
     },
     { batch: USER_NAMES_BATCH },
   );
@@ -190,6 +192,10 @@ export class PaymentDetail {
     effect(() => this.breadcrumbs.setCurrentLabel(this.debtorName()));
   }
 
+  protected informer(p: PaymentView): string {
+    return informerLabel(p, (id) => this.userName(id));
+  }
+
   protected userName(id: string | null): string {
     if (!id) {
       return 'Sistema';
@@ -243,6 +249,11 @@ export class PaymentDetail {
     if (!p) {
       return;
     }
+    if (p.creditorPortal) {
+      this.dialog.open<CreditorRejectDialog, void, CreditorRejection>(CreditorRejectDialog, {}).afterClosed()
+        .subscribe((r) => r && this.review(p, 'reject', r.note, r.creditorReason));
+      return;
+    }
     this.confirm
       .confirm({
         title: fromStatementReview(p) ? 'Recusar pagamento do extrato' : 'Recusar pagamento informado',
@@ -290,10 +301,10 @@ export class PaymentDetail {
       });
   }
 
-  private review(p: PaymentView, action: 'approve' | 'reject', note: string | null): void {
+  private review(p: PaymentView, action: 'approve' | 'reject', note: string | null, creditorReason: string | null = null): void {
     this.busy.set(true);
     this.reviewError.set(null);
-    const call = action === 'approve' ? this.api.approve(p.id, note) : this.api.reject(p.id, note ?? '');
+    const call = action === 'approve' ? this.api.approve(p.id, note) : this.api.reject(p.id, note ?? '', creditorReason);
     call.pipe(finalize(() => this.busy.set(false))).subscribe({
       next: (updated) => {
         this.notifications.success(action === 'approve' ? 'Pagamento aprovado e baixado.' : 'Pagamento recusado.');
@@ -310,7 +321,7 @@ export class PaymentDetail {
     return [
       { label: 'Devedor', value: this.debtorName() ?? 'Devedor' },
       { label: 'Valor', value: formatAmount(p.amount) },
-      { label: fromStatementReview(p) ? 'Extrato importado por' : 'Informado por', value: this.userName(p.informedBy) },
+      { label: fromStatementReview(p) ? 'Extrato importado por' : 'Informado por', value: this.informer(p) },
       { label: 'Destino', value: p.allocations.map(allocationTarget).join('; ') || this.requestedText() || 'Definido por quem informou (aplicado na aprovação)' },
     ];
   }

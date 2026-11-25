@@ -53,6 +53,9 @@ final class PaymentViews {
                 p.getReversedAt(), p.getAllocatedAmount().amount(), p.unallocated().amount(), pendingReallocation.amount(),
                 p.getEvidenceKey() != null, p.getEvidenceSha256(), allocations.stream().map(PaymentViews::allocation).toList(),
                 reversal.map(PaymentViews::reversal).orElse(null), requestedTarget(p, targetItems), null,
+                p.isFromCreditorPortal() ? new br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.CreditorPortalView(p.getCreditorTitleNumbers(),
+                        p.getEvidenceScanVerdict(), p.getEvidenceScanEngine(), p.getEvidenceScannedAt(),
+                        p.getCreditorRejectionReason()) : null,
                 p.getVersion() == null ? 0 : p.getVersion());
     }
 

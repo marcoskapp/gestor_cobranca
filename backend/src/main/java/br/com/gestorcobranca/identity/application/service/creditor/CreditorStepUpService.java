@@ -13,6 +13,7 @@ import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.ScopeAccessDeniedException;
+import br.com.gestorcobranca.shared.security.StepUpPurpose;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -37,19 +38,22 @@ class CreditorStepUpService implements CreditorStepUp {
     private final CurrentActor currentActor;
     private final AccessLogger accessLogger;
     private final Clock clock;
+    private final CreditorStepUpProofs proofs;
 
     CreditorStepUpService(CreditorAccountRepository accounts, StepUpFailures failures, CurrentActor currentActor,
-                          AccessLogger accessLogger, Clock clock) {
+                          AccessLogger accessLogger, Clock clock, CreditorStepUpProofs proofs) {
         this.accounts = accounts;
         this.failures = failures;
         this.currentActor = currentActor;
         this.accessLogger = accessLogger;
         this.clock = clock;
+        this.proofs = proofs;
     }
 
     @Override
-    @Transactional
-    public Instant verify(String code, String purpose) {
+    @Transactional(propagation = Propagation.MANDATORY)
+    public String verify(String code, StepUpPurpose stepUpPurpose, String subjectRef) {
+        String purpose = stepUpPurpose.code();
         Actor actor = currentActor.get();
         if (!actor.isCreditor() || actor.sessionId() == null) {
             throw new ScopeAccessDeniedException();
@@ -78,7 +82,7 @@ class CreditorStepUpService implements CreditorStepUp {
         user.registerSuccessfulVerification();
         accounts.saveUser(user);
         accessLogger.log(AccessEvent.of(AccessEventType.MFA_SUCCESS, actor, Map.of("purpose", purpose, "stepUp", "true")));
-        return now;
+        return proofs.issue(actor, stepUpPurpose, subjectRef, now);
     }
 
     /** Falhas da nova verificação em transação própria (sobrevivem ao rollback da ação). */

@@ -217,7 +217,22 @@ export interface PaymentView {
   requestedTarget: RequestedTargetView | null;
   /** Em revisão com acordo de destino: suspensão da quebra mais recente do acordo (fila e detalhe). */
   breakSuspension?: BreakSuspensionView | null;
+  /** Informe feito pela pessoa do credor no portal do credor (nulo nos demais). */
+  creditorPortal?: CreditorPortalView | null;
   version: number;
+}
+
+/** Motivo da recusa que o credor vê no portal (a nota da revisão é interna). */
+export type CreditorRejectionReason = 'PROOF_INVALID' | 'AMOUNT_OR_DATE_MISMATCH' | 'WRONG_TITLES' | 'DUPLICATE' | 'OTHER';
+
+export interface CreditorPortalView {
+  /** Números dos títulos como o credor informou. */
+  titleNumbers: string;
+  /** CLEAN (verificado) ou NOT_SCANNED (verificação de malware desligada). */
+  evidenceScanVerdict: 'CLEAN' | 'NOT_SCANNED';
+  evidenceScanEngine: string;
+  evidenceScannedAt: string;
+  creditorRejectionReason: CreditorRejectionReason | null;
 }
 
 // --------------------------------------------------------------------------- conciliação (F15)
@@ -402,7 +417,7 @@ export interface PaymentSettingsRequest {
 export interface ReviewAssessmentView {
   paymentId: string;
   /** Nulo em pagamento registrado antes de o motivo ser gravado (compara com o limite atual por pagamento). */
-  reason: 'AMOUNT' | 'DESTINATION_CUMULATIVE' | 'INFORMER_CUMULATIVE' | 'STATEMENT_LINE' | null;
+  reason: 'AMOUNT' | 'DESTINATION_CUMULATIVE' | 'INFORMER_CUMULATIVE' | 'STATEMENT_LINE' | 'CREDITOR_PORTAL' | null;
   limit: number | null;
   consideredAmount: number | null;
   excess: number | null;

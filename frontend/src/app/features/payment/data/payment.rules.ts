@@ -215,9 +215,10 @@ export function paymentTimeline(p: PaymentView): TimelineEntry[] {
     entries.push({
       at: p.informedAt,
       icon: 'pencil-square',
-      title: 'Pagamento informado',
-      detail: p.reviewThresholdExceeded ? 'Acima do limite: aguardando aprovação de outra pessoa.' : null,
-      userId: p.informedBy,
+      title: p.creditorPortal ? 'Pagamento informado pela pessoa do credor no portal' : 'Pagamento informado',
+      detail: p.creditorPortal ? 'Sempre revisado por outra pessoa da assessoria.'
+        : p.reviewThresholdExceeded ? 'Acima do limite: aguardando aprovação de outra pessoa.' : null,
+      userId: p.creditorPortal ? null : p.informedBy,
       tone: 'neutral',
     });
   }
@@ -398,4 +399,9 @@ export const CREDENTIAL_KEY_LABELS: Record<string, string> = {
  */
 export function fromStatementReview(p: Pick<PaymentView, 'source' | 'reviewMode'>): boolean {
   return p.source === 'PROVIDER' && p.reviewMode === 'DUAL_CONTROL';
+}
+
+/** Quem informou, para exibição: a pessoa do credor (portal) não é usuária da assessoria. */
+export function informerLabel(p: Pick<PaymentView, 'informedBy' | 'creditorPortal'>, name: (id: string) => string): string {
+  return p.creditorPortal ? 'Pessoa do credor (portal do credor)' : p.informedBy ? name(p.informedBy) : 'Sistema';
 }

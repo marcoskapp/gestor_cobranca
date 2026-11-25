@@ -58,6 +58,9 @@ import { fragmentToken } from '../pages/creditor-errors';
             <a [routerLink]="['/credor', slug(), 'contestacoes']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page">
               <app-icon name="chat-square-text" /> Contestações
             </a>
+            <a [routerLink]="['/credor', slug(), 'pagamentos']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page">
+              <app-icon name="cash-coin" /> Pagamentos informados
+            </a>
           }
         </nav>
       }

@@ -14,6 +14,8 @@ import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases.C
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.security.Actor;
+import br.com.gestorcobranca.shared.security.StepUpProofs;
+import br.com.gestorcobranca.shared.security.StepUpPurpose;
 import br.com.gestorcobranca.shared.security.CreditorScope;
 import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.shared.tenancy.TenantExecution;
@@ -242,18 +244,49 @@ class CreditorPortalIdentityIT extends IntegrationTest {
         Actor actor = Actor.creditor(tenant, dora.userId(), dora.sessionId(), creditorA, CreditorRole.FINANCEIRO.permissions());
 
         // o passo da ativação não serve; o seguinte sim, uma vez
-        assertThatThrownBy(() -> asCreditor(actor, () -> stepUp.verify(
-                TotpTestCodes.codeAt(dora.secret(), dora.activationStep()), "test")))
+        assertThatThrownBy(() -> inAction(actor, () -> stepUp.verify(
+                TotpTestCodes.codeAt(dora.secret(), dora.activationStep()), PURPOSE, "alvo")))
                 .hasFieldOrPropertyWithValue("code", "creditor_step_up.invalid");
-        Instant verified = asCreditor(actor, () -> stepUp.verify(TotpTestCodes.codeAt(dora.secret(), dora.activationStep() + 1), "test"));
+        // sem a transação da ação, a verificação nem começa (MANDATORY)
+        assertThatThrownBy(() -> stepUp.verify(TotpTestCodes.codeAt(dora.secret(), dora.activationStep() + 1), PURPOSE,
+                "alvo")).isInstanceOf(org.springframework.transaction.IllegalTransactionStateException.class);
+        // comprovante de uso único, preso à transação, à finalidade e ao alvo (SEG-F07)
+        String[] kept = new String[1];
+        Instant verified = inAction(actor, () -> {
+            String proof = stepUp.verify(TotpTestCodes.codeAt(dora.secret(), dora.activationStep() + 1), PURPOSE, "alvo");
+            kept[0] = proof;
+            assertThatThrownBy(() -> stepUpProofs.consume(proof, PURPOSE, "outro alvo"))
+                    .hasFieldOrPropertyWithValue("code", "creditor_step_up.proof_invalid");
+            assertThatThrownBy(() -> stepUpProofs.consume(proof, StepUpPurpose.STATEMENT_ACKNOWLEDGE, "alvo"))
+                    .hasFieldOrPropertyWithValue("code", "creditor_step_up.proof_invalid");
+            // outra pessoa na mesma transação não usa o comprovante
+            org.springframework.security.core.context.SecurityContext own =
+                    org.springframework.security.core.context.SecurityContextHolder.getContext();
+            org.springframework.security.core.context.SecurityContext other =
+                    org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+            other.setAuthentication(br.com.gestorcobranca.shared.security.ActorAuthentication.of(Actor.creditor(tenant,
+                    Ids.newId(), dora.sessionId(), creditorA, CreditorRole.FINANCEIRO.permissions())));
+            org.springframework.security.core.context.SecurityContextHolder.setContext(other);
+            try {
+                assertThatThrownBy(() -> stepUpProofs.consume(proof, PURPOSE, "alvo"))
+                        .hasFieldOrPropertyWithValue("code", "creditor_step_up.proof_invalid");
+            } finally {
+                org.springframework.security.core.context.SecurityContextHolder.setContext(own);
+            }
+            // a mesma pessoa numa transação aninhada (REQUIRES_NEW) também não usa
+            assertThatThrownBy(() -> tenantExecution.callAs(actor, () -> stepUpProofs.consume(proof, PURPOSE, "alvo")))
+                    .hasFieldOrPropertyWithValue("code", "creditor_step_up.proof_invalid");
+            return stepUpProofs.consume(proof, PURPOSE, "alvo");
+        });
         assertThat(verified).isNotNull();
-        assertThatThrownBy(() -> asCreditor(actor, () -> stepUp.verify(TotpTestCodes.codeAt(dora.secret(), dora.activationStep() + 1), "test")))
-                .hasFieldOrPropertyWithValue("code", "creditor_step_up.invalid");
+        // depois do fim da transação, o mesmo comprovante não vale em outra (nem na mesma thread)
+        assertThatThrownBy(() -> inAction(actor, () -> stepUpProofs.consume(kept[0], PURPOSE, "alvo")))
+                .hasFieldOrPropertyWithValue("code", "creditor_step_up.proof_invalid");
 
         // as falhas sobrevivem ao rollback da ação e, no limite, derrubam a sessão
         // código inválido conta (o reuso não): 5 chegam ao limite
         for (int i = 0; i < 5; i++) {
-            assertThatThrownBy(() -> asCreditor(actor, () -> stepUp.verify(other(TotpTestCodes.codeAt(dora.secret(), dora.activationStep() + 1)), "test")))
+            assertThatThrownBy(() -> inAction(actor, () -> stepUp.verify(other(TotpTestCodes.codeAt(dora.secret(), dora.activationStep() + 1)), PURPOSE, "alvo")))
                     .isInstanceOf(BusinessRuleException.class);
         }
         assertThat(call(get("/api/creditor/v1/me"), dora.token()).status()).isEqualTo(401);
@@ -343,6 +376,19 @@ class CreditorPortalIdentityIT extends IntegrationTest {
 
     private <T> T asAdmin(Supplier<T> action) {
         return as(DefaultRoles.ADMIN, action);
+    }
+
+    private static final StepUpPurpose PURPOSE = StepUpPurpose.PAYMENT_REPORT;
+
+    @Autowired
+    StepUpProofs stepUpProofs;
+    @Autowired
+    org.springframework.transaction.PlatformTransactionManager transactionManager;
+
+    /** A ação do portal: o ator do credor e a transação da ação (onde o comprovante vale). */
+    private <T> T inAction(Actor actor, Supplier<T> action) {
+        return tenantExecution.callAs(actor, () -> new org.springframework.transaction.support.TransactionTemplate(
+                transactionManager).execute(status -> action.get()));
     }
 
     private <T> T asCreditor(Actor actor, Supplier<T> action) {

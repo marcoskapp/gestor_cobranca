@@ -286,7 +286,7 @@ class DisputeMailReplyIT extends CollectionTestSupport {
             s.append("--b1\r\nContent-Type: application/pdf; name=\"baixa.pdf\"\r\n")
                     .append("Content-Disposition: attachment; filename=\"baixa.pdf\"\r\n")
                     .append("Content-Transfer-Encoding: base64\r\n\r\n")
-                    .append(Base64.getMimeEncoder().encodeToString("%PDF-1.4\n%%EOF\n".getBytes(StandardCharsets.US_ASCII)))
+                    .append(Base64.getMimeEncoder().encodeToString(br.com.gestorcobranca.support.TestPdfs.blank()))
                     .append("\r\n--b1\r\nContent-Type: application/pdf; name=\"fatura.pdf\"\r\n")
                     .append("Content-Disposition: attachment; filename=\"fatura.pdf\"\r\n")
                     .append("Content-Transfer-Encoding: base64\r\n\r\n")

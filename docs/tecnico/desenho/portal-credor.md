@@ -24,7 +24,7 @@ avaliação preventiva do `engenheiro-seguranca` de 24/11/2026; decisões autôn
 | 3 | Telas de identidade (`/credor`) e seção interna "Portal do credor" na ficha do credor | feita |
 | 4 | `creditorportal` + prestação de contas (lista, ficha, arquivos, aceite, contestação) | feita |
 | 5 | Contestações aguardando o credor e resposta com documentos | feita |
-| 6 | Pagamento direto informado (sempre revisado) | — |
+| 6 | Pagamento direto informado (sempre revisado) | feita |
 | 7 | Início (indicadores, "Aguardando você") e Minha atividade | — |
 | 8 | Sandbox (carga fictícia), `audit.sh`, `verify.sh`, logs e alarme | — |
 
@@ -99,7 +99,7 @@ avaliação preventiva do `engenheiro-seguranca` de 24/11/2026; decisões autôn
 **Pendências da fatia 4:** lista dos repasses com comprovante no portal (hoje: já pago e falta pagar); prazo para
 responder ao demonstrativo (entra em "Aguardando você", fatia 7); lista dos arquivos efetivamente enviados (o envio
 grava os ids só na auditoria — o portal mostra todos os arquivos gerados do demonstrativo aprovado, decisão 1414);
-manual e tour das telas do portal do credor (fatia 7); da revisão de 24/11/2026: snapshot do contrato das respostas de `/api/creditor/v1` (RS-26, SEG-F05), comprovante opaco de uso único da nova verificação no lugar do `mfaVerifiedAt` informado pelo chamador (SEG-F07, junto com a fatia 6), um colaborador único para os efeitos da resposta (auditoria, evento, métrica) nos dois caminhos (AQ-04), o nome da pessoa do credor que respondeu na ficha interna e no portal (UX-02, UX-08), retenção do IP do termo no catálogo de retenção e o termo visível na ficha interna.
+manual e tour das telas do portal do credor (fatia 7); da revisão de 24/11/2026: snapshot do contrato das respostas de `/api/creditor/v1` (RS-26, SEG-F05), comprovante opaco de uso único da nova verificação no lugar do `mfaVerifiedAt` informado pelo chamador (SEG-F07 — feito na fatia 6, decisão 1436), um colaborador único para os efeitos da resposta (auditoria, evento, métrica) nos dois caminhos (AQ-04), o nome da pessoa do credor que respondeu na ficha interna e no portal (UX-02, UX-08), retenção do IP do termo no catálogo de retenção e o termo visível na ficha interna.
 
 ## 3d. Contestações que aguardam o credor (fatia 5)
 
@@ -115,11 +115,29 @@ manual e tour das telas do portal do credor (fatia 7); da revisão de 24/11/2026
 | Telas | `frontend/src/app/creditor/pages/creditor-disputes.ts` e `creditor-dispute-detail.ts` | Lista e ficha; diálogo de resposta (posição, resumo, anexos com conferência de quantidade e tamanho); 409/404 fecham o diálogo e recarregam a ficha; item "Contestações" no menu com `CREDITOR_PORTAL_OVERVIEW`; perfil sem a permissão vê o pedido e o aviso de quem responde |
 | Testes | `CreditorDisputePortalIT`, `CreditorUploadLimiterTest` (429 com `Retry-After` e a janela seguinte; 413/411 sem ler o corpo), `creditor-dispute-detail.spec.ts` | Lista só com pedido, 404 sem pedido e de outro credor (com `SCOPE_DENIED`), porta recusa a assessoria, texto do pedido sem o link, download registrado e evidência interna 404, perfil de consulta não responde, mais de 5 documentos recusado, resposta com quarentena (só vira evidência depois da verificação), origem e pessoa na visão interna, contestação aberta, pedido respondido, 409 na segunda resposta, evento e auditoria com o ator `CREDITOR`, resumo da assessoria oculto; na tela, multipart com o pedido, a posição e os arquivos, 409 de pedido já respondido recarrega e 409 de regra (limite de documentos) mantém o diálogo com o texto |
 
-**Pendências da fatia 5:** recusa de PDF com JavaScript na quarentena (RS-39; entra com a fatia 6, que usa a mesma
-quarentena para o comprovante, e passa a valer para as contestações também); "Aguardando você" e o prazo na tela
+**Pendências da fatia 5:** ~~recusa de PDF com JavaScript na quarentena~~ (feito na fatia 6, decisão 1441); "Aguardando você" e o prazo na tela
 inicial (fatia 7); manual e tour das telas do portal (fatia 7); notificação por e-mail ao credor de pedido novo pelo
 portal (fase 2, com as notificações); pedido de juntada de documento depois da resposta (fase 2); limite de envios em
 memória por instância (o mesmo risco aceito do limite de login, §5; troca pelo limitador compartilhado quando ele existir); conferir, no ambiente com o balanceador e antes da produção, que os envios chegam com `Content-Length` (se o ALB repassar em chunked, trocar o 411 por um contador de bytes lidos que corta no teto); IT de respostas concorrentes (hoje: `@Version` do pedido → 409 `concurrent_modification` e os arquivos da quarentena apagados no rollback).
+
+## 3e. Pagamento direto informado (fatia 6)
+
+| Peça | Onde | O quê |
+| --- | --- | --- |
+| Porta do dono | `payment.application.port.in.creditor.CreditorPaymentUseCases` (interface `payment :: creditor`; `CreditorPaymentService`, `CreditorEvidenceScreening`) | Só o ator `CREDITOR`; `CREDITOR_PAYMENT_REPORT` para buscar títulos e informar, `CREDITOR_PORTAL_OVERVIEW` para a lista (decisão 1442) |
+| Busca de título | `GET /api/creditor/v1/payments/titles?number=` | Número exato do título no credor da sessão; inexistente, de outro credor ou sem saldo → vazio; devolve vencimento, parcela, saldo e se está em acordo (nada do devedor); 30 por minuto por pessoa |
+| Destino | `CreditorPaymentService#resolve` | Devedor derivado; títulos do mesmo devedor e em aberto; em acordo ativo → o acordo que cobre todos (parcelas em aberto, da mais antiga); mistura ou acordos diferentes → 422; valor acima do saldo → 422 (decisão 1438). Acordos lidos por `negotiation :: allocation` (decisão 1435) |
+| Comprovante | `CreditorEvidenceScreening` (fora de transação) | Até 10 MB, tipo pelo conteúdo, conteúdo ativo em PDF recusado, verificador de malware: infectado → 422 e `MALWARE_DETECTED`, fora do ar → 503 com `Retry-After`, desligado → `NOT_SCANNED` gravado e destacado na revisão (decisão 1437) |
+| Informe | `POST /api/creditor/v1/payments` (multipart: `report` JSON + `evidence`; `Idempotency-Key` obrigatória) | `CreditorPaymentPortalService`: verificação do comprovante fora de transação; depois, numa transação, `requireCanReport` (sem efeito), `CreditorStepUp.verify(código, PAYMENT_REPORT, alvo)` e `report` — trava por credor, limite de 20 em análise, duplicidade (409), consumo do comprovante de uso único (`StepUpProofs`, decisão 1436), idempotência no escopo da pessoa, `Payment.informedByCreditor` (sempre `INFORMED`, motivo `CREDITOR_PORTAL`, origem `CREDITOR_DIRECT`); envio conta no limite de 10 por minuto por pessoa antes das checagens |
+| Banco | `V0812` (payment) | `informed_channel`, `creditor_title_numbers`, veredito do comprovante e `creditor_rejection_reason`; `check`s: canal do portal sempre revisado e só decidido com `reviewed_by`, motivo para o credor obrigatório na recusa (decisão 1443); índice `ix_payment_creditor_portal` |
+| Assessoria | fila e ficha de aprovação (`/pagamentos/aprovacoes/:id`, `/pagamentos/:id`) | Motivo "Informado pelo próprio credor no portal", quem informou "Pessoa do credor (portal)", títulos informados e o resultado da verificação do comprovante; recusa com o motivo que o credor vê (`CreditorRejectDialog`; `POST /payment/payments/{id}/reject` com `creditorReason`, decisão 1440) |
+| Telas | `frontend/src/app/creditor/pages/creditor-payments.ts` | Lista "Pagamentos informados" (situação e motivo da recusa) e diálogo "Informar pagamento" (títulos conferidos um a um, valor com `appMoney`, data não futura, meio, referência, observação, comprovante e código); chave de idempotência por diálogo |
+| Testes | `CreditorPaymentPortalIT`, `CreditorPortalIdentityIT` (comprovante de uso único), `PdfActiveContentTest`, `CreditorApiBoundaryIT`, `creditor-payments.spec.ts` | Busca só dos próprios títulos, perfil de consulta sem gastar o código, porta recusa a assessoria, sempre em análise (R$ 300), alvo do comprovante, idempotência, duplicidade, saldo, título de outro credor, PDF com JavaScript sem gravar nada, recusa com motivo (a nota não vai ao credor), aprovação, destino do acordo e limite de 20 |
+
+**Pendências da fatia 6:** verificação de malware com ClamAV em produção (desligada por padrão; risco aceito até antes da
+produção, issue #33 — com o clamd ligado, o informe passa a depender dele de forma síncrona: 503 se cair, e o dimensionamento da instância muda); tempo limite próprio e curto (cerca de 10 s, com prazo total) para a verificação síncrona (SEG-20261125-I04; hoje vale o de 30 s por operação dos jobs); verificação de malware do comprovante pela API pública e pela assessoria (SEG-H02, falta a parte de malware); limite da busca de títulos compartilhado entre instâncias (decisão 1442); prazo na espera do teto de 4 leituras de PDF simultâneas (hoje a espera não tem prazo; numa transação, a conexão fica presa durante a espera); a pausa da cobrança dos títulos enquanto o informe está em análise (hoje só a quebra do acordo fica
+suspensa, §5.2 de pagamentos); "Aguardando você" e indicadores (fatia 7); manual e tour do portal (fatia 7); destaque dos
+títulos baixados por pagamento informado pela API pública e pela importação (decisão do responsável sobre o H07).
 
 ## 4. Requisitos de segurança (checklist das próximas fatias)
 
@@ -132,7 +150,7 @@ Da avaliação preventiva (RS-xx). Crítica ou Alta confirmada bloqueia o commit
 | 2/4/6 | Nova verificação **na própria requisição da ação** (código no corpo, verificado na mesma transação, sem "sessão elevada"); falhas somam ao bloqueio e revogam a sessão no limite (RS-23, RS-24) |
 | 4 | Métodos próprios `acknowledgeAsCreditor`/`contestAsCreditor` (`CREDITOR_STATEMENT_RESPOND` + tipo do ator), nunca `SETTLEMENT_CLOSE` (RS-30); termo append-only com origem, ator, sessão, IP, instante e SHA-256 de cada arquivo (hash divergente → 409) (RS-31); demonstrativo visível só em `SENT`/`ACKNOWLEDGED`/`CONTESTED` (RS-27); download só do próprio credor, `attachment`, `no-store`, com `FILE_DOWNLOADED` (RS-37, RS-38) |
 | 5 | Quarentena para **toda** origem externa no `DisputeCreditorChannel` (feito: `CreditorResponseSource.isExternal()`) e origem `CREDITOR_PORTAL` (RS-32, RS-39 — a recusa de PDF com JavaScript entra na fatia 6); `receivedAt` do servidor; a resposta não resolve a contestação (feito, §3d) |
-| 6 | Revisão sempre, imposta no caso de uso pelo tipo do ator (RS-33); só ids de título/parcela, devedor e credor derivados no servidor (RS-34); comprovante pela quarentena com recusa de PDF com JavaScript (RS-39); `Idempotency-Key` com prefixo do usuário do credor (RS-35); limites de informes em análise (RS-36) |
+| 6 | Revisão sempre, imposta no caso de uso pelo tipo do ator e no banco (RS-33, feito); só números de título, devedor e destino derivados no servidor (RS-34, feito); comprovante verificado antes de gravar, com recusa de conteúdo ativo em PDF (RS-39, decisão 1437, feito); `Idempotency-Key` obrigatória com prefixo da pessoa do credor (RS-35, feito); limite de informes em análise (RS-36, feito); comprovante de uso único da nova verificação (SEG-F07, decisão 1436, feito) |
 | 4–6 | Restrições `check` de `actor_type` que só aceitam `USER`/`ASSISTANT`/`DEBTOR`/`SYSTEM` (negotiation V0702, V0750, V1300; incentive V1801; `ck_message_sender` em communication V1000): o credor nunca grava nessas tabelas ou o módulo dono mapeia uma origem própria (`CREDITOR_PORTAL`) com migration na faixa dele |
 | todas | DTOs com lista branca e teste de contrato por snapshot (RS-26); nenhum endpoint recebe `creditorId` do cliente; outro credor → 404 igual + `SCOPE_DENIED` (RS-06); ArchUnit para o `creditorportal` (RS-08); limite de tamanho antes de gravar (RS-40); logs sem dado pessoal e "Minha atividade" restrita ao próprio credor (RS-47 a RS-49) |
 

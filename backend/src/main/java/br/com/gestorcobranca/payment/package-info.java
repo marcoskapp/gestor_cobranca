@@ -20,7 +20,7 @@
  */
 @ApplicationModule(displayName = "Payment",
         allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "negotiation :: usecases",
-                "negotiation :: spi"})
+                "negotiation :: spi", "negotiation :: allocation"})
 package br.com.gestorcobranca.payment;
 
 import org.springframework.modulith.ApplicationModule;

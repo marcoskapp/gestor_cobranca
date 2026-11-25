@@ -34,7 +34,7 @@ public interface CreditorSettlementUseCases {
 
     /**
      * Aceite pela pessoa do credor ({@code CREDITOR_STATEMENT_RESPOND}): exige a nova verificação do MFA já feita na
-     * mesma transação ({@code mfaVerifiedAt}) e os SHA-256 dos arquivos que ela viu — se mudaram, 409. Grava o termo.
+     * mesma transação (comprovante de uso único, {@code stepUpProof} — SEG-F07) e os SHA-256 dos arquivos que ela viu — se mudaram, 409. Grava o termo.
      */
     CreditorStatementDetail acknowledge(UUID statementId, CreditorResponseCommand command);
 
@@ -45,9 +45,10 @@ public interface CreditorSettlementUseCases {
      * @param note          observação do aceite ou motivo da contestação
      * @param fileSha256    hashes dos arquivos mostrados à pessoa (obrigatórios no aceite quando há arquivos)
      * @param clientIp      IP da requisição (já validado pelo filtro de proxies confiáveis)
-     * @param mfaVerifiedAt instante da nova verificação do MFA (obrigatório no aceite)
+     * @param stepUpProof   comprovante da nova verificação do MFA nesta transação (obrigatório no aceite; nulo na
+     *                      contestação), conferido em {@link br.com.gestorcobranca.shared.security.StepUpProofs}
      */
-    record CreditorResponseCommand(String note, List<String> fileSha256, String clientIp, Instant mfaVerifiedAt) {
+    record CreditorResponseCommand(String note, List<String> fileSha256, String clientIp, String stepUpProof) {
     }
 
     /** @param direction {@code AGENCY_TO_CREDITOR} (a assessoria repassa), {@code CREDITOR_TO_AGENCY} (o credor paga) ou {@code NONE} */
