@@ -33,3 +33,8 @@ output "rollback_alarm_names" {
     aws_cloudwatch_metric_alarm.unhealthy_hosts.alarm_name,
   ]
 }
+
+output "alarm_action_arns" {
+  description = "Destinos de todos os alarmes do ambiente (tópico SNS, se ligado, e extra_alarm_action_arns)."
+  value       = local.alarm_actions
+}

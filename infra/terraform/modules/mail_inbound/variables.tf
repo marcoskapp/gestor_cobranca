@@ -45,3 +45,9 @@ variable "kms_key_arn" {
   type        = string
   default     = null
 }
+
+variable "alarm_action_arns" {
+  description = "Destinos do alarme da DLQ (o tópico SNS de alarmes do ambiente); vazio, o alarme só fica no console."
+  type        = list(string)
+  default     = []
+}

@@ -245,6 +245,7 @@ Limites do provider simulado: os atributos calculados que o teste não fixa (ARN
 | Testes | O que garantem |
 | --- | --- |
 | `envs/*/tests/plan.tftest.hcl` | combinações de fase e de serviços que requerem aprovação, guardas entre variáveis (conexões, certificado, Bedrock, Pix, e-mail de entrada), segredos de migração fora do runtime, primeiro administrador, `jobs_dispatch_concurrency` no `instance.conf` |
+| `modules/mail_inbound/tests` | alarmes da DLQ (> 0) e da idade da mensagem mais antiga da fila principal (> 15 min) com o tópico de alarmes, e sem destino quando a notificação está desligada |
 | `modules/storage/tests` | bloqueio público completo, ACLs desativadas, SSE (SSE-S3 ou KMS, logs sempre SSE-S3), versionamento, sem `force_destroy`, todo bucket com política; nos documentos de origem da política, negação de requisição sem TLS ou com TLS < 1.2 e escrita no bucket de segredos só pelos administradores (o documento combinado só é lido depois do apply) |
 | `modules/database/tests` | RDS não público, só pelo `sg-db`, criptografado (chave do cliente também no Performance Insights), senha mestre gerenciada pelo RDS, proteção contra exclusão e snapshot final, `rds.force_ssl` e TLS ≥ 1.2, PostgreSQL 16 |
 | `modules/security/tests` | entrada da internet só no `sg-alb` (80/443); `sg-app` só do `sg-alb`; `sg-db` só do `sg-app`; saída do `sg-app` para a internet só 443 e 587; todas as regras TCP (protocolo `-1` ignoraria as portas) |

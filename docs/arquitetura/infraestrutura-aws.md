@@ -98,6 +98,8 @@ Retenção curta no CloudWatch e arquivamento no S3 reduzem o custo de armazenam
 | Latência p95 | > 1,5 s por 10 min |
 | Instâncias não saudáveis | ≥ 1 por 5 min |
 | CPU do RDS / conexões | > 80% por 15 min |
+| E-mail recebido na DLQ (só com `enable_inbound_mail`) | > 0 mensagem em 5 min (`…-inbound-mail-dlq`) |
+| E-mail parado na fila (só com `enable_inbound_mail`) | mensagem mais antiga > 15 min (`…-inbound-mail-age`) |
 | Espaço livre no RDS | < 20% |
 | Jobs em DEAD (`jobs.dead`) | > 0 |
 | Eventos pendentes (`events.publications.incomplete`) | crescimento contínuo por 15 min |

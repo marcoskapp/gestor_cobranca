@@ -285,4 +285,5 @@ module "mail_inbound" {
   instance_role_name = local.instance_role_name
   raw_retention_days = var.inbound_mail_raw_retention_days
   kms_key_arn        = var.data_kms_key_arn
+  alarm_action_arns  = module.observability.alarm_action_arns
 }

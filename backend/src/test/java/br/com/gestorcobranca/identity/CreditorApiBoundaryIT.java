@@ -64,6 +64,29 @@ class CreditorApiBoundaryIT extends IntegrationTest {
         mvc.perform(get("/api/creditor/v1/payments/titles").param("number", "T-1").with(authentication(debtor)))
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/creditor/v1/payments")).andExpect(status().isUnauthorized());
+        // Idempotency-Key fora do formato ou ausente: 400 da própria chave (o detail diz o motivo), antes do comprovante e do
+        // código do autenticador (SEG-20261125-I03). O informe é válido para o 400 não vir do @Valid (validation.failed).
+        ActorAuthentication reporter = ActorAuthentication.of(Actor.creditor(tenant, Ids.newId(), Ids.newId(), Ids.newId(),
+                Set.of(Permission.CREDITOR_PORTAL_OVERVIEW, Permission.CREDITOR_PAYMENT_REPORT)));
+        org.springframework.mock.web.MockMultipartFile report = new org.springframework.mock.web.MockMultipartFile("report", "",
+                "application/json", """
+                {"titleNumbers":["T-1"],"amount":10.00,"paidOn":"2026-11-20","method":"PIX","code":"123456"}
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        org.springframework.mock.web.MockMultipartFile evidence = new org.springframework.mock.web.MockMultipartFile(
+                "evidence", "c.pdf", "application/pdf", "%PDF-1.4".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        for (String key : new String[]{null, "x", "chave com espaço", "", "a".repeat(81)}) {
+            var request = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/creditor/v1/payments")
+                    .file(report).file(evidence)
+                    // o CreditorRequestSizeFilter responde 411 sem Content-Length
+                    .with(r -> { r.setContent(new byte[64]); return r; })
+                    .with(authentication(reporter));
+            if (key != null) {
+                request.header("Idempotency-Key", key);
+            }
+            mvc.perform(request).andExpect(status().isBadRequest())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.detail")
+                            .value(org.hamcrest.Matchers.startsWith("Idempotency-Key obrigatória")));
+        }
         // anônimo: 401
         mvc.perform(get("/api/creditor/v1/overview")).andExpect(status().isUnauthorized());
         mvc.perform(get("/v3/api-docs.yaml")).andExpect(status().isUnauthorized());

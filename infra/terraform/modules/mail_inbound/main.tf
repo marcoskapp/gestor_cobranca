@@ -229,3 +229,39 @@ resource "aws_iam_role_policy" "consumer" {
   role   = var.instance_role_name
   policy = data.aws_iam_policy_document.consumer.json
 }
+
+# E-mail recebido que falhou 5 vezes (inclusive o adiado por recurso ocupado que não conseguiu vaga a tempo) vai
+# para a DLQ e não é reprocessado sozinho: qualquer mensagem lá é alarme (SEG-20261125-I07).
+resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
+  alarm_name          = "${var.name_prefix}-inbound-mail-dlq"
+  alarm_description   = "Ha e-mails recebidos na fila de falhas (inbound-mail-dlq): conferir e reprocessar."
+  namespace           = "AWS/SQS"
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  dimensions          = { QueueName = aws_sqs_queue.dlq.name }
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 0
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = var.alarm_action_arns
+  ok_actions          = var.alarm_action_arns
+}
+
+# E-mail parado na fila principal há mais de 15 min: consumidor fora do ar (modo, permissão, instâncias) ou saturado.
+# Cobre o que a DLQ não pega — mensagem nunca recebida não vai para a DLQ e expira com a retenção de 4 dias.
+resource "aws_cloudwatch_metric_alarm" "queue_oldest_age" {
+  alarm_name          = "${var.name_prefix}-inbound-mail-age"
+  alarm_description   = "E-mail recebido parado na fila ha mais de 15 min: conferir o consumidor (modo, permissao, instancias)."
+  namespace           = "AWS/SQS"
+  metric_name         = "ApproximateAgeOfOldestMessage"
+  dimensions          = { QueueName = aws_sqs_queue.inbound.name }
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 900
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = var.alarm_action_arns
+  ok_actions          = var.alarm_action_arns
+}

@@ -31,7 +31,7 @@ flowchart LR
 | 3. Terraform | `infra/terraform/envs/<env>/terraform.tfvars` | `enable_inbound_mail = true` e `inbound_mail_domain = "respostas.…"`; opcional `inbound_mail_raw_retention_days` (padrão 30). `terraform apply`. |
 | 4. MX | DNS do subdomínio | Registro **MX** `10 inbound-smtp.sa-east-1.amazonaws.com` (a saída `inbound_mail_mx_record` mostra o valor). |
 | 5. Aplicação | `user-data` (automático) | Com o módulo ligado, as instâncias recebem `INBOUND_MAIL_MODE=ses`, `INBOUND_MAIL_DOMAIN`, `INBOUND_MAIL_BUCKET` e `INBOUND_MAIL_QUEUE_URL`. Faça um *instance refresh* para valer. |
-| 6. Alarme | CloudWatch | Alarme na métrica `ApproximateNumberOfMessagesVisible` da **DLQ** (`…-inbound-mail-dlq`) > 0, e no `ApproximateAgeOfOldestMessage` da fila > 15 min. |
+| 6. Alarmes | criados pelo módulo (nada manual) | `…-inbound-mail-dlq` (`ApproximateNumberOfMessagesVisible` da **DLQ** > 0) e `…-inbound-mail-age` (`ApproximateAgeOfOldestMessage` da fila principal > 15 min). Notificam pelo tópico de alarmes do ambiente quando `enable_sns_notifications` está ligado; sem ele, ficam só no console. |
 
 O módulo `infra/terraform/modules/mail_inbound` cria:
 
@@ -41,6 +41,7 @@ O módulo `infra/terraform/modules/mail_inbound` cria:
 | Conjunto e regra de recebimento | regra `creditor-replies` para o subdomínio, **varredura de spam e vírus ligada**, TLS exigido na entrega, ação S3 em `raw/` com notificação no SNS. O conjunto fica **ativo** (há um só por conta e região: confira antes se a conta já usa outro). |
 | SNS `…-inbound-mail` | só o SES publica (`aws:SourceAccount`). |
 | SQS `…-inbound-mail` + DLQ | SSE-SQS, visibilidade 300 s, leitura longa 20 s, retenção 4 dias; DLQ após 5 recebimentos, retenção 14 dias; só o tópico envia. |
+| Alarmes `…-inbound-mail-dlq` e `…-inbound-mail-age` | mensagem na DLQ (> 0) e mensagem mais antiga da fila principal acima de 15 min, período de 5 min, sem dado não é alarme (SEG-20261125-I07) |
 | Política no papel das instâncias | `sqs:ReceiveMessage`, `DeleteMessage`, `ChangeMessageVisibility`, `GetQueueAttributes` na fila; `s3:GetObject` em `raw/*` (e `kms:Decrypt` se houver chave do cliente). Nada mais. |
 
 ### Variáveis da aplicação
@@ -73,6 +74,9 @@ Limites em `app.collection.inbound-mail.*` (`application.yml`): `max-message-byt
 Aprovado, o e-mail fica **a confirmar** no pedido; os anexos PDF, PNG ou JPEG de até 10 MB vão para a quarentena de documentos e o antivírus (decisões 815–816) e viram evidências "do credor, por e-mail"; os demais ficam só no original. A quarentena de e-mails é decidida pela gestão (Contestações → Configuração → E-mails em quarentena). Nada é descartado em silêncio: e-mail sem token conhecido vai para `collection.inbound_mail_unrouted` (só metadados e a chave do original no bucket, que expira com o ciclo de vida).
 
 ## 4. Operação
+
+- **`…-inbound-mail-age`** (e-mail parado na fila há mais de 15 min): confira se as instâncias estão no ar com `INBOUND_MAIL_MODE=ses`, se o papel tem `sqs:ReceiveMessage` e os logs `Falha ao ler a fila de e-mails recebidos`. Também dispara durante uma saturação longa da leitura de PDF (a mensagem adiada volta a cada 5 min, decisão 1445). Mensagem nunca recebida **expira em 4 dias** sem ir para a DLQ.
+- **`…-inbound-mail-dlq`** (mensagem que falhou 5 vezes): corrija a causa e reprocesse com o *redrive* da DLQ para a fila principal (console SQS → DLQ → *Start DLQ redrive*). A mensagem na DLQ expira em **14 dias contados do envio original**. O alarme notifica uma vez e fica em ALARME até a DLQ esvaziar.
 
 - **Fila parada ou DLQ com mensagens:** veja o log técnico `SesInboundMailConsumer` (falha de leitura da fila ou do S3) e a métrica `integration.calls{provider=sqs|s3,operation=inbound_mail}`. Corrigida a causa, reenvie as mensagens da DLQ para a fila (*redrive* no console SQS): o registro é idempotente.
 - **Muitos `AUTHENTICATION_FAILED` de um credor:** o domínio dele pode estar sem DMARC/DKIM; peça ao credor que ajuste ou que use a API pública. Não há liberação manual desse motivo.

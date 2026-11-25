@@ -94,6 +94,7 @@ class PdfActiveContentTest {
     }
 
     @Test
+    @org.junit.jupiter.api.Timeout(15)
     void semVagaDeLeituraNoPrazoResponde503EmVezDeEsperarParaSempre() {
         int permits = PdfActiveContent.MAX_CONCURRENT_PARSES;
         PdfActiveContent.PARSES.acquireUninterruptibly(permits);
