@@ -40,6 +40,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class CommunicationModuleIT extends CommunicationTestSupport {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    br.com.gestorcobranca.communication.domain.repository.ConversationDraftRepository drafts;
+
     UUID debtor;
     CaseView kase;
 
@@ -302,6 +305,55 @@ class CommunicationModuleIT extends CommunicationTestSupport {
         // outro operador não trabalha a conversa do supervisor
         assertThatThrownBy(() -> asOperator(operatorY, () -> conversations.takeOver(conversationId, null)))
                 .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void debtorAnonymizationRemovesContactAndContentOfTheConversations() {
+        MessageView first = asOperator(operatorX, () -> messages.send(template(null, null)));
+        drainCommunication();
+        UUID conversationId = first.conversationId();
+        asAdmin(() -> {
+            sandbox.simulateInbound(whatsapp.id(), "5511987654321", "Meu CPF é 529.982.247-25, quero pagar");
+            return null;
+        });
+        UUID policy = Ids.newId();
+        asAssistant(policy, creditorA, () -> conversations.proposeDraft(conversationId,
+                new ProposeDraftCommand("SHADOW", "Maria, podemos parcelar em 3x.", "oferta nível 1")));
+        asOperator(operatorX, () -> conversations.returnToAssistant(conversationId, "Assistente conduz"));
+        publishAndAwait(new HandoffRequested(Ids.newId(), tenant, Instant.now(), kase.id(), debtor, creditorA, null,
+                "REQUIRES_APPROVAL", "SUPERVISOR", "Maria pediu desconto de 40%", "proposal", Ids.newId(), "ASSISTANT",
+                policy), "communication.handoff-requested");
+        assertThat(count("select count(*) from communication.message where conversation_id = ? "
+                + "and content_encrypted is not null", conversationId)).isGreaterThanOrEqualTo(2);
+        // envio ainda na fila no instante da anonimização: falha, nunca sai para o contato removido
+        MessageView pending = asOperator(operatorX, () -> messages.send(template(null, null)));
+        assertThat(pending.status()).isEqualTo("QUEUED");
+
+        publishAndAwait(new br.com.gestorcobranca.shared.events.debt.DebtorAnonymized(Ids.newId(), tenant, Instant.now(),
+                debtor), "communication.debtor-anonymized");
+
+        ConversationDetail detail = system(() -> conversations.get(conversationId));
+        assertThat(detail.conversation().status()).isEqualTo("CLOSED");
+        assertThat(detail.conversation().contactMasked()).isEqualTo("Contato removido");
+        assertThat(detail.handoffs()).allSatisfy(h -> assertThat(h.summary()).isNull());
+        assertThat(count("select count(*) from communication.message where conversation_id = ? "
+                + "and (content_encrypted is not null or subject_encrypted is not null or variables_encrypted is not null)",
+                conversationId)).isZero();
+        assertThat(count("select count(*) from communication.conversation_draft where conversation_id = ? "
+                + "and (rationale is not null or status = 'PENDING')", conversationId)).isZero();
+        assertThat(system(() -> drafts.findByConversationId(conversationId))).isNotEmpty()
+                .allSatisfy(d -> assertThat(d.getContent()).isEmpty());
+        assertThat(count("select count(*) from communication.conversation where id = ? and contact_id is null",
+                conversationId)).isEqualTo(1);
+        assertThat(count("select count(*) from communication.message where id = ? and status = 'FAILED' "
+                + "and failure_code = 'SUBJECT_ANONYMIZED'", pending.id())).isEqualTo(1);
+        assertThat(count("select count(*) from communication.message where conversation_id = ? "
+                + "and provider_message_id is not null and provider_message_id not like 'anon:%'", conversationId)).isZero();
+        // um contato novo do mesmo número abre outra conversa: o blind index antigo não coincide mais
+        assertThat(count("select count(*) from communication.conversation c1 join communication.conversation c2 "
+                + "on c1.contact_hash = c2.contact_hash and c1.id <> c2.id where c1.id = ?", conversationId)).isZero();
+        assertThat(count("select count(*) from shared.audit_event where action = 'conversation.anonymized' "
+                + "and entity_id = ?", conversationId)).isEqualTo(1);
     }
 
     @Test

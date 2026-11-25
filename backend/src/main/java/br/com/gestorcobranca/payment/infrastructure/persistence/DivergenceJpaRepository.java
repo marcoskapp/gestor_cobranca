@@ -56,4 +56,11 @@ interface DivergenceJpaRepository extends JpaRepository<Divergence, UUID>, JpaSp
         }
         return findAll(spec, pageable);
     }
+
+    @Override
+    @org.springframework.data.jpa.repository.Query("""
+            select d from Divergence d where d.paymentId in :ids or d.resolvedPaymentId in :ids
+            """)
+    java.util.List<Divergence> findByPayments(@org.springframework.data.repository.query.Param("ids")
+                                              java.util.Collection<UUID> paymentIds);
 }

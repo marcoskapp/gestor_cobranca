@@ -219,7 +219,11 @@ class DebtorService implements DebtorUseCases {
         List<CompanyRepresentative> removedRepresentatives = representatives.findByCompanyDebtorIdOrderByCreatedAtAsc(debtorId);
         Instant now = Instant.now(clock);
         debtor.anonymize(now);
-        contacts.deleteAll(removed);
+        // neutralizados no lugar: outros módulos (algumas tabelas imutáveis) apontam para o contato (decisão 1457)
+        for (DebtorContact contact : removed) {
+            contact.anonymize(now);
+            contacts.save(contact);
+        }
         representatives.deleteAll(removedRepresentatives);
         debtors.save(debtor);
         // demais módulos (negotiation…) neutralizam os próprios textos livres e evidências do devedor

@@ -22,6 +22,14 @@ class FileCleanup {
         this.fileStorage = fileStorage;
     }
 
+    /**
+     * Apaga já, dentro da transação (anonimização): a falha desfaz a transação e o evento é reprocessado; se o commit
+     * falhar depois, a nova tentativa apaga de novo (a exclusão é idempotente nos dois armazenamentos).
+     */
+    void deleteNow(String key) {
+        fileStorage.delete(key);
+    }
+
     void deleteOnRollback(String key) {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override

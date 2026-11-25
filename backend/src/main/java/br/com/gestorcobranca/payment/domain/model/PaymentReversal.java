@@ -41,7 +41,8 @@ public class PaymentReversal extends TenantScopedEntity {
     private String providerReference;
 
     @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "note_encrypted", length = 4000, updatable = false)
+    /** Muda só na anonimização do titular (gatilho {@code payment.reversal_anonymize_only}, V0811). */
+    @Column(name = "note_encrypted", length = 4000)
     private String note;
 
     @Enumerated(EnumType.STRING)
@@ -104,5 +105,14 @@ public class PaymentReversal extends TenantScopedEntity {
 
     public Instant getReversedAt() {
         return reversedAt;
+    }
+
+    /** LGPD (SEG-20261124-D01): a observação do estorno (texto livre) sai na anonimização do titular. */
+    public boolean anonymizeNote() {
+        if (note == null) {
+            return false;
+        }
+        this.note = null;
+        return true;
     }
 }

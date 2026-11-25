@@ -25,6 +25,25 @@ class DebtorContactTest {
     }
 
     @Test
+    void anonymizedContactIsNeutralizedAndRefusesEveryChange() {
+        DebtorContact c = phone(true);
+        c.anonymize(NOW);
+        assertThat(c.isAnonymized()).isTrue();
+        assertThat(c.maskedValue()).isEqualTo(DebtorContact.ANONYMIZED_MASK);
+        assertThat(c.getStatus()).isEqualTo(ContactStatus.INVALID);
+        assertThat(c.isWhatsapp()).isFalse();
+        assertThat(c.hasPerson()).isFalse();
+        assertThatThrownBy(() -> c.markValid(NOW)).hasFieldOrPropertyWithValue("code", "contact.anonymized");
+        assertThatThrownBy(() -> c.classify(ContactLabel.MOBILE, true, 0)).hasFieldOrPropertyWithValue("code", "contact.anonymized");
+        assertThatThrownBy(() -> c.assignPerson("Ana", null, false)).hasFieldOrPropertyWithValue("code", "contact.anonymized");
+        assertThatThrownBy(() -> c.receivedByImport(BATCH_2, true, WINDOW, NOW))
+                .hasFieldOrPropertyWithValue("code", "contact.anonymized");
+        String hash = c.getValueHash();
+        c.anonymize(NOW.plusSeconds(60));
+        assertThat(c.getValueHash()).isEqualTo(hash);
+    }
+
+    @Test
     void contactOfTheLoadThatCreatedTheDebtorIsNeverNew() {
         DebtorContact c = phone(false);
         c.receivedByImport(BATCH_1, false, null, NOW);

@@ -338,4 +338,13 @@ public class PaymentInstruction extends TenantScopedEntity {
     public String getChannel() {
         return channel;
     }
+
+    /** LGPD (SEG-20261124-D01): o motivo do cancelamento (texto livre) sai na anonimização do titular. */
+    public boolean anonymizeCancelReason() {
+        if (cancelReason == null) {
+            return false;
+        }
+        this.cancelReason = null;
+        return true;
+    }
 }

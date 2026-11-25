@@ -11,5 +11,8 @@ public interface PaymentReversalRepository {
 
     Optional<PaymentReversal> findByPaymentId(UUID paymentId);
 
+    /** Estornos dos pagamentos (anonimização do titular). */
+    java.util.List<PaymentReversal> findByPaymentIdIn(java.util.Collection<UUID> paymentIds);
+
     boolean existsByProviderReference(String providerReference);
 }

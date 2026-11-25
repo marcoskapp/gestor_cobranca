@@ -2,6 +2,7 @@ package br.com.gestorcobranca.payment.application.service;
 
 import br.com.gestorcobranca.shared.config.AsyncConfig;
 import br.com.gestorcobranca.shared.events.TenantEventListener;
+import br.com.gestorcobranca.shared.events.debt.DebtorAnonymized;
 import br.com.gestorcobranca.shared.events.debt.TitleStatusChanged;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementPaymentRecorded;
 import br.com.gestorcobranca.shared.events.negotiation.AgreementStatusChanged;
@@ -19,9 +20,17 @@ import org.springframework.transaction.event.TransactionalEventListener;
 class PaymentReactions extends TenantEventListener {
 
     private final PaymentEventHandlers handlers;
+    private final PaymentAnonymizer anonymizer;
 
-    PaymentReactions(PaymentEventHandlers handlers) {
+    PaymentReactions(PaymentEventHandlers handlers, PaymentAnonymizer anonymizer) {
         this.handlers = handlers;
+        this.anonymizer = anonymizer;
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(DebtorAnonymized event) {
+        handleOnce(event, "payment.debtor-anonymized", () -> anonymizer.anonymize(event.debtorId(), event.eventId()));
     }
 
     @Async(AsyncConfig.EVENT_EXECUTOR)

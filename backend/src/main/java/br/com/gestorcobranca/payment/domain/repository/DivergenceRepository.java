@@ -19,6 +19,9 @@ public interface DivergenceRepository {
 
     Optional<Divergence> findByIdForUpdate(UUID id);
 
+    /** Divergências ligadas aos pagamentos, como origem ou como resolução (anonimização do titular). */
+    java.util.List<Divergence> findByPayments(java.util.Collection<UUID> paymentIds);
+
     boolean existsByTypeAndProviderReference(DivergenceType type, String providerReference);
 
     /**

@@ -8,8 +8,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -65,6 +67,11 @@ class JpaBankStatementRepository implements BankStatementRepository {
     @Override
     public Optional<BankStatementLine> findLine(UUID id) {
         return lines.findById(id);
+    }
+
+    @Override
+    public List<BankStatementLine> findLinesByPaymentIds(Collection<UUID> paymentIds) {
+        return paymentIds.isEmpty() ? List.of() : lines.findByPaymentIdIn(paymentIds);
     }
 
     @Override

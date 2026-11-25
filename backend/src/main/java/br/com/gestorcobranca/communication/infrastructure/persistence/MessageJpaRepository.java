@@ -16,6 +16,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -68,4 +69,24 @@ interface MessageJpaRepository extends JpaRepository<Message, UUID>, JpaSpecific
              order by m.createdAt
             """)
     List<Message> findContentOlderThan(Instant cutoff, Limit limit);
+
+    @Override
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true)
+    @Query(nativeQuery = true, value = """
+            update communication.message
+               set content_encrypted = null, subject_encrypted = null, variables_encrypted = null,
+                   content_purged_at = coalesce(content_purged_at, :now),
+                   provider_message_id = case
+                       when provider_message_id is null or provider_message_id like 'anon:%' then provider_message_id
+                       else 'anon:' || encode(sha256(convert_to(provider_message_id, 'UTF8')), 'hex') end,
+                   version = version + 1, updated_at = :now
+             where conversation_id = :conversationId
+               and (content_purged_at is null
+                    or (provider_message_id is not null and provider_message_id not like 'anon:%'))
+            """)
+    int purgeContentOfConversation(@Param("conversationId") UUID conversationId, @Param("now") Instant now);
+
+    @Override
+    List<Message> findByConversationIdAndStatus(UUID conversationId,
+                                                br.com.gestorcobranca.communication.domain.model.MessageStatus status);
 }

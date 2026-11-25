@@ -2,6 +2,7 @@ package br.com.gestorcobranca.communication.application.service;
 
 import br.com.gestorcobranca.shared.config.AsyncConfig;
 import br.com.gestorcobranca.shared.events.TenantEventListener;
+import br.com.gestorcobranca.shared.events.debt.DebtorAnonymized;
 import br.com.gestorcobranca.shared.events.collection.CaseAssignmentChanged;
 import br.com.gestorcobranca.shared.events.collection.CaseStatusChanged;
 import br.com.gestorcobranca.shared.events.communication.HandoffRequested;
@@ -18,9 +19,17 @@ import org.springframework.transaction.event.TransactionalEventListener;
 class CommunicationEventListeners extends TenantEventListener {
 
     private final CommunicationReactions reactions;
+    private final CommunicationAnonymizer anonymizer;
 
-    CommunicationEventListeners(CommunicationReactions reactions) {
+    CommunicationEventListeners(CommunicationReactions reactions, CommunicationAnonymizer anonymizer) {
         this.reactions = reactions;
+        this.anonymizer = anonymizer;
+    }
+
+    @Async(AsyncConfig.EVENT_EXECUTOR)
+    @TransactionalEventListener
+    void on(DebtorAnonymized event) {
+        handleOnce(event, "communication.debtor-anonymized", () -> anonymizer.anonymize(event.debtorId(), event.eventId()));
     }
 
     @Async(AsyncConfig.EVENT_EXECUTOR)

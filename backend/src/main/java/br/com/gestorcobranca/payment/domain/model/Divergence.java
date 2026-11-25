@@ -179,4 +179,13 @@ public class Divergence extends TenantScopedEntity {
     public Instant getResolvedAt() {
         return resolvedAt;
     }
+
+    /** LGPD (SEG-20261124-D01): a justificativa da resolução (texto livre) sai na anonimização do titular. */
+    public boolean anonymizeResolutionNote() {
+        if (resolutionNote == null) {
+            return false;
+        }
+        this.resolutionNote = null;
+        return true;
+    }
 }

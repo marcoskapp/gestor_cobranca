@@ -37,10 +37,11 @@ public class DebtorContact extends TenantScopedEntity {
     private ContactType type;
 
     @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "value_encrypted", nullable = false, length = 2048, updatable = false)
+    /** Muda só na anonimização do titular ({@link #anonymize}). */
+    @Column(name = "value_encrypted", nullable = false, length = 2048)
     private String value;
 
-    @Column(name = "value_hash", nullable = false, length = 64, updatable = false)
+    @Column(name = "value_hash", nullable = false, length = 64)
     private String valueHash;
 
     @Enumerated(EnumType.STRING)
@@ -66,6 +67,10 @@ public class DebtorContact extends TenantScopedEntity {
 
     @Column(name = "invalid_reason", length = 500)
     private String invalidReason;
+
+    /** Titular anonimizado (decisão 1457). */
+    @Column(name = "anonymized_at")
+    private Instant anonymizedAt;
 
     /** Nome da pessoa com quem se fala neste contato (B2); dado pessoal, criptografado. */
     @Convert(converter = EncryptedStringConverter.class)
@@ -128,6 +133,7 @@ public class DebtorContact extends TenantScopedEntity {
 
     /** Altera classificação, indicação de WhatsApp e prioridade (menor = usado primeiro). */
     public void classify(ContactLabel label, boolean whatsapp, int priority) {
+        requireNotAnonymized();
         Guard.require(!whatsapp || type == ContactType.PHONE, "contact.whatsapp_requires_phone",
                 "Somente telefones podem ser marcados como WhatsApp");
         Guard.require(priority >= 0, "contact.priority_invalid", "Prioridade não pode ser negativa");
@@ -141,6 +147,7 @@ public class DebtorContact extends TenantScopedEntity {
      * a indicação de quem decide não faz sentido ({@code contact.decision_maker_without_person}).
      */
     public void assignPerson(String name, ContactPersonRole role, boolean decisionMaker) {
+        requireNotAnonymized();
         String clean = name == null || name.isBlank() ? null : name.trim().replaceAll("\\s+", " ");
         Guard.require(clean == null || clean.length() <= PERSON_NAME_MAX, "contact.person_name_too_long",
                 "Nome da pessoa de contato muito longo");
@@ -156,12 +163,14 @@ public class DebtorContact extends TenantScopedEntity {
     }
 
     public void markValid(Instant now) {
+        requireNotAnonymized();
         this.status = ContactStatus.VALID;
         this.invalidReason = null;
         this.lastVerifiedAt = now;
     }
 
     public void markInvalid(String reason, Instant now) {
+        requireNotAnonymized();
         Guard.require(reason != null && !reason.isBlank(), "contact.invalid_reason_required",
                 "Informe o motivo da invalidação");
         Guard.require(reason.length() <= 500, "contact.invalid_reason_too_long", "Motivo muito longo");
@@ -175,7 +184,52 @@ public class DebtorContact extends TenantScopedEntity {
     }
 
     public String maskedValue() {
-        return contactValue().masked();
+        return isAnonymized() ? ANONYMIZED_MASK : contactValue().masked();
+    }
+
+    /** Valor gravado no lugar do contato de titular anonimizado. */
+    public static final String ANONYMIZED_VALUE = "anonimizado";
+    public static final String ANONYMIZED_MASK = "Contato removido";
+
+    /** Titular anonimizado: o contato fica só como referência e recusa qualquer alteração (decisão 1457). */
+    public boolean isAnonymized() {
+        return anonymizedAt != null;
+    }
+
+    private void requireNotAnonymized() {
+        Guard.requireState(anonymizedAt == null, "contact.anonymized", "Contato de titular anonimizado não pode ser alterado");
+    }
+
+    /**
+     * LGPD (SEG-20261124-D01, decisão 1457): o contato do titular anonimizado é neutralizado no lugar, e não apagado —
+     * conversas, interações e chamadas de outros módulos apontam para ele (algumas tabelas são imutáveis), e a exclusão
+     * barrava a anonimização inteira. Saem o valor, o blind index (trocado por um valor próprio, que nunca coincide com
+     * um contato real nem com outro contato e não é reproduzível a partir de um — não é blind index), o nome e o papel da
+     * pessoa; o contato fica inválido, sem WhatsApp e recusa qualquer alteração ({@code anonymized_at}, check no banco).
+     */
+    public void anonymize(Instant now) {
+        if (anonymizedAt != null) {
+            return;
+        }
+        this.anonymizedAt = now;
+        this.value = ANONYMIZED_VALUE;
+        this.valueHash = anonymizedHash(getId());
+        this.status = ContactStatus.INVALID;
+        this.invalidReason = "Titular anonimizado (LGPD)";
+        this.whatsapp = false;
+        this.personName = null;
+        this.personRole = null;
+        this.decisionMaker = false;
+    }
+
+    private static String anonymizedHash(UUID contactId) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(("anonymized:" + contactId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public UUID getDebtorId() {
@@ -245,6 +299,7 @@ public class DebtorContact extends TenantScopedEntity {
      * @param window            prazo da janela de novidade da assessoria (exigido quando {@code afterRegistration})
      */
     public void receivedByImport(UUID importBatchId, boolean afterRegistration, Duration window, Instant now) {
+        requireNotAnonymized();
         Guard.require(importBatchId != null, "contact.import_batch_required", "Carga obrigatória");
         Guard.requireState(firstImportBatchId == null && lastImportBatchId == null, "contact.already_received",
                 "Recebimento da carga já registrado");
@@ -264,6 +319,7 @@ public class DebtorContact extends TenantScopedEntity {
      * @return true se registrou um reenvio
      */
     public boolean resentByImport(UUID importBatchId, Instant now) {
+        requireNotAnonymized();
         Guard.require(importBatchId != null, "contact.import_batch_required", "Carga obrigatória");
         if (importBatchId.equals(lastImportBatchId) || importBatchId.equals(firstImportBatchId)) {
             return false;
@@ -281,6 +337,9 @@ public class DebtorContact extends TenantScopedEntity {
      */
     public boolean recordUse(Instant at, boolean effective) {
         Objects.requireNonNull(at, "at");
+        if (isAnonymized()) {
+            return false;
+        }
         boolean changed = false;
         if (firstAttemptAt == null) {
             this.firstAttemptAt = at;

@@ -25,4 +25,6 @@ interface BankStatementLineJpa extends JpaRepository<BankStatementLine, UUID> {
 
     @Query("select l.status, count(l) from BankStatementLine l where l.importId = :importId group by l.status")
     List<Object[]> countByStatus(@Param("importId") UUID importId);
+
+    java.util.List<BankStatementLine> findByPaymentIdIn(java.util.Collection<UUID> paymentIds);
 }

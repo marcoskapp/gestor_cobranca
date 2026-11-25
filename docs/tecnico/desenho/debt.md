@@ -249,3 +249,15 @@ Resumo do que o módulo implementa ([contatos-recebidos.md](contatos-recebidos.m
   `DebtorUseCases.DebtorFilter` (`newContact`, `newContactBatchId`), `DebtIngestionPort#contactReceipt` (contador do
   relatório da carga) e `DebtorSegmentationQueries` (tipo de pessoa e fim da novidade para o collection na abertura do caso).
 * Testes: `DebtorContactTest` (domínio) e `ContactReceiptIT` (fluxo entre debt, collection e campaign).
+
+## 10. Anonimização do titular: contato neutralizado no lugar (`V0312`)
+
+`DebtorService.anonymize` não apaga mais os contatos do devedor (SEG-20261124-D01a, decisão 1457): conversas,
+interações (imutáveis por gatilho) e chamadas de outros módulos apontam para `debt.debtor_contact`, e a exclusão
+barrava a anonimização inteira de todo devedor já contatado. `DebtorContact#anonymize` grava `anonymized_at`, troca o
+valor por `anonimizado` e o blind index pelo SHA-256 de `anonymized:<id>` (não reproduzível a partir de um contato
+real), deixa o contato inválido, sem WhatsApp, sem nome e papel da pessoa; a tela mostra "Contato removido". O `check`
+`ck_debtor_contact_anonymized` garante isso no banco. Depois disso o contato recusa toda alteração (`contact.anonymized`,
+422), a revelação é recusada, o uso não é contado e `contactsForChannel` não o oferece. Cada módulo que guarda dado
+do titular consome `DebtorAnonymized` e limpa o que é dele ([ADR 0012](../../arquitetura/adr/0012-anonimizacao-do-titular-por-modulo-dono.md)).
+Testes: `DebtModuleIT#anonymizationRemovesPersonalDataButKeepsTitles`, `DebtorContactTest#anonymizedContactIsNeutralizedAndRefusesEveryChange`.

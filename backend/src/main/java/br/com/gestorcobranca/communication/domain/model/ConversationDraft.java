@@ -38,7 +38,7 @@ public class ConversationDraft extends TenantScopedEntity {
     @Column(name = "content_encrypted", nullable = false, length = 100000)
     private String content;
 
-    @Column(name = "rationale", length = 500, updatable = false)
+    @Column(name = "rationale", length = 500)
     private String rationale;
 
     @Enumerated(EnumType.STRING)
@@ -89,6 +89,26 @@ public class ConversationDraft extends TenantScopedEntity {
         this.status = DraftStatus.SENT;
         this.decidedBy = by;
         this.decidedAt = now;
+    }
+
+    /** Texto do rascunho de titular anonimizado (a coluna é obrigatória). */
+    public static final String ANONYMIZED_CONTENT = "";
+
+    /**
+     * LGPD (SEG-20261124-D01): titular anonimizado — o texto e a justificativa saem; o rascunho pendente expira (como no encerramento da conversa).
+     *
+     * @return falso se já estava anonimizado
+     */
+    public boolean anonymize(Instant now) {
+        if (ANONYMIZED_CONTENT.equals(content) && rationale == null) {
+            return false;
+        }
+        if (status == DraftStatus.PENDING) {
+            expire(now);
+        }
+        this.content = ANONYMIZED_CONTENT;
+        this.rationale = null;
+        return true;
     }
 
     public void discard(UUID by, Instant now) {

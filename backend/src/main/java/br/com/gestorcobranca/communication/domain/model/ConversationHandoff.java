@@ -55,8 +55,9 @@ public class ConversationHandoff extends TenantScopedEntity {
     @Column(name = "reason_code", nullable = false, length = 60, updatable = false)
     private String reasonCode;
 
+    /** Muda só na anonimização do titular (gatilho {@code communication.handoff_anonymize_only}, V1093). */
     @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "summary_encrypted", length = 12000, updatable = false)
+    @Column(name = "summary_encrypted", length = 12000)
     private String summary;
 
     @Column(name = "required_profile", length = 40, updatable = false)
@@ -174,5 +175,19 @@ public class ConversationHandoff extends TenantScopedEntity {
 
     public Instant getOccurredAt() {
         return occurredAt;
+    }
+
+    /**
+     * LGPD (SEG-20261124-D01): o resumo da transferência (texto livre sobre o atendimento) sai na anonimização do titular;
+     * o restante é imutável.
+     *
+     * @return falso se não havia resumo
+     */
+    public boolean anonymizeSummary() {
+        if (summary == null) {
+            return false;
+        }
+        this.summary = null;
+        return true;
     }
 }

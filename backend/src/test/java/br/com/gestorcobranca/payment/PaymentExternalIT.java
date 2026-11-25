@@ -360,4 +360,52 @@ class PaymentExternalIT extends PaymentTestSupport {
         assertThat(count("select count(*) from shared.business_event where event_type = 'payment.reallocated'")).isEqualTo(1);
         assertThat(count("select count(*) from shared.audit_event where action = 'payment.unapplied'")).isEqualTo(1);
     }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    org.springframework.context.ApplicationEventPublisher publisher;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    br.com.gestorcobranca.shared.storage.FileStorage fileStorage;
+
+    @Test
+    void debtorAnonymizationRemovesEvidenceFileAndFreeTextButKeepsTheHash() {
+        provision("anonymize");
+        PaymentView paid = asOperator(() -> payments.registerExternal(toTitleB("100.00", "DOC-A"), pdf(), null));
+        String key = system(() -> jdbcTemplate.queryForObject("select evidence_key from payment.payment where id = ?",
+                String.class, paid.id()));
+        assertThat(paid.evidenceAvailable()).isTrue();
+        assertThat(evidenceStored(key)).isTrue();
+        asFinance1(() -> payments.reverse(paid.id(), new ReverseCommand("BANK_RETURN", "Devolvido; falei com a Maria")));
+
+        UUID eventId = br.com.gestorcobranca.shared.domain.Ids.newId();
+        tenantExecution.inTenant(tenant, "test.publish", () -> publisher.publishEvent(
+                new br.com.gestorcobranca.shared.events.debt.DebtorAnonymized(eventId, tenant, Instant.now(), debtor)));
+        awaitTrue("consumo do payment", () -> count("select count(*) from shared.consumed_event "
+                + "where consumer = 'payment.debtor-anonymized' and event_id = ?", eventId) == 1);
+
+        PaymentView after = asFinance1(() -> payments.get(paid.id()));
+        assertThat(after.evidenceAvailable()).isFalse();
+        assertThat(after.evidenceSha256()).isEqualTo(paid.evidenceSha256());
+        assertThat(after.note()).isNull();
+        assertThat(after.status()).isEqualTo("REVERSED");
+        assertThat(count("select count(*) from payment.payment where id = ? and evidence_key is null "
+                + "and evidence_name is null and note_encrypted is null and review_note_encrypted is null", paid.id()))
+                .isEqualTo(1);
+        // apagado dentro da transação do consumo: já não existe quando o consumo aparece confirmado
+        assertThat(evidenceStored(key)).isFalse();
+        assertThat(count("select count(*) from payment.payment_reversal where payment_id = ? and note_encrypted is null",
+                paid.id())).isEqualTo(1);
+        assertThat(count("select count(*) from shared.audit_event where action = 'payment.debtor_anonymized' "
+                + "and entity_id = ?", debtor)).isEqualTo(1);
+    }
+
+    private boolean evidenceStored(String key) {
+        return system(() -> {
+            try (java.io.InputStream in = fileStorage.open(key)) {
+                return in.read() >= 0;
+            } catch (java.io.IOException | java.io.UncheckedIOException e) {
+                return false;
+            }
+        });
+    }
 }

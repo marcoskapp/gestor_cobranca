@@ -51,6 +51,12 @@ class PaymentMetrics {
         registry.counter("payment.leftovers", "reason", reason).increment();
     }
 
+    /** Anonimização do titular consumida (LGPD), com quantos comprovantes foram apagados. */
+    void debtorAnonymized(int evidencesRemoved) {
+        registry.counter("payment.anonymizations").increment();
+        registry.counter("payment.anonymization.evidences_removed").increment(evidencesRemoved);
+    }
+
     /** Decisão sobre pagamento externo: AUTO, AMOUNT, DESTINATION_CUMULATIVE ou INFORMER_CUMULATIVE. */
     void externalReview(String decision) {
         registry.counter("payment.external.review_decisions", "decision", decision).increment();

@@ -14,6 +14,7 @@ import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
+import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
@@ -179,6 +180,7 @@ class DebtorContactService implements DebtorContactUseCases {
     public RevealedContact revealContact(UUID debtorId, UUID contactId) {
         accessScope.requirePermission(Permission.DEBTOR_SENSITIVE_VIEW);
         DebtorContact contact = loadVisible(debtorId, contactId);
+        Guard.requireState(!contact.isAnonymized(), "contact.anonymized", "Contato removido na anonimização do titular");
         accessLogger.log(AccessEvent.of(AccessEventType.SENSITIVE_DATA_VIEWED, currentActor.get(),
                 Map.of("resource", "debtor_contact", "resourceId", contactId.toString(), "debtorId", debtorId.toString(),
                         "field", contact.getType().name())));
@@ -193,7 +195,7 @@ class DebtorContactService implements DebtorContactUseCases {
         ContactType contactType = DebtViews.parseEnum(ContactType.class, type, "contact.type_invalid", "Tipo de contato");
         Instant now = Instant.now(clock);
         return contacts.findByDebtorIdAndTypeOrderByPriorityAscCreatedAtAsc(debtorId, contactType).stream()
-                .filter(c -> c.getStatus().isUsable())
+                .filter(c -> c.getStatus().isUsable() && !c.isAnonymized())
                 .map(c -> new ChannelContact(c.getId(), c.getType().name(), c.getValue(), c.getLabel().name(),
                         c.isWhatsapp(), c.getPriority(), c.getStatus().name(), c.isNoveltyPending(now)))
                 .toList();

@@ -56,15 +56,16 @@ public class Conversation extends TenantScopedEntity {
     @Column(name = "contact_id")
     private UUID contactId;
 
-    @Column(name = "contact_hash", nullable = false, length = 64, updatable = false)
+    /** Muda só na anonimização do titular ({@link #anonymizeContact}). */
+    @Column(name = "contact_hash", nullable = false, length = 64)
     private String contactHash;
 
-    @Column(name = "contact_masked", nullable = false, length = 254, updatable = false)
+    @Column(name = "contact_masked", nullable = false, length = 254)
     private String contactMasked;
 
     /** Contato normalizado (E.164 ou e-mail) usado no envio; criptografado. */
     @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "contact_encrypted", nullable = false, length = 1000, updatable = false)
+    @Column(name = "contact_encrypted", nullable = false, length = 1000)
     private String contactValue;
 
     @Enumerated(EnumType.STRING)
@@ -332,6 +333,40 @@ public class Conversation extends TenantScopedEntity {
     public boolean sessionWindowOpen(Instant now) {
         return channel != ChannelType.WHATSAPP
                 || (lastInboundAt != null && now.isBefore(lastInboundAt.plus(WHATSAPP_SESSION_WINDOW)));
+    }
+
+    /** Valor gravado no lugar do contato de titular anonimizado. */
+    public static final String ANONYMIZED_CONTACT = "anonimizado";
+
+    /**
+     * LGPD (SEG-20261124-D01): titular anonimizado — o contato sai (valor, ligação ao contato do devedor e máscara) e o
+     * blind index vira um valor próprio da conversa, que nunca coincide com um contato real nem com outra conversa; a
+     * motivo de encerramento (texto livre de quem encerrou) também sai. A conversa precisa estar encerrada (o serviço
+     * encerra antes, pelo fluxo de encerramento). Canal, datas e situação ficam para os indicadores.
+     *
+     * @return falso se já estava anonimizada
+     */
+    public boolean anonymizeContact() {
+        Guard.requireState(status == ConversationStatus.CLOSED, "conversation.open", "Encerre a conversa antes");
+        this.closeReason = null;
+        if (ANONYMIZED_CONTACT.equals(contactValue)) {
+            return false;
+        }
+        this.contactValue = ANONYMIZED_CONTACT;
+        this.contactId = null;
+        this.contactMasked = "Contato removido";
+        this.contactHash = anonymizedHash(getId());
+        return true;
+    }
+
+    private static String anonymizedHash(UUID conversationId) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(("anonymized:" + conversationId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public void close(UUID by, String reason, Instant now) {

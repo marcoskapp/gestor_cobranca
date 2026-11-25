@@ -34,6 +34,9 @@ public interface PaymentInstructionRepository {
     /** Abertas com expiração até o instante (job de expiração). */
     List<PaymentInstruction> findOpenExpiredBefore(Instant now, int limit);
 
+    /** Instruções do devedor (anonimização do titular). */
+    List<PaymentInstruction> findByDebtorId(UUID debtorId);
+
     Page<PaymentInstruction> search(Criteria criteria, Pageable pageable);
 
     /** @param creditorIds credores permitidos (nulo = todos) */

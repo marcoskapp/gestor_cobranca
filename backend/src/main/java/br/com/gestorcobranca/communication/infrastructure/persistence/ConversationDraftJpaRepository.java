@@ -12,4 +12,7 @@ interface ConversationDraftJpaRepository extends JpaRepository<ConversationDraft
 
     @Override
     List<ConversationDraft> findByConversationIdAndStatusOrderByCreatedAtDesc(UUID conversationId, DraftStatus status);
+
+    @Override
+    List<ConversationDraft> findByConversationId(UUID conversationId);
 }

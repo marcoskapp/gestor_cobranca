@@ -14,4 +14,7 @@ public interface ConversationDraftRepository {
     Optional<ConversationDraft> findById(UUID id);
 
     List<ConversationDraft> findByConversationIdAndStatusOrderByCreatedAtDesc(UUID conversationId, DraftStatus status);
+
+    /** Todos os rascunhos da conversa (anonimização do titular). */
+    List<ConversationDraft> findByConversationId(UUID conversationId);
 }

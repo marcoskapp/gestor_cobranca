@@ -89,7 +89,7 @@ public class Payment extends TenantScopedEntity {
     private TitleStrategy targetStrategy;
 
     @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "note_encrypted", length = 4000, updatable = false)
+    @Column(name = "note_encrypted", length = 4000)
     private String note;
 
     @Column(name = "informed_by", updatable = false)
@@ -147,10 +147,11 @@ public class Payment extends TenantScopedEntity {
     @Column(name = "allocated_amount", nullable = false)
     private Money allocatedAmount;
 
-    @Column(name = "evidence_key", length = 500, updatable = false)
+    /** Muda só na anonimização do titular ({@link #anonymize}), que apaga o arquivo e mantém o SHA-256. */
+    @Column(name = "evidence_key", length = 500)
     private String evidenceKey;
 
-    @Column(name = "evidence_name", length = 255, updatable = false)
+    @Column(name = "evidence_name", length = 255)
     private String evidenceName;
 
     @Column(name = "evidence_content_type", length = 100, updatable = false)
@@ -361,6 +362,21 @@ public class Payment extends TenantScopedEntity {
     public boolean reconcilableBy(ReconciliationMode mode, UUID by) {
         boolean byPerson = mode == ReconciliationMode.MANUAL || mode == ReconciliationMode.STATEMENT;
         return !(byPerson && informedBy != null && Objects.equals(by, informedBy));
+    }
+
+    /**
+     * LGPD (SEG-20261124-D01): titular anonimizado — o comprovante (nome e CPF do pagador) e os textos livres saem; ficam
+     * o SHA-256 do comprovante (prova de que existiu e de qual era), valores, datas, situação e quem informou e revisou.
+     *
+     * @return chave do arquivo a apagar do armazenamento depois da transação, ou nula se não havia
+     */
+    public String anonymize() {
+        String key = evidenceKey;
+        this.evidenceKey = null;
+        this.evidenceName = null;
+        this.note = null;
+        this.reviewNote = null;
+        return key;
     }
 
     /** Estorno total: o pagamento permanece, como {@code REVERSED}; as alocações são revertidas pelo serviço. */

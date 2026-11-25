@@ -471,7 +471,22 @@ class DebtModuleIT extends IntegrationTest {
         DebtorView anonymized = system(() -> debtors.anonymize(debtorId, "Solicitação do titular"));
         assertThat(anonymized.name()).isEqualTo("Titular anonimizado");
         assertThat(anonymized.maskedDocument()).isNull();
-        assertThat(count("debtor_contact")).isZero();
+        // contato neutralizado no lugar, nunca apagado: conversas, interações (imutáveis) e chamadas apontam para ele, e a
+        // exclusão desfaria a anonimização de todo devedor já contatado (decisão 1457)
+        assertThat(count("debtor_contact")).isEqualTo(1);
+        Map<String, Object> contact = system(() -> jdbcTemplate.queryForMap(
+                "select status, whatsapp, person_name_encrypted, value_hash from debt.debtor_contact where debtor_id = ?",
+                debtorId));
+        assertThat(contact.get("status")).isEqualTo("INVALID");
+        assertThat(contact.get("person_name_encrypted")).isNull();
+        assertThat(contact.get("value_hash"))
+                .isNotEqualTo(system(() -> contacts.fingerprint("EMAIL", "maria@exemplo.com")).hash());
+        UUID contactId = system(() -> jdbcTemplate.queryForObject(
+                "select id from debt.debtor_contact where debtor_id = ?", UUID.class, debtorId));
+        // neutralizado: não volta a valer nem a ser oferecido aos canais
+        assertThatThrownBy(() -> system(() -> contacts.markValid(debtorId, contactId)))
+                .hasFieldOrPropertyWithValue("code", "contact.anonymized");
+        assertThat(system(() -> contacts.contactsForChannel(debtorId, "EMAIL"))).isEmpty();
         assertThat(system(() -> titles.get(titleId)).status()).isEqualTo("SETTLED");
         assertThat(system(() -> debtors.findByDocument(CPF))).isEmpty();
 

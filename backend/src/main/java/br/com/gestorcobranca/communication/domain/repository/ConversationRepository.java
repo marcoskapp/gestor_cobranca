@@ -32,6 +32,9 @@ public interface ConversationRepository {
 
     List<Conversation> findOpenByCaseId(UUID caseId);
 
+    /** Todas as conversas do devedor, abertas ou encerradas (anonimização do titular). */
+    List<Conversation> findByDebtorId(UUID debtorId);
+
     /** Conversas abertas do devedor no credor ainda sem caso (vinculadas quando o caso abre). */
     List<Conversation> findOpenWithoutCase(UUID debtorId, UUID creditorId);
 

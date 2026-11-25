@@ -40,6 +40,12 @@ public interface PaymentRepository {
 
     List<Payment> findAllByIdIn(Collection<UUID> ids);
 
+    /** Grava as alterações pendentes no banco (antes de efeitos fora da transação). */
+    void flush();
+
+    /** Todos os pagamentos do devedor (anonimização do titular). */
+    List<Payment> findByDebtorId(UUID debtorId);
+
     Page<Payment> search(Criteria criteria, Pageable pageable);
 
     /** Leitura incremental: até {@code limit + 1} pagamentos do credor alterados na janela, depois do cursor. */

@@ -44,8 +44,9 @@ public class BankStatementLine extends TenantScopedEntity {
     @Column(name = "reference", length = 100, updatable = false)
     private String reference;
 
+    /** Muda só na anonimização do titular do pagamento ligado à linha. */
     @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "description_encrypted", length = 2000, updatable = false)
+    @Column(name = "description_encrypted", length = 2000)
     private String description;
 
     @Column(name = "fingerprint", nullable = false, length = 64, updatable = false)
@@ -85,6 +86,15 @@ public class BankStatementLine extends TenantScopedEntity {
     public void outcome(StatementLineStatus status, UUID paymentId) {
         this.status = status;
         this.paymentId = paymentId;
+    }
+
+    /** LGPD (SEG-20261124-D01): a descrição do banco (pode ter nome e documento do pagador) sai. */
+    public boolean anonymizeDescription() {
+        if (description == null) {
+            return false;
+        }
+        this.description = null;
+        return true;
     }
 
     /** Resolução manual de divergência: a linha passa a apontar o pagamento conciliado. */

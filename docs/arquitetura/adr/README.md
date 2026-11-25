@@ -15,3 +15,4 @@ Cada decisão estrutural fica registrada com contexto, decisão e consequências
 | [0009](0009-assistente-gera-pix-pelo-payment.md) | O assistente gera o Pix da conversa pela interface pública do payment (`assistant → payment`) | Aceita |
 | [0010](0010-negotiation-declara-porta-implementada-pelo-payment.md) | O negotiation declara a porta de pagamentos em revisão e o payment a implementa (`negotiation :: spi`) | Aceita |
 | [0011](0011-portal-do-credor-ator-creditor.md) | Portal do credor: ator `CREDITOR`, audiência e API próprias, API interna só para o usuário da assessoria e módulo `creditorportal` | Aceita |
+| [0012](0012-anonimizacao-do-titular-por-modulo-dono.md) | Anonimização do titular pelo módulo dono de cada dado: consumidores de `DebtorAnonymized`, neutralização no lugar, exceções estreitas de imutabilidade e arquivos apagados na transação | Aceita |

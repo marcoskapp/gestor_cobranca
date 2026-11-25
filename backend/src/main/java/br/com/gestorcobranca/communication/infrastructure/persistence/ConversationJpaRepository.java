@@ -119,4 +119,7 @@ interface ConversationJpaRepository extends JpaRepository<Conversation, UUID>, J
     private static Specification<Conversation> eq(Specification<Conversation> spec, String field, Object value) {
         return value == null ? spec : spec.and((root, query, cb) -> cb.equal(root.get(field), value));
     }
+
+    @Override
+    List<Conversation> findByDebtorId(UUID debtorId);
 }

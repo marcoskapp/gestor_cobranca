@@ -319,6 +319,8 @@ class PortalAccessIT extends PortalTestSupport {
     void debtorAnonymizationRevokesSessionsAndErasesPortalPersonalData() {
         String token = login(CPF_MARIA);
         AccessLinkView link = sendLink(maria);
+        // lido antes: a anonimização também apaga o conteúdo da mensagem com o link (comunicação, decisão 1454)
+        String linkToken = linkToken(link);
         br.com.gestorcobranca.shared.events.debt.DebtorAnonymized event = new br.com.gestorcobranca.shared.events.debt
                 .DebtorAnonymized(br.com.gestorcobranca.shared.domain.Ids.newId(), tenant, Instant.now(), maria);
         tenantExecution.inTenant(tenant, "test.publish", () -> publisher.publishEvent(event));
@@ -329,7 +331,7 @@ class PortalAccessIT extends PortalTestSupport {
                 .isZero();
         assertThat(count("select count(*) from portal.access_challenge where debtor_id = ? and document_hash is not null",
                 maria)).isZero();
-        assertThat(post("/api/portal/v1/sites/" + slug + "/access/link", Map.of("token", linkToken(link)), null).status())
+        assertThat(post("/api/portal/v1/sites/" + slug + "/access/link", Map.of("token", linkToken), null).status())
                 .isEqualTo(401);
         awaitTrue("sessão revogada", () -> get("/api/portal/v1/me/session", token).status() == 401);
     }

@@ -243,4 +243,7 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
         }
         return creditorIds.isEmpty() ? Page.empty(pageable) : pendingReallocationIn(creditorIds, pageable);
     }
+
+    @Override
+    List<Payment> findByDebtorId(UUID debtorId);
 }

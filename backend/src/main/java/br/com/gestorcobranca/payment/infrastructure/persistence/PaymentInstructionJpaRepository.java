@@ -77,4 +77,7 @@ interface PaymentInstructionJpaRepository extends JpaRepository<PaymentInstructi
         }
         return findAll(spec, pageable);
     }
+
+    @Override
+    java.util.List<br.com.gestorcobranca.payment.domain.model.PaymentInstruction> findByDebtorId(UUID debtorId);
 }

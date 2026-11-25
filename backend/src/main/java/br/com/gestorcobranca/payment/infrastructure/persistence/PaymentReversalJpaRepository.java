@@ -7,4 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 
 interface PaymentReversalJpaRepository extends JpaRepository<PaymentReversal, UUID>, PaymentReversalRepository {
+
+    @Override
+    java.util.List<PaymentReversal> findByPaymentIdIn(java.util.Collection<UUID> paymentIds);
 }

@@ -731,6 +731,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `payment.payments{source,method,status}`, `payment.confirmation.latency{source}` (p50/p95/p99) | transições de pagamento e tempo do pagamento à confirmação |
 | `payment.allocations{kind,origin,outcome}`, `payment.leftovers{reason}`, `payment.agreement.outcomes{outcome}` | alocações (`allocated`, `leftover`, `released`, `reversed`), sobras (`no_target`, `agreement_closed`, `title_unavailable`, `excess`) e resultado da baixa no negotiation (UNAPPLIED contínuo = fila de realocação crescendo) |
 | `payment.review.decisions{decision}`, `payment.review.wait{decision}` | revisão por segunda pessoa e espera na fila |
+| `payment.anonymizations`, `payment.anonymization.evidences_removed` | anonimizações do titular consumidas pelo payment e comprovantes apagados (SEG-20261124-D01, decisão 1458) |
 | `payment.external.review_decisions{decision}` | pagamento externo: `AUTO`, `AMOUNT`, `DESTINATION_CUMULATIVE`, `INFORMER_CUMULATIVE` (crescimento dos acumulados = possível fracionamento) |
 | `payment.pix.endpoint_refused{reason}`, `payment.pix_account.endpoint_changes{action}` | chamada a PSP recusada (`host_not_allowed`, `internal_address`, `invalid` — alarme) e criação/troca de endereços de conta Pix (`created`, `changed`; alerta de segurança) |
 | `payment.reversals{reason,source}` | estornos |

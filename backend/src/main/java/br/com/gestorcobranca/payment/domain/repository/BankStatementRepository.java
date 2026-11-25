@@ -6,6 +6,8 @@ import br.com.gestorcobranca.payment.domain.model.StatementLineStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -29,6 +31,9 @@ public interface BankStatementRepository {
     BankStatementLine save(BankStatementLine line);
 
     Optional<BankStatementLine> findLine(UUID id);
+
+    /** Linhas ligadas aos pagamentos (anonimização do titular). */
+    List<BankStatementLine> findLinesByPaymentIds(Collection<UUID> paymentIds);
 
     boolean existsLineByFingerprint(String fingerprint);
 

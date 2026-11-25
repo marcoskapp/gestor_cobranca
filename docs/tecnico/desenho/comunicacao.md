@@ -230,6 +230,15 @@ envio. Sem caso, caso encerrado, mais de 7 dias ou tabulação desativada → n�
 mais antigas que a política `MESSAGE_CONTENT` do compliance (quando habilitada), mantendo os metadados; recibos de
 webhook fora da janela de replay são apagados.
 
+**Anonimização do titular** (`DebtorAnonymized`, consumidor `communication.debtor-anonymized`, `CommunicationAnonymizer`;
+SEG-20261124-D01, decisões 1454–1455): em todas as conversas do devedor o contato sai (valor `anonimizado`, ligação ao
+contato do devedor, máscara "Contato removido" e blind index trocado por um valor próprio da conversa, que nunca coincide
+com um contato real); a conversa aberta é encerrada pelo fluxo normal com o ator do sistema (`ConversationService#closeBySystem`)
+e o motivo digitado das já encerradas sai; conteúdo, assunto e variáveis das mensagens são apagados em lote (como na
+retenção, `content_purged_at`) e o id do provedor vira `anon:` + SHA-256; o texto e a justificativa dos rascunhos saem
+(pendente → expirado), envios ainda na fila falham com `SUBJECT_ANONYMIZED` (decisão 1459) e o resumo das transferências é apagado — a transferência continua imutável fora disso (gatilho `handoff_anonymize_only`, `V1093`).
+Auditoria `conversation.anonymized` por conversa e `communication.debtor_anonymized` por devedor (só ids e contagens); métrica `communication.events.consumed{type=debtor_anonymized}`. Teste: `CommunicationModuleIT#debtorAnonymizationRemovesContactAndContentOfTheConversations`.
+
 ## 5. Webhooks (`/api/v1/webhooks/whatsapp/{routingKey}`)
 
 `PublicEndpoint` (sem JWT). Ordem de proteção:

@@ -259,6 +259,18 @@ class ConversationService implements ConversationUseCases {
                         "Somente o dono ou a supervisão encerram a conversa");
             }
         }
+        return view(closeFlow(c, actor, reason));
+    }
+
+    /**
+     * Encerramento pelo sistema (anonimização do titular): o mesmo fluxo do encerramento por pessoa — transferência
+     * {@code CLOSE}, rascunhos pendentes expirados, auditoria, evento de negócio e métrica —, com o ator do sistema.
+     */
+    Conversation closeBySystem(Conversation c, String reason) {
+        return closeFlow(c, access.actor(), reason);
+    }
+
+    private Conversation closeFlow(Conversation c, Actor actor, String reason) {
         Instant now = Instant.now(clock);
         Conversation.Owner from = c.owner();
         Instant openedAt = c.getCreatedAt();
@@ -284,7 +296,7 @@ class ConversationService implements ConversationUseCases {
                 .attr("identified", saved.getDebtorId() != null)
                 .durationMs(openedAt == null ? 0 : Math.max(0, Duration.between(openedAt, now).toMillis())));
         metrics.handoff(HandoffKind.CLOSE.name(), from.type().name(), OwnerType.NONE.name());
-        return view(saved);
+        return saved;
     }
 
     @Override
