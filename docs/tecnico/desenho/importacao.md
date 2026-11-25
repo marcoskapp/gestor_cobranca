@@ -302,6 +302,17 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
 - Efeito: `file_key` nulo e `file_deleted_at` em todos os lotes da chave, objeto apagado do armazenamento e uma
   auditoria `import_batch.file_deleted` por arquivo (lote mais antigo, credor, `batches`, `fileSha256`, motivo com o
   prazo). O lote fica: contadores, hash, ocorrências mascaradas e trilha. Métrica `ingestion.files.deleted`.
+- **Anonimização do titular** (`DebtorAnonymized`, consumidor `ingestion.debtor-anonymized`, `IngestionAnonymizer`;
+  SEG-20261124-D01, decisão do responsável de 24/11/2026 e decisão 1460): o arquivo de carga com linha do titular
+  mistura vários devedores e sai **inteiro**, em todos os lotes que o usam, com as mesmas marcações da retenção
+  (auditoria `import_batch.file_deleted` com motivo "anonimização do titular"); o PDF de origem das importações PDF com
+  linha do titular também sai (`pdf_import.file_deleted`). O armazenamento é o último passo da transação (ADR 0012).
+  Lote em processamento ou conferência aberta → remoção pendente em `ingestion.pending_file_erasure` (`V2304`, só a
+  chave ou o id do PDF), concluída pelo job diário `ingestion.file-retention` quando o lote encerra, com ou sem a
+  política `IMPORT_FILES` (decisão 1461). Só encontra arquivos com **linha gravada** do titular (`import_batch_row.debtor_id`):
+  linhas com erro, prévias e títulos só baixados ficam para a retenção (SEG-20261124-D01h). Testes:
+  `ImportFileRetentionIT#debtorAnonymizationDeletesTheWholeLoadFileThatContainsTheDebtor` e
+  `#debtorAnonymizationLeavesAPendingErasureWhileAReviewOfTheFileIsOpenAndTheJobCompletesIt`.
 - Sem o arquivo: download do original, nova conferência a partir do lote e reprocessamento respondem
   **409 `import_batch.file_deleted`**; um job de processamento que encontre o lote sem arquivo falha de forma
   definitiva. A tela do lote mostra a data do descarte e esconde o download e o reprocessamento (`fileDeletedAt` na

@@ -46,11 +46,12 @@ class ImportFileRetention {
     private final FileStorage storage;
     private final AuditTrail auditTrail;
     private final IngestionMetrics metrics;
+    private final IngestionAnonymizer anonymizer;
     private final Clock clock;
 
     ImportFileRetention(TenantDirectory tenants, TenantExecution tenantExecution, RetentionUseCases retention,
                         ImportFileRetentionStore store, FileStorage storage, AuditTrail auditTrail,
-                        IngestionMetrics metrics, Clock clock) {
+                        IngestionMetrics metrics, IngestionAnonymizer anonymizer, Clock clock) {
         this.tenants = tenants;
         this.tenantExecution = tenantExecution;
         this.retention = retention;
@@ -58,6 +59,7 @@ class ImportFileRetention {
         this.storage = storage;
         this.auditTrail = auditTrail;
         this.metrics = metrics;
+        this.anonymizer = anonymizer;
         this.clock = clock;
     }
 
@@ -69,13 +71,14 @@ class ImportFileRetention {
         }
     }
 
-    /** Uma assessoria (também usado pelos testes). @return arquivos descartados */
+    /** Uma assessoria (também usado pelos testes). @return arquivos descartados (anonimização + política) */
     int runFor(UUID tenantId) {
-        int total = 0;
+        int anonymized = completePendingErasures(tenantId);
+        int retained = 0;
         try {
             for (int round = 0; round < MAX_ROUNDS; round++) {
                 Round r = tenantExecution.callInTenant(tenantId, JOB, this::purgeRound);
-                total += r.deleted();
+                retained += r.deleted();
                 if (r.candidates() < BATCH) {
                     break;
                 }
@@ -84,12 +87,36 @@ class ImportFileRetention {
             LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("job", JOB).setCause(e)
                     .log("Falha no descarte dos arquivos de importação");
         }
-        metrics.filesDeleted(total);
+        metrics.filesDeleted(retained, IngestionMetrics.REASON_RETENTION);
+        int total = anonymized + retained;
         if (total > 0) {
             LOG.atInfo().addKeyValue("tenantId", tenantId).addKeyValue("deleted", total)
-                    .log("Descarte dos arquivos de importação executado");
+                    .addKeyValue("anonymized", anonymized).log("Descarte dos arquivos de importação executado");
         }
         return total;
+    }
+
+    /**
+     * Remoções deixadas pendentes pela anonimização do titular (decisão 1461), com ou sem política, em rodadas na própria
+     * transação; a falha não para a retenção.
+     */
+    private int completePendingErasures(UUID tenantId) {
+        int deleted = 0;
+        try {
+            for (int round = 0; round < MAX_ROUNDS; round++) {
+                IngestionAnonymizer.PendingRound r = tenantExecution.callInTenant(tenantId, JOB,
+                        anonymizer::completePending);
+                deleted += r.deleted();
+                if (r.candidates() < IngestionAnonymizer.PENDING_BATCH) {
+                    break;
+                }
+            }
+        } catch (RuntimeException e) {
+            LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("job", JOB).setCause(e)
+                    .log("Falha ao concluir as remoções pendentes da anonimização");
+        }
+        metrics.filesDeleted(deleted, IngestionMetrics.REASON_ANONYMIZATION);
+        return deleted;
     }
 
     /** @param candidates arquivos selecionados (rodada cheia = pode haver mais) */

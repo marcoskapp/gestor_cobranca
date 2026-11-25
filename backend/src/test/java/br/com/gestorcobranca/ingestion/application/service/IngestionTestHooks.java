@@ -17,4 +17,11 @@ public final class IngestionTestHooks {
     public static int purgeImportFiles(ApplicationContext context, UUID tenantId) {
         return context.getBean(ImportFileRetention.class).runFor(tenantId);
     }
+
+    /** Anonimização do titular no ingestion (consumidor {@code ingestion.debtor-anonymized}), síncrona, no tenant. */
+    public static void anonymizeDebtor(ApplicationContext context, UUID tenantId, UUID debtorId) {
+        context.getBean(br.com.gestorcobranca.shared.tenancy.TenantExecution.class).inTenant(tenantId,
+                "test.ingestion-anonymize", () -> context.getBean(IngestionAnonymizer.class)
+                        .anonymize(debtorId, br.com.gestorcobranca.shared.domain.Ids.newId()));
+    }
 }

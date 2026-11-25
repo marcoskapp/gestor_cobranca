@@ -29,4 +29,28 @@ public interface ImportFileRetentionStore {
      * @return lotes marcados (zero: a situação mudou e o arquivo fica)
      */
     int markDeleted(String fileKey, Instant at);
+
+    /**
+     * Arquivos ainda guardados de lotes com linha do devedor (anonimização do titular, SEG-20261124-D01): o arquivo
+     * mistura vários devedores e sai inteiro (decisão do responsável de 24/11/2026).
+     */
+    List<ExpiredFile> filesWithDebtor(UUID debtorId);
+
+    /** O arquivo ainda guardado com a chave (vazio se já saiu), com os dados do lote mais antigo. */
+    List<ExpiredFile> fileByKey(String fileKey);
+
+    /** PDFs ainda guardados das importações PDF cujos lotes têm linha do devedor. */
+    List<UUID> pdfImportsWithDebtor(UUID debtorId);
+
+    /** Remoção pendente (lote ainda aberto): exatamente um de {@code fileKey} ou {@code pdfImportId}. */
+    record PendingErasure(UUID id, String fileKey, UUID pdfImportId, UUID sourceEventId) {
+    }
+
+    /** Registra a remoção pendente (idempotente pela chave ou pelo PDF). @return falso se já estava pendente */
+    boolean addPendingErasure(String fileKey, UUID pdfImportId, UUID sourceEventId, Instant at);
+
+    /** Só as pendências que já podem ser concluídas (lotes encerrados, sem conferência aberta, PDF fechado). */
+    List<PendingErasure> pendingErasures(int limit);
+
+    void removePendingErasure(UUID id);
 }

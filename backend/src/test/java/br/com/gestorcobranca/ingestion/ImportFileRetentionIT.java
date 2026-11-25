@@ -31,6 +31,9 @@ class ImportFileRetentionIT extends IngestionTestSupport {
     FileStorage fileStorage;
     @Autowired
     ApplicationContext context;
+    @Autowired
+    org.springframework.context.ApplicationEventPublisher eventPublisher;
+
 
     @Test
     void deletesSharedFileOfFinishedBatchesAndKeepsTheOneWithAnOpenReview() {
@@ -91,6 +94,85 @@ class ImportFileRetentionIT extends IngestionTestSupport {
 
         // segunda execução: nada mais a descartar
         assertThat(IngestionTestHooks.purgeImportFiles(context, tenant)).isZero();
+    }
+
+    @Test
+    void debtorAnonymizationDeletesTheWholeLoadFileThatContainsTheDebtor() {
+        ImportBatchView mixed = uploadCsv("misturado.csv", HEADER + "\n" + line(cpf(3), "Carla", "R-3", "100,00", null)
+                + "\n" + line(cpf(4), "Davi", "R-4", "50,00", null) + "\n", "IMPORT");
+        ImportBatchView other = uploadCsv("outro.csv", HEADER + "\n" + line(cpf(5), "Eva", "R-5", "70,00", null)
+                + "\n", "IMPORT");
+        runJobs();
+        String mixedKey = fileKey(mixed.id());
+        UUID carla = system(() -> jdbcTemplate.queryForObject("select debtor_id from ingestion.import_batch_row "
+                + "where batch_id = ? and debtor_id is not null order by row_number limit 1", UUID.class, mixed.id()));
+
+        UUID eventId = br.com.gestorcobranca.shared.domain.Ids.newId();
+        tenantExecution.inTenant(tenant, "test.publish", () -> eventPublisher.publishEvent(
+                new br.com.gestorcobranca.shared.events.debt.DebtorAnonymized(eventId, tenant, java.time.Instant.now(),
+                        carla)));
+        long deadline = System.currentTimeMillis() + 15_000;
+        while (count("select count(*) from shared.consumed_event where consumer = 'ingestion.debtor-anonymized' "
+                + "and event_id = ?", eventId) == 0) {
+            assertThat(System.currentTimeMillis()).as("consumo da importação").isLessThan(deadline);
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+            }
+        }
+
+        // o arquivo inteiro sai (mistura vários devedores); o lote fica, com contadores e trilha
+        assertThat(fileKey(mixed.id())).isNull();
+        assertThat(batch(mixed.id()).fileDeletedAt()).isNotNull();
+        assertThat(batch(mixed.id()).counters().rowsValid()).isEqualTo(2);
+        assertThatThrownBy(() -> system(() -> fileStorage.open(mixedKey))).isInstanceOf(RuntimeException.class);
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? and action = 'import_batch.file_deleted' "
+                + "and entity_id = ? and reason like 'anonimização%'", tenant, mixed.id())).isEqualTo(1);
+        // arquivo sem o titular fica
+        assertThat(fileKey(other.id())).isNotNull();
+    }
+
+    @Test
+    void debtorAnonymizationLeavesAPendingErasureWhileAReviewOfTheFileIsOpenAndTheJobCompletesIt() {
+        ImportBatchView closed = uploadCsv("encerrado.csv", HEADER + "\n" + line(cpf(6), "Fabio", "R-6", "10,00", null)
+                + "\n", "IMPORT");
+        runJobs();
+        UUID fabio = system(() -> jdbcTemplate.queryForObject("select debtor_id from ingestion.import_batch_row "
+                + "where batch_id = ? and debtor_id is not null limit 1", UUID.class, closed.id()));
+        String closedKey = fileKey(closed.id());
+        // nova conferência a partir do mesmo lote: o arquivo está em uso
+        var review = asImporterOf(creditorA, () -> reviews.startFromBatch(closed.id()));
+        runJobs();
+        assertThat(system(() -> reviews.get(review.id())).status()).isEqualTo("OPEN");
+
+        IngestionTestHooks.anonymizeDebtor(context, tenant, fabio);
+        // nada sai enquanto a conferência está aberta; a remoção fica pendente (sem falhar o consumo)
+        assertThat(fileKey(closed.id())).isEqualTo(closedKey);
+        assertThat(stored(closedKey)).isTrue();
+        assertThat(count("select count(*) from ingestion.pending_file_erasure where tenant_id = ? and file_key = ?",
+                tenant, closedKey)).isEqualTo(1);
+        // o job diário só conclui depois que a conferência encerra
+        IngestionTestHooks.purgeImportFiles(context, tenant);
+        assertThat(stored(closedKey)).isTrue();
+
+        asImporterOf(creditorA, () -> reviews.cancel(review.id(), "Cancelada no teste"));
+        runJobs();
+        IngestionTestHooks.purgeImportFiles(context, tenant);
+        assertThat(fileKey(closed.id())).isNull();
+        assertThat(stored(closedKey)).isFalse();
+        assertThat(count("select count(*) from ingestion.pending_file_erasure where tenant_id = ?", tenant)).isZero();
+    }
+
+    private boolean stored(String key) {
+        return system(() -> {
+            try (java.io.InputStream in = fileStorage.open(key)) {
+                return in.read() >= 0;
+            } catch (java.io.IOException | java.io.UncheckedIOException e) {
+                return false;
+            }
+        });
     }
 
     private String fileKey(UUID batchId) {

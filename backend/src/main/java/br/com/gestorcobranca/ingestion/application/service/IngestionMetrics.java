@@ -21,10 +21,23 @@ class IngestionMetrics {
         this.registry = registry;
     }
 
-    /** Arquivos de importação descartados pela política {@code IMPORT_FILES}. */
-    void filesDeleted(int count) {
+    static final String REASON_RETENTION = "retention";
+    static final String REASON_ANONYMIZATION = "anonymization";
+
+    /**
+     * Arquivos de importação descartados; {@code reason}: {@code retention} (política IMPORT_FILES) ou
+     * {@code anonymization} (titular anonimizado).
+     */
+    void filesDeleted(int count, String reason) {
         if (count > 0) {
-            registry.counter("ingestion.files.deleted").increment(count);
+            registry.counter("ingestion.files.deleted", "reason", reason).increment(count);
+        }
+    }
+
+    /** Remoções de arquivo deixadas pendentes pela anonimização (lote ainda aberto). */
+    void erasuresPending(int count) {
+        if (count > 0) {
+            registry.counter("ingestion.files.erasure_pending").increment(count);
         }
     }
 
