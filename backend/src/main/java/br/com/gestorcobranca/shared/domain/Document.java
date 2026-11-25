@@ -1,6 +1,11 @@
 package br.com.gestorcobranca.shared.domain;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Documento de identificação fiscal brasileiro (CPF ou CNPJ), normalizado apenas com dígitos
@@ -30,6 +35,75 @@ public record Document(DocumentType type, String number) {
             case 14 -> new Document(DocumentType.CNPJ, digits);
             default -> throw new BusinessRuleException("document.invalid", "Documento deve ter 11 (CPF) ou 14 (CNPJ) dígitos");
         };
+    }
+
+    private static final Pattern DOCUMENT_TEXT = Pattern.compile("[\\d.\\-/\\s]+");
+    private static final Pattern NON_DIGIT = Pattern.compile("\\D");
+    /** Trecho numérico: dígitos com pontuação ou espaços entre eles (linear: uma classe, sem aninhamento). */
+    private static final Pattern NUMERIC_TOKEN = Pattern.compile("[0-9](?:[0-9.\\-/ ]*[0-9])?");
+
+    /**
+     * O texto inteiro é um CPF ou CNPJ válido (só dígitos, pontuação e espaços; 11 ou 14 dígitos com dígitos
+     * verificadores corretos). Vazio para qualquer outro texto.
+     */
+    public static Optional<Document> detect(String text) {
+        if (text == null || !DOCUMENT_TEXT.matcher(text.trim()).matches()) {
+            return Optional.empty();
+        }
+        String digits = NON_DIGIT.matcher(text).replaceAll("");
+        if (digits.length() == 11 && isValid(DocumentType.CPF, digits)
+                || digits.length() == 14 && isValid(DocumentType.CNPJ, digits)) {
+            return Optional.of(parse(digits));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Texto para exibir a terceiros sem expor documento (decisão 1472): o texto inteiro que é CPF/CNPJ vira a forma
+     * mascarada; em qualquer outro texto, todo CPF/CNPJ válido que apareça em qualquer posição de um trecho numérico
+     * (dígitos com ou sem pontuação e espaços — ex.: o identificador de título {@code 52998224725-001},
+     * {@code 0052998224725}, {@code 529982247-25-001}) tem os mesmos dígitos de {@link #masked()} trocados por
+     * {@code *}, no lugar, mantendo o resto. Mascarar por coincidência (cerca de 1% das janelas de 11 dígitos) é o lado
+     * seguro. CPF sem os zeros à esquerda não é reconhecido.
+     */
+    public static String maskIfDocument(String text) {
+        if (text == null) {
+            return null;
+        }
+        Optional<Document> whole = detect(text);
+        if (whole.isPresent()) {
+            return whole.get().masked();
+        }
+        return NUMERIC_TOKEN.matcher(text).replaceAll(m -> Matcher.quoteReplacement(maskEmbedded(m.group())));
+    }
+
+    private static String maskEmbedded(String token) {
+        List<Integer> at = new ArrayList<>();
+        StringBuilder digits = new StringBuilder();
+        for (int i = 0; i < token.length(); i++) {
+            char c = token.charAt(i);
+            if (c >= '0' && c <= '9') {
+                at.add(i);
+                digits.append(c);
+            }
+        }
+        // a união de todas as janelas válidas: um CNPJ que valha por coincidência não esconde só parte de um CPF real
+        StringBuilder out = new StringBuilder(token);
+        for (int i = 0; i + 11 <= at.size(); i++) {
+            if (i + 14 <= at.size() && isValid(DocumentType.CNPJ, digits.substring(i, i + 14))) {
+                hide(out, at, i, i + 1, i + 12, i + 13);
+            }
+            if (isValid(DocumentType.CPF, digits.substring(i, i + 11))) {
+                hide(out, at, i, i + 1, i + 2, i + 9, i + 10);
+            }
+        }
+        return out.toString();
+    }
+
+    private static void hide(StringBuilder out, List<Integer> at, int... digitIndexes) {
+        for (int d : digitIndexes) {
+            out.setCharAt(at.get(d), '*');
+        }
     }
 
     public static boolean isValid(DocumentType type, String digits) {

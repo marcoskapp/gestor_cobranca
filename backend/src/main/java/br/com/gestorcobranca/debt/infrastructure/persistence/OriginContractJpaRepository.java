@@ -25,6 +25,14 @@ interface OriginContractJpaRepository extends JpaRepository<OriginContract, UUID
     Optional<OriginContract> findByIdForUpdate(UUID id);
 
     @Override
+    @Query("""
+            select c.externalId from OriginContract c, Debtor d
+            where d.id = c.debtorId and c.creditorId = :creditorId and c.externalId in :externalIds
+              and d.status = br.com.gestorcobranca.debt.domain.model.DebtorStatus.ANONYMIZED
+            """)
+    List<String> findExternalIdsOfAnonymizedDebtors(UUID creditorId, Collection<String> externalIds);
+
+    @Override
     List<OriginContract> findAllByIdIn(Collection<UUID> ids);
 
     @Override

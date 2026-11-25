@@ -283,3 +283,21 @@ payment) é destacado nos títulos.
 - **Testes**: `TitleLedgerTest` (receptor, estorno e obrigatoriedade) e
   `PaymentExternalIT#paymentReceivedByTheCreditorMarksTitleAndAgreementUntilReversed` (título avulso, acordo, filtro
   e estorno).
+
+## 12. Referências conservadas do titular anonimizado (`AnonymizedSubjectQueries`, D01h)
+
+Os títulos e contratos de origem do titular anonimizado ficam (LGPD art. 16 I e II), com o identificador do credor.
+São a única referência que sobra dele no debt, e servem para três coisas (SEG-20261124-D01h, decisões 1469–1472):
+
+- **Recusa na carga:** `DebtIngestionService#requireSubjectNotAnonymized` recusa com `title.subject_anonymized`
+  (`DebtIngestionPort.SUBJECT_ANONYMIZED`) a linha cujo contrato de origem ou título, no credor, é de devedor
+  anonimizado, antes de gravá-los; a transação da linha desfaz o devedor criado para ela. Teste:
+  `DebtModuleIT#importOfTitleOfAnonymizedDebtorIsRejectedWithoutCreatingDebtor`.
+- **Recusa em lote** (ingestion, por bloco): `anonymizedKeys(creditorId, títulos, contratos)` devolve os
+  identificadores de título e de contrato do credor que são de devedor anonimizado; o chamador
+  manda no máximo um bloco; exige `IMPORT_EXECUTE` e acesso ao credor. Usa `uk_debt_title_external` e `uk_origin_contract_external` (sem índice novo).
+- **Referências do titular** (compliance e ingestion, na anonimização): `referencesOf(debtorId)` devolve os títulos do
+  devedor anonimizado (vazio se não estiver), com `displayReference` mascarado por `Document.maskIfDocument` (CPF/CNPJ
+  inteiro ou embutido, decisão 1472); exige `DATA_SUBJECT_REQUEST_MANAGE` e todos os credores (o sistema tem os dois).
+  O `externalId` cru só serve para casar com as cargas: nunca é gravado, exibido nem registrado em log fora do debt (o
+  `toString` do record o omite).

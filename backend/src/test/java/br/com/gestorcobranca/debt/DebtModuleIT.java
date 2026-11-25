@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.debt;
 
+import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContactRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContractRecord;
@@ -56,6 +57,8 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -89,6 +92,8 @@ class DebtModuleIT extends IntegrationTest {
     PortfolioUseCases portfolios;
     @Autowired
     DebtIngestionPort ingestion;
+    @Autowired
+    AnonymizedSubjectQueries anonymizedSubjects;
     @Autowired
     DebtLedgerPort ledgerPort;
     @Autowired
@@ -132,6 +137,11 @@ class DebtModuleIT extends IntegrationTest {
 
     private <T> T system(Supplier<T> action) {
         return tenantExecution.callInTenant(tenant, "test", action);
+    }
+
+    private <T> T asUserWith(CreditorScope scope, Set<Permission> permissions, Supplier<T> action) {
+        Actor user = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "operador", permissions, scope);
+        return tenantExecution.callAs(user, action);
     }
 
     private <T> T asUserOf(UUID creditorId, Supplier<T> action) {
@@ -493,5 +503,69 @@ class DebtModuleIT extends IntegrationTest {
         Map<String, Object> row = system(() -> jdbcTemplate.queryForMap(
                 "select document_encrypted, document_hash from debt.debtor where id = ?", debtorId));
         assertThat(row.values()).containsOnlyNulls();
+    }
+
+    /** SEG-20261124-D01h (decisões 1468 e 1470): carga nova com título do titular anonimizado é recusada sem recriar o devedor. */
+    @Test
+    void importOfTitleOfAnonymizedDebtorIsRejectedWithoutCreatingDebtor() {
+        UUID debtorId = system(() -> ingestion.upsertDebtor(debtorRecord("Maria Silva")).id());
+        UUID titleId = system(() -> ingestion.upsertTitle(
+                titleRecord(creditorA, portfolioA, debtorId, "52998224725-001", "100.00", null), Ids.newId()).id());
+        system(() -> ledgerPort.applyPayment(new PaymentApplication(titleId, Ids.newId(),
+                ComponentAmounts.principalOnly(new BigDecimal("100.00")), Instant.now())));
+        system(() -> debtors.anonymize(debtorId, "Solicitação do titular"));
+        long before = count("debtor");
+
+        // a mesma linha volta numa carga: o CPF não casa (o índice foi apagado), o contrato de origem sim
+        assertThatThrownBy(() -> system(() -> {
+            UUID recreated = ingestion.upsertDebtor(debtorRecord("Maria Silva")).id();
+            return ingestion.upsertTitle(titleRecord(creditorA, portfolioA, recreated, "52998224725-001", "100.00",
+                    null), Ids.newId());
+        })).hasFieldOrPropertyWithValue("code", DebtIngestionPort.SUBJECT_ANONYMIZED);
+        // pelo título, com outro contrato e um contato na linha: devedor, contato e auditoria desfeitos
+        long contactsBefore = count("debtor_contact");
+        long auditBefore = system(() -> jdbcTemplate.queryForObject(
+                "select count(*) from shared.audit_event where action = 'debtor.created'", Long.class));
+        assertThatThrownBy(() -> system(() -> {
+            UUID recreated = ingestion.upsertDebtor(debtorRecord("Maria Silva",
+                    new ContactRecord("PHONE", "(11) 98765-4321", "MOBILE", true))).id();
+            return ingestion.upsertTitle(new TitleRecord(creditorA, portfolioA, recreated, "52998224725-001",
+                    new ContractRecord("OUTRO-1", "Crediário", LocalDate.of(2025, 6, 1), new BigDecimal("3000.00")),
+                    1, LocalDate.of(2026, 3, 10), new BigDecimal("100.00"), null, null), Ids.newId());
+        })).hasFieldOrPropertyWithValue("code", DebtIngestionPort.SUBJECT_ANONYMIZED)
+                .hasMessageStartingWith("O título");
+        // a transação da linha desfaz o devedor criado para ela
+        assertThat(count("debtor")).isEqualTo(before);
+        assertThat(count("debtor_contact")).isEqualTo(contactsBefore);
+        assertThat(system(() -> jdbcTemplate.queryForObject(
+                "select count(*) from shared.audit_event where action = 'debtor.created'", Long.class)))
+                .isEqualTo(auditBefore);
+
+        AnonymizedSubjectQueries.AnonymizedKeys keys = system(() -> anonymizedSubjects.anonymizedKeys(creditorA,
+                Arrays.asList(" 52998224725-001 ", "B-9", null), List.of("CTR-52998224725-001", "C-9")));
+        assertThat(keys.titles()).containsExactly("52998224725-001");
+        // o contrato de origem da linha também é do titular
+        assertThat(keys.contracts()).containsExactly("CTR-52998224725-001");
+        assertThat(system(() -> anonymizedSubjects.anonymizedKeys(creditorB, List.of("52998224725-001"), List.of()))
+                .isEmpty()).isTrue();
+        assertThat(system(() -> anonymizedSubjects.referencesOf(debtorId))).singleElement().satisfies(r -> {
+            assertThat(r.creditorId()).isEqualTo(creditorA);
+            assertThat(r.externalId()).isEqualTo("52998224725-001");
+            assertThat(r.displayReference()).isEqualTo("***982247**-001");
+        });
+        // escopo: com a permissão certa, mas fora do credor (ou sem escopo total), é recusado
+        assertThatThrownBy(() -> asUserWith(CreditorScope.of(List.of(creditorB)), EnumSet.of(Permission.IMPORT_EXECUTE),
+                () -> anonymizedSubjects.anonymizedKeys(creditorA, List.of("52998224725-001"), List.of())))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThatThrownBy(() -> asUserWith(CreditorScope.of(List.of(creditorA)),
+                EnumSet.of(Permission.DATA_SUBJECT_REQUEST_MANAGE), () -> anonymizedSubjects.referencesOf(debtorId)))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        // e sem a permissão, mesmo no credor
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> anonymizedSubjects.anonymizedKeys(creditorA,
+                List.of("52998224725-001"), List.of()))).isInstanceOf(ScopeAccessDeniedException.class);
+        // devedor ativo: nada a devolver
+        UUID active = system(() -> ingestion.upsertDebtor(new DebtorRecord("111.444.777-35", "Outra Pessoa",
+                LocalDate.of(1990, 1, 1), List.of(), null)).id());
+        assertThat(system(() -> anonymizedSubjects.referencesOf(active))).isEmpty();
     }
 }

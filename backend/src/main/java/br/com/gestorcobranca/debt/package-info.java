@@ -13,7 +13,8 @@
  * {@code TitlePrescriptionUseCases}, {@code ContactNoveltyUseCases}), a busca rápida {@code DebtorQuickSearch}
  * (usada pela busca de devedor e caso
  * do collection) e portas internas sem endpoint ({@code DebtLedgerPort} para
- * pagamento/negociação, {@code DebtIngestionPort} para a importação,
+ * pagamento/negociação, {@code DebtIngestionPort} para a importação, {@code AnonymizedSubjectQueries} para o
+ * compliance e a importação (referências conservadas do titular anonimizado, decisão 1470),
  * {@code PrescriptionInterruptionPort} para o módulo legal, {@code DebtorSegmentationQueries} para os critérios de fila
  * do collection). Publica {@code DebtorContactNoveltyChanged} (contato novo recebido na carga) e consome o uso do contato
  * ({@code InteractionRecorded}, {@code CallCompleted}, {@code MessageStatusChanged}).

@@ -191,14 +191,7 @@ class DebtorService implements DebtorUseCases {
 
     /** Texto com 11 ou 14 dígitos válidos como CPF/CNPJ é buscado pelo blind index, não pelo nome. */
     private String documentHashIfDocument(String text) {
-        if (text == null) {
-            return null;
-        }
-        String digits = text.replaceAll("\\D", "");
-        boolean looksLikeDocument = text.trim().matches("[\\d.\\-/\\s]+")
-                && (digits.length() == 11 && Document.isValid(Document.DocumentType.CPF, digits)
-                || digits.length() == 14 && Document.isValid(Document.DocumentType.CNPJ, digits));
-        return looksLikeDocument ? index.document(Document.parse(digits)) : null;
+        return Document.detect(text).map(index::document).orElse(null);
     }
 
     @Override

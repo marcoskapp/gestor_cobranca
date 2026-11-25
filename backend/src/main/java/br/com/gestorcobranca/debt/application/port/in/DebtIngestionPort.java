@@ -17,6 +17,12 @@ import java.util.UUID;
  */
 public interface DebtIngestionPort {
 
+    /**
+     * Código da recusa da linha cujo título, no credor, pertence a um devedor anonimizado (SEG-20261124-D01h, decisões
+     * 1468 e 1470): a carga não reintroduz o titular eliminado; a linha volta como erro, e nenhum devedor é criado.
+     */
+    String SUBJECT_ANONYMIZED = "title.subject_anonymized";
+
     /** Casa pelo documento; contatos novos do registro são acrescentados (origem IMPORT). */
     UpsertResult upsertDebtor(DebtorRecord record);
 

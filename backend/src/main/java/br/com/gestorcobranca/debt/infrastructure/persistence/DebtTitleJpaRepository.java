@@ -58,6 +58,14 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
 
     List<DebtTitle> findByDebtorIdOrderByCreditorIdAscDueDateAsc(UUID debtorId);
 
+    @Override
+    @Query("""
+            select t.externalId from DebtTitle t, Debtor d
+            where d.id = t.debtorId and t.creditorId = :creditorId and t.externalId in :externalIds
+              and d.status = br.com.gestorcobranca.debt.domain.model.DebtorStatus.ANONYMIZED
+            """)
+    List<String> findExternalIdsOfAnonymizedDebtors(UUID creditorId, Collection<String> externalIds);
+
     List<DebtTitle> findByDebtorIdAndCreditorIdInOrderByCreditorIdAscDueDateAsc(UUID debtorId, Collection<UUID> creditorIds);
 
     @Override

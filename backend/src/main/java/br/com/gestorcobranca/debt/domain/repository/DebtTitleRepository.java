@@ -38,6 +38,9 @@ public interface DebtTitleRepository {
     /** Devedor tem títulos ainda em cobrança (abertos ou suspensos). */
     boolean existsOpenByDebtorId(UUID debtorId);
 
+    /** Dentre os identificadores informados, os de títulos do credor cujo devedor está anonimizado. */
+    List<String> findExternalIdsOfAnonymizedDebtors(UUID creditorId, Collection<String> externalIds);
+
     /** Credores em que o devedor tem títulos (define a visibilidade do devedor por escopo). */
     List<UUID> findCreditorIdsByDebtorId(UUID debtorId);
 

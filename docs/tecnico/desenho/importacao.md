@@ -313,6 +313,14 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
   linhas com erro, prévias e títulos só baixados ficam para a retenção (SEG-20261124-D01h). Testes:
   `ImportFileRetentionIT#debtorAnonymizationDeletesTheWholeLoadFileThatContainsTheDebtor` e
   `#debtorAnonymizationLeavesAPendingErasureWhileAReviewOfTheFileIsOpenAndTheJobCompletesIt`.
+- **Carga nova com o titular anonimizado** (SEG-20261124-D01h, decisões 1469 e 1470): a linha cujo título ou contrato
+  de origem, no credor, pertence a um devedor anonimizado é recusada com `title.subject_anonymized` e nenhum devedor é
+  criado (o debt confere em `DebtIngestionService#requireSubjectNotAnonymized`, antes de gravar contrato e título; a
+  transação da linha desfaz o devedor criado para ela). `AnonymizedSubjectQueries` (debt `usecases`) devolve as
+  referências conservadas do titular (`referencesOf`, com a referência mascarada por `Document.maskIfDocument`) e, em
+  lote, os identificadores de título e de contrato de devedor anonimizado (`anonymizedKeys`). Teste:
+  `DebtModuleIT#importOfTitleOfAnonymizedDebtorIsRejectedWithoutCreatingDebtor`. Título novo ou coobrigado do titular
+  ainda não é reconhecido (decisão 1471, próxima fatia).
 - Sem o arquivo: download do original, nova conferência a partir do lote e reprocessamento respondem
   **409 `import_batch.file_deleted`**; um job de processamento que encontre o lote sem arquivo falha de forma
   definitiva. A tela do lote mostra a data do descarte e esconde o download e o reprocessamento (`fileDeletedAt` na
