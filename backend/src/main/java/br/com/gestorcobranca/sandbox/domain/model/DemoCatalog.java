@@ -58,7 +58,55 @@ public final class DemoCatalog {
         }
     }
 
+    /**
+     * Pessoa do credor de demonstração no portal do credor (fatia 8). E-mail no domínio reservado
+     * {@value #CREDITOR_EMAIL_DOMAIN}, que nunca coincide com o de um usuário da assessoria (o convite recusa e-mail de
+     * usuário interno).
+     *
+     * @param key  identificador (parte local do e-mail e argumento do {@code credor-codigo.sh}: {@code ^[a-z0-9-]+$})
+     * @param role perfil do portal do credor ({@code GESTOR}, {@code FINANCEIRO}, {@code JURIDICO}, {@code COMPLIANCE}
+     *             ou {@code LEITURA})
+     */
+    public record CreditorPerson(String key, String role, String name) {
+
+        public String email() {
+            return key + "@" + CREDITOR_EMAIL_DOMAIN;
+        }
+    }
+
+    /** Portal liberado para o credor de índice {@code creditorIndex} do catálogo da assessoria, com as pessoas dele. */
+    public record CreditorPortalSpec(int creditorIndex, List<CreditorPerson> people) {
+    }
+
+    public static final String CREDITOR_EMAIL_DOMAIN = "credor.exemplo.test";
+
     private DemoCatalog() {
+    }
+
+    /**
+     * Portal do credor de demonstração: o 1º credor de cada assessoria com uma pessoa por perfil e, na {@code aurora},
+     * também o 2º credor com uma pessoa de consulta (para comparar o Início entre dois credores com portal).
+     */
+    public static List<CreditorPortalSpec> creditorPortal(String tenantSlug) {
+        return switch (tenantSlug) {
+            case "aurora" -> List.of(
+                    new CreditorPortalSpec(0, List.of(
+                            new CreditorPerson("hzn-gestao", "GESTOR", "Beatriz Lacerda"),
+                            new CreditorPerson("hzn-financeiro", "FINANCEIRO", "Rodrigo Esteves"),
+                            new CreditorPerson("hzn-juridico", "JURIDICO", "Clara Bittencourt"),
+                            new CreditorPerson("hzn-compliance", "COMPLIANCE", "Tiago Moreira"),
+                            new CreditorPerson("hzn-consulta", "LEITURA", "Luana Peixoto"))),
+                    new CreditorPortalSpec(1, List.of(
+                            new CreditorPerson("est-consulta", "LEITURA", "Mauro Quintela"))));
+            case "boreal" -> List.of(
+                    new CreditorPortalSpec(0, List.of(
+                            new CreditorPerson("csr-gestao", "GESTOR", "Helena Ventura"),
+                            new CreditorPerson("csr-financeiro", "FINANCEIRO", "Ivo Carvalhal"),
+                            new CreditorPerson("csr-juridico", "JURIDICO", "Paula Sampaio"),
+                            new CreditorPerson("csr-compliance", "COMPLIANCE", "Gil Albernaz"),
+                            new CreditorPerson("csr-consulta", "LEITURA", "Nina Barreto"))));
+            default -> List.of();
+        };
     }
 
     public static List<TenantSpec> tenants() {

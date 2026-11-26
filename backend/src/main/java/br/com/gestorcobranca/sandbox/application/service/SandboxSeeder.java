@@ -24,7 +24,8 @@ import java.util.function.Consumer;
  * carteiras → usuários de todos os perfis → configuração operacional → canais e provedores simulados → metas →
  * condições das integrações → tokens de integração (ponto de extensão) → histórico de 12 meses (só a {@code aurora})
  * → carga das carteiras → importação PDF de demonstração (PDFs fictícios e mapa salvo do 1º credor) → cenários
- * operacionais e jurídicos → réguas → distribuição, demonstrativo e painéis → custos operacionais (margem). Cada etapa
+ * operacionais e jurídicos → réguas → portal do credor (liberação, demonstrativos, convites; ativação e ações das
+ * pessoas do credor pela API do portal) → distribuição, demonstrativo e painéis → custos operacionais (margem). Cada etapa
  * confere o que já existe: subir de novo não duplica nada.
  * <p>
  * Assessoria com histórico (decisão 1351): provisionamento, credores, configuração e canais rodam com o relógio de
@@ -53,6 +54,7 @@ class SandboxSeeder {
     private final CampaignSeeder campaigns;
     private final CostingSeeder costing;
     private final HistorySeeder history;
+    private final CreditorPortalSeeder creditorPortal;
     private final SeedStatus status;
     private final SeedRuntime rt;
     private final MeterRegistry meters;
@@ -61,7 +63,7 @@ class SandboxSeeder {
                   ChannelSeeder channels, IntegrationTokensSeeder integrationTokens, PortfolioLoadSeeder portfolioLoad,
                   PdfImportDemoSeeder pdfImportDemo, OperationSeeder operations, ConformitySeeder conformity,
                   LegalSeeder legal, CampaignSeeder campaigns, CostingSeeder costing, HistorySeeder history,
-                  SeedStatus status, SeedRuntime rt, MeterRegistry meters) {
+                  CreditorPortalSeeder creditorPortal, SeedStatus status, SeedRuntime rt, MeterRegistry meters) {
         this.identity = identity;
         this.organization = organization;
         this.configuration = configuration;
@@ -75,6 +77,7 @@ class SandboxSeeder {
         this.campaigns = campaigns;
         this.costing = costing;
         this.history = history;
+        this.creditorPortal = creditorPortal;
         this.status = status;
         this.rt = rt;
         this.meters = meters;
@@ -112,6 +115,10 @@ class SandboxSeeder {
                 step("vulnerabilidade e reclamações", seed, conformity::seed);
                 step("fluxo jurídico", seed, legal::seed);
                 step("réguas de cobrança", seed, campaigns::seed);
+                // portal do credor (fatia 8): antes do demonstrativo e dos painéis, que conferem o que já existe; as
+                // ações das pessoas do credor só no tempo real, pela API do portal com sessão real
+                step("portal do credor (liberação e prestação de contas)", seed, creditorPortal::prepare);
+                step("portal do credor (pessoas e ações)", seed, creditorPortal::act);
                 step("distribuição, prestação de contas e painéis", seed, operations::finish);
                 step("custos operacionais e margem", seed, costing::seed);
             }

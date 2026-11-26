@@ -222,6 +222,37 @@ resource "aws_cloudwatch_log_metric_filter" "business_events_by_type" {
   }
 }
 
+# Portal do credor (fatia 8): falhas de autenticação da pessoa do credor nas rotas /api/creditor/v1/* (entrada e nova
+# verificação do MFA nas ações; a rota é o padrão do Spring no campo "route" do log de acesso) e sondagem de escopo (SCOPE_DENIED do ator CREDITOR). Dimensões
+# só env e eventType: nunca assessoria, credor, pessoa, e-mail ou IP (RS-93).
+resource "aws_cloudwatch_log_metric_filter" "creditor_auth_failures" {
+  name           = "creditor-auth-failures"
+  log_group_name = aws_cloudwatch_log_group.app["access"].name
+  pattern        = "{ ($.route = \"/api/creditor/v1/*\") && (($.eventType = \"LOGIN_FAILURE\") || ($.eventType = \"MFA_FAILURE\") || ($.eventType = \"LOGIN_BLOCKED\") || ($.eventType = \"RATE_LIMITED\")) }"
+
+  metric_transformation {
+    name       = "access.creditor_auth_failures"
+    namespace  = local.logs_namespace
+    value      = "1"
+    unit       = "Count"
+    dimensions = { env = "$.env", eventType = "$.eventType" }
+  }
+}
+
+resource "aws_cloudwatch_log_metric_filter" "creditor_scope_denied" {
+  name           = "creditor-scope-denied"
+  log_group_name = aws_cloudwatch_log_group.app["access"].name
+  pattern        = "{ ($.eventType = \"SCOPE_DENIED\") && ($.actorType = \"CREDITOR\") }"
+
+  metric_transformation {
+    name       = "access.creditor_scope_denied"
+    namespace  = local.logs_namespace
+    value      = "1"
+    unit       = "Count"
+    dimensions = { env = "$.env" }
+  }
+}
+
 # --- Consultas salvas do Logs Insights --------------------------------------------------------
 
 resource "aws_cloudwatch_query_definition" "slow_requests" {

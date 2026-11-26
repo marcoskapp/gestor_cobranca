@@ -794,6 +794,11 @@ Criados pelo módulo `observability`, com nome `gestor-cobranca-<env>-<alarme>`:
 | Aplicação | `jobs-dead`, `events-incomplete-growth`, `access-log-write-failures`, `audit-seal-failures`, `inbox-sla-breaches`, `inbox-realtime-listener` |
 | Telefonia | `telephony-bridge-interrupted` (conexão ao operador interrompida — queda da instância, perda do lease ou exceção inesperada do adaptador durante o pedido —, > 0 em 5 min; o que fazer: [logs-e-metricas.md §6.1](../logs-e-metricas.md)) |
 | Segurança | `login-failure-anomaly` (anomalia de `LOGIN_FAILURE`), `token-reuse` (reuso de refresh token) |
+| Portal do credor | `creditor-home-sources-unavailable` (fontes do Início fora em mais da metade das aberturas, por 15 min), `creditor-rate-limited` (> 50 recusas por limite em 5 min), `creditor-login-failure` (≥ 20/5 min), `creditor-login-blocked` (≥ 3/15 min), `creditor-mfa-failure` (≥ 5/15 min), `creditor-scope-denied` (≥ 5 `SCOPE_DENIED` do credor em 5 min); o que fazer: [logs-e-metricas.md §6.2](../logs-e-metricas.md) |
+
+Na ativação, confira os filtros do portal do credor com `aws logs test-metric-filter` (o teste do Terraform não avalia
+o padrão): uma linha fictícia de `LOGIN_FAILURE` com `route` `/api/creditor/v1/auth/mfa`, uma de `MFA_FAILURE` em
+`/api/creditor/v1/payments` e outra de `SCOPE_DENIED` com `actorType` `CREDITOR` precisam bater; uma de `LOGIN_FAILURE` em `/api/v1/auth/login` não pode bater.
 
 `alb-5xx-rate` e `unhealthy-hosts` são os alarmes de **reversão automática** do instance refresh (`terraform output rollback_alarm_names`).
 

@@ -212,6 +212,28 @@ class CreditorPortalIdentityIT extends IntegrationTest {
                 .doesNotContain(email, "Ana");
     }
 
+    /**
+     * Opção D do MFA no sandbox (fatia 8, RS-80): o segredo do autenticador é aleatório, gerado pelo servidor na abertura
+     * da ativação — dois convites recebem segredos diferentes, de 160 bits em Base32 (32 caracteres), e o segredo
+     * pendente se mantém ao reabrir o mesmo link (o QR já lido continua valendo). Nenhum caminho aceita segredo de fora.
+     */
+    @Test
+    void segredoDoAutenticadorAleatorioPorConvite() {
+        String first = invite(creditorA, "Duda", "duda@banco-a.test", "LEITURA");
+        String second = invite(creditorA, "Edu", "edu@banco-a.test", "LEITURA");
+        String secretA = call(post("/api/creditor/v1/auth/activation/start", Map.of("token", first)), null).json()
+                .get("secret").asString();
+        String secretB = call(post("/api/creditor/v1/auth/activation/start", Map.of("token", second)), null).json()
+                .get("secret").asString();
+        assertThat(secretA).matches("[A-Z2-7]{32}").isNotEqualTo(secretB);
+        assertThat(secretB).matches("[A-Z2-7]{32}");
+        assertThat(call(post("/api/creditor/v1/auth/activation/start", Map.of("token", first)), null).json()
+                .get("secret").asString()).isEqualTo(secretA);
+        // o segredo fica cifrado no banco, nunca em claro
+        assertThat(count("select count(*) from identity.creditor_user where mfa_secret_encrypted = '" + secretA + "'"))
+                .isZero();
+    }
+
     @Test
     void portalDesativadoDerrubaSessoesEBloqueioPorTentativas() {
         String email = "caio@banco-a.test";

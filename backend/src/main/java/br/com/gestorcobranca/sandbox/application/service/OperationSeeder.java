@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.sandbox.application.service;
 
+import br.com.gestorcobranca.sandbox.domain.service.DemoPdfBytes;
 import br.com.gestorcobranca.sandbox.application.SandboxSeedComponent;
 import br.com.gestorcobranca.analytics.application.port.in.AnalyticsRefreshUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
@@ -89,8 +90,7 @@ import java.util.UUID;
 class OperationSeeder {
 
     /** Comprovante fictício (PDF mínimo válido: a evidência é conferida pelo conteúdo). */
-    private static final byte[] RECEIPT = ("%PDF-1.4\n% comprovante ficticio do sandbox\n1 0 obj<<>>endobj\n"
-            + "trailer<<>>\n%%EOF\n").getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] RECEIPT = DemoPdfBytes.of("Comprovante ficticio do sandbox");
     private static final JustificationInput CAPACITY = new JustificationInput("PAYMENT_CAPACITY",
             "Renda reduzida (cenário fictício)");
 
@@ -452,7 +452,7 @@ class OperationSeeder {
                     .append("Content-Disposition: attachment; filename=\"comprovante-entrega-ficticio.pdf\"\r\n")
                     .append("Content-Transfer-Encoding: base64\r\n\r\n")
                     .append(java.util.Base64.getMimeEncoder().encodeToString(
-                            "%PDF-1.4\n% documento ficticio do sandbox\n%%EOF\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII)))
+                            DemoPdfBytes.of("Documento ficticio do sandbox")))
                     .append("\r\n");
         }
         return s.append("--sb--\r\n").toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);

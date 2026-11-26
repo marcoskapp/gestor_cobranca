@@ -59,6 +59,13 @@ public interface CreditorAuthentication {
         public static CreditorLoginResult step(LoginStatus status, String stepToken) {
             return new CreditorLoginResult(status, null, null, null, null, stepToken, null);
         }
+
+        /** Sem os tokens (acesso, refresh e etapa) nem a conta: nada de credencial em log ou mensagem de erro (RS-82). */
+        @Override
+        public String toString() {
+            return "CreditorLoginResult[status=%s, accessTokenExpiresAt=%s, refreshTokenExpiresAt=%s]"
+                    .formatted(status, accessTokenExpiresAt, refreshTokenExpiresAt);
+        }
     }
 
     record CreditorMeView(UUID userId, String name, String email, String role, String roleLabel, Set<String> permissions,
@@ -68,6 +75,13 @@ public interface CreditorAuthentication {
     /** @param account e-mail mascarado da conta convidada (para a pessoa conferir que o link é dela) */
     record ActivationStart(String name, String account, String creditorName, String tenantName, String secret,
                            String otpAuthUri) {
+
+        /** Sem o segredo do autenticador nem o {@code otpauth://} (RS-82): o segredo só vai no corpo da resposta. */
+        @Override
+        public String toString() {
+            return "ActivationStart[creditorName=%s, tenantName=%s, secret=***, otpAuthUri=***]"
+                    .formatted(creditorName, tenantName);
+        }
     }
 
     record SiteView(String slug, String name) {

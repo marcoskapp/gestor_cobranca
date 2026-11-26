@@ -88,6 +88,8 @@ Senha de **todos** os usuários: `Sandbox@2026!`. No login, o campo **Assessoria
 
 Nenhum perfil exige MFA no sandbox (pode ser cadastrado em *Minha conta → Autenticador*). Os limites de segurança continuam valendo: 5 senhas erradas bloqueiam o usuário (o `admin` da assessoria desbloqueia) e são aceitos 20 logins por minuto por IP.
 
+**Portal do credor** (`http://localhost:58080/credor/aurora/entrar`): pessoas do credor `hzn-gestao`, `hzn-financeiro`, `hzn-juridico`, `hzn-compliance` e `hzn-consulta` (Banco Horizonte) e `est-consulta` (Varejo Estrela) na `aurora`, e `csr-*` (Coop Sertão) na `boreal`, com e-mail `<pessoa>@credor.exemplo.test` e a mesma senha. O código do autenticador é **sempre** pedido (também no sandbox): pegue-o com `./scripts/sandbox/credor-codigo.sh aurora hzn-financeiro` depois que o `up.sh` terminar. Cada código vale uma vez por pessoa (repetir conta como erro; 5 erros bloqueiam). Detalhes em [`sandbox.md` §2c](docs/tecnico/operacao/sandbox.md).
+
 ### 5. API pública
 
 A carga emite tokens de demonstração para cada credor (`sandbox-<prefixo>-completo`, com todos os escopos, inclusive a posição do faturamento da API e do repasse: `billing:read` e `settlement:read`) e um só de leitura da carteira no 1º credor de cada assessoria (`sandbox-hzn-leitura`, `sandbox-csr-leitura`; sem escrita e sem os escopos de posição). Para ver os tokens:
@@ -133,7 +135,8 @@ Para testar com IA real (Amazon Bedrock, credenciais AWS temporárias por variá
 ### 6. Comandos do dia a dia
 
 ```bash
-./scripts/sandbox/verify.sh          # confere logins, volumes, isolamento entre assessorias, API pública, Swagger, posição do credor e Importação PDF
+./scripts/sandbox/verify.sh          # confere logins, volumes, isolamento entre assessorias, API pública, Swagger, posição do credor, Importação PDF e portal do credor
+./scripts/sandbox/credor-codigo.sh aurora hzn-financeiro   # código do autenticador de uma pessoa do credor (portal do credor)
 ./scripts/sandbox/pdfs.sh            # copia os PDFs fictícios de demonstração da Importação PDF para ./sandbox-pdfs/
 ./scripts/sandbox/audit.sh           # auditoria da interface perfil a perfil (acesso negado, cartões desalinhados, rolagem dupla) → ./sandbox-audit/relatorio.md
 ./scripts/sandbox/down.sh            # para o sandbox MANTENDO os dados

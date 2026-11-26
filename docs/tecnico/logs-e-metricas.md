@@ -988,3 +988,30 @@ a `DEAD` sem registrar `interrupted` e quem avisa é o alarme `jobs-dead` (`tele
      num *instance refresh* ou numa substituição são esperadas; repetidas sem queda de instância pedem análise do lease
      (`app.jobs.lease`, `jobs.lease_renewed`) e de `jobs.dispatched{outcome}`.
 4. **Registre** a ocorrência (chamadas conferidas, resultado e origem) no acompanhamento da operação.
+
+### 6.2 Portal do credor (fatia 8, decisão 1571)
+
+Filtros do log de acesso (namespace `GestorCobranca/Logs`, dimensões só `env` e `eventType`):
+`access.creditor_auth_failures` (`$.route = "/api/creditor/v1/*"`: a entrada em `/auth/*` e a nova verificação do MFA nas ações, como aceite e informe; `eventType` `LOGIN_FAILURE`, `MFA_FAILURE`,
+`LOGIN_BLOCKED` ou `RATE_LIMITED`; a rota é o padrão do Spring no campo `route`) e `access.creditor_scope_denied`
+(`SCOPE_DENIED` com `actorType = "CREDITOR"`). Nenhum alarme tem dimensão de assessoria, credor, pessoa, e-mail ou IP
+(RS-93): quem, de onde e qual registro estão no log de acesso.
+
+| Alarme | Condição | O que fazer |
+| --- | --- | --- |
+| `creditor-home-sources-unavailable` | Falhas de fonte do Início (`creditor_portal.sources.unavailable`, soma das 5 fontes de `overview` e `awaiting`) acima de metade das aberturas do Início (`creditor_portal.overview.duration.count`, soma de `cache`), com mínimo de 3 aberturas, ou 3+ falhas, em 3 de 3 períodos de 5 min; uma fonte fora por 15 min dispara | Log técnico do `CreditorHomeService` (qual fonte, `TemporarilyUnavailableException`/`DataAccessException`); RDS (CPU, conexões) e o tempo limite das fontes (`app.creditor-portal.source-timeout`, 2 s) |
+| `creditor-rate-limited` | `creditor_portal.reads.rejected` (`overview`, `awaiting`, `activity`) + `creditor_portal.document_uploads.rejected` (`payment_report`, `payment_title_search`, `dispute_response`) > 50 em 5 min | Pela métrica (o log registra só a 1ª recusa da janela, decisão 1563): no log de acesso, `RATE_LIMITED` com `scope=creditor_read`/`creditor_upload` mostra a pessoa; tela em laço (defeito) ou uso automatizado (revogar a pessoa pela ficha do credor) |
+| `creditor-login-failure` | `LOGIN_FAILURE` ≥ 20 em 5 min | Tentativa de adivinhar senhas: `access.creditor_auth_failures` e o log de acesso por IP; o limite por IP já bloqueia; persistente, regra de taxa no WAF (#5, #18) |
+| `creditor-login-blocked` | `LOGIN_BLOCKED` ≥ 3 em 15 min (conta o bloqueio e cada nova tentativa de quem está bloqueado; não é o número de pessoas) | Entradas recusadas por bloqueio: confirmar com a assessoria; desbloqueio por "Refazer acesso" na ficha do credor |
+| `creditor-mfa-failure` | `MFA_FAILURE` ≥ 5 em 15 min | Senha conhecida e código errado (senha vazada?) ou relógio do celular errado: avisar a pessoa pela assessoria; repetido, "Refazer acesso" |
+| `creditor-scope-denied` | `SCOPE_DENIED` do ator `CREDITOR` ≥ 5 em 5 min | Sondagem de ids de outro credor: no log de acesso, a pessoa e os registros pedidos; revogar a pessoa e avisar o credor e o responsável |
+
+As listas de fontes, caches e operações ficam no `alarms_creditor_portal.tf`: fonte ou operação nova do portal pede o
+ajuste no alarme na mesma mudança. `RATE_LIMITED` entra no filtro de autenticação só para painel e consulta (sem
+alarme; a pressão de leitura e envio é vigiada pela métrica da aplicação). Custo por ambiente (o CloudWatch cobra
+US$ 0,10 por métrica dentro de cada alarme, inclusive em metric math, e US$ 0,30 por métrica de filtro e `eventType`):
+alarmes ~US$ 1,80/mês (fontes 8 métricas, limite 6, autenticação 3, escopo 1) e filtros ~US$ 1,50/mês (até 4
+`eventType` + 1), total ~US$ 3,30/mês. Pendência: um contador da aplicação no momento do bloqueio (ex.:
+`identity.creditor.lockouts`) para o alarme contar pessoas bloqueadas, e não tentativas recusadas por bloqueio.
+No sandbox, a carga registra a etapa no log técnico com `step=creditor_portal` (fase, assessoria, pessoas, ativadas,
+ações e `durationMs`) e na métrica `sandbox.seed.step{step}`; nunca e-mail, segredo, código, link, token ou sessão.

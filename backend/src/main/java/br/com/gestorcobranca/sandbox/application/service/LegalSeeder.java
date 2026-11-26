@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.sandbox.application.service;
 
+import br.com.gestorcobranca.sandbox.domain.service.DemoPdfBytes;
 import br.com.gestorcobranca.sandbox.application.SandboxSeedComponent;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases.CaseView;
@@ -35,7 +36,6 @@ import br.com.gestorcobranca.shared.security.Actor;
 
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -51,8 +51,7 @@ import java.util.UUID;
 @SandboxSeedComponent
 class LegalSeeder {
 
-    private static final byte[] EVIDENCE = ("%PDF-1.4\n% autorizacao ficticia do credor (sandbox)\n1 0 obj<<>>endobj\n"
-            + "trailer<<>>\n%%EOF\n").getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] EVIDENCE = DemoPdfBytes.of("Autorizacao ficticia do credor - sandbox");
     /** Carteira de veículos do 1º credor (índice no catálogo). */
     private static final int VEHICLE_PORTFOLIO = 1;
 

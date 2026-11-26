@@ -42,6 +42,9 @@ sandbox-pdfs/
 # Relatórios da auditoria da interface (scripts/sandbox/audit.sh) e dependências do script
 sandbox-audit/
 scripts/sandbox/audit/node_modules/
+# saídas do Playwright (a auditoria não grava trace, HAR nem vídeo; nunca versionar se aparecerem — RS-88)
+scripts/sandbox/audit/test-results/
+scripts/sandbox/audit/playwright-report/
 backend/var/
 backend/config/dev/
 

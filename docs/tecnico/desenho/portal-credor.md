@@ -26,7 +26,7 @@ avaliação preventiva do `engenheiro-seguranca` de 24/11/2026; decisões autôn
 | 5 | Contestações aguardando o credor e resposta com documentos | feita |
 | 6 | Pagamento direto informado (sempre revisado) | feita |
 | 7 | Início (indicadores, "Aguardando você") e Minha atividade | feita (§3f) |
-| 8 | Sandbox (carga fictícia), `audit.sh`, `verify.sh`, logs e alarme | — |
+| 8 | Sandbox (carga fictícia), `audit.sh`, `verify.sh`, logs e alarme | feita (§3g) |
 
 ## 3. Fronteira de autenticação (fatia 1)
 
@@ -164,6 +164,30 @@ Definições em [indicadores.md](../../negocio/indicadores.md) §10; decisões a
 "Minha atividade" (número do demonstrativo, protocolo) — hoje o portal mostra o tipo e o link do registro; os pedidos
 do credor ("Meus pedidos recentes") e o aviso de eliminação do D01h (decisão 1469) entram no "Aguardando você" quando
 existirem.
+
+## 3g. Sandbox, auditoria, verificação e alarmes (fatia 8)
+
+Avaliação preventiva de 26/11/2026 (RS-80 a RS-93); decisões autônomas 1564–1573. Guia de uso:
+[operacao/sandbox.md](../operacao/sandbox.md) §2c.
+
+| Peça | Onde | O quê |
+| --- | --- | --- |
+| Carga | `sandbox.application.service.CreditorPortalSeeder` (etapas "portal do credor (liberação e prestação de contas)" e "portal do credor (pessoas e ações)", antes da etapa final de demonstrativo e painéis) | Pela assessoria (Gestor com `CREDITOR_PORTAL_MANAGE`): portal liberado no 1º credor de cada assessoria e no 2º da `aurora`, convites (`DemoCatalog.creditorPortal`); cadeia de demonstrativos do 1º credor (um enviado 14 dias atrás pelo relógio de demonstração, com prazo vencido; um enviado hoje; um calculado) e pedido ao credor numa contestação aberta. Pelas pessoas do credor, **só no tempo real** (RS-84): ativação pelo fluxo real e as ações — Financeiro aceita o demonstrativo, Jurídico responde à contestação com um documento fictício (quarentena), Gestão informa um pagamento que o Financeiro da assessoria recusa com o motivo para o credor (RS-86); sessões encerradas no fim e aviso se sobrar convite pendente ou pessoa bloqueada (RS-87) |
+| MFA (opção D) | `CreditorMfaVault` / `FileCreditorMfaVault` (`app.sandbox.seed.creditor-mfa-file`, `/sandbox-data/creditor-mfa.txt`, 600, regravação atômica), `DemoTotp` (RFC 6238 próprio, decisão 1565) | O segredo é o que o `activation/start` devolve; guardado antes do `activation/complete`. Cada código usa um passo de 30 s posterior ao último daquela pessoa (e ao início da execução); 429 espera o `Retry-After` e a nova tentativa usa outro código (RS-89) |
+| Ator do credor | `HttpCreditorPortalClient` (`app.sandbox.seed.creditor-portal-url`) | Chama `/api/creditor/v1/...` com a `Origin` da aplicação e o token da sessão real (RS-83); multipart com `Content-Length`; erros só com a situação HTTP e o código do problema, nunca corpo, token ou código |
+| Perfil sandbox | `application-sandbox.yml` | Nenhuma chave `app.security.creditor-portal.*`; MFA do credor sempre exigido, Origin obrigatório (RS-85) |
+| Scripts | `scripts/sandbox/credor-codigo.sh`, `verify.sh` §10–11, `audit.sh` (perfis `assessoria/<pessoa do credor>`) | Código no host com o OpenSSL; verificação só com leituras e recusas esperadas (RS-91); Mailpit só em `127.0.0.1` e túnel só para a aplicação (RS-92); auditoria com o segredo por arquivo temporário 600 montado só leitura, sem trace, HAR nem vídeo, sem acionar ação (RS-88, RS-90) |
+| Alarmes | `infra/terraform/modules/observability` (`alarms_creditor_portal.tf`, filtros `creditor-auth-failures` e `creditor-scope-denied` em `main.tf`, `tests/creditor_portal.tftest.hcl`) | Fontes do Início indisponíveis, picos de recusa por limite, falhas de autenticação do credor e sondagem de escopo, sem dimensão de assessoria, credor, pessoa, e-mail ou IP (RS-93, decisão 1571) |
+| Regras | `ArchitectureTest` | `onlyTheCreditorIdentityServicesStartTheActivation`, `identityNeverDependsOnTheSandbox`, `creditorIdentityPortsNeverTakeASecret`, `onlyTheCreditorTokenResolverBuildsTheCreditorActor`; o `sandbox` deixa de poder usar as portas `:: creditor` |
+| Testes | `CreditorPortalIdentityIT` (segredos aleatórios por convite, 32 caracteres Base32, cifrados), `SandboxCreditorPortalStrictIT` (perfil sandbox: login → `MFA_REQUIRED` sem token, Origin exigido, reuso recusado), `SandboxCreditorPortalNotRelaxedTest` (YAML sem `app.security.creditor-portal`; `toString` mascarados), `SandboxCreditorMfaVaultTest` (sem perfil ou sem a flag → sem bean; sandbox + prod → não sobe; arquivo 600; `toString` sem segredo), `DemoTotpTest` (vetores do RFC 6238) | |
+
+**Pendências da fatia 8:** o `app.security.cookie-secure: false` do sandbox (geral, para `http://localhost`) também tira o
+`Secure` do cookie de refresh do credor — aceitável só em `localhost`; com o túnel em https, avaliar ligar o `Secure`;
+a lista de fontes e de operações dos alarmes é explícita (fonte ou operação nova pede ajuste no alarme); o alarme de
+`LOGIN_BLOCKED` conta também as tentativas de quem já está bloqueado (falta um contador de bloqueios na aplicação); a
+carga ainda abre sessão do Jurídico e da Gestão a cada subida sem reset antes de saber se há o que fazer (conferir pelo
+lado da assessoria antes); o `HttpCreditorPortalClient` ainda não tem IT próprio (o contrato é exercitado no `up.sh` e
+no `verify.sh`).
 
 ## 4. Requisitos de segurança (checklist das próximas fatias)
 

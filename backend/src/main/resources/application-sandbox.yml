@@ -87,3 +87,9 @@ app:
       tokens-file: ${SANDBOX_TOKENS_FILE:/sandbox-data/api-tokens.txt}
       # PDFs FICTÍCIOS de demonstração da Importação PDF (volume sandbox-data; scripts/sandbox/pdfs.sh)
       pdf-dir: ${SANDBOX_PDF_DIR:/sandbox-data/pdfs}
+      # segredo do autenticador das pessoas do credor de demonstração, o mesmo que a ativação devolveu (volume
+      # sandbox-data, permissão 600; scripts/sandbox/credor-codigo.sh). O portal do credor NÃO tem afrouxamento no
+      # sandbox: MFA sempre exigido, Origin obrigatório e os limites de app.security.creditor-portal de application.yml
+      creditor-mfa-file: ${SANDBOX_CREDITOR_MFA_FILE:/sandbox-data/creditor-mfa.txt}
+      # a carga age como a pessoa do credor pela API HTTP do próprio portal, nesta aplicação (Origin = este endereço)
+      creditor-portal-url: ${SANDBOX_CREDITOR_PORTAL_URL:http://localhost:${server.port:8080}}

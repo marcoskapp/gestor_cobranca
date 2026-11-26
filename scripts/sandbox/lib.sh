@@ -110,6 +110,26 @@ sandbox_tokens() {
   compose exec -T app cat /sandbox-data/api-tokens.txt 2>/dev/null | grep -v '^#' | grep -v '^$'
 }
 
+# Cofre do autenticador das pessoas do credor de demonstração (gerado pela ativação, volume do sandbox, permissão 600):
+# assessoria, e-mail, perfil, segredo Base32, chave hexadecimal — separados por tabulação. Nunca imprima nem grave
+# fora de um arquivo temporário 600; quem chama decide o destino.
+sandbox_creditor_mfa() {
+  compose exec -T app cat /sandbox-data/creditor-mfa.txt </dev/null 2>/dev/null | grep -v '^#' | grep -v '^$'
+}
+
+# totp_code <chave hexadecimal> <passo> → código de 6 dígitos (RFC 6238, HMAC-SHA1), com o OpenSSL (macOS sem base32).
+totp_code() {
+  local hex="$1" step="$2" mac offset word
+  mac="$(printf '%016x' "${step}" | xxd -r -p | openssl dgst -sha1 -mac HMAC -macopt "hexkey:${hex}" -binary | xxd -p -c 64)"
+  offset=$(( 16#${mac:39:1} ))
+  word=$(( 16#${mac:$((offset * 2)):8} & 0x7fffffff ))
+  printf '%06d' $(( word % 1000000 ))
+}
+
+# Passo TOTP atual (30 s) e segundos até o próximo.
+totp_step() { printf '%d' $(( $(date +%s) / 30 )); }
+totp_seconds_left() { printf '%d' $(( 30 - $(date +%s) % 30 )); }
+
 # Índice dos PDFs fictícios de demonstração da Importação PDF (gerados pela carga no volume do sandbox):
 # assessoria, credor, carteira, arquivo, finalidade — separados por tabulação.
 sandbox_pdf_index() {
@@ -150,6 +170,8 @@ print_summary() {
 
   API pública: tokens de demonstração em ./scripts/sandbox/tokens.sh · docs em ${APP_URL}/public-api/docs
   Importação PDF: PDFs fictícios de demonstração em ./scripts/sandbox/pdfs.sh (copia para ./sandbox-pdfs/)
+  Portal do credor: ${APP_URL}/credor/aurora/entrar  (hzn-financeiro@credor.exemplo.test, mesma senha;
+            código do autenticador: ./scripts/sandbox/credor-codigo.sh aurora hzn-financeiro)
   Lista completa de usuários e roteiro de demonstração: docs/tecnico/operacao/sandbox.md
 EOF
 }

@@ -20,7 +20,7 @@ class FileDemoPdfShelfTest {
 
     private FileDemoPdfShelf shelf() {
         return new FileDemoPdfShelf(new SandboxProperties(new SandboxProperties.Seed(true, null, null, null, null, null,
-                null, dir)));
+                null, dir, null, null)));
     }
 
     @Test

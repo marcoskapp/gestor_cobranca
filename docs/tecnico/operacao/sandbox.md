@@ -13,6 +13,7 @@ Pré-requisitos (detalhes, versões mínimas, memória, disco e portas no [READM
 ./scripts/sandbox/up.sh --no-build # sobe de novo reaproveitando a imagem já construída
 ./scripts/sandbox/verify.sh        # verificação de fumaça: logins por perfil, volumes, isolamento entre assessorias e API pública
 ./scripts/sandbox/tokens.sh        # tokens de demonstração da API pública (segredos exibidos só aqui)
+./scripts/sandbox/credor-codigo.sh aurora hzn-financeiro   # código do autenticador de uma pessoa do credor (§2c)
 ./scripts/sandbox/audit.sh         # auditoria da interface perfil a perfil (§4c)
 ./scripts/sandbox/down.sh          # para, mantendo os dados
 ./scripts/sandbox/reset.sh         # apaga os volumes do sandbox e recria do zero (pede confirmação; --yes dispensa)
@@ -62,6 +63,48 @@ Exemplo: `gestor@aurora.exemplo.test` / `Sandbox@2026!`, assessoria `aurora`.
 **MFA.** No sandbox nenhum perfil tem MFA obrigatório (`app.security.mfa.required-for-roles` vazio em `application-sandbox.yml`, decisão 633), para a demonstração entrar direto com a senha publicada. Para demonstrar o MFA: entre com qualquer usuário, vá em **Minha conta → Autenticador**, cadastre um aplicativo TOTP e, a partir daí, o login daquele usuário pede o código. O código de produção não muda; em produção a lista de perfis obrigatórios continua a de `application.yml`.
 
 **Limites de segurança continuam valendo:** bloqueio progressivo após 5 senhas erradas (o administrador desbloqueia em Administração → Usuários), 20 logins por minuto por IP, sessão de 30 min de inatividade e senha que expira em 90 dias (se o volume do sandbox ficar mais que isso, use `reset.sh`).
+
+### 2c. Portal do credor (pessoas do credor de demonstração)
+
+O portal do credor (`/credor/<assessoria>/entrar`) vem liberado para o **1º credor de cada assessoria** (Banco Horizonte
+na `aurora`, Coop Sertão na `boreal`) e para o **2º credor da `aurora`** (Varejo Estrela). As pessoas do credor são
+convidadas pela assessoria e ativadas pela carga pelo fluxo real (link do convite no Mailpit, cadastro do autenticador
+e senha de demonstração):
+
+| Pessoa (`<pessoa>@credor.exemplo.test`) | Perfil no portal | Credor |
+| --- | --- | --- |
+| `hzn-gestao`, `hzn-financeiro`, `hzn-juridico`, `hzn-compliance`, `hzn-consulta` | Gestão de recuperação, Financeiro, Jurídico, Compliance, Consulta | Banco Horizonte (`aurora`) |
+| `est-consulta` | Consulta | Varejo Estrela (`aurora`) |
+| `csr-gestao`, `csr-financeiro`, `csr-juridico`, `csr-compliance`, `csr-consulta` | os mesmos cinco | Coop Sertão (`boreal`) |
+
+**Como entrar:**
+
+1. Espere o `up.sh` terminar (prontidão `UP`: a carga terminou e o relógio voltou ao tempo real). Não entre durante a carga.
+2. Abra `http://localhost:58080/credor/aurora/entrar`; e-mail `hzn-financeiro@credor.exemplo.test`, senha de demonstração.
+3. No terminal: `./scripts/sandbox/credor-codigo.sh aurora hzn-financeiro` — mostra o código atual e os segundos que
+   faltam (se faltarem menos de 5 s, espera o próximo). Digite o código na tela.
+4. Para aceitar um demonstrativo ou informar um pagamento, a tela pede um código de novo: rode o script outra vez
+   **depois que o código anterior vencer** (o mesmo código não vale duas vezes para a mesma pessoa).
+
+**O MFA do credor nunca é dispensado no sandbox** (a dispensa da decisão 633 vale só para os usuários internos): o
+segredo de cada pessoa é o que a própria ativação gerou, guardado em `/sandbox-data/creditor-mfa.txt` (volume do
+sandbox, permissão 600) e lido pelo script de dentro do contêiner; o código é calculado na máquina com o OpenSSL e
+nunca é gravado (decisão 1564). Para cadastrar no celular de quem demonstra:
+`./scripts/sandbox/credor-codigo.sh aurora hzn-financeiro --uri` (mostra o `otpauth://`; não compartilhe).
+
+**Cuidados:** cada código vale **uma vez por pessoa** — repetir conta como erro e **5 erros bloqueiam** a pessoa. O
+`verify.sh` e o `audit.sh` também entram como algumas dessas pessoas (cada um espera um código novo e encerra a sessão
+ao fim). Pessoa bloqueada ou que perdeu o autenticador: como `gestor` da assessoria, ficha do credor → **Portal do
+credor** → **Refazer acesso** (um convite novo chega ao Mailpit; o segredo do cofre deixa de valer até a nova ativação,
+ou rode `reset.sh`). **Túnel:** suba `tunnel.sh` só depois da prontidão; os links de convite e de redefinição passam a
+sair com o endereço https do túnel, e o Mailpit continua só em `127.0.0.1` (o túnel aponta só para a aplicação).
+
+O que a carga deixa no portal do Banco Horizonte (Início com números, "Aguardando você" e "Minha atividade"):
+demonstrativo enviado há 14 dias com o **prazo vencido**, demonstrativo enviado hoje e **aceito** pelo Financeiro do
+credor, o seguinte só calculado (tela interna), contestação com **pedido ao credor aguardando** e outra **respondida**
+pelo Jurídico do credor (com documento fictício na quarentena), pagamento **informado** pela Gestão do credor e
+**recusado** pelo Financeiro da assessoria com o motivo para o credor. Como `financeiro@aurora…`, a fila de aprovação
+de pagamentos e a ficha do demonstrativo mostram a origem "portal do credor".
 
 ### 2a. Documentação da API interna (Swagger)
 
@@ -114,7 +157,8 @@ O túnel é o serviço `tunnel` do próprio Compose (perfil `tunnel`, imagem `cl
 | Outros credores | acordos em pagamento e formalizado, promessa, tentativas sem sucesso, conversa recebida |
 | Jurídico | escritório parceiro com o `advogado` como membro; regra de indicação; um caso **ajuizado e citado** (viabilidade, autorização do credor com evidência, processo com número CNJ fictício válido, prazo para embargos, custas) atribuído ao escritório e outro **em análise** |
 | Compliance | pedido de titular (LGPD) aberto; trilha de auditoria e log de acesso de tudo o que a carga fez |
-| Prestação de contas | demonstrativo do 1º credor calculado |
+| Prestação de contas | demonstrativos do 1º credor: um enviado há 14 dias (prazo vencido), um enviado hoje e aceito no portal do credor, o seguinte calculado (§2c) |
+| Portal do credor | liberado no 1º credor de cada assessoria e no 2º da `aurora`, com uma pessoa do credor por perfil (§2c) |
 | Painéis | snapshots do analytics atualizados pelo agendamento (a cada 15 min) |
 | Importação PDF | 5 PDFs **fictícios** por assessoria, gerados pela carga (`./scripts/sandbox/pdfs.sh` copia para `./sandbox-pdfs/`), e o mapa salvo "Histórico financeiro por cliente (demonstração)" no 1º credor de cada assessoria; IA desligada (§4b) |
 | API pública | 8 tokens de demonstração (um completo por credor, inclusive com a posição do faturamento e do repasse, e um só de leitura da carteira no 1º credor de cada assessoria) e condições de cobrança das integrações em cada contrato (§4a) |
@@ -305,10 +349,21 @@ O `verify.sh` confere o contrato da API (inclusive menu × API, §9); o `audit.s
 ```bash
 ./scripts/sandbox/audit.sh                       # perfis padrão: os 14 da aurora + boreal/operador2 e boreal/advogado
 ./scripts/sandbox/audit.sh aurora/juridico       # só os perfis informados (assessoria/pessoa)
+./scripts/sandbox/audit.sh aurora/hzn-financeiro # pessoa do credor: portal do credor com o código do autenticador
 AUDIT_DETAIL=0 ./scripts/sandbox/audit.sh         # sem abrir o primeiro registro das listas (mais rápido)
 ```
 
 O relatório fica em `./sandbox-audit/` (fora do Git): `relatorio.md` (resumo por perfil, problemas perfil × página e páginas visitadas) e `resultado.json`. Código de saída: **0** sem problemas, **1** com problemas, **2** quando a auditoria não rodou (sandbox fora do ar, login recusado). Janela padrão 1280×800 (`AUDIT_WIDTH`/`AUDIT_HEIGHT`); `AUDIT_PARALLEL` perfis em paralelo (padrão 3). A rodada completa leva de 20 a 40 min.
+
+**Portal do credor.** Os perfis `aurora/hzn-gestao`, `hzn-financeiro`, `hzn-juridico`, `hzn-compliance`, `hzn-consulta`,
+`aurora/est-consulta` e `boreal/csr-gestao` (padrão) entram em `/credor/<assessoria>/entrar` com a senha e o código do
+autenticador e percorrem Início, prestação de contas e a ficha, contestações e a ficha, pagamentos informados e Minha
+atividade (com as abas), com as mesmas checagens — menos a rolagem vertical do documento, que no portal é o desenho. O
+`audit.sh` copia o cofre do autenticador para um arquivo temporário 600 fora do repositório (apagado ao sair), que o
+Node recebe só pelo caminho (montado só leitura na imagem); o segredo nunca vai por variável de ambiente nem argumento
+e nunca é impresso. Cada pessoa usa um código num passo posterior ao início da auditoria; nenhuma ação é acionada
+(aceite, contestação, informe, resposta, "Tentar novamente", sair pelo menu) e a sessão é encerrada pela API no fim. O
+Playwright não grava trace, HAR, vídeo nem captura de tela.
 
 **Limites do sandbox respeitados**: uma sessão por perfil, encerrada no fim (o limite é 3 sessões simultâneas por usuário — a mais antiga cai), e logins espaçados de 3,5 s (o limite é 20 por minuto por IP; um 429 espera e tenta de novo). Não altera dados: só navega e abre abas; da busca usa apenas opções de navegação (nada de sair, tema, densidade ou tour).
 
@@ -332,6 +387,12 @@ A carga é o módulo `sandbox` do backend (`br.com.gestorcobranca.sandbox`). Ela
 - **Idempotente:** cada etapa confere o que já existe antes de agir. Subir de novo (`down.sh` + `up.sh`) não duplica nada; o `verify.sh` dá os mesmos números.
 - **Cenários opcionais:** se uma regra de negócio recusar um cenário (ex.: mudança futura de regra), ele vira aviso em `/actuator/health/readiness` (`components.sandboxSeed.details.warnings`) e no log técnico, e a carga segue. Falha de infraestrutura (banco, tempo esgotado) interrompe a carga e deixa o sandbox fora de prontidão (`state: FAILED`).
 - **Chaves:** o entrypoint da imagem gera, na primeira subida, o par RSA do JWT e as chaves de criptografia no volume `sandbox-secrets` (nada versionado; [`infra/docker/app/entrypoint.sh`](../../../infra/docker/app/entrypoint.sh)).
+- **Portal do credor (fatia 8):** a assessoria libera o portal e convida as pessoas (casos de uso, como o `gestor`); a
+  carga lê cada convite no Mailpit e ativa a pessoa **pela API HTTP do próprio portal** (`/api/creditor/v1`, com a
+  `Origin` da aplicação), como o navegador faria; as ações do credor (aceite, resposta, informe) também vão pela API,
+  com o token da sessão aberta pelo servidor e um código do autenticador num passo de 30 s novo a cada uso, **só no
+  tempo real** (o relógio de demonstração serve só ao envio do demonstrativo antigo, feito pela assessoria). Ao fim,
+  as sessões abertas pela carga são encerradas; convite pendente ou pessoa bloqueada viram aviso da carga.
 - **Observabilidade:** log técnico por etapa (`Etapa da carga do sandbox concluída`, com `step` e `durationMs`), métricas `sandbox.seed.step{step}` e `sandbox.seed.duration{outcome}`; os eventos de negócio e de acesso são os da própria operação.
 
 ### Proteções contra ativação acidental
@@ -368,5 +429,6 @@ Etapa `PdfImportDemoSeeder` ("importação PDF de demonstração", depois da car
 | Login recusado com a senha certa | usuário bloqueado por tentativas erradas (desbloqueie como `admin`) ou senha expirada após 90 dias (`reset.sh`) |
 | Build interrompido ou a aplicação para sozinha (código 137) | Docker sem memória: reserve ao menos 6 GB e rode `up.sh` de novo |
 | Painéis vazios logo após subir | os snapshots do analytics são atualizados pelo agendamento a cada 15 min: aguarde até 15 min |
+| Portal do credor: "código inválido" com o código do `credor-codigo.sh` | o código já foi usado por essa pessoa (pela carga, pelo `verify.sh`, pelo `audit.sh` ou por você) ou o relógio da máquina está errado: espere o próximo código (até 30 s) e tente de novo. Pessoa bloqueada (5 erros): `gestor` → ficha do credor → Portal do credor → Refazer acesso, ou `reset.sh` |
 | Sessão cai logo depois de entrar, durante a carga | o relógio está deslocado para o passado pelo histórico (§5): espere o `up.sh` terminar e entre de novo |
 | Mensagens da régua "adiadas" | fora da janela da política de contato (8h–20h; SMS 9h–19h) — comportamento esperado |

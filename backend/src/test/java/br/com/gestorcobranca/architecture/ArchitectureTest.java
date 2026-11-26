@@ -118,8 +118,8 @@ class ArchitectureTest {
     }
 
     /**
-     * A nova verificação do MFA só vale na ação do portal do credor: o {@code sandbox} também declara
-     * {@code identity :: creditor} (carga fictícia), mas não a usa. As portas do credor dos módulos donos
+     * A nova verificação do MFA só vale na ação do portal do credor (a carga do sandbox chama a API HTTP do portal, que
+     * a usa do jeito normal). As portas do credor dos módulos donos
      * ({@code <modulo> :: creditor}) já são protegidas pelo {@code ModularityTest}.
      */
     @Test
@@ -133,7 +133,7 @@ class ArchitectureTest {
 
     /**
      * Portas da pessoa do credor ({@code <modulo>.application.port.in.creditor}, ADR 0011): fora do módulo dono, só o
-     * {@code creditorportal} (e o {@code sandbox}, para a carga fictícia) as usa — nenhum outro módulo lê dados com o
+     * {@code creditorportal} as usa (a carga do sandbox age como credor só pela API HTTP do portal, fatia 8) — nenhum outro módulo lê dados com o
      * credor do ator. Complementa o {@code ModularityTest} (que confere as interfaces declaradas) também para o código
      * do próprio pacote raiz de um módulo que venha a declará-las por engano.
      */
@@ -146,8 +146,7 @@ class ArchitectureTest {
         org.assertj.core.api.Assertions.assertThat(owners)
                 .containsExactlyInAnyOrder("identity", "settlement", "collection", "payment", "analytics");
         for (String owner : owners) {
-            noClasses().that().resideOutsideOfPackages(ROOT + ".creditorportal..", ROOT + ".sandbox..",
-                            ROOT + "." + owner + "..")
+            noClasses().that().resideOutsideOfPackages(ROOT + ".creditorportal..", ROOT + "." + owner + "..")
                     .should().dependOnClassesThat().resideInAPackage(ROOT + "." + owner + ".application.port.in.creditor..")
                     .because("as portas do credor tiram o credor do ator e só servem ao portal do credor (ADR 0011)")
                     .check(classes);
@@ -205,6 +204,88 @@ class ArchitectureTest {
             }
         }
         return names;
+    }
+
+    /**
+     * Opção D do MFA no sandbox (fatia 8, RS-80/81): o segredo do autenticador da pessoa do credor só nasce no fluxo de
+     * ativação do próprio identity — ninguém mais inicia a ativação com um segredo escolhido de fora.
+     */
+    @Test
+    void onlyTheCreditorIdentityServicesStartTheActivation() {
+        noClasses().that().resideOutsideOfPackage(ROOT + ".identity.application.service.creditor..")
+                .should().callMethodWhere(callTo(br.com.gestorcobranca.identity.domain.model.creditor.CreditorUser.class,
+                        "startActivation"))
+                .because("o segredo do autenticador do credor só é gerado na ativação do identity (opção D, RS-80)")
+                .check(classes);
+    }
+
+    /** Nenhuma parte do identity conhece o sandbox (a carga fictícia usa as portas e a API, nunca o contrário). */
+    @Test
+    void identityNeverDependsOnTheSandbox() {
+        noClasses().that().resideInAPackage(ROOT + ".identity..")
+                .should().dependOnClassesThat().resideInAPackage(ROOT + ".sandbox..")
+                .because("nenhum atalho de MFA ou de sessão do credor para a carga fictícia (RS-81)")
+                .check(classes);
+    }
+
+    /**
+     * Nenhuma porta da pessoa do credor recebe um segredo de MFA de fora (RS-81): nem parâmetro nem componente de record
+     * de comando com "secret" no nome.
+     */
+    @Test
+    void creditorIdentityPortsNeverTakeASecret() {
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        classes.stream().filter(c -> c.getPackageName().equals(ROOT + ".identity.application.port.in.creditor"))
+                .filter(JavaClass::isInterface).forEach(c -> {
+                    for (java.lang.reflect.Method m : c.reflect().getDeclaredMethods()) {
+                        for (java.lang.reflect.Parameter p : m.getParameters()) {
+                            java.util.List<String> names = new java.util.ArrayList<>(java.util.List.of(p.getName()));
+                            if (p.getType().isRecord()) {
+                                for (java.lang.reflect.RecordComponent rc : p.getType().getRecordComponents()) {
+                                    names.add(rc.getName());
+                                }
+                            }
+                            names.stream().filter(n -> n.toLowerCase(java.util.Locale.ROOT).contains("secret"))
+                                    .forEach(n -> offenders.add(c.getSimpleName() + "#" + m.getName() + "(" + n + ")"));
+                        }
+                    }
+                });
+        org.assertj.core.api.Assertions.assertThat(offenders)
+                .as("o segredo do autenticador nunca vem de fora (opção D)").isEmpty();
+    }
+
+    /**
+     * O ator do credor nasce só da sessão real, no resolvedor do token (RS-83): nem a carga do sandbox nem outro
+     * código monta {@code Actor.creditor(...)}.
+     */
+    @Test
+    void onlyTheCreditorTokenResolverBuildsTheCreditorActor() {
+        noClasses().that().doNotHaveFullyQualifiedName(ROOT + ".identity.infrastructure.security.CreditorTokenResolver")
+                .should().callMethodWhere(callTo(br.com.gestorcobranca.shared.security.Actor.class, "creditor"))
+                .because("o ator do credor vem sempre de uma sessão real conferida a cada requisição (RS-83)")
+                .check(classes);
+    }
+
+    @Test
+    void onlyIdentitySecurityReferencesTheCreditorActorType() {
+        // fecha o construtor canônico do record Actor: new Actor(CREDITOR, ...) fora da sessão real (RS-83)
+        noClasses().that().resideOutsideOfPackages(ROOT + ".shared.security..", ROOT + ".identity.infrastructure..")
+                .should().accessFieldWhere(com.tngtech.archunit.base.DescribedPredicate.describe("ActorType.CREDITOR",
+                        (com.tngtech.archunit.core.domain.JavaFieldAccess access) ->
+                                access.getTargetOwner().isEquivalentTo(br.com.gestorcobranca.shared.security.Actor.ActorType.class)
+                                        && access.getName().equals("CREDITOR")
+                                        // tabela sintética de um switch sobre o enum (Classe$1.<clinit>): só lê o valor
+                                        && !(access.getOrigin().getName().equals("<clinit>")
+                                                && access.getOriginOwner().getName().matches(".*\\$\\d+"))))
+                .because("o ator do credor só nasce da sessão real conferida a cada requisição (RS-83)")
+                .check(classes);
+    }
+
+    /** Chamada a qualquer sobrecarga do método {@code name} declarado em {@code owner}. */
+    private static com.tngtech.archunit.base.DescribedPredicate<com.tngtech.archunit.core.domain.JavaMethodCall> callTo(
+            Class<?> owner, String name) {
+        return com.tngtech.archunit.base.DescribedPredicate.describe(owner.getSimpleName() + "." + name,
+                call -> call.getTargetOwner().isEquivalentTo(owner) && call.getName().equals(name));
     }
 
     /** O comprovante da nova verificação do MFA só é emitido e conferido pelo identity (SEG-F07, decisão 1436). */

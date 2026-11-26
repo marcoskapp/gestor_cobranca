@@ -18,6 +18,14 @@
 #      API pública (token completo, Idempotency-Key fixa) é mapeado pelo mapa salvo do credor (TEMPLATE), fica
 #      aguardando validação humana e os totais do documento batem.
 #   9. menu x API: para cada perfil, as páginas do menu que o perfil vê não recebem 403 na chamada de carregamento.
+#  10. portal do credor (fatia 8): pessoas ativas, sem bloqueio, falhas nem convite pendente; login sempre pede o código
+#      (MFA_REQUIRED sem token); Início com números no 1º credor e os próprios no 2º; isolamento (demonstrativo,
+#      arquivo, contestação e pagamento de outro credor e de outra assessoria → 404 igual ao de id inexistente);
+#      fronteira dos tokens; time só com a permissão; período fora da lista → 400; no-store nas leituras. Só leituras
+#      (GET) e as recusas esperadas; cada pessoa usa um código num passo novo e a sessão é encerrada ao fim. Nenhum
+#      segredo, código, token, cookie ou link é impresso ou gravado (cofre lido para um temporário 600, apagado na saída).
+#  11. Mailpit fora do túnel: porta só em 127.0.0.1 e o túnel aponta só para a aplicação; com o túnel no ar, as rotas
+#      do Mailpit no endereço público não chegam ao Mailpit.
 #
 #   ./scripts/sandbox/verify.sh
 #
@@ -28,7 +36,7 @@ set -Eeuo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-require_cmd curl jq
+require_cmd curl jq openssl xxd
 readonly PASSWORD="${SANDBOX_DEMO_PASSWORD:-Sandbox@2026!}"
 readonly PEOPLE=(admin gestor supervisor operador operador2 financeiro auditor juridico advogado analista estrategia
                  qualidade compliance integracao)
@@ -371,6 +379,242 @@ for person in "${PEOPLE[@]}"; do
 done
 ok "menu x API: ${menu_checked} combinações perfil x página do menu sem 403 no carregamento"
 
+log INFO "10. portal do credor (pessoas do credor, isolamento e fronteira dos tokens)"
+CREDITOR_VAULT="$(umask 077 && mktemp "${TMPDIR:-/tmp}/gc-verify-credor.XXXXXX")"
+trap 'rm -f "${TMP_BODY}" "${TMP_PDF}" "${CREDITOR_VAULT}"' EXIT
+sandbox_creditor_mfa > "${CREDITOR_VAULT}" 2>/dev/null || true
+CREDITOR_FIRST_STEP="$(totp_step)"
+
+# creditor_get <token> <caminho> → BODY, HTTP_STATUS e CACHE_CONTROL (sem subshell: os valores ficam visíveis)
+creditor_get() {
+  local out headers
+  headers="$(mktemp "${TMPDIR:-/tmp}/gc-verify-headers.XXXXXX")"
+  out="$(curl -sS --max-time 30 -D "${headers}" -w '\n%{http_code}' -H "Authorization: Bearer $1" "${APP_URL}$2")"
+  HTTP_STATUS="${out##*$'\n'}"
+  CACHE_CONTROL="$(tr -d '\r' < "${headers}" | awk -F': ' 'tolower($1) == "cache-control" {print $2}' | tail -1)"
+  rm -f "${headers}"
+  BODY="${out%$'\n'*}"
+}
+
+# creditor_post <caminho> <json> → BODY, HTTP_STATUS e RETRY_AFTER (rotas de autenticação: Origin obrigatório)
+creditor_post() {
+  local out headers
+  headers="$(mktemp "${TMPDIR:-/tmp}/gc-verify-headers.XXXXXX")"
+  out="$(curl -sS --max-time 30 -D "${headers}" -w '\n%{http_code}' -H 'Content-Type: application/json' \
+    -H "Origin: ${APP_URL}" -d "$2" "${APP_URL}$1")"
+  HTTP_STATUS="${out##*$'\n'}"
+  RETRY_AFTER="$(tr -d '\r' < "${headers}" | awk -F': ' 'tolower($1) == "retry-after" {print $2}' | tail -1)"
+  rm -f "${headers}"
+  BODY="${out%$'\n'*}"
+}
+
+# fresh_step <passo> → passo TOTP atual, posterior a <passo> e ao início desta verificação (espera a virada)
+fresh_step() {
+  local floor="$1" step
+  (( floor < CREDITOR_FIRST_STEP )) && floor="${CREDITOR_FIRST_STEP}"
+  while step="$(totp_step)"; (( step <= floor )); do sleep "$(totp_seconds_left)"; done
+  printf '%s' "${step}"
+}
+
+# creditor_login <assessoria> <pessoa> → token em kv "ctoken:<assessoria>:<pessoa>". Senha → MFA_REQUIRED sem token
+# (RS-85) → código num passo novo. 429 espera o Retry-After; código recusado nunca é repetido (uma nova tentativa,
+# com outro passo, RS-89).
+creditor_login() {
+  local tenant="$1" person="$2" hex body step code attempt last=0 token tries=0
+  hex="$(awk -F'\t' -v t="${tenant}" -v e="${person}@credor.exemplo.test" '$1 == t && $2 == e {print $5}' "${CREDITOR_VAULT}")"
+  [[ -n "${hex}" ]] || { fail "${tenant}/${person}: pessoa do credor sem segredo no cofre do sandbox"; return 1; }
+  for attempt in 1 2 3 4; do
+    creditor_post /api/creditor/v1/auth/login "$(jq -nc --arg t "${tenant}" \
+      --arg e "${person}@credor.exemplo.test" --arg p "${PASSWORD}" '{tenant: $t, email: $e, password: $p}')"
+    body="${BODY}"
+    if [[ "${HTTP_STATUS}" == 429 ]]; then
+      log INFO "portal do credor pediu para esperar (429); aguardando ${RETRY_AFTER:-60} s"
+      sleep "$(( ${RETRY_AFTER:-60} + 1 ))"
+      continue
+    fi
+    if [[ "$(jq -r '.status // empty' <<<"${body}")" != MFA_REQUIRED || -n "$(jq -r '.accessToken // empty' <<<"${body}")" ]]; then
+      fail "${tenant}/${person}: a 1ª etapa do login do credor não respondeu MFA_REQUIRED sem token (HTTP ${HTTP_STATUS})"
+      return 1
+    fi
+    step="$(fresh_step "${last}")"
+    last="${step}"
+    code="$(totp_code "${hex}" "${step}")"
+    creditor_post /api/creditor/v1/auth/mfa "$(jq -nc --arg s "$(jq -r .stepToken <<<"${body}")" \
+      --arg c "${code}" '{stepToken: $s, code: $c}')"
+    body="${BODY}"
+    code=""
+    if [[ "${HTTP_STATUS}" == 429 ]]; then
+      sleep "$(( ${RETRY_AFTER:-60} + 1 ))"
+      continue
+    fi
+    token="$(jq -r 'select(.status == "AUTHENTICATED") | .accessToken // empty' <<<"${body}" 2>/dev/null || true)"
+    if [[ -n "${token}" ]]; then
+      kv_set "ctoken:${tenant}:${person}" "${token}"
+      return 0
+    fi
+    tries=$((tries + 1))
+    (( tries >= 2 )) && break
+  done
+  fail "${tenant}/${person}: entrada no portal do credor não concluída"
+  return 1
+}
+
+# normalized <regex de ids> → corpo do 404 sem requestId/instance e com os ids trocados (comparação com o inexistente)
+normalized() { jq -cS 'del(.requestId, .instance, .timestamp)' 2>/dev/null | sed -E "s/$1/:id/g"; }
+
+CREDITOR_PEOPLE=(aurora:hzn-gestao aurora:hzn-consulta aurora:est-consulta boreal:csr-gestao)
+if [[ ! -s "${CREDITOR_VAULT}" ]]; then
+  fail "cofre do portal do credor indisponível no volume do sandbox (/sandbox-data/creditor-mfa.txt)"
+else
+  # pessoas do credor: todas ativas, nenhuma bloqueada nem com falhas, nenhum convite pendente (RS-84, RS-87)
+  stuck="$(compose exec -T postgres psql -U postgres -d cobranca -At -c "select count(*) from identity.creditor_user
+    where status = 'INVITED' or locked_until > now() or failed_attempts > 0" </dev/null 2>/dev/null | tr -d '[:space:]')"
+  active="$(compose exec -T postgres psql -U postgres -d cobranca -At -c "select count(*) from identity.creditor_user
+    where status = 'ACTIVE'" </dev/null 2>/dev/null | tr -d '[:space:]')"
+  if [[ "${stuck}" == 0 && "${active:-0}" -ge 11 ]]; then
+    ok "pessoas do credor: ${active} ativas, nenhuma bloqueada, com falhas ou com convite pendente"
+  else
+    fail "pessoas do credor: ${active:-?} ativas e ${stuck:-?} com convite pendente, bloqueio ou falhas (esperado 11+ e 0)"
+  fi
+
+  for who in "${CREDITOR_PEOPLE[@]}"; do
+    creditor_login "${who%%:*}" "${who#*:}" || true
+  done
+  HZN="$(kv_get ctoken:aurora:hzn-gestao)"
+  HZN_READ="$(kv_get ctoken:aurora:hzn-consulta)"
+  EST="$(kv_get ctoken:aurora:est-consulta)"
+  CSR="$(kv_get ctoken:boreal:csr-gestao)"
+  if [[ -n "${HZN}" && -n "${EST}" && -n "${CSR}" && -n "${HZN_READ}" ]]; then
+    ok "pessoas do credor entraram com senha e código do autenticador (1ª etapa MFA_REQUIRED sem token)"
+
+    # (g) leituras com no-store; Início com números no 1º credor e os próprios números no 2º
+    creditor_get "${HZN}" '/api/creditor/v1/overview?period=THIS_YEAR'
+    overview="${BODY}"
+    [[ "${HTTP_STATUS}" == 200 && "${CACHE_CONTROL}" == *no-store* ]] \
+      || fail "Início do credor: HTTP ${HTTP_STATUS}, Cache-Control '${CACHE_CONTROL}'"
+    summary="$(jq -r '"recuperado=\(.recovery.recovered) saldo=\(.balance.amount) acordos=\(.agreements.active) indisponíveis=\(.unavailable | length)"' <<<"${overview}" 2>/dev/null || true)"
+    if jq -e '(.unavailable | length) == 0 and .recovery.recovered != null and .balance.amount > 0 and (.monthly | length) > 0' \
+        <<<"${overview}" >/dev/null 2>&1; then
+      ok "Início do Banco Horizonte com números (${summary})"
+    else
+      fail "Início do Banco Horizonte sem números ou com fonte indisponível (${summary})"
+    fi
+    creditor_get "${HZN}" /api/creditor/v1/awaiting
+    awaiting="${BODY}"
+    [[ "${HTTP_STATUS}" == 200 && "${CACHE_CONTROL}" == *no-store* ]] \
+      || fail "Aguardando você: HTTP ${HTTP_STATUS}, Cache-Control '${CACHE_CONTROL}'"
+    counts="$(jq -r '"contestações=\(.counts.disputes) demonstrativos=\(.counts.statements) recusados=\(.counts.rejectedPayments) vencidos=\(.overdue)"' <<<"${awaiting}" 2>/dev/null || true)"
+    if jq -e '.counts.disputes >= 1 and .counts.statements >= 1 and .counts.rejectedPayments >= 1 and .overdue >= 1' \
+        <<<"${awaiting}" >/dev/null 2>&1; then
+      ok "Aguardando você do Banco Horizonte: ${counts}"
+    else
+      fail "Aguardando você do Banco Horizonte incompleto: ${counts} (esperado ≥ 1 em cada e 1 vencido)"
+    fi
+    creditor_get "${HZN}" '/api/creditor/v1/activity?scope=team'
+    activity="${BODY}"
+    [[ "${HTTP_STATUS}" == 200 && "${CACHE_CONTROL}" == *no-store* ]] \
+      || fail "atividade do time: HTTP ${HTTP_STATUS}, Cache-Control '${CACHE_CONTROL}'"
+    nact="$(jq '.items | length' <<<"${activity}" 2>/dev/null || echo 0)"
+    if (( nact >= 3 )); then
+      ok "Minha atividade do time do Banco Horizonte: ${nact} ações"
+    else
+      fail "Minha atividade do time do Banco Horizonte com ${nact} ações (esperado ≥ 3: aceite, resposta e informe)"
+    fi
+    creditor_get "${EST}" /api/creditor/v1/awaiting
+    est_statements="$(jq -r '.counts.statements' <<<"${BODY}" 2>/dev/null || true)"
+    creditor_get "${EST}" '/api/creditor/v1/overview?period=THIS_YEAR'
+    est_balance="$(jq -r '.balance.amount' <<<"${BODY}" 2>/dev/null || true)"
+    hzn_balance="$(jq -r '.balance.amount' <<<"${overview}" 2>/dev/null || true)"
+    if [[ "${est_statements}" == 0 && -n "${est_balance}" && "${est_balance}" != "${hzn_balance}" ]]; then
+      ok "Início do Varejo Estrela com os próprios números (saldo ${est_balance} × ${hzn_balance}; nenhum demonstrativo aguardando)"
+    else
+      fail "Início do Varejo Estrela igual ao do Banco Horizonte ou com demonstrativo de outro credor"
+    fi
+
+    # (f) período fora da lista; (e) time só com a permissão
+    creditor_get "${HZN}" '/api/creditor/v1/overview?period=ULTIMA_DECADA'
+    expect "Início com período fora da lista" 400
+    creditor_get "${HZN_READ}" '/api/creditor/v1/activity?scope=team'
+    expect "perfil Consulta na atividade do time" 403
+
+    # (a)/(b) registros do Banco Horizonte vistos por outro credor e por outra assessoria: 404 igual ao de id inexistente
+    creditor_get "${HZN}" /api/creditor/v1/statements
+    statement="$(jq -r '.[0].id // empty' <<<"${BODY}" 2>/dev/null || true)"
+    creditor_get "${HZN}" "/api/creditor/v1/statements/${statement}"
+    file="$(jq -r '.files[0].id // empty' <<<"${BODY}" 2>/dev/null || true)"
+    creditor_get "${HZN}" /api/creditor/v1/disputes
+    dispute="$(jq -r '.[0].id // empty' <<<"${BODY}" 2>/dev/null || true)"
+    creditor_get "${HZN}" /api/creditor/v1/payments
+    payments_json="${BODY}"
+    payment="$(jq -r '.[0].id // empty' <<<"${payments_json}" 2>/dev/null || true)"
+    title="$(jq -r '.[0].titleNumbers[0] // empty' <<<"${payments_json}" 2>/dev/null || true)"
+    missing="00000000-0000-7000-8000-000000000000"
+    if [[ -z "${statement}" || -z "${file}" || -z "${dispute}" || -z "${payment}" || -z "${title}" ]]; then
+      fail "Banco Horizonte sem demonstrativo, arquivo, contestação ou pagamento informado para o teste de isolamento"
+    else
+      ids="${statement}|${file}|${dispute}|${missing}"
+      for probe in "statements/${statement}|statements/${missing}|demonstrativo" \
+          "statements/${statement}/files/${file}/content|statements/${missing}/files/${missing}/content|arquivo do demonstrativo" \
+          "disputes/${dispute}|disputes/${missing}|contestação"; do
+        IFS='|' read -r path ghost label <<<"${probe}"
+        for other in EST CSR; do
+          case "${other}" in EST) who="Varejo Estrela (mesma assessoria)" ;; *) who="Coop Sertão (outra assessoria)" ;; esac
+          creditor_get "${!other}" "/api/creditor/v1/${path}"
+          real="${BODY}"; real_status="${HTTP_STATUS}"
+          creditor_get "${!other}" "/api/creditor/v1/${ghost}"
+          fake="${BODY}"; fake_status="${HTTP_STATUS}"
+          if [[ "${real_status}" == 404 && "${fake_status}" == 404 \
+                && "$(normalized "${ids}" <<<"${real}")" == "$(normalized "${ids}" <<<"${fake}")" ]]; then
+            ok "${label} do Banco Horizonte pelo ${who}: 404 igual ao de id inexistente"
+          else
+            fail "${label} do Banco Horizonte pelo ${who}: HTTP ${real_status} (inexistente: ${fake_status}) ou corpo diferente"
+          fi
+        done
+      done
+      creditor_get "${EST}" /api/creditor/v1/payments
+      if [[ "${HTTP_STATUS}" == 200 && "$(jq --arg p "${payment}" '[.[] | select(.id == $p)] | length' <<<"${BODY}" 2>/dev/null)" == 0 ]]; then
+        ok "pagamento informado do Banco Horizonte fora da lista do Varejo Estrela"
+      else
+        fail "pagamento informado do Banco Horizonte aparece (ou a lista falhou) para o Varejo Estrela"
+      fi
+      creditor_get "${CSR}" "/api/creditor/v1/payments/titles?number=${title}"
+      other_title="${BODY}"
+      creditor_get "${CSR}" '/api/creditor/v1/payments/titles?number=SBX-INEXISTENTE-0'
+      ghost_title="${BODY}"
+      if [[ "${other_title}" == "[]" && "${ghost_title}" == "[]" ]]; then
+        ok "título do Banco Horizonte pela Coop Sertão: vazio, igual ao de número inexistente"
+      else
+        fail "busca de título de outra assessoria não respondeu vazio"
+      fi
+    fi
+
+    # (c) token do credor fora do portal; (d) token interno no portal
+    get "${HZN}" /api/v1/creditors >/dev/null
+    expect "token do credor na API interna" 403
+    papi GET /creditor "${HZN}" >/dev/null
+    expect "token do credor na API pública" 401
+    creditor_get "$(token aurora gestor)" /api/creditor/v1/overview
+    expect "token interno no portal do credor" "401|403"
+  fi
+
+  # encerra as sessões abertas por esta verificação
+  for who in "${CREDITOR_PEOPLE[@]}"; do
+    tok="$(kv_get "ctoken:${who%%:*}:${who#*:}")"
+    if [[ -n "${tok}" ]]; then
+      curl -sS --max-time 10 -o /dev/null -X POST -H "Authorization: Bearer ${tok}" \
+        "${APP_URL}/api/creditor/v1/session/logout" || true
+    fi
+  done
+fi
+
+log INFO "11. Mailpit fora do túnel"
+mail_port="$(compose port mailpit 8025 2>/dev/null || true)"
+if [[ "${mail_port}" == 127.0.0.1:* ]] && compose --profile tunnel config 2>/dev/null | grep -q 'http://app:8080'; then
+  ok "Mailpit publicado só em ${mail_port}; o túnel aponta só para a aplicação (app:8080)"
+else
+  fail "Mailpit publicado em '${mail_port}' ou o túnel não aponta só para a aplicação"
+fi
+
 # Túnel registrado: precisa estar no ar, com o endereço que publicou por último, e a aplicação montando os links dos
 # e-mails com ele (o envio de link exige https). Sem registro, a aplicação não pode ter ficado com um endereço antigo.
 registered="$(public_url)"
@@ -385,6 +629,14 @@ if [[ -n "${registered}" ]]; then
     fail "túnel em ${registered}, mas a aplicação monta os links com '${base}' (./scripts/sandbox/tunnel.sh)"
   else
     ok "túnel: links dos e-mails em ${base}"
+  fi
+  # RS-92: rotas do Mailpit no endereço público caem na aplicação, nunca no Mailpit
+  mp_api="$(curl -sS --max-time 20 -o "${TMP_BODY}" -w '%{http_code}' "${registered}/api/v1/info" || true)"
+  mp_view="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "${registered}/view/latest.html" || true)"
+  if [[ "${mp_api}" != 200 && "${mp_view}" != 200 ]] && ! grep -qiE 'mailpit|"Database"' "${TMP_BODY}" 2>/dev/null; then
+    ok "túnel: rotas do Mailpit não chegam ao Mailpit pelo endereço público (${mp_api}/${mp_view})"
+  else
+    fail "túnel: rota do Mailpit respondeu ${mp_api}/${mp_view} pelo endereço público"
   fi
 elif [[ -n "${base}" && "${base}" != "${APP_URL}" ]]; then
   fail "sem túnel registrado, mas a aplicação monta os links com '${base}' (./scripts/sandbox/up.sh --no-build)"

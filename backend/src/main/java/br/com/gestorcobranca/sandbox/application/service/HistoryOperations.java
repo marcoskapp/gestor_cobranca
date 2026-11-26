@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.sandbox.application.service;
 
+import br.com.gestorcobranca.sandbox.domain.service.DemoPdfBytes;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.PromiseInput;
 import br.com.gestorcobranca.collection.application.port.in.InteractionUseCases.RecordInteractionCommand;
@@ -36,7 +37,6 @@ import br.com.gestorcobranca.shared.security.Actor;
 
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -57,8 +57,7 @@ import java.util.function.Consumer;
 @SandboxSeedComponent
 class HistoryOperations {
 
-    private static final byte[] RECEIPT = ("%PDF-1.4\n% comprovante ficticio do historico do sandbox\n1 0 obj<<>>endobj\n"
-            + "trailer<<>>\n%%EOF\n").getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] RECEIPT = DemoPdfBytes.of("Comprovante ficticio do historico do sandbox");
     private static final Set<String> CALL_LIVE = Set.of("IN_PROGRESS", "ANSWERED", "CONNECTED");
     /** Passo do relógio durante a ligação: menor que o prazo de presença do operador na telefonia (90 s). */
     private static final Duration CALL_STEP = Duration.ofSeconds(50);

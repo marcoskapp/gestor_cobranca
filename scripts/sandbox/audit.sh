@@ -4,14 +4,18 @@
 # primeiro registro de cada lista e relata, por perfil × página, respostas 403, avisos "Acesso negado", cartões
 # lado a lado desalinhados e o documento rolando além da área de conteúdo.
 #
-#   ./scripts/sandbox/audit.sh                         perfis padrão (todos da aurora + 2 da boreal)
+#   ./scripts/sandbox/audit.sh                         perfis padrão (todos da aurora + 2 da boreal + portal do credor)
 #   ./scripts/sandbox/audit.sh aurora/juridico ...     só os perfis informados (assessoria/pessoa)
+#   ./scripts/sandbox/audit.sh aurora/hzn-financeiro   pessoa do credor (portal do credor, com o código do autenticador)
 #   ./scripts/sandbox/audit.sh --local [perfis]        força o Node local (sem a imagem do Playwright)
 #   ./scripts/sandbox/audit.sh --docker [perfis]       exige a imagem oficial do Playwright
 #
 # Relatório em ./sandbox-audit/ (relatorio.md e resultado.json). Saída 0 sem problemas, 1 com problemas,
 # 2 quando a auditoria não roda. Variáveis: AUDIT_PARALLEL (3), AUDIT_DETAIL (1), AUDIT_WIDTH/AUDIT_HEIGHT
 # (1280×800), AUDIT_OUT, SANDBOX_PLAYWRIGHT_IMAGE. Guia: docs/tecnico/operacao/sandbox.md (Auditoria da interface).
+# Segredos do autenticador das pessoas do credor: lidos do cofre do sandbox para um arquivo temporário 600 fora do
+# repositório (apagado na saída), entregue ao Node só pelo caminho (montado só leitura na imagem) — nunca por
+# variável de ambiente ou argumento, nunca impressos. O Playwright não grava trace, HAR, vídeo nem captura de tela.
 # =============================================================================
 set -Eeuo pipefail
 
@@ -32,7 +36,7 @@ for arg in "$@"; do
     --docker) MODE=docker ;;
     -*) fatal "opção desconhecida: ${arg} (veja --help)" ;;
     *)
-      [[ "${arg}" =~ ^[a-z0-9-]+/[a-z0-9]+$ ]] || fatal "perfil inválido: ${arg} (use assessoria/pessoa, ex.: aurora/juridico)"
+      [[ "${arg}" =~ ^[a-z0-9-]+/[a-z0-9-]+$ ]] || fatal "perfil inválido: ${arg} (use assessoria/pessoa, ex.: aurora/juridico)"
       PROFILES="${PROFILES:+${PROFILES} }${arg}"
       ;;
   esac
@@ -47,6 +51,15 @@ require_cmd curl
 curl -fsS --max-time 10 "${APP_URL}/actuator/health/readiness" >/dev/null 2>&1 \
   || fatal "o sandbox não está pronto em ${APP_URL} (rode ./scripts/sandbox/up.sh)"
 mkdir -p "${OUT_DIR}"
+
+# cofre do autenticador das pessoas do credor → arquivo temporário 600 fora do repositório (removido ao sair)
+SECRETS_FILE="$(umask 077 && mktemp "${TMPDIR:-/tmp}/gc-audit-credor.XXXXXX")"
+trap 'rm -f "${SECRETS_FILE}"' EXIT
+chmod 600 "${SECRETS_FILE}"
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  sandbox_creditor_mfa > "${SECRETS_FILE}" 2>/dev/null || true
+fi
+[[ -s "${SECRETS_FILE}" ]] || log AVISO "cofre do portal do credor indisponível: os perfis do credor ficam de fora"
 
 docker_image_available() {
   command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 || return 1
@@ -66,6 +79,7 @@ run_docker() {
     -e AUDIT_PARALLEL="${AUDIT_PARALLEL:-3}" -e AUDIT_DETAIL="${AUDIT_DETAIL:-1}" \
     -e AUDIT_WIDTH="${AUDIT_WIDTH:-1280}" -e AUDIT_HEIGHT="${AUDIT_HEIGHT:-800}" \
     -e SANDBOX_DEMO_PASSWORD="${SANDBOX_DEMO_PASSWORD:-Sandbox@2026!}" \
+    -e AUDIT_CREDITOR_SECRETS_FILE=/secrets/creditor-mfa.txt -v "${SECRETS_FILE}:/secrets/creditor-mfa.txt:ro" \
     -v "${AUDIT_DIR}:/audit:ro" -v "${OUT_DIR}:/out" \
     "${IMAGE}" bash -c 'mkdir -p /tmp/work && cd /audit && cp audit.ts package.json package-lock.json /tmp/work/ \
       && cd /tmp/work && npm ci --omit=dev --no-audit --no-fund --loglevel=error && node audit.ts' || status=$?
@@ -94,7 +108,8 @@ run_local() {
   (cd "${AUDIT_DIR}" && npx --no-install playwright install chromium >/dev/null) \
     || fatal "não foi possível instalar o Chromium do Playwright (rede bloqueada? use --docker)"
   local status=0
-  (cd "${AUDIT_DIR}" && env APP_URL="${APP_URL}" AUDIT_OUT="${OUT_DIR}" AUDIT_PROFILES="${PROFILES}" node audit.ts) || status=$?
+  (cd "${AUDIT_DIR}" && env APP_URL="${APP_URL}" AUDIT_OUT="${OUT_DIR}" AUDIT_PROFILES="${PROFILES}" \
+    AUDIT_CREDITOR_SECRETS_FILE="${SECRETS_FILE}" node audit.ts) || status=$?
   return "${status}"
 }
 

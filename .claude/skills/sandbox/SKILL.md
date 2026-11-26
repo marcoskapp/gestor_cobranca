@@ -36,6 +36,7 @@ Guia completo: `docs/tecnico/operacao/sandbox.md` e a seção "Sandbox de demons
 | Auditoria da interface por perfil | `./scripts/sandbox/audit.sh [aurora/operador ...]` | relatório em `./sandbox-audit/relatorio.md`; saída 0 = ok, 1 = problemas, 2 = não rodou |
 | Tokens da API pública | `./scripts/sandbox/tokens.sh` (`--raw` para scripts) | segredos fictícios, mas **não** cole em commits, issues ou docs |
 | PDFs fictícios da Importação PDF | `./scripts/sandbox/pdfs.sh` | copia para `./sandbox-pdfs/` (fora do git) |
+| Código do autenticador de uma pessoa do credor | `./scripts/sandbox/credor-codigo.sh <assessoria> <pessoa>` (ex.: `aurora hzn-financeiro`) | só depois da prontidão; cada código vale **uma vez** por pessoa (repetir conta erro, 5 bloqueiam); nunca cole código, segredo ou `--uri` em commits, issues ou docs |
 | Parar mantendo os dados | `./scripts/sandbox/down.sh` | |
 | Expor na internet | `./scripts/sandbox/tunnel.sh` / `--stop` | **só com pedido explícito do usuário**: qualquer pessoa com o endereço chega ao login e a senha é pública. Derrube ao fim |
 
