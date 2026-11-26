@@ -38,8 +38,6 @@ import java.util.UUID;
 public class ReversalHold extends TenantScopedEntity {
 
     public static final int MAX_NOTE = 500;
-    /** Máximo de itens (títulos, parcelas e alocações) por retenção. */
-    public static final int MAX_ITEMS = 600;
 
     @Column(name = "creditor_id", nullable = false, updatable = false)
     private UUID creditorId;
@@ -129,8 +127,9 @@ public class ReversalHold extends TenantScopedEntity {
         add(ItemKind.TITLE, titleIds);
         add(ItemKind.AGREEMENT, agreementIds);
         add(ItemKind.INSTALLMENT, installmentIds);
+        // sem teto de itens: são só ids, limitados pelas alocações do próprio pagamento; um teto abortaria o
+        // estorno inteiro (decisão 1681)
         add(ItemKind.ALLOCATION, allocationIds);
-        Guard.require(items.size() <= MAX_ITEMS, "reversal_hold.too_many_items", "Itens demais na retenção");
     }
 
     private void add(ItemKind kind, Collection<UUID> ids) {
