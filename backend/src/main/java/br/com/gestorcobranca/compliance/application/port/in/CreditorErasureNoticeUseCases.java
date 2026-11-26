@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.compliance.application.port.in;
 
+import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 
@@ -27,6 +28,27 @@ public interface CreditorErasureNoticeUseCases {
      */
     NoticeView registerNotified(UUID id, RegisterNotifiedCommand command);
 
+    /** Credores com avisos pendentes, do aviso mais antigo ao mais novo (decisão 1484). */
+    List<CreditorPending> pendingByCreditor();
+
+    /**
+     * Remessa ao credor (decisão 1484): os avisos pendentes do credor, da eliminação mais antiga à mais nova, até
+     * {@link #MAX_REMITTANCE} avisos e {@link #MAX_REMITTANCE_TITLES} títulos (sempre ao menos um aviso), num texto só. Sem pendentes → lista vazia e texto nulo.
+     */
+    RemittanceView remittance(UUID creditorId);
+
+    /**
+     * Registra de uma vez o aviso de vários avisos pendentes do mesmo credor (1 a {@link #MAX_REMITTANCE}); um já
+     * registrado → {@code creditor_erasure_notice.already_notified} (409) e nada é gravado; credores diferentes →
+     * {@code creditor_erasure_notice.batch_mixed_creditors} (422). Uma auditoria por aviso.
+     */
+    List<NoticeSummary> registerNotifiedBatch(RegisterBatchCommand command);
+
+    int MAX_REMITTANCE = CreditorErasureNotice.MAX_PER_REMITTANCE;
+
+    /** Teto de títulos citados numa remessa (texto praticável num e-mail); corta no aviso que passaria do teto. */
+    int MAX_REMITTANCE_TITLES = 2000;
+
     /**
      * @param status     PENDING ou NOTIFIED (nulo = todos)
      * @param creditorId nulo = todos
@@ -37,6 +59,23 @@ public interface CreditorErasureNoticeUseCases {
 
     /** @param channel EMAIL, PHONE, LETTER, MEETING ou OTHER */
     record RegisterNotifiedCommand(Instant notifiedAt, String channel) {
+    }
+
+    record RegisterBatchCommand(List<UUID> noticeIds, Instant notifiedAt, String channel) {
+    }
+
+    /** @param oldestErasedAt anonimização mais antiga ainda sem aviso registrado */
+    record CreditorPending(UUID creditorId, String creditorName, long pending, Instant oldestErasedAt) {
+    }
+
+    /**
+     * @param noticeIds    avisos que o texto cita (os que o registro em lote deve receber)
+     * @param pendingTotal pendentes do credor (maior que {@code noticeIds.size()} quando passa do limite da remessa)
+     * @param latestErasedAt anonimização mais recente da remessa (o aviso não pode ser anterior; nula sem pendentes)
+     * @param message      texto pronto da remessa (nulo sem pendentes)
+     */
+    record RemittanceView(UUID creditorId, String creditorName, List<UUID> noticeIds, int titles, long pendingTotal,
+                          Instant latestErasedAt, String message) {
     }
 
     /**

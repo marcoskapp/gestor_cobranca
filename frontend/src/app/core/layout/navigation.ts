@@ -23,6 +23,8 @@ export interface NavItem {
    * consulta dos dados (D6), para que o menu nunca leve a uma tela que o servidor recusaria.
    */
   alsoRequires?: readonly string[];
+  /** A tela exige acesso a todos os credores (rota com `data.allCreditors`); com escopo parcial o item fica oculto. */
+  allCreditors?: true;
   /** Nome do item para quem só tem `permission` entre as do item (ex.: "Meu desempenho" para o negociador). */
   ownLabel?: { permission: string; label: string };
   /**
@@ -322,6 +324,7 @@ export const NAVIGATION: readonly NavSection[] = [
         route: '/compliance/solicitacoes-titulares',
         permissions: [P.DATA_SUBJECT_REQUEST_MANAGE],
       },
+      { label: 'Avisos aos credores', icon: 'person-x', route: '/compliance/avisos-credores', permissions: [P.DATA_SUBJECT_REQUEST_MANAGE], allCreditors: true },
       { label: 'Bases legais', icon: 'shield', route: '/compliance/bases-legais', permissions: [P.DATA_SUBJECT_REQUEST_MANAGE] },
       { label: 'Operadores e suboperadores', icon: 'share', route: '/compliance/operadores', permissions: [P.DATA_SUBJECT_REQUEST_MANAGE] },
       { label: 'Retenção de dados', icon: 'trash3', route: '/compliance/retencao', permissions: [P.RETENTION_MANAGE] },
@@ -420,11 +423,16 @@ export function routeRequiredPermissionsOf(item: NavItem): readonly string[] {
  * Menu do usuário: só os itens da tarefa dele (nada exibido para depois negar) e só as seções com algum item; o
  * nome pessoal ("Meu desempenho") para quem só tem a permissão própria.
  */
-export function navigationFor(has: (permission: string) => boolean): NavSection[] {
+export function navigationFor(has: (permission: string) => boolean, allCreditors = true): NavSection[] {
   return NAVIGATION.map((section) => ({
     ...section,
     items: section.items
-      .filter((item) => (item.permissions.length === 0 || item.permissions.some(has)) && (item.alsoRequires ?? []).every(has))
+      .filter(
+        (item) =>
+          (item.permissions.length === 0 || item.permissions.some(has)) &&
+          (item.alsoRequires ?? []).every(has) &&
+          (!item.allCreditors || allCreditors),
+      )
       .map((item) => {
         const own = item.ownLabel;
         return own && has(own.permission) && !item.permissions.some((p) => p !== own.permission && has(p))

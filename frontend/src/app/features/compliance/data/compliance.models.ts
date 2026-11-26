@@ -424,3 +424,70 @@ export interface RecipientInUseView {
   purpose: string;
   source: string;
 }
+
+// ---------------------------------------------------------------- aviso ao credor da anonimização (LGPD art. 18 §6º)
+
+export type ErasureNoticeOrigin = 'DATA_SUBJECT_REQUEST' | 'RETENTION';
+export type ErasureNoticeStatus = 'PENDING' | 'NOTIFIED';
+export type ErasureNoticeChannel = 'EMAIL' | 'PHONE' | 'LETTER' | 'MEETING' | 'OTHER';
+
+export interface ErasureNoticeSummary {
+  id: string;
+  debtorId: string;
+  creditorId: string;
+  creditorName: string | null;
+  origin: ErasureNoticeOrigin;
+  originId: string;
+  erasedAt: string;
+  status: ErasureNoticeStatus;
+  notifiedAt: string | null;
+  notifiedChannel: ErasureNoticeChannel | null;
+}
+
+export interface ErasureNoticeItem {
+  portfolioId: string;
+  portfolioName: string | null;
+  /** Referência do título no credor, com CPF/CNPJ mascarado. */
+  reference: string;
+  installmentNumber: number | null;
+}
+
+export interface ErasureNoticeView extends ErasureNoticeSummary {
+  notifiedBy: string | null;
+  notifiedByName: string | null;
+  registeredAt: string | null;
+  items: ErasureNoticeItem[];
+  /** Texto pronto do aviso, sem nome, documento ou contato do titular. */
+  message: string;
+}
+
+export interface ErasureNoticeFilter {
+  status?: string | null;
+  creditorId?: string | null;
+  originId?: string | null;
+}
+
+export interface CreditorPendingNotices {
+  creditorId: string;
+  creditorName: string | null;
+  pending: number;
+  oldestErasedAt: string;
+}
+
+/** Remessa ao credor: os avisos pendentes dele num texto só (até 100). */
+export interface ErasureNoticeRemittance {
+  creditorId: string;
+  creditorName: string;
+  noticeIds: string[];
+  titles: number;
+  pendingTotal: number;
+  /** Eliminação mais recente da remessa: o aviso não pode ser anterior. */
+  latestErasedAt: string | null;
+  message: string | null;
+}
+
+export interface RegisterNoticeSent {
+  notifiedAt: string;
+  channel: ErasureNoticeChannel;
+}
+

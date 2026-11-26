@@ -101,7 +101,7 @@ export class OnboardingService {
     const state = this.store.state();
     const navRoutes = new Set(
       // itens do checklist só para telas que são tarefa do perfil (o mesmo menu do shell)
-      navigationFor((p) => this.auth.hasAnyPermission([p]))
+      navigationFor((p) => this.auth.hasAnyPermission([p]), this.auth.user()?.allCreditors ?? false)
         .flatMap((s) => s.items)
         .map((item) => item.route),
     );

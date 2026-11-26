@@ -9,6 +9,12 @@ import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
   AttemptView,
   CreateRestrictionRequest,
+  CreditorPendingNotices,
+  ErasureNoticeFilter,
+  ErasureNoticeRemittance,
+  ErasureNoticeSummary,
+  ErasureNoticeView,
+  RegisterNoticeSent,
   DataProcessorDetails,
   DataProcessorView,
   DataSubjectRequestFilter,
@@ -270,3 +276,37 @@ export class RetentionApi {
     });
   }
 }
+
+/** Avisos ao credor da anonimização do titular (`DATA_SUBJECT_REQUEST_MANAGE` e todos os credores). */
+@Injectable({ providedIn: 'root' })
+export class ErasureNoticesApi {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${BASE}/creditor-erasure-notices`;
+
+  search(filter: ErasureNoticeFilter, page: PageRequest): Observable<PageResponse<ErasureNoticeSummary>> {
+    return this.http.get<PageResponse<ErasureNoticeSummary>>(this.base, {
+      params: toHttpParams({ ...filter, page: page.page, size: page.size }),
+    });
+  }
+
+  get(id: string): Observable<ErasureNoticeView> {
+    return this.http.get<ErasureNoticeView>(`${this.base}/${id}`);
+  }
+
+  pendingByCreditor(): Observable<CreditorPendingNotices[]> {
+    return this.http.get<CreditorPendingNotices[]>(`${this.base}/pending-by-creditor`);
+  }
+
+  remittance(creditorId: string): Observable<ErasureNoticeRemittance> {
+    return this.http.get<ErasureNoticeRemittance>(`${this.base}/remittance`, { params: toHttpParams({ creditorId }) });
+  }
+
+  registerSent(id: string, body: RegisterNoticeSent): Observable<ErasureNoticeView> {
+    return this.http.post<ErasureNoticeView>(`${this.base}/${id}/notified`, body);
+  }
+
+  registerSentBatch(noticeIds: readonly string[], body: RegisterNoticeSent): Observable<ErasureNoticeSummary[]> {
+    return this.http.post<ErasureNoticeSummary[]>(`${this.base}/notified`, { noticeIds, ...body });
+  }
+}
+

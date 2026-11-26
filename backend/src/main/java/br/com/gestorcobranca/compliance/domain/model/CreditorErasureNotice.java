@@ -13,6 +13,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -45,6 +46,8 @@ public class CreditorErasureNotice extends TenantScopedEntity {
      * truncar (o credor não acharia o título) nem recusar por isso (bloquearia a eliminação).
      */
     public static final int MAX_REFERENCE = 80 * 18;
+    /** Avisos por remessa ao credor (decisão 1486); também o lote de carga dos itens. */
+    public static final int MAX_PER_REMITTANCE = 100;
     /** Relógio do navegador adiantado em relação ao servidor (decisão 1485). */
     private static final Duration FUTURE_TOLERANCE = Duration.ofMinutes(1);
 
@@ -83,8 +86,9 @@ public class CreditorErasureNotice extends TenantScopedEntity {
     @Column(name = "registered_at")
     private Instant registeredAt;
 
-    /** Carregados só no detalhe (a lista não os mostra). */
+    /** Carregados só no detalhe e na remessa (a lista não os mostra); em lote do tamanho da remessa, sem N+1. */
     @ElementCollection(fetch = FetchType.LAZY)
+    @BatchSize(size = MAX_PER_REMITTANCE)
     @CollectionTable(name = "creditor_erasure_notice_item", schema = "compliance",
             joinColumns = @JoinColumn(name = "notice_id"))
     @OrderColumn(name = "position")

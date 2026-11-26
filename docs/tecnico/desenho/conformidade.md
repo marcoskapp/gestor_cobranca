@@ -448,8 +448,7 @@ credores), `data-sharing.spec` (permissões dos atalhos = rotas), `request-list.
 
 ## 9. Aviso ao credor da anonimização e portão único da eliminação (LGPD art. 18 §6º) — 26/11/2026
 
-SEG-20261124-D01h, decisões 1469 e 1478–1483. A tela (`/compliance/avisos-credores`), a pendência e o manual entram na
-fatia 3b.
+SEG-20261124-D01h, decisões 1469 e 1478–1486. Backend na fatia 3a; tela, remessa por credor e pendência na 3b.
 
 ### 9.1 Portão único (`ErasureGate`)
 
@@ -471,7 +470,7 @@ fatia 3b.
 - Guarda origem (`DATA_SUBJECT_REQUEST` ou `RETENTION`) e o id da solicitação ou da execução, a data da anonimização e
   os itens (`creditor_erasure_notice_item`: carteira, referência mascarada por `Document.maskIfDocument`, parcela;
   append-only, RLS pelo aviso). Nenhum nome, documento ou contato; a referência mascarada ainda é pseudonimizada
-  (risco SEG-20261126-M02, decisão pendente).
+  (risco SEG-20261126-M02, aceito pelo responsável em 26/11/2026).
 - Situação `PENDING` → `NOTIFIED`: a pessoa avisa o credor pelo canal da assessoria e registra canal (`EMAIL`, `PHONE`,
   `LETTER`, `MEETING`, `OTHER`) e data (nem futura nem anterior à anonimização), uma vez só, sem texto livre. O
   `grant update` só alcança as colunas do registro; o aviso não se apaga.
@@ -479,24 +478,49 @@ fatia 3b.
   eliminação no sistema do credor e de cargas sem essas linhas.
 - Retenção: guarda indefinida, como a solicitação e a execução de retenção que o originam (decisão 1483); `origin_id`
   é polimórfico, sem FK.
-- Remessa por credor (decisão 1484, fatia 3b): texto único com os avisos pendentes do credor e registro de vários de
-  uma vez.
+- Remessa por credor (decisão 1484): texto único com os avisos pendentes do credor (as 100 eliminações mais antigas, até 2.000 títulos, o
+  mesmo critério dos cartões por credor; o restante
+  na remessa seguinte), um bloco por titular numerado só na ordem do texto, e registro de vários de uma vez (mesmo
+  credor, todos pendentes, travados em ordem de id; uma auditoria por aviso com `batch`; tudo ou nada). O corte pelo
+  teto de títulos é a regra pura `RemittanceCut`; a remessa e a contagem usam o índice parcial
+  `ix_creditor_erasure_notice_pending_creditor` (V0514; V0512 e V0513 seguem reservadas à retenção jurídica).
 
 ### 9.3 Contrato, API e permissões
 
 - `CreditorErasureNoticeUseCases` (`search`, `get`, `registerNotified`): `DATA_SUBJECT_REQUEST_MANAGE` e todos os
   credores, como as solicitações de titulares. Não há criação pela porta: só o portão abre aviso. O ingestion (fatia 5)
   não usa o `get`: ganha métodos próprios e mínimos (`findFor(devedor, credor)` e a situação do aviso, com
-  `IMPORT_EXECUTE` e o credor do lote, 404 para outro credor).
-- `GET /api/v1/compliance/creditor-erasure-notices?status=&creditorId=&originId=&page=&size=`, `GET /{id}` e
-  `POST /{id}/notified` (`{notifiedAt, channel}`).
+  `IMPORT_EXECUTE` e o credor do lote, 404 para outro credor), numa **porta própria** (ex.:
+  `CreditorErasureNoticeStatusQueries`), para o ingestion não enxergar a remessa nem o registro.
+- `GET /api/v1/compliance/creditor-erasure-notices?status=&creditorId=&originId=&page=&size=`, `GET /{id}`,
+  `POST /{id}/notified` (`{notifiedAt, channel}`), `GET /pending-by-creditor`, `GET /remittance?creditorId=` e
+  `POST /notified` (`{noticeIds, notifiedAt, channel}`, 1 a 100 avisos do mesmo credor).
+- Pendência `compliance.creditor_erasure_notices` ("Credores a avisar sobre dados eliminados"), da mesma equipe e com o
+  mesmo alcance das solicitações de titulares, sem prazo legal próprio (idade pelo aviso mais antigo).
 - Auditoria `creditor_erasure_notice.opened` (credor, origem, quantidade de títulos) e `.notified` (canal, data);
   eventos de negócio de mesmo nome ([logs-e-metricas.md](../logs-e-metricas.md) §3.1). Sem eventos de domínio nem porta
   `compliance :: creditor` por ora (decisão 1482): entram com o portal do credor e o e-mail (fase 2, issue #9).
 
-### 9.4 Testes
+### 9.4 Telas
+
+- Menu e rotas só para quem tem `DATA_SUBJECT_REQUEST_MANAGE` **e** todos os credores (`allCreditors` no item do menu e
+  na rota, decisão 1487).
+- `/compliance/avisos-credores`: cartões "Credores a avisar" (quantos
+  titulares e desde quando); escolher um credor (`?credor=&situacao=PENDING`) monta o aviso pronto, com "Copiar texto"
+  e "Registrar aviso" (diálogo com data e hora já preenchidas, canal e a marcação "Já enviei o texto…"; no mesmo minuto
+  da eliminação vale o instante dela); tabela com situação, origem (link para o pedido do titular) e data do aviso; `?origem=` vem da solicitação.
+  Sem acesso a todos os credores, a tela explica e não consulta nada.
+- `/compliance/avisos-credores/:id`: credor (link com as permissões da rota do credor), origem, titular (registro
+  anonimizado), títulos citados, texto e registro do envio.
+- A solicitação de eliminação executada leva aos avisos que ela abriu. Manual, tour e novidade nas três telas.
+
+### 9.5 Testes
 
 `CreditorErasureNoticeTest`, `CreditorErasureNoticeTextTest` (unidade); `ComplianceModuleIT`
 (`anonymizationOpensOneCreditorNoticePerCreditorWithTitlesAndRecordsTheNotice`: um aviso por credor, referência com CPF
 mascarada, texto sem dado pessoal, escopo parcial recusado, registro único, itens append-only;
-`retentionAnonymizationAlsoOpensTheCreditorNotice`; devedor sem título sem aviso); `ArchitectureTest`.
+`retentionAnonymizationAlsoOpensTheCreditorNotice`; `remittanceGroupsPendingNoticesOfACreditorAndRegistersThemAtOnce`:
+remessa com dois titulares, lote misto recusado sem gravar, registro em lote, pendência só para quem atende titulares
+com todos os credores; devedor sem título sem aviso); `ArchitectureTest`. Front: `erasure-notice.rules.spec`
+(data futura, anterior e no mesmo minuto da eliminação), `erasure-notice-list.spec` (remessa ao escolher o credor;
+nenhuma chamada sem todos os credores).

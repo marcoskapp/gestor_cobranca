@@ -225,7 +225,7 @@ export class CommandPalette {
 
   private readonly navigation = computed<PaletteCommand[]>(() => {
     this.auth.user();
-    return navigationFor((permission) => this.auth.hasPermission(permission)).flatMap((section) =>
+    return navigationFor((permission) => this.auth.hasPermission(permission), this.auth.user()?.allCreditors ?? false).flatMap((section) =>
       section.items.flatMap((item) => [
         {
           id: `nav:${item.route}`,

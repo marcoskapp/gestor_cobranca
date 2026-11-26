@@ -12,10 +12,13 @@ import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUs
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases.RestrictionFilter;
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases.RestrictionView;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.CreditorPending;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.NoticeSearch;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.NoticeSummary;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.NoticeView;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.RegisterBatchCommand;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.RegisterNotifiedCommand;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.RemittanceView;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.OpenRequestCommand;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.RequestView;
@@ -42,6 +45,7 @@ import br.com.gestorcobranca.organization.application.port.in.ServiceContractUse
 import br.com.gestorcobranca.organization.application.port.in.ServiceContractUseCases.CreateContractCommand;
 import br.com.gestorcobranca.organization.application.port.in.TenantAdministration;
 import br.com.gestorcobranca.organization.application.port.in.TenantAdministration.CreateTenantCommand;
+import br.com.gestorcobranca.pendingwork.application.port.in.PendingWorkUseCases;
 import br.com.gestorcobranca.shared.domain.Ids;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.events.compliance.ContactRestrictionChanged;
@@ -126,6 +130,8 @@ class ComplianceModuleIT extends IntegrationTest {
     RetentionUseCases retention;
     @Autowired
     CreditorErasureNoticeUseCases notices;
+    @Autowired
+    PendingWorkUseCases pendingWork;
     @Autowired
     JdbcTemplate jdbcTemplate;
     @Autowired
@@ -566,6 +572,101 @@ class ComplianceModuleIT extends IntegrationTest {
         assertThat(count("select count(*) from shared.audit_event where entity_id = ? and action = 'debtor.anonymized'",
                 debtor)).isZero();
         assertThat(system(() -> requests.get(request.id())).executedAt()).isNull();
+    }
+
+    /** Decisão 1484: remessa por credor, registro em lote e pendência da equipe de atendimento a titulares. */
+    @Test
+    void remittanceGroupsPendingNoticesOfACreditorAndRegistersThemAtOnce() {
+        UUID joao = system(() -> ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of(), null)).id());
+        UUID titleJ = title(creditorA, portfolioA, joao, "A-2", "40.00");
+        UUID titleB = title(creditorB, portfolioB, debtor, "B-9", "30.00");
+        for (UUID t : List.of(titleA, titleJ, titleB)) {
+            BigDecimal amount = t.equals(titleA) ? new BigDecimal("100.00") : t.equals(titleJ) ? new BigDecimal("40.00")
+                    : new BigDecimal("30.00");
+            system(() -> ledger.applyPayment(new PaymentApplication(t, Ids.newId(), ComponentAmounts.principalOnly(amount),
+                    Instant.now())));
+        }
+        // duas execuções: as eliminações ficam em instantes diferentes (para o registro falhar no meio do lote)
+        ageDebtor(joao, "40 months");
+        system(() -> retention.configure("DEBTOR_INACTIVE", 24, true));
+        assertThat(system(() -> retention.run("DEBTOR_INACTIVE", false)).processedCount()).isEqualTo(1);
+        ageDebtor(debtor, "40 months");
+        assertThat(system(() -> retention.run("DEBTOR_INACTIVE", false)).processedCount()).isEqualTo(1);
+
+        assertThat(system(() -> notices.pendingByCreditor()))
+                .extracting(CreditorPending::creditorId, CreditorPending::creditorName, CreditorPending::pending)
+                .containsExactlyInAnyOrder(tuple(creditorA, "Banco A", 2L), tuple(creditorB, "Loja B", 1L));
+        RemittanceView remittance = system(() -> notices.remittance(creditorA));
+        assertThat(remittance.noticeIds()).hasSize(2);
+        assertThat(remittance.titles()).isEqualTo(2);
+        assertThat(remittance.pendingTotal()).isEqualTo(2);
+        assertThat(remittance.message()).contains("Banco A", "2 titulares", "Titular 1", "Titular 2", "A-1", "A-2")
+                .doesNotContain("Maria", "João", "B-9");
+
+        // só quem atende titulares com todos os credores; outra assessoria não vê nem grava nada
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> notices.remittance(creditorA)))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> notices.pendingByCreditor()))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> notices.registerNotifiedBatch(new RegisterBatchCommand(
+                remittance.noticeIds(), Instant.now(), "EMAIL")))).isInstanceOf(ScopeAccessDeniedException.class);
+        UUID otherTenant = tenantExecution.callInTenant(Ids.newId(), "test.setup", () -> tenantAdministration
+                .createTenant(new CreateTenantCommand("comp-y" + UUID.randomUUID().toString().substring(0, 6),
+                        "Outra Ltda", "Outra", "45.997.418/0001-53")).id());
+        assertThat(tenantExecution.callInTenant(otherTenant, "test", () -> notices.pendingByCreditor())).isEmpty();
+        assertThatThrownBy(() -> tenantExecution.callInTenant(otherTenant, "test", () -> notices.remittance(creditorA)))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> tenantExecution.callInTenant(otherTenant, "test", () -> notices.registerNotifiedBatch(
+                new RegisterBatchCommand(remittance.noticeIds(), Instant.now(), "EMAIL"))))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        // remessa é de um credor só; nada é gravado se misturar
+        UUID noticeB = system(() -> notices.search(new NoticeSearch("PENDING", creditorB, null), PageQuery.of(0, 10))
+                .content()).getFirst().id();
+        List<UUID> mixed = new ArrayList<>(remittance.noticeIds());
+        mixed.add(noticeB);
+        assertThatThrownBy(() -> system(() -> notices.registerNotifiedBatch(new RegisterBatchCommand(mixed,
+                Instant.now(), "EMAIL")))).hasFieldOrPropertyWithValue("code",
+                "creditor_erasure_notice.batch_mixed_creditors");
+        assertThat(count("select count(*) from compliance.creditor_erasure_notice where status = 'NOTIFIED' "
+                + "and tenant_id = ?", tenant)).isZero();
+
+        // falha no meio do lote (aviso anterior à eliminação mais recente): nada é gravado
+        List<Instant> erased = remittance.noticeIds().stream().map(id -> system(() -> notices.get(id)).erasedAt())
+                .sorted().toList();
+        assertThat(erased.getFirst()).isBefore(erased.getLast());
+        Instant between = erased.getFirst().plusNanos(java.time.Duration.between(erased.getFirst(), erased.getLast())
+                .toNanos() / 2);
+        assertThatThrownBy(() -> system(() -> notices.registerNotifiedBatch(new RegisterBatchCommand(
+                remittance.noticeIds(), between, "EMAIL")))).hasFieldOrPropertyWithValue("code",
+                "creditor_erasure_notice.notified_at_before_erasure");
+        assertThat(count("select count(*) from compliance.creditor_erasure_notice where status = 'NOTIFIED' "
+                + "and tenant_id = ?", tenant)).isZero();
+        assertThat(count("select count(*) from shared.audit_event where action = 'creditor_erasure_notice.notified' "
+                + "and tenant_id = ?", tenant)).isZero();
+
+        assertThat(system(() -> notices.registerNotifiedBatch(new RegisterBatchCommand(remittance.noticeIds(),
+                Instant.now(), "EMAIL")))).hasSize(2).allSatisfy(n -> assertThat(n.status()).isEqualTo("NOTIFIED"));
+        assertThat(count("select count(*) from shared.audit_event where action = 'creditor_erasure_notice.notified' "
+                + "and tenant_id = ? and metadata->>'batch' = '2'", tenant)).isEqualTo(2);
+        assertThatThrownBy(() -> system(() -> notices.registerNotifiedBatch(new RegisterBatchCommand(
+                remittance.noticeIds(), Instant.now(), "EMAIL")))).hasFieldOrPropertyWithValue("code",
+                "creditor_erasure_notice.already_notified");
+        RemittanceView empty = system(() -> notices.remittance(creditorA));
+        assertThat(empty.noticeIds()).isEmpty();
+        assertThat(empty.message()).isNull();
+
+        // pendência: só o aviso do credor B continua, para quem atende titulares com todos os credores
+        Actor attendant = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "atendente",
+                EnumSet.of(Permission.DATA_SUBJECT_REQUEST_MANAGE), CreditorScope.ALL);
+        assertThat(tenantExecution.callAs(attendant, () -> pendingWork.mine()).items())
+                .filteredOn(i -> i.type().equals("compliance.creditor_erasure_notices")).singleElement()
+                .satisfies(i -> {
+                    assertThat(i.count()).isEqualTo(1);
+                    assertThat(i.route()).isEqualTo("/compliance/avisos-credores/" + noticeB);
+                });
+        assertThat(asUserOf(creditorA, () -> pendingWork.mine()).items())
+                .noneSatisfy(i -> assertThat(i.type()).isEqualTo("compliance.creditor_erasure_notices"));
     }
 
     @Test

@@ -7,7 +7,10 @@ import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice.Item;
 import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice.Origin;
 import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice.Status;
 import br.com.gestorcobranca.compliance.domain.repository.CreditorErasureNoticeRepository;
+import br.com.gestorcobranca.compliance.domain.repository.PendingNoticeCount;
 import br.com.gestorcobranca.compliance.domain.service.CreditorErasureNoticeText;
+import br.com.gestorcobranca.compliance.domain.service.CreditorErasureNoticeText.Subject;
+import br.com.gestorcobranca.compliance.domain.service.RemittanceCut;
 import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries;
 import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries.TitleReference;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
@@ -19,6 +22,7 @@ import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases.
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.config.TimeConfig;
+import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
@@ -43,6 +47,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -129,10 +134,7 @@ class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases {
                 search == null ? null : search.originId(), page.toPageable(SORT));
         Map<UUID, String> creditorNames = creditorNames(found.getContent().stream()
                 .map(CreditorErasureNotice::getCreditorId).distinct().toList());
-        return PageResponse.of(found, n -> new NoticeSummary(n.getId(), n.getDebtorId(), n.getCreditorId(),
-                creditorNames.get(n.getCreditorId()), n.getOrigin().name(), n.getOriginId(), n.getErasedAt(),
-                n.getStatus().name(), n.getNotifiedAt(), n.getNotifiedChannel() == null ? null
-                : n.getNotifiedChannel().name()));
+        return PageResponse.of(found, n -> summary(n, creditorNames));
     }
 
     @Override
@@ -147,22 +149,101 @@ class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases {
         requireAccess();
         CreditorErasureNotice notice = notices.findByIdForUpdate(id)
                 .orElseThrow(() -> ResourceNotFoundException.of(RESOURCE, id));
-        Channel channel = ComplianceEnums.parse(Channel.class, command.channel(),
-                "creditor_erasure_notice.channel_invalid", "Canal do aviso");
-        Instant now = Instant.now(clock);
-        notice.registerNotified(command.notifiedAt(), channel, currentActor.get().id(), now);
+        markNotified(notice, command.notifiedAt(), channel(command.channel()), null);
+        return view(notice);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CreditorPending> pendingByCreditor() {
+        requireAccess();
+        List<PendingNoticeCount> counts = notices.pendingByCreditor();
+        Map<UUID, String> names = creditorNames(counts.stream().map(PendingNoticeCount::creditorId).toList());
+        return counts.stream().map(c -> new CreditorPending(c.creditorId(), names.get(c.creditorId()), c.pending(),
+                c.oldestErasedAt())).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RemittanceView remittance(UUID creditorId) {
+        requireAccess();
+        String creditorName = creditorNames(List.of(creditorId)).get(creditorId);
+        if (creditorName == null) {
+            throw ResourceNotFoundException.of("creditor", creditorId);
+        }
+        List<CreditorErasureNotice> found = notices.findPendingByCreditor(creditorId, MAX_REMITTANCE);
+        if (found.isEmpty()) {
+            return new RemittanceView(creditorId, creditorName, List.of(), 0, 0, null, null);
+        }
+        List<CreditorErasureNotice> pending = RemittanceCut.take(found, MAX_REMITTANCE_TITLES);
+        long total = found.size() < MAX_REMITTANCE ? found.size()
+                : notices.countByCreditorIdAndStatus(creditorId, Status.PENDING);
+        Map<UUID, String> portfolioNames = portfolioNames(pending.stream().flatMap(n -> n.getItems().stream()).toList());
+        List<Subject> subjects = pending.stream().map(n -> new Subject(LocalDate.ofInstant(n.getErasedAt(),
+                TimeConfig.BUSINESS_ZONE), n.getItems())).toList();
+        return new RemittanceView(creditorId, creditorName, pending.stream().map(CreditorErasureNotice::getId).toList(),
+                subjects.stream().mapToInt(x -> x.items().size()).sum(), total,
+                pending.stream().map(CreditorErasureNotice::getErasedAt).max(Instant::compareTo).orElseThrow(),
+                CreditorErasureNoticeText.compose(creditorName, portfolioNames, subjects));
+    }
+
+    @Override
+    public List<NoticeSummary> registerNotifiedBatch(RegisterBatchCommand command) {
+        requireAccess();
+        Set<UUID> ids = command.noticeIds() == null ? Set.of()
+                : command.noticeIds().stream().filter(Objects::nonNull).collect(Collectors.toSet());
+        Guard.require(!ids.isEmpty() && ids.size() <= MAX_REMITTANCE, "creditor_erasure_notice.batch_size_invalid",
+                "Informe de 1 a %d avisos".formatted(MAX_REMITTANCE));
+        Channel channel = channel(command.channel());
+        List<CreditorErasureNotice> locked = notices.findAllByIdInForUpdate(ids);
+        if (locked.size() != ids.size()) {
+            UUID missing = ids.stream().filter(id -> locked.stream().noneMatch(n -> n.getId().equals(id)))
+                    .findFirst().orElseThrow();
+            throw ResourceNotFoundException.of(RESOURCE, missing);
+        }
+        Guard.require(locked.stream().map(CreditorErasureNotice::getCreditorId).distinct().count() == 1,
+                "creditor_erasure_notice.batch_mixed_creditors", "A remessa precisa ser de um credor só");
+        locked.forEach(n -> markNotified(n, command.notifiedAt(), channel, locked.size()));
+        Map<UUID, String> names = creditorNames(List.of(locked.getFirst().getCreditorId()));
+        return locked.stream().map(n -> summary(n, names)).toList();
+    }
+
+    private Channel channel(String value) {
+        return ComplianceEnums.parse(Channel.class, value, "creditor_erasure_notice.channel_invalid", "Canal do aviso");
+    }
+
+    /** @param batch tamanho da remessa registrada de uma vez (nulo = registro individual) */
+    private void markNotified(CreditorErasureNotice notice, Instant notifiedAt, Channel channel, Integer batch) {
+        notice.registerNotified(notifiedAt, channel, currentActor.get().id(), Instant.now(clock));
         notices.save(notice);
-        auditTrail.record(AuditEntry.of("creditor_erasure_notice.notified", RESOURCE, id)
+        AuditEntry audit = AuditEntry.of("creditor_erasure_notice.notified", RESOURCE, notice.getId())
                 .change("status", Status.PENDING, notice.getStatus())
                 .change("notifiedAt", null, notice.getNotifiedAt())
                 .change("notifiedChannel", null, channel)
-                .meta("creditorId", notice.getCreditorId()));
-        businessEvents.log(BusinessEvent.of(BusinessEventTypes.CREDITOR_ERASURE_NOTICE_NOTIFIED)
+                .meta("creditorId", notice.getCreditorId());
+        BusinessEvent event = BusinessEvent.of(BusinessEventTypes.CREDITOR_ERASURE_NOTICE_NOTIFIED)
                 .creditor(notice.getCreditorId())
-                .reference(RESOURCE, id)
+                .reference(RESOURCE, notice.getId())
                 .channel(channel.name())
-                .durationMs(Duration.between(notice.getErasedAt(), notice.getNotifiedAt()).toMillis()));
-        return view(notice);
+                .durationMs(Duration.between(notice.getErasedAt(), notice.getNotifiedAt()).toMillis());
+        if (batch != null) {
+            audit.meta("batch", batch);
+            event.attr("batch", batch);
+        }
+        auditTrail.record(audit);
+        businessEvents.log(event);
+    }
+
+    private static NoticeSummary summary(CreditorErasureNotice n, Map<UUID, String> creditorNames) {
+        return new NoticeSummary(n.getId(), n.getDebtorId(), n.getCreditorId(), creditorNames.get(n.getCreditorId()),
+                n.getOrigin().name(), n.getOriginId(), n.getErasedAt(), n.getStatus().name(), n.getNotifiedAt(),
+                n.getNotifiedChannel() == null ? null : n.getNotifiedChannel().name());
+    }
+
+    private Map<UUID, String> portfolioNames(List<Item> items) {
+        List<UUID> ids = items.stream().map(Item::getPortfolioId).distinct().toList();
+        return ids.isEmpty() ? Map.of() : portfolios.getAll(ids).stream()
+                .collect(Collectors.toMap(PortfolioView::id, PortfolioView::name, (a, b) -> a));
     }
 
     private void requireAccess() {
@@ -172,9 +253,7 @@ class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases {
 
     private NoticeView view(CreditorErasureNotice n) {
         List<Item> items = n.getItems();
-        Map<UUID, String> portfolioNames = portfolios.getAll(items.stream().map(Item::getPortfolioId).distinct()
-                        .toList()).stream()
-                .collect(Collectors.toMap(PortfolioView::id, PortfolioView::name, (a, b) -> a));
+        Map<UUID, String> portfolioNames = portfolioNames(items);
         String creditorName = creditorNames(List.of(n.getCreditorId())).get(n.getCreditorId());
         String notifiedByName = n.getNotifiedBy() == null ? null
                 : users.find(n.getNotifiedBy()).map(UserSummary::name).orElse(null);

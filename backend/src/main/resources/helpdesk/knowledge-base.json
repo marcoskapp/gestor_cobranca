@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "4d871d2e7709e24a",
+ "contentVersion": "83eee6c454d97be4",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -6011,6 +6011,10 @@
     {
      "screen": "compliance.legal-bases",
      "why": "Base legal dos credores."
+    },
+    {
+     "screen": "compliance.erasure-notices",
+     "why": "Avisos aos credores depois da eliminação."
     }
    ],
    "terms": [
@@ -6018,6 +6022,87 @@
     "anonimizacao"
    ],
    "path": "/compliance/solicitacoes-titulares/:id",
+   "access": {
+    "kind": "CONTEXT",
+    "permissions": [
+     "DATA_SUBJECT_REQUEST_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.erasure-notices",
+   "module": "compliance",
+   "title": "Avisos aos credores",
+   "objective": "Credores a avisar de que os dados de um titular foram eliminados, com o aviso pronto para enviar.",
+   "purpose": [
+    "Toda eliminação de dados do titular, por pedido ou por prazo de retenção, abre um aviso para cada credor com títulos dele. Nada é enviado sozinho.",
+    "Escolha o credor em \"Credores a avisar\": o texto junta todos os titulares pendentes dele, só com carteira, título e parcela. Copie, envie pelo canal da assessoria e registre data, hora e canal.",
+    "O registro é feito uma vez só e não pode ser corrigido. A tela exige acesso a todos os credores, como o atendimento a titulares."
+   ],
+   "profiles": [
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Eliminações feitas no atendimento ao titular e pela retenção de dados."
+   ],
+   "outputs": [
+    "Credor avisado para eliminar o titular e não mandar mais essas linhas nas cargas."
+   ],
+   "related": [
+    {
+     "screen": "compliance.request-detail",
+     "why": "Pedido de eliminação que abriu o aviso."
+    },
+    {
+     "screen": "compliance.retention",
+     "why": "Eliminações por prazo de retenção."
+    }
+   ],
+   "terms": [
+    "titular",
+    "anonimizacao"
+   ],
+   "path": "/compliance/avisos-credores",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "DATA_SUBJECT_REQUEST_MANAGE"
+    ]
+   }
+  },
+  {
+   "id": "compliance.erasure-notice-detail",
+   "module": "compliance",
+   "title": "Aviso ao credor",
+   "objective": "Títulos de um credor citados no aviso de eliminação, o texto pronto e o registro do envio.",
+   "purpose": [
+    "O texto não traz nome, documento nem contato do titular: o credor encontra a pessoa pelos títulos. Referência com CPF aparece mascarada.",
+    "Depois de enviar, registre data, hora e canal. O registro é a evidência do aviso e não pode ser corrigido."
+   ],
+   "profiles": [
+    "COMPLIANCE"
+   ],
+   "inputs": [
+    "Títulos conservados do titular eliminado."
+   ],
+   "outputs": [
+    "Evidência de que o credor foi avisado (LGPD art. 18, § 6º)."
+   ],
+   "related": [
+    {
+     "screen": "compliance.erasure-notices",
+     "why": "Todos os avisos e a remessa por credor."
+    },
+    {
+     "screen": "compliance.request-detail",
+     "why": "Pedido do titular."
+    }
+   ],
+   "terms": [
+    "titular",
+    "anonimizacao"
+   ],
+   "path": "/compliance/avisos-credores/:id",
    "access": {
     "kind": "CONTEXT",
     "permissions": [

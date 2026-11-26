@@ -1040,7 +1040,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'compliance.request-detail',
-    version: 7,
+    version: 8,
     path: '/compliance/solicitacoes-titulares/:id',
     tourId: 'compliance.request-detail',
     changes: [
@@ -1064,7 +1064,18 @@ export const SCREENS: readonly ScreenGuide[] = [
           'A resposta sugerida só é montada quando você clica em "Montar resposta sugerida" (a consulta lê dados do titular e fica registrada); "Montar de novo" refaz a consulta.',
           'Operadores cadastrados à mão (ex.: hospedagem) entram na tabela e no texto com a finalidade do cadastro.',
         ],
+      },
+      {
+        version: 8,
+        items: ['Depois da eliminação dos dados, "Avisos aos credores" leva aos avisos que a eliminação abriu para cada credor com títulos do titular.'],
       }],
+  },
+  { key: 'compliance.erasure-notices', version: 1, path: '/compliance/avisos-credores', tourId: 'compliance.erasure-notices' },
+  {
+    key: 'compliance.erasure-notice-detail',
+    version: 1,
+    path: '/compliance/avisos-credores/:id',
+    tourId: 'compliance.erasure-notice-detail',
   },
   {
     key: 'compliance.retention',

@@ -117,6 +117,12 @@
           · <a [routerLink]="['/compliance/solicitacoes-titulares']" [queryParams]="{ devedor: r.debtorId }">todas as solicitações do titular</a>
         }
       </dd>
+      @if (r.type === 'ANONYMIZATION' && r.executedAt && canAssign()) {
+        <dt>Avisos aos credores</dt>
+        <dd>
+          <a [routerLink]="['/compliance/avisos-credores']" [queryParams]="{ origem: r.id }">avisos abertos por esta eliminação</a>
+        </dd>
+      }
       <dt>Responsável</dt>
       <dd>{{ r.assignedTo ? (canViewUsers() ? users.name(r.assignedTo) : 'Atribuído') : '—' }}</dd>
       <dt>Descrição</dt>

@@ -32,6 +32,7 @@ export type StatusDomain =
   | 'contact'
   | 'restriction'
   | 'dataSubjectRequest'
+  | 'creditorErasureNotice'
   | 'retentionRun'
   | 'retentionItem'
   | 'legalBasis'
@@ -198,6 +199,10 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     IN_PROGRESS: { label: 'Em atendimento', tone: 'info' },
     COMPLETED: { label: 'Concluída', tone: 'success' },
     REJECTED: { label: 'Recusada', tone: 'neutral' },
+  },
+  creditorErasureNotice: {
+    PENDING: { label: 'A avisar', tone: 'warning' },
+    NOTIFIED: { label: 'Credor avisado', tone: 'success' },
   },
   retentionRun: {
     RUNNING: { label: 'Em execução', tone: 'info' },

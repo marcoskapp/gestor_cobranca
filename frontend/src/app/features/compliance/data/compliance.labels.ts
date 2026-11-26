@@ -1,6 +1,8 @@
 import { IconName } from '../../../shared/components/icon/icon-names';
 import {
   ContactChannel,
+  ErasureNoticeChannel,
+  ErasureNoticeOrigin,
   LegalBasisCode,
   ProcessingRole,
   RequestChannel,
@@ -255,3 +257,18 @@ export function dueText(days: number, overdue: boolean): string {
   }
   return days === 1 ? 'Falta 1 dia' : `Faltam ${days} dias`;
 }
+
+/** O que levou à anonimização do titular (origem do aviso ao credor). */
+export const ERASURE_NOTICE_ORIGIN_LABELS: Record<ErasureNoticeOrigin, string> = {
+  DATA_SUBJECT_REQUEST: 'Pedido do titular',
+  RETENTION: 'Prazo de retenção',
+};
+
+/** Canal pelo qual a assessoria avisou o credor. */
+export const ERASURE_NOTICE_CHANNEL_LABELS: Record<ErasureNoticeChannel, string> = {
+  EMAIL: 'E-mail',
+  PHONE: 'Telefone',
+  LETTER: 'Carta ou ofício',
+  MEETING: 'Reunião',
+  OTHER: 'Outro canal',
+};

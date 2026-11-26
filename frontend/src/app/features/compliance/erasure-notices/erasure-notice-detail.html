@@ -1,0 +1,108 @@
+@if (notice.isLoading() && !current()) {
+  <div aria-busy="true" aria-label="Carregando aviso">
+    <app-skeleton variant="lines" [rows]="2" />
+    <app-skeleton variant="card" [rows]="6" />
+  </div>
+} @else if (notice.status() === 'error') {
+  <app-empty-state icon="cloud-slash" tone="error" title="Não foi possível carregar o aviso.">
+    <button class="btn btn-outline-primary" type="button" (click)="notice.reload()">Tentar novamente</button>
+    <a class="btn btn-link" [routerLink]="history.linkTo('/compliance/avisos-credores')">Voltar para os avisos</a>
+  </app-empty-state>
+}
+
+@if (current(); as n) {
+  <app-page-header [title]="'Aviso a ' + (n.creditorName ?? 'credor')" [subtitle]="'Dados do titular eliminados em ' + (n.erasedAt | appDate)">
+    <button class="btn btn-outline-secondary" type="button" (click)="copy(n)">
+      <app-icon name="clipboard" />
+      Copiar texto
+    </button>
+    @if (n.status === 'PENDING') {
+      <button class="btn btn-primary" type="button" (click)="register(n)">
+        <app-icon name="check2-circle" />
+        Registrar aviso
+      </button>
+    }
+  </app-page-header>
+
+  @if (n.status === 'PENDING') {
+    <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+      <app-icon name="send" />
+      <span>Próximo passo: copie o texto, envie ao credor pelo canal da assessoria e registre o aviso.</span>
+    </div>
+  }
+
+  <section class="app-card" aria-labelledby="dados-aviso">
+    <h2 class="app-card__title" id="dados-aviso">Aviso</h2>
+    <dl class="app-definition-list">
+      <dt>Situação</dt>
+      <dd><app-status-chip domain="creditorErasureNotice" [status]="n.status" /></dd>
+      <dt>Credor</dt>
+      <dd>
+        @if (canOpenCreditor()) {
+          <a [routerLink]="['/organizacao/credores', n.creditorId]">{{ n.creditorName ?? 'Credor' }}</a>
+        } @else {
+          {{ n.creditorName ?? 'Credor' }}
+        }
+        · <a [routerLink]="['/compliance/avisos-credores']" [queryParams]="{ credor: n.creditorId, situacao: 'PENDING' }">avisos pendentes do credor</a>
+      </dd>
+      <dt>Origem</dt>
+      <dd>
+        @if (n.origin === 'DATA_SUBJECT_REQUEST') {
+          <a [routerLink]="['/compliance/solicitacoes-titulares', n.originId]">{{ originLabels[n.origin] }}</a>
+        } @else {
+          {{ originLabels[n.origin] }}
+        }
+      </dd>
+      <dt>Titular</dt>
+      <dd>
+        @if (canOpenDebtor()) {
+          <a [routerLink]="['/devedores', n.debtorId]">Registro anonimizado</a>
+        } @else {
+          Registro anonimizado
+        }
+      </dd>
+      <dt>Avisado em</dt>
+      <dd data-tour="notice-sent">
+        @if (n.notifiedAt) {
+          {{ n.notifiedAt | appDate }} · {{ channelLabels[n.notifiedChannel!] }}
+          @if (n.notifiedByName) {
+            · registrado por {{ n.notifiedByName }}
+          }
+        } @else {
+          <span class="app-muted">Ainda não avisado</span>
+        }
+      </dd>
+    </dl>
+  </section>
+
+  <section class="app-card" aria-labelledby="titulos-aviso">
+    <h2 class="app-card__title" id="titulos-aviso">Títulos citados</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <caption class="visually-hidden">Títulos do credor citados no aviso</caption>
+        <thead>
+          <tr>
+            <th scope="col">Carteira</th>
+            <th scope="col">Título</th>
+            <th scope="col">Parcela</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (i of n.items; track $index) {
+            <tr>
+              <td>{{ i.portfolioName ?? '—' }}</td>
+              <td class="app-mono">{{ i.reference }}</td>
+              <td>{{ i.installmentNumber ?? '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="app-card" aria-labelledby="texto-aviso" data-tour="notice-text">
+    <h2 class="app-card__title" id="texto-aviso">Texto do aviso</h2>
+    <p class="app-muted small">Sem nome, documento ou contato do titular: o credor encontra a pessoa pelos títulos.</p>
+    <pre class="cmp-notice-text" tabindex="0" role="region" aria-labelledby="texto-aviso">{{ n.message }}</pre>
+  </section>
+}

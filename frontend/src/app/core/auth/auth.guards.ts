@@ -21,7 +21,13 @@ export const permissionGuard: CanActivateFn = (route) => {
   const required = (route.data['permissions'] as readonly string[] | undefined) ?? [];
   const all = (route.data['allPermissions'] as readonly string[] | undefined) ?? [];
   const auth = inject(AuthService);
-  if (auth.hasAnyPermission(required) && all.every((p) => auth.hasPermission(p))) {
+  // tela que só serve a quem alcança todos os credores (o servidor exige `requireAllCreditors`)
+  const needsAllCreditors = route.data['allCreditors'] === true;
+  if (
+    auth.hasAnyPermission(required) &&
+    all.every((p) => auth.hasPermission(p)) &&
+    (!needsAllCreditors || (auth.user()?.allCreditors ?? false))
+  ) {
     return true;
   }
   return inject(Router).createUrlTree(['/acesso-negado']);

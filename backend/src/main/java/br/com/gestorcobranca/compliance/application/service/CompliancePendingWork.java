@@ -23,6 +23,8 @@ import java.util.UUID;
  * (mesma regra de {@code DataSubjectRequestService}). É fila da equipe de atendimento ao titular, não
  * do responsável atribuído.
  * <p>
+ * Avisos ao credor da anonimização do titular ainda sem registro de envio: mesma equipe e mesma regra de alcance.
+ * <p>
  * Sugestões de marcador de vulnerabilidade do assistente aguardando confirmação: de quem registra marcadores, no
  * escopo de credores do ator (credor do contato em que houve a detecção).
  */
@@ -31,6 +33,7 @@ class CompliancePendingWork implements PendingWorkSource {
 
     static final String DATA_SUBJECT_REQUESTS = "compliance.data_subject_requests";
     static final String VULNERABILITY_SUGGESTIONS = "compliance.vulnerability_suggestions";
+    static final String CREDITOR_ERASURE_NOTICES = "compliance.creditor_erasure_notices";
 
     private final CompliancePendingWorkQueries queries;
     private final AccessScope accessScope;
@@ -66,6 +69,11 @@ class CompliancePendingWork implements PendingWorkSource {
                     .hint("Responda dentro do prazo legal da LGPD.")
                     .route("/compliance/solicitacoes-titulares").param("vencidas", count.overdue() > 0 ? "true" : null)
                     .singleRoute(id -> "/compliance/solicitacoes-titulares/" + id).build());
+            PendingWorkCount notices = queries.creditorErasureNoticesPending();
+            items.add(PendingWorkItem.of(CREDITOR_ERASURE_NOTICES, "Credores a avisar sobre dados eliminados", notices)
+                    .hint("Envie ao credor o aviso pronto e registre o envio (LGPD art. 18, § 6º).")
+                    .route("/compliance/avisos-credores").param("situacao", "PENDING")
+                    .singleRoute(id -> "/compliance/avisos-credores/" + id).build());
         }
         if (vulnerability(actor)) {
             Set<UUID> scope = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());

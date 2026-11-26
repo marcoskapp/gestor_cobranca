@@ -54,7 +54,7 @@ const DEFAULT_ROLES: Record<string, readonly string[]> = {
  * (quem tem a tarefa da área continua com ela). As seções recolhíveis cuidam dos perfis amplos (gestor, administrador).
  */
 const MENU_COUNTS: Record<string, number> = {
-  ADMIN: 99,
+  ADMIN: 100,
   GESTOR: 82,
   SUPERVISOR: 52,
   OPERADOR: 16,
@@ -65,7 +65,7 @@ const MENU_COUNTS: Record<string, number> = {
   ANALISTA_CARTEIRA: 17,
   ESTRATEGIA: 35,
   QUALIDADE: 26,
-  COMPLIANCE: 27,
+  COMPLIANCE: 28,
   INTEGRACAO: 11,
 };
 
@@ -155,5 +155,15 @@ describe('ícones e seções do menu', () => {
     const keys = NAVIGATION.map((s) => s.key);
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys.every((k) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(k))).toBe(true);
+  });
+});
+
+describe('itens que exigem todos os credores', () => {
+  it('somem do menu com escopo parcial de credores', () => {
+    const labels = (all: boolean) =>
+      navigationFor((p) => p === 'DATA_SUBJECT_REQUEST_MANAGE', all).flatMap((s) => s.items.map((i) => i.label));
+    expect(labels(true)).toContain('Avisos aos credores');
+    expect(labels(false)).not.toContain('Avisos aos credores');
+    expect(labels(false)).toContain('Solicitações de titulares');
   });
 });

@@ -106,7 +106,7 @@ export class Shell {
   protected readonly sections = computed<NavSection[]>(() => {
     // recalcula quando o usuário (e suas permissões) muda
     this.user();
-    return navigationFor((permission) => this.auth.hasPermission(permission));
+    return navigationFor((permission) => this.auth.hasPermission(permission), this.auth.user()?.allCreditors ?? false);
   });
 
   /** Endereço atual — ou o item de menu declarado pela rota (`data.menuRoute`, ex.: caso aberto na estação). */

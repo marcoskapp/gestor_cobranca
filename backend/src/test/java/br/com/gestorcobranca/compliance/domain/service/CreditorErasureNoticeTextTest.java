@@ -23,4 +23,16 @@ class CreditorErasureNoticeTextTest {
                         + "- Título R-8\n", "Carteira não identificada:\n- Título ***.982.247-**, parcela 2",
                 "art. 18, § 6º", "não incluam as linhas destes títulos", "não traz nome, documento nem contato");
     }
+
+    @Test
+    void remittanceListsEachSubjectWithoutIdentifyingThem() {
+        UUID cards = Ids.newId();
+        String text = CreditorErasureNoticeText.compose("Banco A", Map.of(cards, "Cartões"), List.of(
+                new CreditorErasureNoticeText.Subject(LocalDate.of(2026, 11, 20), List.of(new Item(cards, "R-7", 1))),
+                new CreditorErasureNoticeText.Subject(LocalDate.of(2026, 11, 21), List.of(new Item(cards, "R-9", null)))));
+        assertThat(text).contains("titulares (LGPD", "dados pessoais de 2 titulares",
+                "Titular 1 (dados eliminados em 20/11/2026):\nCarteira Cartões:\n- Título R-7, parcela 1",
+                "Titular 2 (dados eliminados em 21/11/2026):\nCarteira Cartões:\n- Título R-9\n",
+                "eliminem ou anonimizem estes titulares", "dos titulares.");
+    }
 }

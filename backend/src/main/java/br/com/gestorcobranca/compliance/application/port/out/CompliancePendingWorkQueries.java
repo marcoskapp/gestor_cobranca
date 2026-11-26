@@ -24,4 +24,7 @@ public interface CompliancePendingWorkQueries {
      * @param creditorScope credores do ator (nulo = todos); sugestões sem credor só entram com {@code null}
      */
     PendingWorkCount vulnerabilitySuggestionsPending(Set<UUID> creditorScope);
+
+    /** Avisos ao credor da anonimização ainda sem registro de envio (LGPD art. 18 §6º); sem prazo legal próprio. */
+    PendingWorkCount creditorErasureNoticesPending();
 }

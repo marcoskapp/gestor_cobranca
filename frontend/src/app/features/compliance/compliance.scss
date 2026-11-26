@@ -185,3 +185,24 @@
 .cmp-pre {
   white-space: pre-line;
 }
+
+/* Texto pronto do aviso ao credor (somente leitura, para copiar). */
+.cmp-notice-text {
+  margin: 0;
+  max-height: 24rem;
+  overflow: auto;
+  padding: 12px;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--app-surface-raised);
+  font-family: inherit;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Cartão escolhido: borda mais grossa além da cor (e ícone de marcado), não só a cor. */
+.cmp-kpi--button[aria-pressed='true'] {
+  border-width: 2px;
+  border-color: var(--bs-primary);
+}

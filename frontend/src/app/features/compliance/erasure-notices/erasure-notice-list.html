@@ -1,0 +1,167 @@
+<app-page-header
+  title="Avisos aos credores"
+  subtitle="Quando os dados de um titular são eliminados, cada credor com títulos dele precisa ser avisado para eliminar também e não mandar mais essas linhas nas cargas (LGPD art. 18, § 6º)."
+/>
+
+@if (!allCreditors()) {
+  <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+    <app-icon name="lock" />
+    <span>Os avisos aos credores exigem acesso a todos os credores, como o atendimento a titulares.</span>
+  </div>
+} @else {
+  <section class="mb-3" aria-labelledby="notice-creditors-title" data-tour="notice-creditors">
+    <h2 class="h6" id="notice-creditors-title">Credores a avisar</h2>
+    @if (pendingResource.isLoading() && !pending().length) {
+      <app-skeleton variant="lines" [rows]="2" />
+    } @else if (pendingResource.status() === 'error') {
+      <div class="alert alert-danger d-flex flex-wrap gap-2 align-items-center" role="alert">
+        <app-icon name="cloud-slash" />
+        <span class="flex-grow-1">Não foi possível carregar os credores a avisar.</span>
+        <button class="btn btn-sm btn-outline-danger" type="button" (click)="pendingResource.reload()">Tentar novamente</button>
+      </div>
+    } @else if (!pending().length) {
+      <p class="app-muted mb-0"><app-icon name="check-circle" /> Nenhum credor a avisar.</p>
+    } @else {
+      <div class="cmp-kpis">
+        @for (p of pending(); track p.creditorId) {
+          <button
+            type="button"
+            class="cmp-kpi cmp-kpi--button"
+            [attr.aria-pressed]="creditorId() === p.creditorId"
+            (click)="chooseCreditor(p.creditorId)"
+          >
+            <span class="cmp-kpi__label">
+              @if (creditorId() === p.creditorId) {
+                <app-icon name="check-circle" />
+              }
+              {{ p.creditorName ?? 'Credor' }}
+            </span>
+            <span class="cmp-kpi__value">{{ p.pending }}</span>
+            <span class="app-muted small">
+              {{ p.pending === 1 ? 'titular a avisar' : 'titulares a avisar' }} · mais antigo de {{ p.oldestErasedAt | appDate: 'date' }}
+            </span>
+          </button>
+        }
+      </div>
+    }
+  </section>
+
+  @if (creditorId(); as id) {
+    <div class="alert alert-info d-flex flex-wrap gap-2 align-items-center" role="status">
+      <app-icon name="buildings" />
+      <span class="flex-grow-1">Avisos de {{ creditorName() }}</span>
+      <button class="btn btn-sm btn-outline-secondary" type="button" (click)="clearCreditor()">Ver todos os credores</button>
+    </div>
+
+    @if (remittanceResource.isLoading() && !remittance()) {
+      <app-skeleton variant="card" [rows]="5" />
+    } @else if (remittanceResource.status() === 'error') {
+      <div class="alert alert-danger d-flex flex-wrap gap-2 align-items-center" role="alert">
+        <app-icon name="cloud-slash" />
+        <span class="flex-grow-1">Não foi possível montar o aviso ao credor.</span>
+        <button class="btn btn-sm btn-outline-danger" type="button" (click)="remittanceResource.reload()">Tentar novamente</button>
+      </div>
+    } @else if (remittance(); as r) {
+      @if (r.message) {
+        <section class="card mb-3" aria-labelledby="notice-remittance-title" data-tour="notice-remittance">
+          <div class="card-body">
+            <div class="d-flex flex-wrap gap-2 align-items-start mb-2">
+              <div class="flex-grow-1">
+                <h2 class="h6 mb-1" id="notice-remittance-title">Aviso pronto para {{ r.creditorName }}</h2>
+                <p class="app-muted small mb-0">
+                  {{ r.noticeIds.length }} {{ r.noticeIds.length === 1 ? 'titular' : 'titulares' }} e {{ r.titles }}
+                  {{ r.titles === 1 ? 'título' : 'títulos' }}. Copie, envie pelo canal da assessoria e registre o envio.
+                </p>
+              </div>
+              <button class="btn btn-outline-secondary" type="button" (click)="copy(r.message)">
+                <app-icon name="clipboard" />
+                Copiar texto
+              </button>
+              <button class="btn btn-primary" type="button" (click)="registerRemittance(r)">
+                <app-icon name="check2-circle" />
+                Registrar aviso
+              </button>
+            </div>
+            @if (r.pendingTotal > r.noticeIds.length) {
+              <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+                <app-icon name="exclamation-triangle" />
+                <span>
+                  O texto traz os {{ r.noticeIds.length }} mais antigos de {{ r.pendingTotal }} pendentes. Registre este envio e o
+                  próximo aviso é montado com os demais.
+                </span>
+              </div>
+            }
+            <pre class="cmp-notice-text" tabindex="0" role="region" aria-labelledby="notice-remittance-title">{{ r.message }}</pre>
+          </div>
+        </section>
+      } @else {
+        <p class="app-muted"><app-icon name="check-circle" /> Nenhum aviso pendente para {{ r.creditorName }}.</p>
+      }
+    }
+  }
+
+  @if (originId()) {
+    <div class="alert alert-info d-flex flex-wrap gap-2 align-items-center" role="status">
+      <app-icon name="shield-exclamation" />
+      <span class="flex-grow-1">
+        Avisos abertos pela eliminação de um
+        <a [routerLink]="['/compliance/solicitacoes-titulares', originId()]">pedido do titular</a>.
+      </span>
+      <button class="btn btn-sm btn-outline-secondary" type="button" (click)="clearOrigin()">Ver todos os avisos</button>
+    </div>
+  }
+
+  <form class="app-filters" data-tour="filters" [formGroup]="filters" role="search" aria-label="Filtrar avisos">
+    <app-field label="Situação">
+      <select appInput formControlName="status">
+        <option value="">Todas</option>
+        @for (s of statuses; track s.value) {
+          <option [ngValue]="s.value">{{ s.label }}</option>
+        }
+      </select>
+    </app-field>
+    @if (canPickCreditor()) {
+      <app-entity-picker [control]="filters.controls.creditor" [source]="creditorSource" label="Credor" [single]="true" />
+    }
+  </form>
+
+  <app-data-table
+    caption="Avisos aos credores"
+    [rows]="query.rows()"
+    [columns]="columns"
+    [loading]="query.loading()"
+    [failed]="query.failed()"
+    [page]="query.tablePage()"
+    (pageChange)="query.setPage($event)"
+    (retry)="query.reload()"
+    emptyIcon="inbox"
+    emptyMessage="Nenhum aviso encontrado."
+    emptyHint="Os avisos são abertos sozinhos quando os dados de um titular são eliminados (pedido do titular ou prazo de retenção)."
+  >
+    <ng-template appCell="creditor" [appCellOf]="query.rows()" let-r>
+      <a [routerLink]="['/compliance/avisos-credores', r.id]">{{ r.creditorName ?? 'Credor' }}</a>
+    </ng-template>
+    <ng-template appCell="erasedAt" [appCellOf]="query.rows()" let-r>{{ r.erasedAt | appDate }}</ng-template>
+    <ng-template appCell="origin" [appCellOf]="query.rows()" let-r>
+      @if (r.origin === 'DATA_SUBJECT_REQUEST') {
+        <a [routerLink]="['/compliance/solicitacoes-titulares', r.originId]">{{ originLabels[r.origin] }}</a>
+      } @else {
+        {{ originLabels[r.origin] }}
+      }
+    </ng-template>
+    <ng-template appCell="status" [appCellOf]="query.rows()" let-r><app-status-chip domain="creditorErasureNotice" [status]="r.status" /></ng-template>
+    <ng-template appCell="notifiedAt" [appCellOf]="query.rows()" let-r>
+      @if (r.notifiedAt) {
+        {{ r.notifiedAt | appDate }}
+        <div class="app-muted">{{ channelLabels[r.notifiedChannel!] }}</div>
+      } @else {
+        <span class="app-muted">—</span>
+      }
+    </ng-template>
+    <ng-template appCell="actions" [appCellOf]="query.rows()" let-r>
+      <a class="btn btn-sm btn-outline-secondary border-0" [routerLink]="['/compliance/avisos-credores', r.id]" aria-label="Abrir aviso" ngbTooltip="Abrir">
+        <app-icon name="chevron-right" />
+      </a>
+    </ng-template>
+  </app-data-table>
+}

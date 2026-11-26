@@ -14,7 +14,8 @@ import java.util.UUID;
 
 /**
  * Índices: {@code ix_dsr_status_due (tenant_id, status, due_at)};
- * {@code ix_vuln_suggestion_status (tenant_id, status, creditor_id, suggested_at)}.
+ * {@code ix_vuln_suggestion_status (tenant_id, status, creditor_id, suggested_at)};
+ * {@code ix_creditor_erasure_notice_pending (tenant_id, created_at) where status = 'PENDING'}.
  */
 @Component
 class JdbcCompliancePendingWorkQueries implements CompliancePendingWorkQueries {
@@ -59,5 +60,16 @@ class JdbcCompliancePendingWorkQueries implements CompliancePendingWorkQueries {
                   from compliance.vulnerability_suggestion
                  where status = 'PENDING'
                 """ + scope, params, PendingWorkRows.COUNT);
+    }
+
+    @Override
+    public PendingWorkCount creditorErasureNoticesPending() {
+        return jdbc.queryForObject("""
+                select count(*) as total, 0 as overdue, 0 as due_today,
+                       min(created_at) as oldest_at, null::timestamptz as next_due,
+                       case when count(*) = 1 then (array_agg(id))[1] end as single_id
+                  from compliance.creditor_erasure_notice
+                 where status = 'PENDING'
+                """, new MapSqlParameterSource(), PendingWorkRows.COUNT);
     }
 }

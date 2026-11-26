@@ -58,7 +58,7 @@ Definido em `shared/logging/business/BusinessEventTypes`. Os nomes são contrato
 | `contact.denied` | `ContactGate.authorizeAndRecord` negou um contato | `origin`, `reasons` (lista separada por vírgula); `channel` |
 | `data_subject_request.opened` / `.completed` | solicitação de titular aberta / encerrada (concluída ou recusada) | `type`, `dueDays`; no encerramento `outcome`, `rejectionCause`, `withinDeadline`, `durationMs`; na conclusão a partir da resposta sugerida, `fromDraft=true` e `draftEdited` (o texto foi alterado) — conformidade.md §8.3 |
 | `retention.run_completed` | execução de retenção concluída (simulada ou efetiva) | `category`, `trigger`, `dryRun`, `candidates`, `eligible`, `processed`, `retained`, `failed` |
-| `creditor_erasure_notice.opened` / `.notified` | aviso ao credor da anonimização aberto (no portão da eliminação) / registrado como enviado (conformidade.md §9) | `creditor_id`; `origin` (`DATA_SUBJECT_REQUEST`, `RETENTION`), `titles`; no registro, `channel` e `durationMs` (da anonimização ao aviso). Sem devedor, referência de título ou texto |
+| `creditor_erasure_notice.opened` / `.notified` | aviso ao credor da anonimização aberto (no portão da eliminação) / registrado como enviado (conformidade.md §9) | `creditor_id`; `origin` (`DATA_SUBJECT_REQUEST`, `RETENTION`), `titles`; no registro, `channel`, `durationMs` (da anonimização ao aviso) e `batch` (tamanho da remessa, só no registro em lote; também na auditoria). Sem devedor, referência de título ou texto |
 
 ### 3.1a Atributos dos eventos do marcador de vulnerabilidade (compliance)
 

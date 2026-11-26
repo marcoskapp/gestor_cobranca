@@ -506,6 +506,49 @@ export const TOURS: readonly TourDefinition[] = [
     ],
   },
   {
+    id: 'compliance.erasure-notices',
+    version: 1,
+    title: 'Avisos aos credores',
+    summary: 'Credores a avisar depois da eliminação de dados de um titular.',
+    steps: [
+      {
+        anchor: 'notice-creditors',
+        title: 'Credores a avisar',
+        body: 'Cada cartão mostra quantos titulares o credor ainda não sabe que foram eliminados. Clique para montar o aviso.',
+      },
+      {
+        anchor: 'filters',
+        title: 'Histórico',
+        body: 'Filtre por situação ou credor para ver os avisos já registrados, com data e canal.',
+      },
+      {
+        anchor: 'data-table',
+        title: 'Cada aviso',
+        body: 'Abra um aviso para ver os títulos citados, o texto e quem registrou o envio.',
+        placement: 'above',
+      },
+    ],
+  },
+  {
+    id: 'compliance.erasure-notice-detail',
+    version: 1,
+    title: 'Aviso ao credor',
+    summary: 'Títulos citados, texto pronto e registro do envio.',
+    steps: [
+      {
+        anchor: 'notice-text',
+        title: 'Texto pronto',
+        body: 'Sem nome, documento ou contato do titular. Copie e envie pelo canal da assessoria.',
+        placement: 'above',
+      },
+      {
+        anchor: 'notice-sent',
+        title: 'Registro do envio',
+        body: 'Depois de enviar, use "Registrar aviso" e informe data, hora e canal. O registro não pode ser corrigido.',
+      },
+    ],
+  },
+  {
     id: 'compliance.requests',
     version: 1,
     title: 'Solicitações de titulares',

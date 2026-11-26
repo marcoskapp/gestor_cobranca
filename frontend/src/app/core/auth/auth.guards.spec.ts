@@ -48,6 +48,12 @@ describe('guards de rota', () => {
                 data: { permissions: ['USER_VIEW'] },
               },
               {
+                path: 'compliance/avisos-credores',
+                component: Page,
+                canActivate: [permissionGuard],
+                data: { permissions: ['DATA_SUBJECT_REQUEST_MANAGE'], allCreditors: true },
+              },
+              {
                 path: 'score/modelos',
                 component: Page,
                 canActivate: [permissionGuard],
@@ -96,6 +102,13 @@ describe('guards de rota', () => {
     expect(await navigate('/score/modelos')).toBe('/acesso-negado');
     user.set(fakeUser({ permissions: ['SCORING_AREA_VIEW', 'SCORING_VIEW'] }));
     expect(await navigate('/score/modelos')).toBe('/score/modelos');
+  });
+
+  it('permissionGuard exige acesso a todos os credores quando a rota pede (data.allCreditors)', async () => {
+    user.set(fakeUser({ permissions: ['DATA_SUBJECT_REQUEST_MANAGE'], allCreditors: false }));
+    expect(await navigate('/compliance/avisos-credores')).toBe('/acesso-negado');
+    user.set(fakeUser({ permissions: ['DATA_SUBJECT_REQUEST_MANAGE'], allCreditors: true }));
+    expect(await navigate('/compliance/avisos-credores')).toBe('/compliance/avisos-credores');
   });
 
   it('guestGuard redireciona autenticado para o início', () => {

@@ -62,6 +62,20 @@ export const COMPLIANCE_ROUTES: Routes = [
     loadComponent: () => import('./requests/request-detail/request-detail').then((m) => m.RequestDetail),
   },
   {
+    path: 'avisos-credores',
+    title: 'Avisos aos credores',
+    canActivate: [permissionGuard],
+    data: { permissions: dataSubject, allCreditors: true },
+    loadComponent: () => import('./erasure-notices/erasure-notice-list').then((m) => m.ErasureNoticeList),
+  },
+  {
+    path: 'avisos-credores/:id',
+    title: 'Aviso ao credor',
+    canActivate: [permissionGuard],
+    data: { permissions: dataSubject, allCreditors: true },
+    loadComponent: () => import('./erasure-notices/erasure-notice-detail').then((m) => m.ErasureNoticeDetail),
+  },
+  {
     path: 'vulnerabilidade',
     title: 'Vulnerabilidade e superendividamento',
     canActivate: [permissionGuard],
