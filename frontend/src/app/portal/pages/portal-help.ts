@@ -3,6 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
+import { toApiError } from '../../core/http/problem';
 import { PortalApi, portalMessage } from '../data/portal.api';
 import { CHANNEL_LABELS, DISPUTE_TYPE_LABELS, REASON_LABELS, disputeIntakeText } from '../data/portal.labels';
 import { PortalChannel, PortalDisputeType, ServiceReason, ServiceRequestView } from '../data/portal.models';
@@ -161,6 +162,13 @@ export class PortalHelp {
         },
         error: (e: unknown) => {
           this.busy.set(false);
+          if (toApiError(e).code === 'portfolio.not_found') {
+            // a dívida escolhida saiu do portal entre abrir a tela e enviar: volta para "todas" e pede para conferir
+            this.portfolio.setValue('');
+            this.debts.reload();
+            this.error.set('Essa dívida não está mais disponível neste portal. Escolhemos "Todas as minhas dívidas deste credor"; confira e envie de novo.');
+            return;
+          }
           this.error.set(portalMessage(e, 'Não foi possível enviar o pedido agora.'));
         },
       });

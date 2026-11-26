@@ -51,6 +51,9 @@ public interface AgreementRepository {
 
     List<Agreement> findByDebtorId(UUID debtorId);
 
+    /** Acordos em vigor do devedor no credor (índice {@code ix_agreement_debtor}). */
+    List<Agreement> findActiveOf(UUID creditorId, UUID debtorId);
+
     /** Leitura incremental: até {@code limit + 1} acordos do credor alterados na janela, depois do cursor. */
     List<Agreement> findChanges(UUID creditorId, ChangeQuery query);
 

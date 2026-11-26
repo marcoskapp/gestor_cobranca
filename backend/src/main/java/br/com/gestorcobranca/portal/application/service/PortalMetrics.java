@@ -48,6 +48,11 @@ class PortalMetrics {
         registry.counter("portal.funnel", "step", step.name()).increment();
     }
 
+    /** Dívida exibida sem condição: {@code reason} = AGREEMENT_ACTIVE, NO_POLICY, LEGAL_HOLD, NOT_ELIGIBLE. */
+    void debtUnavailable(String reason) {
+        registry.counter("portal.debts.unavailable", "reason", reason).increment();
+    }
+
     /** Oferta pedida no aceite que não é válida/dentro da alçada do canal (recusada no servidor). */
     void offerRefused(String reason) {
         registry.counter("portal.offers.refused", "reason", reason).increment();

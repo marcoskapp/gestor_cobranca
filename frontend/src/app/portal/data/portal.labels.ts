@@ -25,6 +25,8 @@ export const UNAVAILABLE_LABELS: Record<UnavailableReason, string> = {
   AGREEMENT_ACTIVE: 'Você já tem um acordo para esta dívida.',
   NOT_ELIGIBLE: 'Esta dívida não pode ser negociada pelo portal agora. Fale com um atendente.',
   NO_POLICY: 'As condições para esta dívida ainda não estão disponíveis. Fale com um atendente.',
+  LEGAL_HOLD:
+    'Esta dívida está com uma equipe especializada e não pode ser negociada por aqui. Fale com um atendente para saber como pagar ou fazer um acordo.',
 };
 
 export const INSTALLMENT_LABELS: Record<InstallmentStatus, string> = {
@@ -82,5 +84,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   'portal.offer_unavailable': 'Essa condição não está mais disponível. Escolha outra ou fale com um atendente.',
   'portal.offer_changed': 'Os valores foram atualizados. Veja as condições de novo.',
   'portal.agreement_active': 'Você já tem um acordo em andamento para esta dívida.',
+  'negotiation.no_eligible_titles': 'Esta dívida não pode ser negociada pelo portal agora. Fale com um atendente.',
+  'portfolio.not_found': 'Esta dívida não pode ser negociada pelo portal agora. Fale com um atendente.',
   rate_limited: 'Muitas tentativas seguidas. Aguarde um minuto e tente de novo.',
 };

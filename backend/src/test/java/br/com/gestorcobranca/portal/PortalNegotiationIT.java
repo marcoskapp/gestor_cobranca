@@ -198,8 +198,13 @@ class PortalNegotiationIT extends PortalTestSupport {
         assertThat(tooMany.status()).isEqualTo(422);
         assertThat(tooMany.json().get("code").asString()).isEqualTo("portal.installments_unavailable");
 
+        // o devedor chamando o negotiation sem informar os títulos: lista vazia não vira "todos do credor" (PA01)
+        assertThatThrownBy(() -> asDebtor(maria, () -> simulations.simulate(new SimulateCommand(creditorA, maria, List.of(),
+                null, 0, null, List.of(new PlanInput(1, null, null)), "PORTAL"))))
+                .isInstanceOf(BusinessRuleException.class)
+                .satisfies(e -> assertThat(((BusinessRuleException) e).code()).isEqualTo("negotiation.titles_required"));
         // defesa em profundidade: o devedor chamando o negotiation diretamente com condição acima do perfil
-        SimulationView direct = asDebtor(maria, () -> simulations.simulate(new SimulateCommand(creditorA, maria, List.of(),
+        SimulationView direct = asDebtor(maria, () -> simulations.simulate(new SimulateCommand(creditorA, maria, openTitles(maria, portfolioA),
                 null, 1, new JustificationInput("SELF_SERVICE_PREAUTHORIZED", null), List.of(new PlanInput(10, null, null)),
                 "PORTAL")));
         assertThatThrownBy(() -> asDebtor(maria, () -> proposals.create(new CreateProposalCommand(direct.id(), 1, null,
@@ -208,7 +213,7 @@ class PortalNegotiationIT extends PortalTestSupport {
                 .satisfies(e -> assertThat(((BusinessRuleException) e).code()).isIn("proposal.outside_self_service",
                         "proposal.conditions_rejected"));
         // o devedor não usa motivo de concessão humano, nem humano usa o do portal
-        assertThatThrownBy(() -> asDebtor(maria, () -> simulations.simulate(new SimulateCommand(creditorA, maria, List.of(),
+        assertThatThrownBy(() -> asDebtor(maria, () -> simulations.simulate(new SimulateCommand(creditorA, maria, openTitles(maria, portfolioA),
                 null, 1, new JustificationInput("PAYMENT_CAPACITY", null), List.of(), "PORTAL"))))
                 .hasMessageContaining("pré-autorizada");
         assertThatThrownBy(() -> asOperator(() -> simulations.simulate(new SimulateCommand(creditorA, maria, List.of(),

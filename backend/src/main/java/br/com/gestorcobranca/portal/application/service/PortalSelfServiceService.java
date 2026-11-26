@@ -2,6 +2,7 @@ package br.com.gestorcobranca.portal.application.service;
 
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
+import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.ActiveAgreementRef;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementFilter;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.InstallmentView;
@@ -95,6 +96,7 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
 
     private final PortalContext context;
     private final PortalDebts debts;
+    private final PortalLegalHold legalHold;
     private final NegotiationSimulationUseCases simulations;
     private final ProposalUseCases proposals;
     private final AgreementUseCases agreements;
@@ -111,7 +113,8 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
     private final TransactionTemplate transaction;
     private final Clock clock;
 
-    PortalSelfServiceService(PortalContext context, PortalDebts debts, NegotiationSimulationUseCases simulations,
+    PortalSelfServiceService(PortalContext context, PortalDebts debts, PortalLegalHold legalHold,
+                       NegotiationSimulationUseCases simulations,
                        ProposalUseCases proposals, AgreementUseCases agreements, PaymentInstructionUseCases instructions,
                        PortfolioUseCases portfolios, PortalAgreementLedger ledger, PortalSessionRepository sessions,
                        ServiceRequestRepository serviceRequests, ServiceRequestDisputeRepository requestDisputes,
@@ -120,6 +123,7 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                        PortalMetrics metrics, PlatformTransactionManager transactionManager, Clock clock) {
         this.context = context;
         this.debts = debts;
+        this.legalHold = legalHold;
         this.simulations = simulations;
         this.proposals = proposals;
         this.agreements = agreements;
@@ -150,14 +154,14 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
         Map<UUID, List<TitleView>> byPortfolio = debts.titlesInPortal(c.config(), debtorId).stream()
                 .collect(Collectors.groupingBy(TitleView::portfolioId, LinkedHashMap::new, Collectors.toList()));
         Map<UUID, String> names = portfolioNames(byPortfolio.keySet());
-        List<AgreementView> active = activeAgreements(c);
+        List<ActiveAgreementRef> active = activeAgreements(c);
         List<PortfolioDebt> result = new ArrayList<>();
         for (Map.Entry<UUID, List<TitleView>> e : byPortfolio.entrySet()) {
             UUID portfolioId = e.getKey();
             List<TitleView> titles = e.getValue();
             BigDecimal open = titles.stream().map(TitleView::openBalance).filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            Optional<AgreementView> agreement = active.stream().filter(a -> portfolioId.equals(a.portfolioId())).findFirst();
+            Optional<ActiveAgreementRef> agreement = active.stream().filter(a -> portfolioId.equals(a.portfolioId())).findFirst();
             BigDecimal updated = null;
             String unavailable = null;
             if (agreement.isPresent()) {
@@ -166,18 +170,27 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                 try {
                     updated = quote(c, openIds(titles)).offer().negotiated();
                 } catch (DomainException ex) {
-                    unavailable = "negotiation.policy_missing".equals(ex.code()) ? "NO_POLICY" : "NOT_ELIGIBLE";
+                    unavailable = "negotiation.policy_missing".equals(ex.code()) ? "NO_POLICY"
+                            : legalHold.onlyLegalHold(debtorId, portfolioId, titles) ? "LEGAL_HOLD" : "NOT_ELIGIBLE";
                 }
             }
+            if (unavailable != null) {
+                metrics.debtUnavailable(unavailable);
+            }
             result.add(new PortfolioDebt(portfolioId, names.get(portfolioId), open, updated, unavailable == null,
-                    unavailable, agreement.map(AgreementView::id).orElse(null),
+                    unavailable, agreement.map(ActiveAgreementRef::id).orElse(null),
                     titles.stream().map(PortalSelfServiceService::title).toList()));
         }
         return new DebtsView(c.config().getDisplayName(), result);
     }
 
-    /** Valor atualizado hoje (sem desconto, à vista) pelo motor do negotiation, sem gravar simulação. */
+    /**
+     * Valor atualizado hoje (sem desconto, à vista) pelo motor do negotiation, sem gravar simulação. Lista vazia
+     * nunca segue: no negotiation ela significa "todos os títulos em aberto do devedor no credor", inclusive de
+     * carteiras fora do portal.
+     */
     private ValidationView quote(Current c, List<UUID> titleIds) {
+        Guard.require(!titleIds.isEmpty(), "negotiation.no_eligible_titles", "Nenhum título elegível para negociação");
         return simulations.validate(new ValidateCommand(c.config().getCreditorId(), c.session().getDebtorId(), titleIds,
                 null, null, 0, null, null, new PlanInput(1, null, null), CHANNEL));
     }
@@ -627,8 +640,9 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                 .filter(a -> c.config().coversPortfolio(a.portfolioId())).toList();
     }
 
-    private List<AgreementView> activeAgreements(Current c) {
-        return allAgreements(c).stream().filter(a -> ACTIVE_AGREEMENT.contains(a.status())).toList();
+    /** Mesmo critério da entrada no portal ({@link PortalDebts#activeAgreements}). */
+    private List<ActiveAgreementRef> activeAgreements(Current c) {
+        return debts.activeAgreements(c.config(), c.session().getDebtorId());
     }
 
     private AgreementView ownAgreement(Current c, UUID agreementId) {

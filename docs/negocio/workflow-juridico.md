@@ -53,6 +53,7 @@ flowchart LR
 | Pagamentos | Depósitos e levantamentos judiciais como origem de pagamento |
 | Prestação de contas | Despesas jurídicas e honorários no demonstrativo do credor |
 | Assistente de IA | Caso jurídico fica fora do escopo do assistente; menção a processo transfere para humano |
+| Portal do devedor | A dívida retida no jurídico continua na lista, sem condições para pagar, com aviso neutro ("está com uma equipe especializada") e "Falar com atendente"; o aviso próprio só aparece quando o jurídico é o único motivo — havendo outro, vale o genérico. O pedido vai para a fila comum. A retenção começa conforme `collectionHoldStage` (padrão: atuação autorizada ou ajuizamento) ([portal.md](../tecnico/desenho/portal.md) §4; decisão 1642) |
 | Empresa em recuperação judicial ou falência | Registrada na ficha do devedor PJ (número CNJ, origem da informação): a cobrança da empresa fica suspensa em todos os credores (casos inelegíveis, sem contato nem régua) e o aviso leva ao caso jurídico, onde se decide a habilitação do crédito. Acordo em vigor não é cancelado automaticamente — a decisão é humana, porque a dívida pode estar no plano. Convolação em falência e encerramento são registrados com motivo ([cobranca-b2b.md](../tecnico/desenho/cobranca-b2b.md) §7) |
 
 ## 4. Integrações

@@ -652,7 +652,15 @@ comando.
 
 **Uso pelo negotiation** (`negociacao-e-alcadas.md` §10): a elegibilidade para negociar usa `CaseUseCases#findActive` (caso fora de
 suspensão/jurídico/encerramento) e `DisputeUseCases#listByCase` (contestação impeditiva aberta ou em análise cobre o título); o
-acordo guarda o `caseId` e a equipe do caso. `DebtorAnonymized` (novo, publicado pelo debt) ainda não é consumido aqui
+acordo guarda o `caseId` e a equipe do caso.
+
+**Uso pelo portal** (`CaseUseCases#selfServiceHold`): situação da carteira para o autoatendimento, **reavaliada na hora**
+pelo `EligibilityEvaluator#evaluateIgnoringContact` (não pelos motivos gravados; sem consultar o porteiro de contato, que
+não conta avaliação que não é tentativa de contato): `LEGAL_ONLY` quando a retenção jurídica é o único motivo de
+inelegibilidade (restrição de contato não conta, porque não impede negociar), `OTHER` com qualquer outro motivo ou sem caso
+ativo, `NONE` sem motivo. Devolve só o enum: nem o outro motivo, nem a fase jurídica, nem o caso (SEG-20261126-PA04).
+Limitação conhecida: o jurídico substitui a suspensão do caso sem guardá-la (`enterHold`), então suspensão sob jurídico
+aparece como `LEGAL_ONLY`. `DebtorAnonymized` (novo, publicado pelo debt) ainda não é consumido aqui
 (observações já são criptografadas; apagá-las na anonimização é pendência do módulo).
 
 ## 11. Segurança, escopo e auditoria

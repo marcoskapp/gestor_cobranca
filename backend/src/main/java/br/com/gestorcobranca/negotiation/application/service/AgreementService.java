@@ -102,6 +102,22 @@ class AgreementService implements AgreementUseCases {
                 Agreement::getId, Agreement::getVersion, views::agreement);
     }
 
+    /**
+     * Sem permissão própria: visão mínima para outro módulo decidir (quem entra no portal, inclusive no envio do link
+     * pelo operador, que só exige MESSAGE_SEND). Protegida pelo escopo do credor e, para o devedor, pelos próprios
+     * acordos; nunca exposta em endpoint (decisão 1643).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ActiveAgreementRef> activeFor(UUID creditorId, UUID debtorId) {
+        Guard.require(creditorId != null && debtorId != null, "agreement.subject_required", "Credor e devedor obrigatórios");
+        accessScope.requireCreditor(creditorId);
+        UUID debtor = DebtorSelfScope.debtorFilter(currentActor.get(), debtorId);
+        return agreements.findActiveOf(creditorId, debtor).stream()
+                .map(a -> new ActiveAgreementRef(a.getId(), a.getPortfolioId(), a.titleIds()))
+                .toList();
+    }
+
     @Override
     @Transactional(readOnly = true)
     public PageResponse<AgreementView> search(AgreementFilter filter, PageQuery page) {

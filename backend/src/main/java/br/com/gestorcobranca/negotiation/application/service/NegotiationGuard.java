@@ -148,6 +148,11 @@ class NegotiationGuard {
                 "Credor e devedor obrigatórios");
         accessScope.requireCreditor(request.creditorId());
         DebtorSelfScope.require(actor, request.debtorId(), accessLogger);
+        // lista vazia = "todos os títulos em aberto do devedor no credor" só para quem atende (usuário); qualquer outro
+        // ator — devedor, assistente, integração, credor, tipo novo — informa os títulos, senão negociaria carteiras
+        // fora do seu recorte (SEG-20261126-PA01; lista do que é permitido)
+        Guard.require(!request.titleIds().isEmpty() || mayRequestAllTitles(actor), "negotiation.titles_required",
+                "Informe os títulos da negociação");
         LocalDate today = LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE));
         LocalDate reference = request.referenceDate() == null ? today : request.referenceDate();
         ResolvedPolicy policy = policies.effective(request.creditorId(), today)
@@ -234,5 +239,10 @@ class NegotiationGuard {
             return Outcome.REJECTED;
         }
         return violations.isEmpty() ? Outcome.WITHIN_AUTHORITY : Outcome.REQUIRES_APPROVAL;
+    }
+
+    /** Só o usuário (quem atende) pode pedir "todos os títulos em aberto do devedor no credor". */
+    static boolean mayRequestAllTitles(Actor actor) {
+        return actor.type() == Actor.ActorType.USER;
     }
 }

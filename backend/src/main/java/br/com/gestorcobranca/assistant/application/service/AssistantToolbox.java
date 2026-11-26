@@ -32,6 +32,7 @@ import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.Cr
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases.ProposalView;
 import br.com.gestorcobranca.negotiation.application.port.in.ProposalUseCases;
 import br.com.gestorcobranca.shared.config.TimeConfig;
+import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.DomainException;
 import org.springframework.stereotype.Component;
 
@@ -487,15 +488,23 @@ class AssistantToolbox {
         return m;
     }
 
-    /** Títulos em aberto do devedor no credor da conversa (e na carteira do caso, quando houver). */
+    /**
+     * Títulos em aberto do devedor no credor da conversa (e na carteira do caso, quando houver). Sem nenhum, a
+     * ferramenta é recusada sem chamar o negotiation: lá a lista vazia não pode virar "todos os títulos do credor",
+     * que incluiria outras carteiras (SEG-20261126-PA01).
+     */
     private List<UUID> titleIds(TurnContext ctx) {
         UUID portfolio = ctx.conversation.portfolioId();
-        return actors.as(ctx.actor, () -> titles.listByDebtor(ctx.conversation.debtorId())).stream()
+        List<UUID> ids = actors.as(ctx.actor, () -> titles.listByDebtor(ctx.conversation.debtorId())).stream()
                 .filter(t -> ctx.conversation.creditorId().equals(t.creditorId()))
                 .filter(t -> portfolio == null || portfolio.equals(t.portfolioId()))
                 .filter(t -> "OPEN".equals(t.status()))
                 .map(DebtTitleUseCases.TitleView::id)
                 .toList();
+        if (ids.isEmpty()) {
+            throw new BusinessRuleException("negotiation.no_eligible_titles", "Nenhum título elegível para negociação");
+        }
+        return ids;
     }
 
     private static List<BigDecimal> rates(ComponentsView c) {

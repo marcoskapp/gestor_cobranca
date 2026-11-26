@@ -9,6 +9,7 @@ import br.com.gestorcobranca.collection.domain.model.AssignmentMode;
 import br.com.gestorcobranca.collection.domain.model.CaseStatus;
 import br.com.gestorcobranca.collection.domain.model.CloseReason;
 import br.com.gestorcobranca.collection.domain.model.CollectionCase;
+import br.com.gestorcobranca.collection.domain.model.Eligibility;
 import br.com.gestorcobranca.collection.domain.model.OwnerType;
 import br.com.gestorcobranca.collection.domain.model.PromiseStatus;
 import br.com.gestorcobranca.collection.domain.model.TaskStatus;
@@ -28,6 +29,8 @@ import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
+import br.com.gestorcobranca.shared.security.Actor;
+import br.com.gestorcobranca.shared.security.CurrentActor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -69,12 +72,15 @@ class CaseService implements CaseUseCases {
     private final DebtorSheetQueries debtorSheet;
     private final ContactRestrictionUseCases restrictions;
     private final AccessScope accessScope;
+    private final EligibilityEvaluator eligibility;
+    private final CurrentActor currentActor;
     private final Clock clock;
 
     CaseService(CollectionCaseRepository cases, CaseAccess access, CaseSynchronizer synchronizer, CaseRecorder recorder,
                 DisputeRepository disputes, DisputeViews disputeViews, PaymentPromiseRepository promises,
                 CollectionTaskRepository tasks, InteractionRepository interactions, DebtorSheetQueries debtorSheet,
-                ContactRestrictionUseCases restrictions, AccessScope accessScope, Clock clock) {
+                ContactRestrictionUseCases restrictions, AccessScope accessScope, EligibilityEvaluator eligibility,
+                CurrentActor currentActor, Clock clock) {
         this.cases = cases;
         this.access = access;
         this.synchronizer = synchronizer;
@@ -87,6 +93,8 @@ class CaseService implements CaseUseCases {
         this.debtorSheet = debtorSheet;
         this.restrictions = restrictions;
         this.accessScope = accessScope;
+        this.eligibility = eligibility;
+        this.currentActor = currentActor;
         this.clock = clock;
     }
 
@@ -156,6 +164,27 @@ class CaseService implements CaseUseCases {
         return cases.findActiveByDebtorAndPortfolio(debtorId, portfolioId)
                 .filter(c -> accessScope.canAccessCreditor(c.getCreditorId()))
                 .map(c -> CollectionViews.caseView(c, today));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SelfServiceHold selfServiceHold(UUID debtorId, UUID portfolioId) {
+        Actor actor = currentActor.get();
+        if (actor.type() == Actor.ActorType.DEBTOR && !actor.id().equals(debtorId)) {
+            return SelfServiceHold.OTHER; // o devedor só consulta a própria situação
+        }
+        Optional<CollectionCase> found = cases.findActiveByDebtorAndPortfolio(debtorId, portfolioId)
+                .filter(c -> accessScope.canAccessCreditor(c.getCreditorId()));
+        if (found.isEmpty()) {
+            return SelfServiceHold.OTHER;
+        }
+        // sem o porteiro de contato: restrição de contato não impede negociar quando o devedor procura
+        Eligibility e = eligibility.evaluateIgnoringContact(found.get());
+        if (e.selfServiceBlockers().isEmpty()) {
+            return SelfServiceHold.NONE;
+        }
+        return found.get().getStatus() == CaseStatus.LEGAL && e.onlyLegalHold()
+                ? SelfServiceHold.LEGAL_ONLY : SelfServiceHold.OTHER;
     }
 
     @Override

@@ -51,6 +51,16 @@ public interface CaseUseCases {
     Optional<CaseView> findActive(UUID debtorId, UUID portfolioId);
 
     /**
+     * Situação da carteira para o autoatendimento do devedor (portal), reavaliada na hora: {@code LEGAL_ONLY} quando
+     * a retenção jurídica é o único motivo de inelegibilidade (restrição de contato não conta: não impede negociar),
+     * {@code OTHER} para qualquer outro motivo ou sem caso ativo, {@code NONE} sem motivo. Não expõe qual é o outro
+     * motivo, a fase jurídica nem o caso (SEG-20261126-PA04).
+     */
+    SelfServiceHold selfServiceHold(UUID debtorId, UUID portfolioId);
+
+    enum SelfServiceHold { NONE, LEGAL_ONLY, OTHER }
+
+    /**
      * Ficha do caso: posição e elegibilidade, devedor (dados mascarados), títulos da carteira,
      * restrições de contato vigentes, contestações abertas, promessa pendente, tarefas em aberto,
      * últimas interações e demais casos do devedor no escopo.

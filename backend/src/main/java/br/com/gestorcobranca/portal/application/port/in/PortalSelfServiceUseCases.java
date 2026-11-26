@@ -69,7 +69,8 @@ public interface PortalSelfServiceUseCases {
     /**
      * @param updatedAmount   saldo atualizado na data de hoje pelo motor do negotiation (nulo se não negociável)
      * @param negotiable      há títulos elegíveis e nenhum acordo em vigor
-     * @param unavailableReason AGREEMENT_ACTIVE, NOT_ELIGIBLE, NO_POLICY ou nulo
+     * @param unavailableReason AGREEMENT_ACTIVE, NO_POLICY, LEGAL_HOLD (a retenção jurídica é o único motivo),
+     *                          NOT_ELIGIBLE (qualquer outro motivo, sem dizer qual) ou nulo
      */
     record PortfolioDebt(UUID portfolioId, String portfolioName, BigDecimal openBalance, BigDecimal updatedAmount,
                          boolean negotiable, String unavailableReason, UUID activeAgreementId, List<TitleSummary> titles) {

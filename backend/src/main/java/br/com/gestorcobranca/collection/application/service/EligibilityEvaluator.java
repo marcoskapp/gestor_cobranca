@@ -73,12 +73,25 @@ class EligibilityEvaluator {
         return batch().evaluate(c);
     }
 
+    /**
+     * Mesma avaliação sem consultar o porteiro de contato (sem canais, nunca {@code CONTACT_RESTRICTED}): para quem
+     * só precisa saber se o caso pode negociar quando o devedor procura (autoatendimento), sem contar avaliações do
+     * porteiro que não são tentativa de contato.
+     */
+    Eligibility evaluateIgnoringContact(CollectionCase c) {
+        return batch().evaluate(c, false);
+    }
+
     final class Batch {
 
         private final Map<UUID, Boolean> operablePortfolios = new HashMap<>();
         private final Map<UUID, Boolean> insolventDebtors = new HashMap<>();
 
         Eligibility evaluate(CollectionCase c) {
+            return evaluate(c, true);
+        }
+
+        private Eligibility evaluate(CollectionCase c, boolean withContact) {
             if (!c.getStatus().isActive()) {
                 return EligibilityPolicy.evaluate(new EligibilityPolicy.Input(c.getStatus(), false, c.balance(), false,
                         false, false, Map.of()));
@@ -87,7 +100,7 @@ class EligibilityEvaluator {
             boolean anonymized = ANONYMIZED.equals(debtors.get(c.getDebtorId()).status());
             boolean insolvent = insolventDebtors.computeIfAbsent(c.getDebtorId(), insolvency::isUnderInsolvency);
             boolean blockingDispute = c.getId() != null && disputes.existsBlockingByCaseId(c.getId());
-            Map<InteractionChannel, ChannelAvailability> channels = anonymized ? Map.of() : channels(c);
+            Map<InteractionChannel, ChannelAvailability> channels = anonymized || !withContact ? Map.of() : channels(c);
             return EligibilityPolicy.evaluate(new EligibilityPolicy.Input(c.getStatus(), operable, c.balance(),
                     blockingDispute, anonymized, insolvent, channels));
         }

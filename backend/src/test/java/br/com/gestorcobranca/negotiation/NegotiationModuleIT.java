@@ -260,8 +260,16 @@ class NegotiationModuleIT extends NegotiationTestSupport {
         provisionTenant("assistant");
         UUID policyId = publishPolicy(creditorA, StandardPolicyTerms.marketDefault());
         UUID assistantPolicy = Ids.newId();
-        SimulationView view = asAssistant(assistantPolicy, creditorA, () -> simulations.simulate(simulate(1,
-                new JustificationInput("PAYMENT_CAPACITY", null), List.of())));
+        // canal automático informa os títulos: lista vazia não vira "todos os títulos do credor" (SEG-20261126-PA01)
+        assertThatThrownBy(() -> asAssistant(assistantPolicy, creditorA, () -> simulations.simulate(simulate(1,
+                new JustificationInput("PAYMENT_CAPACITY", null), List.of()))))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("Informe os títulos");
+        // lista do que é permitido: nem o sistema (ex.: futura oferta de campanha) pede "todos os títulos" (PA06)
+        assertThatThrownBy(() -> system(() -> simulations.simulate(simulate(null, null, List.of()))))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("Informe os títulos");
+        SimulationView view = asAssistant(assistantPolicy, creditorA, () -> simulations.simulate(new SimulateCommand(
+                creditorA, debtor, List.of(title60, title30), null, 1, new JustificationInput("PAYMENT_CAPACITY", null),
+                List.of(), "PHONE")));
         assertThat(view.result().actor().type()).isEqualTo("ASSISTANT");
         assertThat(view.result().actor().profileCode()).isEqualTo("ASSISTENTE_INICIAL");
         assertThat(view.result().envelope()).as("o assistente nunca recebe o envelope").isNull();
@@ -270,7 +278,7 @@ class NegotiationModuleIT extends NegotiationTestSupport {
         assertThat(view.result().offers()).extracting(OfferView::installments).contains(6);
         // acima da alçada do assistente: requer aprovação (na parte 2: transferência para humano)
         ValidationView v = asAssistant(assistantPolicy, creditorA, () -> simulations.validate(new ValidateCommand(creditorA,
-                debtor, List.of(), null, policyId, 2, new JustificationInput("PAYMENT_CAPACITY", null),
+                debtor, List.of(title60, title30), null, policyId, 2, new JustificationInput("PAYMENT_CAPACITY", null),
                 new ComponentsView(null, null, null, null, null, new BigDecimal("40")), new PlanInput(1, null, null),
                 "WHATSAPP")));
         assertThat(v.outcome()).isEqualTo("REQUIRES_APPROVAL");

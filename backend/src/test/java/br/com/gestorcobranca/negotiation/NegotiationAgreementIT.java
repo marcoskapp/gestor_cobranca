@@ -385,7 +385,7 @@ class NegotiationAgreementIT extends NegotiationTestSupport {
         publishPolicy(creditorA, StandardPolicyTerms.marketDefault());
         assignProfile(manager, "GESTOR");
         UUID policy = Ids.newId();
-        UUID sim = asAssistantProposer(policy, () -> simulations.simulate(new SimulateCommand(creditorA, debtor, List.of(),
+        UUID sim = asAssistantProposer(policy, () -> simulations.simulate(new SimulateCommand(creditorA, debtor, List.of(title60, title30),
                 null, null, null, List.of(new PlanInput(1, null, null), new PlanInput(12, null, null)), "WHATSAPP")).id());
 
         // dentro da alçada do assistente: aceite registrado, mas o perfil inicial não formaliza

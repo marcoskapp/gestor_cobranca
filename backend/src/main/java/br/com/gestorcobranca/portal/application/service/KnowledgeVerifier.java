@@ -55,7 +55,7 @@ class KnowledgeVerifier {
 
     private Set<String> contractSuffixes(PortalConfiguration config, UUID debtorId) {
         Set<String> suffixes = new LinkedHashSet<>();
-        for (TitleView t : debts.titlesInPortal(config, debtorId)) {
+        for (TitleView t : debts.knowledgeTitles(config, debtorId)) {
             String reference = t.externalId();
             if (t.originContractId() != null) {
                 try {

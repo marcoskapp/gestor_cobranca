@@ -23,6 +23,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -64,6 +65,9 @@ interface AgreementJpa extends JpaRepository<Agreement, UUID>, JpaSpecificationE
     List<Agreement> brokenNotReplacedCovering(@Param("titleIds") Collection<UUID> titleIds);
 
     List<Agreement> findByDebtorId(UUID debtorId);
+
+    List<Agreement> findByCreditorIdAndDebtorIdAndStatusIn(UUID creditorId, UUID debtorId,
+                                                           Collection<AgreementStatus> statuses);
 }
 
 interface AgreementPaymentJpa extends JpaRepository<AgreementPayment, UUID> {
@@ -183,6 +187,12 @@ class JpaAgreementRepository implements AgreementRepository {
     @Override
     public List<Agreement> findByDebtorId(UUID debtorId) {
         return agreements.findByDebtorId(debtorId);
+    }
+
+    @Override
+    public List<Agreement> findActiveOf(UUID creditorId, UUID debtorId) {
+        return agreements.findByCreditorIdAndDebtorIdAndStatusIn(creditorId, debtorId,
+                EnumSet.of(AgreementStatus.FORMALIZED, AgreementStatus.IN_PAYMENT));
     }
 
     @Override

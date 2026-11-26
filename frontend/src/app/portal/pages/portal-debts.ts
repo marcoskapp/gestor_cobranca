@@ -25,9 +25,12 @@ import { Icon } from '../../shared/components/icon/icon';
     } @else if ((debts.value()?.portfolios ?? []).length === 0) {
       <section class="portal-card text-center">
         <app-icon class="portal-big-icon" name="check2-circle" />
-        <h2 class="portal-title">Nenhuma dívida em aberto</h2>
-        <p>Não encontramos dívidas em aberto neste portal. Se tiver dúvidas, fale com um atendente.</p>
-        <div class="portal-actions"><a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a></div>
+        <h2 class="portal-title">Nada para negociar agora</h2>
+        <p>Não há dívidas em aberto para negociar neste portal. Se você tem um acordo, veja as parcelas e pague pelo Pix em "Meus acordos".</p>
+        <div class="portal-actions">
+          <a class="btn btn-primary portal-btn" [routerLink]="['/portal', slug(), 'acordos']">Ver meus acordos</a>
+          <a class="btn btn-outline-primary portal-btn-outline" [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente</a>
+        </div>
       </section>
     } @else {
       @for (p of debts.value()!.portfolios; track p.portfolioId) {
@@ -40,6 +43,9 @@ import { Icon } from '../../shared/components/icon/icon';
           } @else {
             <p class="portal-label">Valor em aberto</p>
             <p class="portal-amount"><app-amount [value]="p.openBalance" /></p>
+            @if (!p.activeAgreementId) {
+              <p class="portal-label">Sem juros e encargos de hoje. Um atendente informa o valor para pagar.</p>
+            }
           }
           <details class="portal-details">
             <summary>Ver {{ p.titles.length }} {{ p.titles.length === 1 ? 'parcela em aberto' : 'parcelas em aberto' }}</summary>

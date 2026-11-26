@@ -76,7 +76,7 @@ export interface TitleSummary {
   status: string;
 }
 
-export type UnavailableReason = 'AGREEMENT_ACTIVE' | 'NOT_ELIGIBLE' | 'NO_POLICY';
+export type UnavailableReason = 'AGREEMENT_ACTIVE' | 'NOT_ELIGIBLE' | 'NO_POLICY' | 'LEGAL_HOLD';
 
 export interface PortfolioDebt {
   portfolioId: string;

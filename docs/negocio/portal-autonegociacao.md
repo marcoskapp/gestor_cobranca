@@ -28,7 +28,11 @@ Antes de ver as dívidas, o devedor lê e confirma o aviso de privacidade do cre
 
 ## O que o devedor vê e faz
 
-1. **Minhas dívidas**: só as carteiras que a operação habilitou no portal, com o valor atualizado de hoje (juros, multa e encargos pela política do credor) e as parcelas em aberto.
+1. **Minhas dívidas**: só as carteiras que a operação habilitou no portal, com o valor atualizado de hoje (juros, multa e encargos pela política do credor) e as parcelas em aberto. Parcela suspensa (por exemplo, a que o credor informou como paga) não aparece. Dívida que não pode ser negociada pelo portal aparece com o valor em aberto, um aviso e "Falar com atendente":
+   - **no jurídico**, quando esse é o único motivo: "Esta dívida está com uma equipe especializada e não pode ser negociada por aqui. Fale com um atendente para saber como pagar ou fazer um acordo." — sem fase, processo nem advogado;
+   - **qualquer outro motivo** (contestação, recuperação judicial, situação de vulnerabilidade, carteira inativa, ou mais de um motivo): o aviso genérico "Esta dívida não pode ser negociada pelo portal agora. Fale com um atendente.", que não revela qual é.
+
+   Quem só tem parcelas suspensas não entra no portal; quem tem acordo em vigor entra para acompanhá-lo — sem dívida para negociar, a tela diz "Nada para negociar agora" e leva a "Meus acordos". Sem condição, o "Valor em aberto" vem com a dica de que não inclui os encargos de hoje.
 2. **Condições para pagar**: à vista e parcelado, só as condições dentro do perfil de alçada `PORTAL`. A escolha é revalidada no servidor; condição alterada ou fora do perfil é recusada.
 3. **Confira antes de fechar**: valores, parcelas, regra de quebra ("2 parcelas sem pagamento por mais de 5 dias desfazem o acordo") e o "Li e aceito".
 4. **Acordo fechado**: termo em PDF (com hash registrado), Pix da primeira parcela com QR Code e "copia e cola".

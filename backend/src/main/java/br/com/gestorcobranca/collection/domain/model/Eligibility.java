@@ -22,6 +22,19 @@ public record Eligibility(boolean eligible, Set<EligibilityReason> reasons, Set<
         }
     }
 
+    /** Motivos que impedem negociar por autoatendimento (restrição de contato não impede: o devedor é quem procura). */
+    public Set<EligibilityReason> selfServiceBlockers() {
+        Set<EligibilityReason> r = EnumSet.noneOf(EligibilityReason.class);
+        r.addAll(reasons);
+        r.remove(EligibilityReason.CONTACT_RESTRICTED);
+        return r;
+    }
+
+    /** A retenção jurídica é o único motivo que impede o autoatendimento. */
+    public boolean onlyLegalHold() {
+        return selfServiceBlockers().equals(EnumSet.of(EligibilityReason.CASE_LEGAL));
+    }
+
     public static Eligibility of(Collection<EligibilityReason> reasons, Collection<InteractionChannel> channels) {
         Set<EligibilityReason> r = reasons.isEmpty() ? EnumSet.noneOf(EligibilityReason.class) : EnumSet.copyOf(reasons);
         Set<InteractionChannel> c = channels.isEmpty() ? EnumSet.noneOf(InteractionChannel.class) : EnumSet.copyOf(channels);

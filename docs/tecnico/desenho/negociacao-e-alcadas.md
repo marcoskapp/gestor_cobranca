@@ -144,7 +144,7 @@ REST (`/api/v1/negotiation`): `policies` (CRUD de rascunho, `/{id}/versions`, `/
 
 ### 9.6 Simulação e `negotiation.simulated`
 
-- Títulos: os informados ou todos `OPEN` do devedor no credor (até 200). Inelegíveis ficam fora e são listados (`excludedTitles`); sem nenhum elegível, 422. Na validação (`/validations`, e na proposta da parte 2) títulos pedidos e inelegíveis **reprovam** as condições.
+- Títulos: os informados ou, só para quem atende (operador), todos `OPEN` do devedor no credor (até 200). Canal automático — devedor no portal, assistente de IA e integração — informa os títulos; lista vazia é recusada (`negotiation.titles_required`) para qualquer ator que não seja usuário (lista do que é permitido), senão negociaria carteiras fora do seu recorte (SEG-20261126-PA01). `AgreementUseCases#activeFor(credor, devedor)` devolve só os acordos em vigor na visão mínima (`ActiveAgreementRef`: id, carteira, títulos) — usado pelo portal no critério de entrada. Inelegíveis ficam fora e são listados (`excludedTitles`); sem nenhum elegível, 422. Na validação (`/validations`, e na proposta da parte 2) títulos pedidos e inelegíveis **reprovam** as condições.
 - Data-base entre hoje e hoje + `maxDaysToFirstPayment`; 1º pagamento entre a data-base e o mesmo limite.
 - Ofertas: níveis 0..mínimo(pedido, alçada), cada um com as formas pedidas (padrão: à vista e o maior parcelamento permitido no nível), no limite do ator; cada oferta passa pelo mesmo `TermsEvaluator`.
 - Registro em `negotiation.simulation` (append-only por privilégio e gatilho), com a memória completa em jsonb e `engine_version`.

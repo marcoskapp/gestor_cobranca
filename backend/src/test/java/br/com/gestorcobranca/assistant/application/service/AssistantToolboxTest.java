@@ -127,6 +127,14 @@ class AssistantToolboxTest {
     }
 
     @Test
+    void withoutOpenTitlesInTheConversationPortfolioTheEngineIsNeverCalled() {
+        // nenhum título em aberto (mock do debt vazio): a lista vazia não pode chegar ao negotiation (SEG-20261126-PA01)
+        assertThat(run("get_debt_summary", "{}").errorCode()).isEqualTo("negotiation.no_eligible_titles");
+        assertThat(run("simulate_options", "{}").errorCode()).isEqualTo("negotiation.no_eligible_titles");
+        verifyNoInteractions(simulations);
+    }
+
+    @Test
     void promiseValueMustComeFromTheEngine() {
         assertThat(run("register_promise", "{\"amount\":100,\"date\":\"2099-01-01\"}").errorCode())
                 .isEqualTo("amount_not_from_engine");

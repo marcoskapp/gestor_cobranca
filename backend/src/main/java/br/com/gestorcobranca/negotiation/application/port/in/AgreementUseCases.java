@@ -29,6 +29,16 @@ public interface AgreementUseCases {
     PageResponse<AgreementView> search(AgreementFilter filter, PageQuery page);
 
     /**
+     * Acordos em vigor ({@code FORMALIZED}, {@code IN_PAYMENT}) do devedor no credor, na visão mínima — para o portal
+     * decidir quem entra e quais títulos valem no desafio do contrato. Sem permissão própria (credor no escopo, senão
+     * 403); ator devedor só vê os próprios.
+     */
+    List<ActiveAgreementRef> activeFor(UUID creditorId, UUID debtorId);
+
+    record ActiveAgreementRef(UUID id, UUID portfolioId, List<UUID> titleIds) {
+    }
+
+    /**
      * Sincronização incremental (API pública): acordos do credor alterados na janela, em ordem de atualização e id,
      * paginados por cursor. {@code AGREEMENT_VIEW} e credor no escopo (404 fora dele).
      */

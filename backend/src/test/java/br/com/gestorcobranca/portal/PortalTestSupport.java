@@ -429,6 +429,12 @@ abstract class PortalTestSupport extends IntegrationTest {
                 CreditorScope.of(Set.of(creditorA))), action);
     }
 
+    /** Títulos em aberto do devedor na carteira (o canal automático informa os títulos ao negotiation). */
+    List<UUID> openTitles(UUID debtorId, UUID portfolioId) {
+        return system(() -> jdbcTemplate.queryForList("select id from debt.debt_title where debtor_id = ? "
+                + "and portfolio_id = ? and status = 'OPEN' order by due_date", UUID.class, debtorId, portfolioId));
+    }
+
     long count(String sql, Object... args) {
         return system(() -> {
             Long value = jdbcTemplate.queryForObject(sql, Long.class, args);
