@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.debt.domain.model;
 
 import br.com.gestorcobranca.shared.domain.ConflictException;
+import br.com.gestorcobranca.shared.crypto.ExternalIdDigest;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.TenantScopedEntity;
@@ -54,8 +55,16 @@ public class DebtTitle extends TenantScopedEntity {
     @Column(name = "origin_contract_id")
     private UUID originContractId;
 
-    @Column(name = "external_id", nullable = false, length = EXTERNAL_ID_MAX, updatable = false)
+    /**
+     * Identificador no credor; com o titular anonimizado e o documento embutido, {@code anon:} + HMAC (decisão 1476),
+     * trocado só por {@link #anonymizeExternalId} (o gatilho do banco recusa qualquer outra troca).
+     */
+    @Column(name = "external_id", nullable = false, length = EXTERNAL_ID_MAX)
     private String externalId;
+
+    /** Forma mascarada para exibição, gravada na troca do identificador (decisão 1476); nula enquanto não trocado. */
+    @Column(name = "external_id_display", insertable = false, columnDefinition = "text")
+    private String externalIdDisplay;
 
     @Column(name = "installment_number")
     private Integer installmentNumber;
@@ -166,9 +175,14 @@ public class DebtTitle extends TenantScopedEntity {
     static String validExternalId(String externalId, String prefix) {
         Guard.require(externalId != null && !externalId.isBlank(), prefix + ".external_id_required",
                 "Identificador externo obrigatório");
-        String trimmed = externalId.trim();
+        String trimmed = ExternalIdDigest.canonical(externalId);
+        Guard.require(trimmed != null && !ExternalIdDigest.hasControl(trimmed), prefix + ".external_id_invalid",
+                "Identificador externo com caractere inválido");
         Guard.require(trimmed.length() <= EXTERNAL_ID_MAX, prefix + ".external_id_too_long",
                 "Identificador externo deve ter até %d caracteres".formatted(EXTERNAL_ID_MAX));
+        // reservado à forma anonimizada (decisão 1476): a entrada nunca alcança nem imita um identificador trocado
+        Guard.require(!ExternalIdDigest.isReserved(trimmed), prefix + ".external_id_reserved",
+                "Identificador externo não pode começar com \"%s\"".formatted(ExternalIdDigest.PREFIX));
         return trimmed;
     }
 
@@ -456,8 +470,37 @@ public class DebtTitle extends TenantScopedEntity {
         return originContractId;
     }
 
+    /**
+     * Valor gravado (pode ser a forma anonimizada): só para busca e persistência dentro do debt. Tela, texto e view usam
+     * {@link #displayExternalId()} ({@code ArchitectureTest}).
+     */
     public String getExternalId() {
         return externalId;
+    }
+
+    /** Identificador para exibição: a forma mascarada guardada quando trocado (decisão 1476), senão o gravado. */
+    public String displayExternalId() {
+        return externalIdDisplay != null ? externalIdDisplay : externalId;
+    }
+
+    /**
+     * Troca o identificador pela forma anonimizada e guarda a forma mascarada para exibição (decisão 1476), na
+     * anonimização do titular (ou no preenchimento dos já anonimizados). Uma vez só: o valor trocado não volta nem muda
+     * (também recusado pelo gatilho do banco, que exige o devedor anonimizado).
+     *
+     * @return {@code false} se já estava trocado
+     */
+    public boolean anonymizeExternalId(String anonymized, String display) {
+        if (ExternalIdDigest.isAnonymized(externalId)) {
+            return false;
+        }
+        Guard.require(ExternalIdDigest.isAnonymized(anonymized), "title.external_id_anonymized_invalid",
+                "Forma anonimizada do identificador inválida");
+        Guard.require(display != null && !display.isBlank(), "title.external_id_display_required",
+                "Forma de exibição do identificador obrigatória");
+        this.externalId = anonymized;
+        this.externalIdDisplay = display;
+        return true;
     }
 
     public Integer getInstallmentNumber() {

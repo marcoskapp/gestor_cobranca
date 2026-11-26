@@ -3,6 +3,8 @@ package br.com.gestorcobranca.debt.application.service;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Métricas Micrometer das garantias, partes da obrigação e prescrição (documentadas em
@@ -15,6 +17,29 @@ class DebtMetrics {
 
     DebtMetrics(MeterRegistry registry) {
         this.registry = registry;
+    }
+
+    /**
+     * Identificadores trocados pela forma anonimizada (decisão 1476): {@code kind} título ou contrato, {@code origin}
+     * eliminação ou preenchimento dos já anonimizados. Sem credor nem assessoria; contado depois do commit.
+     */
+    void externalIdsAnonymized(String kind, String origin, int count) {
+        if (count <= 0) {
+            return;
+        }
+        Runnable inc = () -> registry.counter("debt.external_ids.anonymized", "kind", kind, "origin", origin)
+                .increment(count);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            inc.run();
+                        }
+                    });
+        } else {
+            inc.run();
+        }
     }
 
     /**

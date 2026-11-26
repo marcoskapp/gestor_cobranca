@@ -17,7 +17,7 @@ import java.util.UUID;
 interface OriginContractJpaRepository extends JpaRepository<OriginContract, UUID>, OriginContractRepository {
 
     @Override
-    Optional<OriginContract> findByCreditorIdAndExternalId(UUID creditorId, String externalId);
+    List<OriginContract> findByCreditorIdAndExternalIdIn(UUID creditorId, Collection<String> storedExternalIds);
 
     @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -42,6 +42,10 @@ interface OriginContractJpaRepository extends JpaRepository<OriginContract, UUID
 
     @Override
     List<OriginContract> findAllByIdIn(Collection<UUID> ids);
+
+    @Override
+    @Query("select c.id from OriginContract c where c.debtorId = :debtorId order by c.id")
+    List<UUID> findIdsByDebtorId(UUID debtorId);
 
     @Override
     List<OriginContract> findByDebtorId(UUID debtorId);

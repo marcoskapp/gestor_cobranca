@@ -669,7 +669,7 @@ class TitleAmountAdjustmentService implements TitleAmountAdjustmentUseCases {
         if (title == null) {
             return null;
         }
-        return title.getInstallmentNumber() == null ? title.getExternalId()
-                : title.getExternalId() + "/" + title.getInstallmentNumber();
+        return title.getInstallmentNumber() == null ? title.displayExternalId()
+                : title.displayExternalId() + "/" + title.getInstallmentNumber();
     }
 }

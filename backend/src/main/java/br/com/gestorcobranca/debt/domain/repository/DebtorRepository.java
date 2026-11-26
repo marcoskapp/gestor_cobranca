@@ -61,6 +61,9 @@ public interface DebtorRepository {
      */
     List<InactiveDebtorCandidate> findInactive(Instant closedBefore, UUID afterId, int limit);
 
+    /** Devedores anonimizados com id maior que {@code afterId} (nulo no início), em ordem de id (decisão 1476). */
+    List<UUID> findAnonymizedIdsAfter(UUID afterId, int limit);
+
     default Page<Debtor> search(Collection<UUID> allowedCreditorIds, UUID creditorId, UUID portfolioId, String text,
                                 String documentHash, Pageable pageable) {
         return search(allowedCreditorIds, creditorId, portfolioId, text, documentHash, null, null, pageable);

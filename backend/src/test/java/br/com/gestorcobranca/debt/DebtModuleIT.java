@@ -550,8 +550,13 @@ class DebtModuleIT extends IntegrationTest {
                 .isEmpty()).isTrue();
         assertThat(system(() -> anonymizedSubjects.referencesOf(debtorId))).singleElement().satisfies(r -> {
             assertThat(r.creditorId()).isEqualTo(creditorA);
-            assertThat(r.externalId()).isEqualTo("52998224725-001");
+            // o identificador cru não sai do debt: só a chave HMAC, a mesma gravada na troca (decisão 1476)
+            assertThat(r.titleKey()).matches("[0-9a-f]{64}");
             assertThat(r.displayReference()).isEqualTo("***982247**-001");
+            assertThat(system(() -> jdbcTemplate.queryForMap(
+                    "select external_id, external_id_display from debt.debt_title where debtor_id = ?", debtorId)))
+                    .containsEntry("external_id", "anon:" + r.titleKey())
+                    .containsEntry("external_id_display", "***982247**-001");
         });
         // escopo: com a permissão certa, mas fora do credor (ou sem escopo total), é recusado
         assertThatThrownBy(() -> asUserWith(CreditorScope.of(List.of(creditorB)), EnumSet.of(Permission.IMPORT_EXECUTE),

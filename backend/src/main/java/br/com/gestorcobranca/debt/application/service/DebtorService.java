@@ -70,12 +70,14 @@ class DebtorService implements DebtorUseCases {
     private final AccessLogger accessLogger;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final ExternalIdAnonymizer externalIds;
 
     DebtorService(DebtorRepository debtors, DebtorContactRepository contacts, DebtTitleRepository titles,
                   ObligationPartyRepository parties, CompanyRepresentativeRepository representatives,
                   DebtorRegistry registry, DebtorVisibility visibility, PersonalDataIndex index, AccessScope accessScope,
                   CurrentActor currentActor, AuditTrail auditTrail, AccessLogger accessLogger,
-                  ApplicationEventPublisher events, Clock clock) {
+                  ApplicationEventPublisher events, Clock clock, ExternalIdAnonymizer externalIds) {
+        this.externalIds = externalIds;
         this.debtors = debtors;
         this.contacts = contacts;
         this.titles = titles;
@@ -223,7 +225,11 @@ class DebtorService implements DebtorUseCases {
             contacts.save(contact);
         }
         representatives.deleteAll(removedRepresentatives);
-        debtors.save(debtor);
+        // gravado antes da troca dos identificadores: o gatilho do banco exige o devedor já anonimizado
+        debtors.saveAndFlush(debtor);
+        // identificador de título e de contrato com CPF/CNPJ embutido vira anon: + HMAC (decisão 1476)
+        ExternalIdAnonymizer.Result replaced = externalIds.anonymize(currentActor.tenantId(), debtorId,
+                ExternalIdAnonymizer.ORIGIN_ERASURE);
         // demais módulos (negotiation…) neutralizam os próprios textos livres e evidências do devedor
         events.publishEvent(new DebtorAnonymized(Ids.newId(), currentActor.tenantId(), now, debtorId));
         auditTrail.record(AuditEntry.of("debtor.anonymized", "debtor", debtorId)
@@ -231,7 +237,9 @@ class DebtorService implements DebtorUseCases {
                 .change("status", "ACTIVE", debtor.getStatus())
                 .change("document", maskedDocument, null)
                 .meta("contactsRemoved", removed.size())
-                .meta("representativesRemoved", removedRepresentatives.size()));
+                .meta("representativesRemoved", removedRepresentatives.size())
+                .meta("titleIdsAnonymized", replaced.titles())
+                .meta("contractIdsAnonymized", replaced.contracts()));
         return new Anonymization(DebtViews.debtor(debtor), erasedDocument);
     }
 

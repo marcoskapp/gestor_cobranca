@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.debt.domain.model;
 
+import br.com.gestorcobranca.shared.crypto.ExternalIdDigest;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.domain.TenantScopedEntity;
@@ -36,8 +37,13 @@ public class OriginContract extends TenantScopedEntity {
     @Column(name = "debtor_id", nullable = false, updatable = false)
     private UUID debtorId;
 
-    @Column(name = "external_id", nullable = false, length = 80, updatable = false)
+    /** Identificador no credor; {@code anon:} + HMAC depois da troca da decisão 1476 (como no título). */
+    @Column(name = "external_id", nullable = false, length = 80)
     private String externalId;
+
+    /** Forma mascarada para exibição, gravada na troca do identificador (decisão 1476). */
+    @Column(name = "external_id_display", insertable = false, columnDefinition = "text")
+    private String externalIdDisplay;
 
     @Column(name = "product", length = 120)
     private String product;
@@ -107,8 +113,34 @@ public class OriginContract extends TenantScopedEntity {
         return debtorId;
     }
 
+    /** Valor gravado (pode ser a forma anonimizada): só para busca e persistência dentro do debt. */
     public String getExternalId() {
         return externalId;
+    }
+
+    /** Identificador para exibição: a forma mascarada guardada quando trocado (decisão 1476), senão o gravado. */
+    public String displayExternalId() {
+        return externalIdDisplay != null ? externalIdDisplay : externalId;
+    }
+
+    /**
+     * Troca o identificador pela forma anonimizada e guarda a forma mascarada para exibição (decisão 1476), na
+     * anonimização do titular (ou no preenchimento dos já anonimizados). Uma vez só: o valor trocado não volta nem muda
+     * (também recusado pelo gatilho do banco, que exige o devedor anonimizado).
+     *
+     * @return {@code false} se já estava trocado
+     */
+    public boolean anonymizeExternalId(String anonymized, String display) {
+        if (ExternalIdDigest.isAnonymized(externalId)) {
+            return false;
+        }
+        Guard.require(ExternalIdDigest.isAnonymized(anonymized), "origin_contract.external_id_anonymized_invalid",
+                "Forma anonimizada do identificador inválida");
+        Guard.require(display != null && !display.isBlank(), "origin_contract.external_id_display_required",
+                "Forma de exibição do identificador obrigatória");
+        this.externalId = anonymized;
+        this.externalIdDisplay = display;
+        return true;
     }
 
     public String getProduct() {

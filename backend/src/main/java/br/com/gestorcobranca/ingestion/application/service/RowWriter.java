@@ -64,10 +64,12 @@ class RowWriter {
     private final TransactionTemplate requiresNew;
     private final IngestionMetrics metrics;
     private final AnonymizedSubjectQueries anonymizedSubjects;
+    private final ImportRowTitleKeys titleKeys;
 
     RowWriter(DebtIngestionPort debt, DebtTitleUseCases debtTitles, ImportBatchRowRepository rows,
               ImportRowIssueRepository issues, PlatformTransactionManager transactionManager, IngestionMetrics metrics,
-              AnonymizedSubjectQueries anonymizedSubjects) {
+              AnonymizedSubjectQueries anonymizedSubjects, ImportRowTitleKeys titleKeys) {
+        this.titleKeys = titleKeys;
         this.debt = debt;
         this.debtTitles = debtTitles;
         this.rows = rows;
@@ -178,7 +180,7 @@ class RowWriter {
             record = ImportBatchRow.written(target.batchId(), row.titleExternalId(), row.rowNumber(), title.id(),
                     outcome(title.outcome()), debtor.id(), outcome(debtor.outcome()), rowIssues.size(), suspended);
         }
-        rows.save(record);
+        rows.save(titleKeys.assign(target.creditorId(), record));
         List<ImportRowIssue> stored = rowIssues.stream().limit(Math.max(0, issueBudget))
                 .map(i -> new ImportRowIssue(target.batchId(), i)).toList();
         issues.saveAll(stored);

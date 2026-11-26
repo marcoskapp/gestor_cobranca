@@ -3,14 +3,19 @@ package br.com.gestorcobranca.debt.application.service;
 import br.com.gestorcobranca.debt.application.port.spi.ErasedSubjects;
 import br.com.gestorcobranca.debt.application.port.spi.ErasedSubjects.ReturnAttempt;
 import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries;
+import br.com.gestorcobranca.debt.domain.model.DebtTitle;
 import br.com.gestorcobranca.debt.domain.model.Debtor;
+import br.com.gestorcobranca.debt.domain.model.OriginContract;
 import br.com.gestorcobranca.debt.domain.model.ObligationParty;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorRepository;
 import br.com.gestorcobranca.debt.domain.repository.ObligationPartyRepository;
 import br.com.gestorcobranca.debt.domain.repository.OriginContractRepository;
+import br.com.gestorcobranca.shared.crypto.ExternalIdDigest;
+import br.com.gestorcobranca.shared.crypto.ExternalIdDigest.Kind;
 import br.com.gestorcobranca.shared.domain.Document;
 import br.com.gestorcobranca.shared.security.AccessScope;
+import br.com.gestorcobranca.shared.security.CurrentActor;
 import br.com.gestorcobranca.shared.security.Permission;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -35,11 +38,18 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
     private final AccessScope accessScope;
     private final ErasedSubjects erasedSubjects;
     private final ObligationPartyRepository parties;
+    private final ExternalIdLookup lookup;
+    private final ExternalIdDigest digest;
+    private final CurrentActor currentActor;
 
     AnonymizedSubjectQueryService(DebtorRepository debtors, DebtTitleRepository titles,
                                   OriginContractRepository contracts, AccessScope accessScope,
-                                  ErasedSubjects erasedSubjects, ObligationPartyRepository parties) {
+                                  ErasedSubjects erasedSubjects, ObligationPartyRepository parties,
+                                  ExternalIdLookup lookup, ExternalIdDigest digest, CurrentActor currentActor) {
         this.parties = parties;
+        this.lookup = lookup;
+        this.digest = digest;
+        this.currentActor = currentActor;
         this.debtors = debtors;
         this.titles = titles;
         this.contracts = contracts;
@@ -65,8 +75,8 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
             return List.of();
         }
         return titles.findByDebtor(debtorId, null).stream()
-                .map(t -> new TitleReference(t.getCreditorId(), t.getPortfolioId(), t.getExternalId(),
-                        display(t.getExternalId()), t.getInstallmentNumber()))
+                .map(t -> new TitleReference(t.getCreditorId(), t.getPortfolioId(), titleKey(t), display(t),
+                        t.getInstallmentNumber()))
                 .toList();
     }
 
@@ -84,7 +94,7 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
         }
         return contracts.findAllByIdIn(contractIds).stream()
                 .filter(c -> !debtorId.equals(c.getDebtorId()))
-                .map(c -> new ContractReference(c.getCreditorId(), c.getPortfolioId(), display(c.getExternalId())))
+                .map(c -> new ContractReference(c.getCreditorId(), c.getPortfolioId(), display(c)))
                 .toList();
     }
 
@@ -93,14 +103,25 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
                                          Collection<String> contractExternalIds) {
         accessScope.requirePermission(Permission.IMPORT_EXECUTE);
         accessScope.requireCreditor(creditorId);
-        // como a carga: identificador sem espaços nas pontas, nulos e vazios fora
-        Set<String> titleKeys = normalized(titleExternalIds);
-        Set<String> contractKeys = normalized(contractExternalIds);
-        Set<String> anonymizedTitles = titleKeys.isEmpty() ? Set.of()
-                : Set.copyOf(titles.findExternalIdsOfAnonymizedDebtors(creditorId, titleKeys));
-        Set<String> anonymizedContracts = contractKeys.isEmpty() ? Set.of()
-                : Set.copyOf(contracts.findExternalIdsOfAnonymizedDebtors(creditorId, contractKeys));
-        return new AnonymizedKeys(anonymizedTitles, anonymizedContracts);
+        // como a carga: identificador sem espaços nas pontas, nulos e vazios fora; pelas duas formas gravadas (1476)
+        return new AnonymizedKeys(lookup.anonymizedTitleKeys(creditorId, titleExternalIds),
+                lookup.anonymizedContractKeys(creditorId, contractExternalIds));
+    }
+
+    /** Chave HMAC do título: a da forma já trocada, ou calculada do identificador ainda cru. */
+    private String titleKey(DebtTitle t) {
+        String sealed = ExternalIdDigest.keyOfAnonymized(t.getExternalId());
+        return sealed != null ? sealed
+                : digest.key(currentActor.tenantId(), Kind.TITLE, t.getCreditorId(), t.getExternalId());
+    }
+
+    /** Forma mascarada: a guardada na troca (decisão 1476) ou calculada do identificador ainda cru. */
+    private static String display(DebtTitle t) {
+        return ExternalIdDigest.isAnonymized(t.getExternalId()) ? t.displayExternalId() : display(t.getExternalId());
+    }
+
+    private static String display(OriginContract c) {
+        return ExternalIdDigest.isAnonymized(c.getExternalId()) ? c.displayExternalId() : display(c.getExternalId());
     }
 
     /** Referência para exibição a terceiros: documento mascarado e sem caracteres de controle (vai para texto copiado). */
@@ -113,20 +134,6 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
                                          Collection<String> contractExternalIds) {
         accessScope.requirePermission(Permission.IMPORT_EXECUTE);
         accessScope.requireCreditor(creditorId);
-        Set<String> titleKeys = normalized(titleExternalIds);
-        Set<String> contractKeys = normalized(contractExternalIds);
-        Set<UUID> debtorIds = new java.util.LinkedHashSet<>();
-        if (!titleKeys.isEmpty()) {
-            debtorIds.addAll(titles.findAnonymizedDebtorIds(creditorId, titleKeys));
-        }
-        if (!contractKeys.isEmpty()) {
-            debtorIds.addAll(contracts.findAnonymizedDebtorIds(creditorId, contractKeys));
-        }
-        return debtorIds;
-    }
-
-    private static Set<String> normalized(Collection<String> ids) {
-        return ids == null ? Set.of() : ids.stream().filter(Objects::nonNull).map(String::trim)
-                .filter(s -> !s.isEmpty()).collect(Collectors.toSet());
+        return lookup.anonymizedDebtorIds(creditorId, titleExternalIds, contractExternalIds);
     }
 }

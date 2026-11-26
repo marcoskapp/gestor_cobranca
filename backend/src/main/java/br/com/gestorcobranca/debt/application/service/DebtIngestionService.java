@@ -34,6 +34,7 @@ import br.com.gestorcobranca.debt.domain.service.TitleLedger.Posting;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases.PortfolioView;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
+import br.com.gestorcobranca.shared.crypto.ExternalIdDigest;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.Guard;
@@ -117,6 +118,7 @@ class DebtIngestionService implements DebtIngestionPort {
     private final AmountDivergenceRecorder divergenceRecorder;
     private final Clock clock;
     private final DebtorContactRepository contacts;
+    private final ExternalIdLookup externalIds;
 
     DebtIngestionService(DebtorRepository debtors, DebtTitleRepository titles, OriginContractRepository contracts,
                          TitleLedgerEntryRepository ledger, TitleBalanceSnapshotRepository snapshots,
@@ -128,8 +130,10 @@ class DebtIngestionService implements DebtIngestionPort {
                          PrescriptionRecalculator prescriptions, PortfolioUseCases portfolios,
                          AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
                          BusinessEventLogger businessEvents, ApplicationEventPublisher events,
-                         AmountDivergenceRecorder divergenceRecorder, Clock clock, DebtorContactRepository contacts) {
+                         AmountDivergenceRecorder divergenceRecorder, Clock clock, DebtorContactRepository contacts,
+                         ExternalIdLookup externalIds) {
         this.contacts = contacts;
+        this.externalIds = externalIds;
         this.debtors = debtors;
         this.titles = titles;
         this.contracts = contracts;
@@ -188,7 +192,7 @@ class DebtIngestionService implements DebtIngestionPort {
         Money principal = Money.of(record.principalAmount());
         String externalId = record.externalId() == null ? null : record.externalId().trim();
         Optional<DebtTitle> existing = externalId == null ? Optional.empty()
-                : titles.findByCreditorIdAndExternalIdForUpdate(record.creditorId(), externalId);
+                : externalIds.titleForUpdate(record.creditorId(), externalId);
 
         List<String> warnings = new ArrayList<>();
         Outcome outcome;
@@ -335,7 +339,7 @@ class DebtIngestionService implements DebtIngestionPort {
         Money original = c.originalAmount() == null ? null : Money.of(c.originalAmount());
         String externalId = c.externalId() == null ? null : c.externalId().trim();
         Optional<OriginContract> existing = externalId == null ? Optional.empty()
-                : contracts.findByCreditorIdAndExternalId(record.creditorId(), externalId);
+                : externalIds.contract(record.creditorId(), externalId);
         if (existing.isEmpty()) {
             OriginContract created = contracts.save(new OriginContract(record.creditorId(), record.portfolioId(),
                     debtor.getId(), c.externalId(), c.product(), c.signedAt(), original));
@@ -496,6 +500,11 @@ class DebtIngestionService implements DebtIngestionPort {
         }
         Set<String> requested = titleExternalIds.stream().filter(id -> id != null && !id.isBlank()).map(String::trim)
                 .collect(Collectors.toSet());
+        // o prefixo reservado nunca alcança o título trocado (decisão 1476): fica como "não encontrado"
+        if (requested.stream().anyMatch(ExternalIdDigest::isReserved)) {
+            throw new BusinessRuleException("collateral.title_not_found",
+                    "Título coberto pela garantia não encontrado no credor");
+        }
         Map<String, DebtTitle> found = titles.findByCreditorIdAndExternalIdIn(contract.getCreditorId(), requested).stream()
                 .collect(Collectors.toMap(DebtTitle::getExternalId, Function.identity()));
         if (!found.keySet().containsAll(requested)) {

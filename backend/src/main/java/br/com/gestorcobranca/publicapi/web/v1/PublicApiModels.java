@@ -99,7 +99,8 @@ final class PublicApiModels {
 
     @Schema(name = "Title", description = "Título (dívida) do credor")
     record TitleDto(UUID id, UUID portfolioId, UUID debtorId,
-                    @Schema(description = "Identificador do título no credor (id_titulo da carga)") String externalId,
+                    @Schema(description = "Identificador do título no credor (id_titulo da carga); mascarado (ex.: ***982247**-001) "
+                            + "quando traz o CPF/CNPJ de titular cujos dados foram eliminados") String externalId,
                     Integer installmentNumber, LocalDate dueDate, BigDecimal principalAmount, BigDecimal openBalance,
                     BigDecimal paidTotal,
                     @Schema(allowableValues = {"OPEN", "SETTLED", "CANCELLED", "SUSPENDED", "RETURNED"}) String status,

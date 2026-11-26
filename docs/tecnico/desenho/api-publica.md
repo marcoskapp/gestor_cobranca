@@ -211,7 +211,7 @@ Todos sob `/public-api/v1`, JSON, token obrigatório, escopo indicado. Listas us
 | `POST /imports/{id}/cancel` | `imports:write` | `cancel` |
 | `POST /imports/pdf` (PDF multipart, Idempotency-Key) | `imports:write` | `PdfImportUseCases.upload` (canal `PUBLIC_API`, chave isolada por token): a importação fica **aguardando validação humana** na tela; nunca é importada pela API |
 | `GET /imports/pdf/{id}` | `imports:read` | `PdfImportUseCases.get` (situação e resumo, sem dados do devedor) |
-| `GET /titles`, `/titles/{id}`, `/titles/by-external-id/{externalId}` (ETag) | `titles:read` | `DebtTitleUseCases.changes/get/findByExternalId` |
+| `GET /titles`, `/titles/{id}`, `/titles/by-external-id/{externalId}` (ETag) | `titles:read` | `DebtTitleUseCases.changes/get/findByExternalId`; título de titular eliminado com o identificador trocado (decisão 1476): `externalId` mascarado e a troca na sincronização; `by-external-id` não o acha (404), nem pelo prefixo reservado `anon:` (decisões 1610 e 1611) |
 | `POST /titles/{id}/suspend` · `/reactivate` · `/cancel` · `/return` (If-Match) | `titles:write` | `DebtTitleUseCases.suspend/reactivate/cancel/returnToCreditor` |
 | `POST /debtors/search` (documento no corpo), `GET /debtors/{id}`, `/debtors/{id}/contacts` | `debtors:read` | `DebtorUseCases.findByDocument/get`, `DebtorContactUseCases.list` |
 | `GET /debtors/{id}/titles` | `titles:read` | `DebtTitleUseCases.listByDebtor` (filtrado pelo credor) |

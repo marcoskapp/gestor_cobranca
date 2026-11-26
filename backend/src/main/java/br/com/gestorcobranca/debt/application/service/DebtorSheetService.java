@@ -81,7 +81,7 @@ class DebtorSheetService implements DebtorSheetQueries {
                     creditorOpen = creditorOpen.plus(t.getOpenBalance());
                     creditorMaxOverdue = Math.max(creditorMaxOverdue, overdue);
                 }
-                summaries.add(new TitleSummary(t.getId(), t.getPortfolioId(), t.getExternalId(), t.getInstallmentNumber(),
+                summaries.add(new TitleSummary(t.getId(), t.getPortfolioId(), t.displayExternalId(), t.getInstallmentNumber(),
                         t.getDueDate(), t.getPrincipalAmount().amount(), t.getOpenBalance().amount(), t.getStatus().name(),
                         t.isDisputeBlocked(), overdue, t.getCreditorPaidTotal().amount()));
             }
@@ -118,7 +118,7 @@ class DebtorSheetService implements DebtorSheetQueries {
                     maxOverdue = Math.max(maxOverdue, t.daysOverdue(today));
                 }
             }
-            summaries.add(new CoObligationSummary(contract.getId(), contract.getCreditorId(), contract.getExternalId(),
+            summaries.add(new CoObligationSummary(contract.getId(), contract.getCreditorId(), contract.displayExternalId(),
                     p.getRole().name(), p.getSinceDate(), contract.getDebtorId(), open.amount(), maxOverdue,
                     contractTitles.size()));
         }

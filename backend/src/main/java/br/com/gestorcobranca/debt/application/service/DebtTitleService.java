@@ -18,6 +18,7 @@ import br.com.gestorcobranca.debt.domain.repository.TitleSearchCriteria;
 import br.com.gestorcobranca.debt.domain.service.TitleBalance;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases.PortfolioView;
+import br.com.gestorcobranca.shared.crypto.ExternalIdDigest;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
@@ -189,11 +190,14 @@ class DebtTitleService implements DebtTitleUseCases {
     @Override
     @Transactional(readOnly = true)
     public java.util.Optional<TitleView> findByExternalId(UUID creditorId, String externalId) {
-        if (creditorId == null || externalId == null || externalId.isBlank()
+        // só o identificador cru: o título trocado na anonimização não é achado (nem pelo cru nem pela forma
+        // anonimizada, cujo prefixo é reservado — decisões 1476 e 1611)
+        String canonical = ExternalIdDigest.canonical(externalId);
+        if (creditorId == null || canonical == null || ExternalIdDigest.isReserved(canonical)
                 || !accessScope.canAccessCreditor(creditorId)) {
             return java.util.Optional.empty();
         }
-        return titles.findByCreditorIdAndExternalIdIn(creditorId, List.of(externalId.strip())).stream().findFirst()
+        return titles.findByCreditorIdAndExternalIdIn(creditorId, List.of(canonical)).stream().findFirst()
                 .map(this::view);
     }
 

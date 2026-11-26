@@ -127,6 +127,18 @@ interface DebtorJpaRepository extends JpaRepository<Debtor, UUID>, JpaSpecificat
     }
 
     @Override
+    default List<UUID> findAnonymizedIdsAfter(UUID afterId, int limit) {
+        return anonymizedIdsAfter(afterId == null ? FIRST_ID : afterId, Limit.of(limit));
+    }
+
+    @Query("""
+            select d.id from Debtor d
+             where d.status = br.com.gestorcobranca.debt.domain.model.DebtorStatus.ANONYMIZED and d.id > :afterId
+             order by d.id
+            """)
+    List<UUID> anonymizedIdsAfter(UUID afterId, Limit limit);
+
+    @Override
     default List<Debtor> findCompaniesWithoutDocumentRoot(int limit) {
         return findByPersonTypeAndStatusAndDocumentRootHashIsNullOrderByIdAsc(
                 br.com.gestorcobranca.debt.domain.model.PersonType.COMPANY,

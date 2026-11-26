@@ -176,7 +176,7 @@ class IngestionAnonymizer {
         }
         Map<UUID, List<String>> titlesByCreditor = anonymizedSubjects.referencesOf(debtorId).stream()
                 .collect(Collectors.groupingBy(TitleReference::creditorId, LinkedHashMap::new,
-                        Collectors.mapping(TitleReference::externalId, Collectors.toList())));
+                        Collectors.mapping(TitleReference::titleKey, Collectors.toList())));
         titlesByCreditor.forEach((creditorId, ids) -> {
             List<String> distinct = ids.stream().distinct().toList();
             for (int from = 0; from < distinct.size(); from += TITLE_CHUNK) {

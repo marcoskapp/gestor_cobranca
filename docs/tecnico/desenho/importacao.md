@@ -363,7 +363,15 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
 - **Registro** `ingestion.import_subject_block` (V2305, append-only): efeito, conferência fechada, aviso ao credor do
   compliance (`CreditorErasureNoticeStatusQueries#noticeFor`, porta mínima; nulo se o credor do lote não tem título
   conservado do titular; `on delete set null`), quantidade de linhas e até 500 linhas (`import_subject_block_line`: número, referência
-  mascarada por `Document.maskIfDocument` sem caracteres de controle, `DEBTOR` ou `TITLE_REFERENCE`). Base do pedido de
+  mascarada por `Document.maskIfDocument` sem caracteres de controle, `DEBTOR` ou `TITLE_REFERENCE`). A busca pelo
+  título compara a **chave HMAC da linha** (`import_batch_row.title_key`, V2309, gravada na inclusão por
+  `ImportRowTitleKeys` com `shared.crypto.ExternalIdDigest`) com a `titleKey` das referências do debt, porque o
+  identificador com CPF/CNPJ do título passa a `anon:` na anonimização (decisão 1476). A linha continua imutável: o
+  gatilho só aceita preencher a chave nula, o que o job `ingestion.row-title-key-backfill` (enfileirado pela V2309) faz
+  nas linhas anteriores (cursor de id). Toda linha nova exige a chave (`ck_import_batch_row_title_key_present`,
+  `not valid` para as anteriores; validar depois do preenchimento). O identificador cru da linha fica com o D01k
+  (decisão 1610). Prefixo `anon:` reservado (`row.external_id_reserved`, `row.contract_number_reserved`) e caractere de
+  controle recusado (`row.external_id_invalid`, `row.contract_number_invalid`; decisão 1622). Base do pedido de
   novo arquivo ao credor (fatia 5). Retenção: enquanto o lote existir (decisão 1494).
 - **Arquivo**: sai na hora (conferência já cancelada); lote em processamento → pendente e job de uso único
   `ingestion.pending-erasure` enfileirado no encerramento do lote bloqueado (a falha sobe e a fila tenta de novo; o job

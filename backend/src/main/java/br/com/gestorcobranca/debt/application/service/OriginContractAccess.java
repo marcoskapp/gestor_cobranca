@@ -2,11 +2,13 @@ package br.com.gestorcobranca.debt.application.service;
 
 import br.com.gestorcobranca.debt.domain.model.OriginContract;
 import br.com.gestorcobranca.debt.domain.repository.OriginContractRepository;
+import br.com.gestorcobranca.shared.crypto.ExternalIdDigest;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.UUID;
 
 /** Carga de contratos de origem com escopo por credor (404 na leitura, 403 em comandos). */
@@ -51,7 +53,12 @@ class OriginContractAccess {
         Guard.require(contractExternalId != null && !contractExternalId.isBlank(), "origin_contract.external_id_required",
                 "Identificador do contrato obrigatório");
         accessScope.requireCreditor(creditorId);
-        return contracts.findByCreditorIdAndExternalId(creditorId, contractExternalId.trim())
-                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, contractExternalId.trim()));
+        String externalId = contractExternalId.trim();
+        // só o identificador cru (decisão 1476): o prefixo reservado nunca alcança o contrato trocado
+        if (ExternalIdDigest.isReserved(externalId)) {
+            throw new ResourceNotFoundException(RESOURCE, externalId);
+        }
+        return contracts.findByCreditorIdAndExternalIdIn(creditorId, List.of(externalId)).stream().findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE, externalId));
     }
 }

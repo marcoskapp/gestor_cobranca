@@ -9,6 +9,8 @@ import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
@@ -376,6 +378,42 @@ class ArchitectureTest {
                 .should().callMethod(ROOT + ".debt.application.port.in.AnonymizedSubjectQueries", "erasedSubjectsAmong",
                         "java.util.UUID", "java.util.UUID", "java.util.Map")
                 .because("só a recusa por bloco da carga consulta documentos em lote (SEG-20261126-E06)")
+                .check(classes);
+    }
+
+    /**
+     * Identificador do título e do contrato trocado na anonimização (decisão 1476): só o {@code ExternalIdAnonymizer}
+     * troca; tela e view nunca leem o valor gravado (pode ser {@code anon:}); a chave HMAC só é calculada pelo debt e pela
+     * gravação das linhas da carga.
+     */
+    @Test
+    void anonymizedExternalIdsHaveOneWriterAndAreNeverShown() {
+        String anonymizer = ROOT + ".debt.application.service.ExternalIdAnonymizer";
+        for (String entity : List.of(ROOT + ".debt.domain.model.DebtTitle", ROOT + ".debt.domain.model.OriginContract")) {
+            noClasses().that().doNotHaveFullyQualifiedName(anonymizer)
+                    .should().callMethod(entity, "anonymizeExternalId", "java.lang.String", "java.lang.String")
+                    .because("a troca do identificador acontece só na anonimização e no preenchimento (decisão 1476)")
+                    .check(classes);
+            // lista de quem pode ler o valor gravado (busca, troca, referências conservadas e auditoria da criação):
+            // qualquer outro leitor (tela, view, exportação, texto) usa displayExternalId()
+            noClasses().that().doNotHaveFullyQualifiedName(ROOT + ".debt.application.service.ExternalIdLookup")
+                    .and().doNotHaveFullyQualifiedName(anonymizer)
+                    .and().doNotHaveFullyQualifiedName(ROOT + ".debt.application.service.AnonymizedSubjectQueryService")
+                    .and().doNotHaveFullyQualifiedName(ROOT + ".debt.application.service.DebtIngestionService")
+                    .should().callMethod(entity, "getExternalId")
+                    .because("telas e views mostram displayExternalId(): o valor gravado pode ser anon: (decisão 1476)")
+                    .check(classes);
+        }
+        noClasses().that().resideOutsideOfPackages(ROOT + ".debt..", ROOT + ".shared..")
+                .and().doNotHaveFullyQualifiedName(ROOT + ".ingestion.application.service.ImportRowTitleKeys")
+                .and().doNotHaveFullyQualifiedName(ROOT + ".ingestion.application.service.RowTitleKeyBackfillJob")
+                .should().callMethod(ROOT + ".shared.crypto.ExternalIdDigest", "key", "java.util.UUID",
+                        ROOT + ".shared.crypto.ExternalIdDigest$Kind", "java.util.UUID", "java.lang.String")
+                .orShould().callMethod(ROOT + ".shared.crypto.ExternalIdDigest", "anonymized", "java.util.UUID",
+                        ROOT + ".shared.crypto.ExternalIdDigest$Kind", "java.util.UUID", "java.lang.String")
+                .orShould().callMethod(ROOT + ".shared.crypto.ExternalIdDigest", "candidates", "java.util.UUID",
+                        ROOT + ".shared.crypto.ExternalIdDigest$Kind", "java.util.UUID", "java.lang.String")
+                .because("a chave HMAC do identificador fica no debt e na gravação das linhas da carga (decisão 1476)")
                 .check(classes);
     }
 

@@ -21,12 +21,16 @@ public interface OriginContractRepository {
     /** Devedores anonimizados donos destes identificadores no credor. */
     List<UUID> findAnonymizedDebtorIds(UUID creditorId, Collection<String> externalIds);
 
-    Optional<OriginContract> findByCreditorIdAndExternalId(UUID creditorId, String externalId);
+    /** Contrato do credor sob qualquer das formas gravadas do identificador (crua e anonimizada, decisão 1476). */
+    List<OriginContract> findByCreditorIdAndExternalIdIn(UUID creditorId, Collection<String> storedExternalIds);
 
     /** Lock pessimista: serializa a reclassificação e o recálculo de prescrição do contrato. */
     Optional<OriginContract> findByIdForUpdate(UUID id);
 
     List<OriginContract> findAllByIdIn(Collection<UUID> ids);
+
+    /** Ids dos contratos de que o devedor é o devedor principal, em ordem de id (sem carregar a entidade). */
+    List<UUID> findIdsByDebtorId(UUID debtorId);
 
     /** Contratos em que o devedor é o devedor principal. */
     List<OriginContract> findByDebtorId(UUID debtorId);

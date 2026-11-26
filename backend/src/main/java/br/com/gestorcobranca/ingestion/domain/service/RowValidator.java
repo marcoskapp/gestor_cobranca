@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.ingestion.domain.service;
 
+import br.com.gestorcobranca.shared.crypto.ExternalIdDigest;
 import br.com.gestorcobranca.ingestion.domain.model.CanonicalField;
 import br.com.gestorcobranca.ingestion.domain.model.ParsedRow;
 import br.com.gestorcobranca.ingestion.domain.model.ParsedRow.ContactKind;
@@ -47,6 +48,8 @@ public final class RowValidator {
 
     static final int NAME_MAX = 200;
     static final int EXTERNAL_ID_MAX = 80;
+    /** O prefixo da forma anonimizada é reservado (decisão 1476); a mensagem não fala de anonimização. */
+    private static final String RESERVED_MESSAGE = "%s não pode começar com \"" + ExternalIdDigest.PREFIX + "\"";
     static final int PRODUCT_MAX = 120;
     private static final LocalDate MIN_BIRTH_DATE = LocalDate.of(1900, 1, 1);
     private static final Set<String> STATES = Set.of("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT",
@@ -138,6 +141,10 @@ public final class RowValidator {
         if (externalId != null && externalId.length() > EXTERNAL_ID_MAX) {
             ctx.error(TITLE_EXTERNAL_ID, "row.external_id_too_long",
                     "Identificador do título deve ter até %d caracteres".formatted(EXTERNAL_ID_MAX));
+        } else if (ExternalIdDigest.hasControl(externalId)) {
+            ctx.error(TITLE_EXTERNAL_ID, "row.external_id_invalid", "Identificador do título com caractere inválido");
+        } else if (ExternalIdDigest.isReserved(externalId)) {
+            ctx.error(TITLE_EXTERNAL_ID, "row.external_id_reserved", RESERVED_MESSAGE.formatted("Identificador do título"));
         } else if (externalId != null && duplicateOfRow != null) {
             ctx.error(TITLE_EXTERNAL_ID, "row.duplicate_title",
                     "Título repetido no arquivo (primeira ocorrência na linha %d)".formatted(duplicateOfRow));
@@ -634,6 +641,10 @@ public final class RowValidator {
         if (number.get().length() > EXTERNAL_ID_MAX) {
             ctx.error(CONTRACT_NUMBER, "row.contract_number_too_long",
                     "Número do contrato deve ter até %d caracteres".formatted(EXTERNAL_ID_MAX));
+        } else if (ExternalIdDigest.hasControl(number.get())) {
+            ctx.error(CONTRACT_NUMBER, "row.contract_number_invalid", "Número do contrato com caractere inválido");
+        } else if (ExternalIdDigest.isReserved(number.get())) {
+            ctx.error(CONTRACT_NUMBER, "row.contract_number_reserved", RESERVED_MESSAGE.formatted("Número do contrato"));
         }
         String product = s.get(PRODUCT).orElse(null);
         if (product != null && product.length() > PRODUCT_MAX) {

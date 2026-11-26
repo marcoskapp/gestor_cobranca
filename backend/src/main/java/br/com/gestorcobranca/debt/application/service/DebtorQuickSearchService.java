@@ -8,6 +8,7 @@ import br.com.gestorcobranca.debt.domain.repository.DebtorContactRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorRepository;
 import br.com.gestorcobranca.debt.domain.repository.ObligationPartyRepository;
 import br.com.gestorcobranca.debt.domain.service.QuickSearchTerm;
+import br.com.gestorcobranca.shared.crypto.ExternalIdDigest;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
@@ -100,7 +101,9 @@ class DebtorQuickSearchService implements DebtorQuickSearch {
             more |= ids.size() > CANDIDATES;
             ids.stream().limit(CANDIDATES).forEach(id -> found.putIfAbsent(id, PHONE));
         }
-        if (term.titleCode().isPresent()) {
+        // o código com o prefixo reservado nunca alcança o título trocado na anonimização (decisões 1476 e 1611)
+        if (term.titleCode().isPresent()
+                && !ExternalIdDigest.isReserved(term.titleCode().get())) {
             criteria.add(TITLE_CODE);
             List<UUID> ids = titles.findDebtorIdsByExternalId(term.titleCode().get(), visibility.allowedCreditors(),
                     CANDIDATES + 1);

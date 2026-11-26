@@ -29,7 +29,14 @@ public interface DebtTitleRepository {
     /** Lock pessimista em lote, sempre na ordem do id (evita deadlock entre operações em lote). */
     List<DebtTitle> findAllByIdInForUpdate(Collection<UUID> ids);
 
-    Optional<DebtTitle> findByCreditorIdAndExternalIdForUpdate(UUID creditorId, String externalId);
+    /**
+     * Título do credor sob qualquer das formas gravadas do identificador (a crua e a anonimizada, decisão 1476), com
+     * trava: a reavaliação da trava depois da troca simultânea ainda casa a forma anonimizada.
+     */
+    List<DebtTitle> findByCreditorIdAndExternalIdInForUpdate(UUID creditorId, Collection<String> storedExternalIds);
+
+    /** Ids dos títulos do devedor, em ordem de id (sem carregar a entidade). */
+    List<UUID> findIdsByDebtorId(UUID debtorId);
 
     /** @param allowedCreditorIds {@code null} = sem restrição */
     List<DebtTitle> findByDebtor(UUID debtorId, Collection<UUID> allowedCreditorIds);
@@ -41,7 +48,7 @@ public interface DebtTitleRepository {
     /** Devedor tem títulos ainda em cobrança (abertos ou suspensos). */
     boolean existsOpenByDebtorId(UUID debtorId);
 
-    /** Dentre os identificadores informados, os de títulos do credor cujo devedor está anonimizado. */
+    /** Dentre os valores gravados informados (crus ou anonimizados), os de títulos do credor com o devedor anonimizado. */
     List<String> findExternalIdsOfAnonymizedDebtors(UUID creditorId, Collection<String> externalIds);
 
     /** Devedores anonimizados donos destes identificadores no credor. */

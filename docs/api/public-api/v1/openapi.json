@@ -1872,7 +1872,7 @@
             "type" : "string"
           },
           "externalId" : {
-            "description" : "Identificador do título no credor (id_titulo da carga)",
+            "description" : "Identificador do título no credor (id_titulo da carga); mascarado (ex.: ***982247**-001) quando traz o CPF/CNPJ de titular cujos dados foram eliminados",
             "type" : "string"
           },
           "id" : {

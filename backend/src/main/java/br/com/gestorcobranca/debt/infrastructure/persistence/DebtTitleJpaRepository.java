@@ -46,8 +46,12 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
 
     @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select t from DebtTitle t where t.creditorId = :creditorId and t.externalId = :externalId")
-    Optional<DebtTitle> findByCreditorIdAndExternalIdForUpdate(UUID creditorId, String externalId);
+    @Query("select t from DebtTitle t where t.creditorId = :creditorId and t.externalId in :storedExternalIds order by t.id")
+    List<DebtTitle> findByCreditorIdAndExternalIdInForUpdate(UUID creditorId, Collection<String> storedExternalIds);
+
+    @Override
+    @Query("select t.id from DebtTitle t where t.debtorId = :debtorId order by t.id")
+    List<UUID> findIdsByDebtorId(UUID debtorId);
 
     @Override
     default List<DebtTitle> findByDebtor(UUID debtorId, Collection<UUID> allowedCreditorIds) {

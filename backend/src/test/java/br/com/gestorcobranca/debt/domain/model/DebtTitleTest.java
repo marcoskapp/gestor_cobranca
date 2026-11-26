@@ -171,4 +171,32 @@ class DebtTitleTest {
         assertThat(t.getOpenBalance()).isEqualTo(Money.of("50.00"));
         assertThat(t.getStatusReason()).isEqualTo(DebtTitle.ERASED_HOLDER_REASON);
     }
+
+    @Test
+    void reservedPrefixIsRejectedAndAnonymizationHappensOnce() {
+        assertThatThrownBy(() -> new DebtTitle(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null, " Anon:1 ", 1,
+                LocalDate.of(2026, 1, 10), Money.of("10.00"), UUID.randomUUID()))
+                .hasFieldOrPropertyWithValue("code", "title.external_id_reserved");
+        DebtTitle t = title("10.00", LocalDate.of(2026, 1, 10));
+        String anon = "anon:" + "a".repeat(64);
+        assertThatThrownBy(() -> t.anonymizeExternalId("anon:xyz", "CTR-1/01"))
+                .hasFieldOrPropertyWithValue("code", "title.external_id_anonymized_invalid");
+        assertThat(t.anonymizeExternalId(anon, "***982247**-001")).isTrue();
+        assertThat(t.getExternalId()).isEqualTo(anon);
+        assertThat(t.displayExternalId()).isEqualTo("***982247**-001");
+        assertThat(t.anonymizeExternalId("anon:" + "b".repeat(64), "outro")).isFalse();
+        assertThat(t.getExternalId()).isEqualTo(anon);
+    }
+
+    @Test
+    void controlCharacterInTheIdentifierIsRejectedAndContractAnonymizesOnce() {
+        assertThatThrownBy(() -> new DebtTitle(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null, "\u0001", 1,
+                LocalDate.of(2026, 1, 10), Money.of("10.00"), UUID.randomUUID()))
+                .hasFieldOrPropertyWithValue("code", "title.external_id_invalid");
+        OriginContract c = new OriginContract(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "C-1", null, null,
+                null);
+        assertThat(c.anonymizeExternalId("anon:" + "c".repeat(64), "C-1")).isTrue();
+        assertThat(c.displayExternalId()).isEqualTo("C-1");
+        assertThat(c.anonymizeExternalId("anon:" + "d".repeat(64), "C-1")).isFalse();
+    }
 }

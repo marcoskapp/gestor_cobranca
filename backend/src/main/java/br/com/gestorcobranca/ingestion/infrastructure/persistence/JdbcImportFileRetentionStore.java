@@ -117,20 +117,50 @@ class JdbcImportFileRetentionStore implements ImportFileRetentionStore {
                 """, new MapSqlParameterSource("debtorId", debtorId), SUBJECT_ROW);
     }
 
-    /** Índice: {@code ix_import_batch_row_by_external_id} (V2305). */
+    /** Índice: {@code ix_import_batch_row_title_key} (V2309). */
     @Override
-    public List<SubjectRow> rowsOfTitles(UUID creditorId, Collection<String> externalIds) {
-        if (externalIds.isEmpty()) {
+    public List<SubjectRow> rowsOfTitles(UUID creditorId, Collection<String> titleKeys) {
+        if (titleKeys.isEmpty()) {
             return List.of();
         }
         return jdbc.query("""
                 select r.batch_id, b.creditor_id, r.row_number, r.external_id, false as by_debtor
                   from ingestion.import_batch_row r
                   join ingestion.import_batch b on b.tenant_id = r.tenant_id and b.id = r.batch_id
-                 where r.tenant_id = shared.current_tenant_id() and r.external_id in (:ids)
+                 where r.tenant_id = shared.current_tenant_id() and r.title_key in (:keys)
                    and b.creditor_id = :creditorId
                  order by r.batch_id, r.row_number
-                """, new MapSqlParameterSource("ids", externalIds).addValue("creditorId", creditorId), SUBJECT_ROW);
+                """, new MapSqlParameterSource("keys", titleKeys).addValue("creditorId", creditorId), SUBJECT_ROW);
+    }
+
+    /** Índice: {@code ix_import_batch_row_title_key_pending} (V2309). */
+    @Override
+    public List<KeylessRow> rowsWithoutTitleKey(UUID afterId, int limit) {
+        return jdbc.query("""
+                select r.id, b.creditor_id, r.external_id
+                  from ingestion.import_batch_row r
+                  join ingestion.import_batch b on b.tenant_id = r.tenant_id and b.id = r.batch_id
+                 where r.tenant_id = shared.current_tenant_id() and r.title_key is null and r.id > :afterId
+                 order by r.id
+                 limit :limit
+                """, new MapSqlParameterSource("limit", limit)
+                        .addValue("afterId", afterId == null ? new UUID(0L, 0L) : afterId),
+                (rs, i) -> new KeylessRow(rs.getObject("id", UUID.class), rs.getObject("creditor_id", UUID.class),
+                        rs.getString("external_id")));
+    }
+
+    @Override
+    public int assignTitleKeys(java.util.Map<UUID, String> keysByRow) {
+        if (keysByRow.isEmpty()) {
+            return 0;
+        }
+        MapSqlParameterSource[] batch = keysByRow.entrySet().stream()
+                .map(e -> new MapSqlParameterSource("key", e.getValue()).addValue("id", e.getKey()))
+                .toArray(MapSqlParameterSource[]::new);
+        return java.util.Arrays.stream(jdbc.batchUpdate("""
+                update ingestion.import_batch_row set title_key = :key
+                 where tenant_id = shared.current_tenant_id() and id = :id and title_key is null
+                """, batch)).sum();
     }
 
     @Override

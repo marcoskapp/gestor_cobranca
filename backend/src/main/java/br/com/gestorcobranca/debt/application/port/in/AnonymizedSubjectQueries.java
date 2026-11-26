@@ -75,13 +75,14 @@ public interface AnonymizedSubjectQueries {
     /**
      * Título do credor conservado depois da anonimização do titular.
      *
-     * @param externalId        identificador do título no credor, como está no debt — só para casar com as cargas;
-     *                          pode ter o CPF do titular embutido: nunca gravar, exibir nem registrar em log fora do
-     *                          debt (use {@code displayReference}; o {@code toString} o omite)
-     * @param displayReference  o mesmo identificador para exibição, com CPF/CNPJ mascarado
+     * @param titleKey          chave HMAC (64 hex) do identificador no credor ({@code ExternalIdDigest#key}, título) —
+     *                          só para casar com as linhas das cargas ({@code import_batch_row.title_key}); o
+     *                          identificador cru nunca sai do debt (decisão 1476). Não exibir nem registrar em log
+     *                          (o {@code toString} a omite)
+     * @param displayReference  o identificador para exibição, com CPF/CNPJ mascarado (a forma guardada na troca)
      * @param installmentNumber parcela (nula se não houver)
      */
-    record TitleReference(UUID creditorId, UUID portfolioId, String externalId, String displayReference,
+    record TitleReference(UUID creditorId, UUID portfolioId, String titleKey, String displayReference,
                           Integer installmentNumber) {
 
         @Override

@@ -160,6 +160,7 @@ class ImportBatchProcessor {
     private final SubjectBlockRepository subjectBlocks;
     private final ImportFileRetentionStore retentionStore;
     private final CreditorErasureNoticeStatusQueries notices;
+    private final ImportRowTitleKeys titleKeys;
 
     ImportBatchProcessor(ImportBatchRepository batches, ImportBatchRowRepository rows, ImportRowIssueRepository issues,
                          ImportLayoutRepository layouts, ImportRecordReader reader, FileStorage fileStorage,
@@ -170,7 +171,9 @@ class ImportBatchProcessor {
                          ImportReviewRepository reviews, ImportReviewAlertRepository alerts, JobQueue jobQueue,
                          BlindIndex blindIndex, ReviewProperties reviewProperties,
                          AnonymizedSubjectQueries anonymizedSubjects, SubjectBlockRepository subjectBlocks,
-                         ImportFileRetentionStore retentionStore, CreditorErasureNoticeStatusQueries notices) {
+                         ImportFileRetentionStore retentionStore, CreditorErasureNoticeStatusQueries notices,
+                         ImportRowTitleKeys titleKeys) {
+        this.titleKeys = titleKeys;
         this.batches = batches;
         this.rows = rows;
         this.issues = issues;
@@ -769,7 +772,7 @@ class ImportBatchProcessor {
                 int room = Math.max(0, properties.maxIssuesPerBatch() - issuesRecorded - rowIssuesStored);
                 List<ImportRowIssue> stored = blockIssues.stream().limit(room)
                         .map(i -> new ImportRowIssue(batchId, i)).toList();
-                rows.saveAll(toRegister);
+                rows.saveAll(titleKeys.assign(target.creditorId(), toRegister));
                 issues.saveAll(stored);
                 rowValues.insertAll(batchId, values);
                 b.recordBlock(tally, expected, lastRow, rowIssuesStored + stored.size());

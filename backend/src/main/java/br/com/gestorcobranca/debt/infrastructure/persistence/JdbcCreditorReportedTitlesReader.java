@@ -81,7 +81,8 @@ class JdbcCreditorReportedTitlesReader implements CreditorReportedTitlesReader {
         }
         params.addValue("from", Timestamp.from(c.from())).addValue("until", Timestamp.from(c.until()));
         String columns = """
-                t.id as title_id, t.creditor_id, t.portfolio_id, t.debtor_id, t.external_id, t.installment_number,
+                t.id as title_id, t.creditor_id, t.portfolio_id, t.debtor_id,
+                coalesce(t.external_id_display, t.external_id) as external_id, t.installment_number,
                 t.status as title_status""";
         List<String> parts = new ArrayList<>();
         boolean any = c.situation() == null;

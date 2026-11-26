@@ -299,8 +299,24 @@ São a única referência que sobra dele no debt, e servem para três coisas (SE
 - **Referências do titular** (compliance e ingestion, na anonimização): `referencesOf(debtorId)` devolve os títulos do
   devedor anonimizado (vazio se não estiver), com `displayReference` mascarado por `Document.maskIfDocument` (CPF/CNPJ
   inteiro ou embutido, decisão 1472); exige `DATA_SUBJECT_REQUEST_MANAGE` e todos os credores (o sistema tem os dois).
-  O `externalId` cru só serve para casar com as cargas: nunca é gravado, exibido nem registrado em log fora do debt (o
-  `toString` do record o omite).
+  Em vez do identificador, o record leva a `titleKey` (chave HMAC, a mesma das linhas da carga): o identificador cru
+  nunca sai do debt (decisão 1476; o `toString` omite a chave).
+- **Identificador com CPF/CNPJ trocado na anonimização** (decisão 1476, decisões 1610–1621; `V0316`): no
+  `DebtorService#anonymize`, depois de gravar o devedor, o `ExternalIdAnonymizer` troca o `external_id` dos títulos e
+  dos contratos de que o titular é o devedor, quando traz documento (`Document.maskIfDocument` diferente do valor), por
+  `anon:` + HMAC (`shared.crypto.ExternalIdDigest`: assessoria, finalidade de título ou de contrato, credor e
+  identificador sem espaços nas pontas) e guarda a forma mascarada em `external_id_display` (até 1.440). O contrato de
+  outro devedor em que ele era coobrigado fica como está. Telas, views e textos usam `displayExternalId()`.
+  - **Banco:** o gatilho `debt.external_id_anonymize_only` aceita só a troca de ida (para `anon:<64 hex>`, com o devedor
+    anonimizado e a forma de exibição junto); `check` reserva o prefixo `anon:` e amarra a forma de exibição à troca.
+  - **Carga:** `ExternalIdLookup` compara sempre pelas duas formas (crua e anonimizada) no upsert do título (com
+    trava) e do contrato e nas consultas de anonimizados; o título trocado continua recusado e não volta com o
+    identificador cru. Quem só consulta (busca rápida, `by-external-id` da API pública, pagamento do credor por número
+    do título) busca pelo cru e não acha o título trocado (decisão 1611); o prefixo reservado devolve "não encontrado".
+  - **Anteriores à versão:** job `debt.external-id-anonymization`, enfileirado pela `V0316` uma vez por assessoria
+    (cursor por devedor anonimizado, idempotente, auditoria `debtor.external_ids_anonymized` só com quantidades).
+  - **Rotação da chave do índice cego:** exige manter a chave anterior só para verificação (o cru não existe mais;
+    `anon:<versão>:` reservado, decisão 1621, SEG-20261126-E10).
 
 ## 13. Titular eliminado a pedido não volta (SPI `ErasedSubjects`, decisão 1471)
 

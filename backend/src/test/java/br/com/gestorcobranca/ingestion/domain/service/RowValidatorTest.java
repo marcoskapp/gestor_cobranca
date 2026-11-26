@@ -268,4 +268,26 @@ class RowValidatorTest {
         assertThat(has(doc, "row.scientific_notation")).isTrue();
         assertThat(has(doc, "row.document_invalid")).isFalse();
     }
+
+    @Test
+    void reservedPrefixIsARowErrorWithoutTalkingAboutAnonymization() {
+        Map<CanonicalField, String> values = valid();
+        values.put(TITLE_EXTERNAL_ID, "anon:" + "0".repeat(64));
+        values.put(CONTRACT_NUMBER, " ANON:1");
+        RowValidation result = validator.validate(new SourceRow(2, values), null);
+        assertThat(result.valid()).isEmpty();
+        assertThat(result.errors()).extracting(RowIssue::code)
+                .contains("row.external_id_reserved", "row.contract_number_reserved");
+        assertThat(result.errors()).extracting(RowIssue::message).noneMatch(m -> m.toLowerCase().contains("anonimiz"));
+    }
+
+    @Test
+    void controlCharacterInTheIdentifiersIsARowError() {
+        Map<CanonicalField, String> values = valid();
+        values.put(TITLE_EXTERNAL_ID, "\u0001");
+        values.put(CONTRACT_NUMBER, "C\u0007-1");
+        RowValidation result = validator.validate(new SourceRow(2, values), null);
+        assertThat(result.errors()).extracting(RowIssue::code)
+                .contains("row.external_id_invalid", "row.contract_number_invalid");
+    }
 }

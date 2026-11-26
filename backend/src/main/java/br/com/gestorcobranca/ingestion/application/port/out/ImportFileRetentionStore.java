@@ -61,8 +61,25 @@ public interface ImportFileRetentionStore {
     /** Linhas de lotes que gravaram o devedor, em ordem de lote e linha. */
     List<SubjectRow> rowsOfDebtor(UUID debtorId);
 
-    /** Linhas de lotes do credor com estes identificadores de título (inclusive sem gravação: prévia, erro). */
-    List<SubjectRow> rowsOfTitles(UUID creditorId, Collection<String> externalIds);
+    /**
+     * Linhas de lotes do credor com estas chaves HMAC de título ({@code title_key}, decisão 1476), inclusive sem
+     * gravação: prévia, erro.
+     */
+    List<SubjectRow> rowsOfTitles(UUID creditorId, Collection<String> titleKeys);
+
+    /** Linha gravada antes da chave HMAC do título (V2309), para o preenchimento. */
+    record KeylessRow(UUID id, UUID creditorId, String externalId) {
+        @Override
+        public String toString() {
+            return "KeylessRow[id=" + id + ", creditorId=" + creditorId + "]";
+        }
+    }
+
+    /** Até {@code limit} linhas da assessoria sem a chave do título com id maior que {@code afterId}, em ordem de id. */
+    List<KeylessRow> rowsWithoutTitleKey(UUID afterId, int limit);
+
+    /** Preenche a chave das linhas (só as ainda sem chave); devolve quantas foram preenchidas. */
+    int assignTitleKeys(java.util.Map<UUID, String> keysByRow);
 
     /** Lotes que usam a chave do arquivo (prévia, importação, reprocessamento e nova conferência compartilham). */
     List<UUID> batchesWithFileKey(String fileKey);

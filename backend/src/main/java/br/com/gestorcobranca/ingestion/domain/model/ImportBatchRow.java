@@ -49,6 +49,14 @@ public class ImportBatchRow extends TenantScopedEntity {
     @Column(name = "title_suspended", nullable = false, updatable = false)
     private boolean titleSuspended;
 
+    /**
+     * Chave HMAC do identificador no credor ({@code ExternalIdDigest#key}, título; decisão 1476): a detecção nos
+     * arquivos na anonimização compara por ela, porque o identificador do título trocado não existe mais no debt.
+     * Atribuída antes de gravar ({@code ImportRowTitleKeys}).
+     */
+    @Column(name = "title_key", length = 64, updatable = false)
+    private String titleKey;
+
     protected ImportBatchRow() {
     }
 
@@ -119,6 +127,17 @@ public class ImportBatchRow extends TenantScopedEntity {
 
     public String getExternalId() {
         return externalId;
+    }
+
+    public String getTitleKey() {
+        return titleKey;
+    }
+
+    /** Chave HMAC do identificador (64 hex), uma vez, antes de gravar. */
+    public void assignTitleKey(String key) {
+        Guard.require(titleKey == null && key != null && key.matches("[0-9a-f]{64}"), "import_batch_row.title_key_invalid",
+                "Chave do título da linha inválida");
+        this.titleKey = key;
     }
 
     public long getRowNumber() {
