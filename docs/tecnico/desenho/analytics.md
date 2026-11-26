@@ -16,7 +16,7 @@ Escopo: M08, F11 (painel operacional básico) e F18 (relatórios de recuperaçã
 | --- | --- |
 | Funções auxiliares e snapshots | `db/migration/analytics/V1600__analytics_snapshots.sql` |
 | Views de contrato + funções de reconstrução | `db/migration/analytics/R__analytics_contract.sql` (repetível) |
-| Casos de uso | `application/port/in/AnalyticsQueries`, `AnalyticsExportUseCases`, `AnalyticsRefreshUseCases` |
+| Casos de uso | `application/port/in/AnalyticsQueries`, `AnalyticsExportUseCases`, `AnalyticsRefreshUseCases`; para o portal do credor, `application/port/in/creditor/CreditorIndicatorsQueries` (interface `analytics :: creditor`, §11) |
 | Fórmulas puras | `domain/service/Indicators`, `SpreadsheetSafety`; filtros `domain/model/ReportFilter`, `Dimension`, `Ratio` |
 | Escopo | `application/service/AnalyticsAccess` (credores via `AccessScope`; pessoas com a regra do incentive) |
 | Leitura | `infrastructure/persistence/JdbcAnalyticsReader` (+ `SqlWhere`), `JdbcSnapshotStore` |
@@ -44,7 +44,8 @@ Escopo: M08, F11 (painel operacional básico) e F18 (relatórios de recuperaçã
 | `src_proposal` | `negotiation.proposal` | `creditor_id`, `portfolio_id`, `team_id`, `channel`, `actor_type`, `actor_id`, `status`, `created_at` |
 | `src_agreement` | `negotiation.agreement` | `creditor_id`, `portfolio_id`, `case_id`, `team_id`, `channel`, `origin`, `closer_type`, `closer_id`, `status`, `formalized_at`, `ended_at`, `renegotiation_number`, `total_amount`, `negotiated_amount`, `discount_amount`, `installment_count` |
 | `src_installment` | `negotiation.agreement_installment` | `agreement_id`, `number`, `due_date`, `amount`, `paid_amount`, `status`, `paid_at` |
-| `src_receipt` | `settlement.receipt` | `kind`, `payment_id`, `agreement_id`, `creditor_id`, `portfolio_id`, `amount`, `days_past_due`, `paid_on`, `competence_date` |
+| `src_break_suspension` | `negotiation.agreement_break_suspension` | `agreement_id`, `status` (quebra suspensa por pagamento em análise; acordo "em dia" no portal do credor) |
+| `src_receipt` | `settlement.receipt` | `kind`, `payment_id`, `agreement_id`, `creditor_id`, `portfolio_id`, `amount`, `days_past_due`, `paid_on`, `competence_date`, `received_by` |
 | `src_payment_instruction` | `payment.payment_instruction` | `creditor_id`, `type`, `status`, `failure_code`, `created_at`, `updated_at` |
 | `src_divergence` | `payment.divergence` | `creditor_id`, `type`, `status`, `amount`, `created_at`, `resolved_at` |
 | `src_statement_import`, `src_statement_line` | `payment.statement_import`, `payment.statement_line` | `creditor_id`, `status`, `failure_code`, `created_at`, `started_at`, `finished_at`, `total_lines`; `import_id`, `status`, `created_at` |
@@ -75,8 +76,8 @@ As views leem tabelas de módulos com faixa de versão maior (incentive, V18xx).
 
 | Tabela | Conteúdo | Grão |
 | --- | --- | --- |
-| `recovery_daily` | recebido bruto, estornado e quantidade de recebimentos | dia do fato × credor × carteira × negociador humano (closer) × equipe × canal × origem × faixa de atraso |
-| `agreement_cohort` | acordo com valor acordado, pago líquido (todos os recebimentos), 1ª parcela, quebra, renegociação, 1º recebimento | acordo |
+| `recovery_daily` | recebido bruto, estornado e quantidade de recebimentos | dia do fato × credor × carteira × negociador humano (closer) × equipe × canal × origem × faixa de atraso × quem recebeu (`received_by`: assessoria ou credor, V1601) |
+| `agreement_cohort` | acordo com valor acordado, pago líquido (todos os recebimentos), 1ª parcela, quebra, renegociação, 1º recebimento; na data de referência do refresh, parcelas vencidas e não pagas (`overdue_installments`) e quebra suspensa (`break_suspended`) (V1601) | acordo |
 | `portfolio_position` | títulos em cobrança, valor e vencido | credor × carteira × faixa |
 | `case_position` | casos não encerrados, saldo em aberto e elegível | credor × carteira × faixa × estado × elegível × dono × fila |
 | `refresh_state` | carimbo "dados até" (`data_until` = instante em que a leitura do conjunto começou), duração e linhas | assessoria × conjunto |
@@ -190,6 +191,8 @@ Sem eventos de negócio novos (o módulo só lê). Log técnico: ciclo de atuali
 - Mensagens duplicadas do provedor só existem como métrica técnica.
 - Origens `portal` e `assistant` dependem dos módulos em desenvolvimento paralelo: entram automaticamente pela origem do acordo; se criarem novas origens, o teste de domínios aponta.
 - Reconstrução incremental quando o volume exigir (§4).
+- Indicadores do credor (§11): a configuração do prazo e dos limites por assessoria e o recorte por carteira no portal
+  ficam para quando o portal tiver filtro de carteira (fase 3 do portal).
 
 ## Saúde das políticas (decisão 1087)
 
@@ -212,3 +215,21 @@ acordos anteriores ao dado conta como antes). Faixas de valor do acordo: `V0_1K`
 aplicam ao portal). Regras de sugestão em `PolicyHealthRules` (domínio, puro; limites na decisão 1087), comparando o
 recorte com o resto do credor; sem amostra madura no resto, vale só o limite absoluto. Testes: `PolicyHealthRulesTest`
 e `PolicyHealthIT`. Tela: `/negociacao/politicas/saude` (`features/negotiation/policies/policy-health.ts`).
+
+## 11. Indicadores do credor no portal do credor (fatia 7)
+
+Interface `analytics :: creditor` (`application/port/in/creditor`, `@NamedInterface("creditor")`), declarada só pelo
+`creditorportal` (ADR 0011, decisão 1413). Definições de negócio em [indicadores.md](../../negocio/indicadores.md) §10.
+
+| Peça | Onde | O quê |
+| --- | --- | --- |
+| Porta | `CreditorIndicatorsQueries.indicators(period)` (`CreditorIndicatorsService`) | Só o ator `CREDITOR` (outro tipo → `denyActorType`, 403) com `CREDITOR_PORTAL_OVERVIEW`; o credor vem do ator. **Não** usa `AnalyticsQueries` nem `AnalyticsAccess` (comissão, custo e dimensões por pessoa) |
+| Período | `domain/model/CreditorPeriod` | Lista fechada `THIS_MONTH`, `LAST_MONTH`, `LAST_3_MONTHS`, `THIS_YEAR` e o período anterior de mesma duração |
+| Regras | `domain/service/CreditorIndicatorRules` | Acordo em dia (sem parcela vencida e não paga, ou quebra suspensa), razão com denominador (`Indicators.ratio`), alerta abaixo de 80%, 5 carteiras + "Outros" |
+| Leitura | `infrastructure/persistence/JdbcCreditorIndicatorsReader` (porta `CreditorIndicatorsReader`) | Toda consulta de dado com `creditor_id = :creditorId` literal (sem o `SqlWhere` dos painéis); só agrupa por mês e carteira; lê `recovery_daily`, `portfolio_position`, `agreement_cohort` e os rótulos de `src_portfolio` do próprio credor; "dados até" = o menor `data_until` dos três conjuntos |
+| Cache | `CreditorIndicatorsService` | Curto, por (assessoria, credor, período, dia), consultado depois da permissão; até 60 s e enquanto não houver refresh novo (`refresh_state.refreshed_at`); teto de 2.000 entradas |
+| Banco | `V1601__analytics_creditor_indicators.sql` + `R__analytics_contract.sql` | `agreement_cohort.overdue_installments`/`break_suspended` (com o índice dos ativos por credor), `recovery_daily.received_by`; view `src_break_suspension`; `refresh_agreement_cohort(zona, data de referência)`; a assinatura antiga `refresh_agreement_cohort(text)` fica como **adaptador** em plpgsql (com o grant), que chama a nova com a data de hoje, para a versão anterior durante a troca (expand/contract), e **sai na versão seguinte** a esta fatia com `drop function if exists` explícito no R__, que só recria as views (decisão 1557, issue #36) |
+| Testes | `CreditorIndicatorRulesTest`, `CreditorOverviewIsolationIT` | Regras, períodos e "Outros"; dois credores na mesma assessoria e um em outra com valores distintos, "Outros" sem carteira de outro credor, quebra suspensa em dia, saldo em cobrança, cache e recusa da assessoria, contrato da resposta |
+
+Nada por operador, equipe, canal ou origem; nada de comissão variável, custo ou motivo de suspensão. Sem evento de
+negócio novo; métricas e logs no `creditorportal` ([logs-e-metricas.md](../logs-e-metricas.md) §3.16).

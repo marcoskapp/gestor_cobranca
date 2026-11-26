@@ -23,6 +23,7 @@ export const MANUAL: ModuleManual = {
     { module: 'juridico', text: 'Transversal: casos que saem da cobrança amigável seguem para medidas extrajudiciais ou judiciais.' },
     { module: 'paineis', text: 'Transversal: indicadores de toda a operação, com a base de cálculo à vista.' },
     { module: 'administracao', text: 'Transversal: credores, carteiras, usuários, perfis e a rastreabilidade de acessos e alterações.' },
+    { module: 'portal-credor', text: 'O credor acompanha o resultado e responde demonstrativos e contestações pelo portal do credor.' },
   ],
   rules: [
     'Você vê e registra apenas o que está no seu escopo de credores e no seu perfil de acesso.',

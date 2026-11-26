@@ -1,4 +1,4 @@
-import { ChartRow } from '../../analytics/components/chart.models';
+import { ChartRow } from '../../../shared/components/charts/chart.models';
 import { CONTACT_LABEL_LABELS, CONTACT_TYPE_LABELS } from '../../debt/data/debt.labels';
 import { ContactLabel, ContactType } from '../../debt/data/debt.models';
 import {

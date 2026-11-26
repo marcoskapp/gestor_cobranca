@@ -6,8 +6,8 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
-import { BarChart } from '../components/bar-chart';
-import { ChartRow, ChartSeries } from '../components/chart.models';
+import { BarChart } from '../../../shared/components/charts/bar-chart';
+import { ChartRow, ChartSeries } from '../../../shared/components/charts/chart.models';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
@@ -15,7 +15,7 @@ import { count, decimal, percent, ratioDetail, seconds } from '../data/analytics
 import { CountRow } from '../data/analytics.models';
 import { urlFilter } from '../data/url-filter';
 import { divergencesTarget, drillAccess } from '../data/drill-down';
-import { DrillLink } from '../components/drill-link';
+import { DrillLink } from '../../../shared/components/charts/drill-link';
 
 /**
  * Confiabilidade da operação: falhas de integração (instruções de pagamento, chamadas, extratos),

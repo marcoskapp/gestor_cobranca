@@ -64,6 +64,10 @@ class CreditorPaymentPortalIT extends PaymentTestSupport {
     CreditorPaymentPortalUseCases portal;
     @Autowired
     CreditorPaymentUseCases creditorPayments;
+    @Autowired
+    br.com.gestorcobranca.creditorportal.application.port.in.CreditorHomeUseCases home;
+    @Autowired
+    tools.jackson.databind.json.JsonMapper json;
 
     /** Um PDF só (o gerado muda a cada chamada: identificador e data no arquivo). */
     private static final byte[] BLANK = TestPdfs.blank();
@@ -160,6 +164,27 @@ class CreditorPaymentPortalIT extends PaymentTestSupport {
         assertThat(rejected.rejectionReason()).isEqualTo("PROOF_INVALID");
         assertThat(rejected.toString()).doesNotContain("outra conta");
         assertThat(asCreditor(creditorB, REPORTER, portal::reported)).isEmpty();
+        // "Aguardando você" (fatia 7): a recusa dos últimos 30 dias aparece como aviso, com o motivo para o credor
+        var awaiting = asCreditor(creditorA, READ_ONLY, home::awaiting);
+        assertThat(awaiting.counts().rejectedPayments()).isEqualTo(1);
+        assertThat(awaiting.items()).filteredOn(i -> i.kind().equals("PAYMENT_REJECTED")).singleElement()
+                .satisfies(i -> {
+                    assertThat(i.id()).isEqualTo(first.id());
+                    assertThat(i.dueOn()).isNull();
+                    assertThat(i.youCanAct()).isFalse();
+                    assertThat(i.payment().rejectionReason()).isEqualTo("PROOF_INVALID");
+                    assertThat(i.payment().amount()).isEqualByComparingTo("300.00");
+                    assertThat(i.payment().decidedAt()).isNotNull();
+                    assertThat(i.toString()).doesNotContain("outra conta");
+                });
+        assertThat(asCreditor(creditorA, REPORTER, home::awaiting).items())
+                .filteredOn(i -> i.kind().equals("PAYMENT_REJECTED")).allMatch(i -> i.youCanAct());
+        assertThat(asCreditor(creditorB, READ_ONLY, home::awaiting).counts().rejectedPayments()).isZero();
+        assertThatThrownBy(() -> asFinance1(creditorPayments::recentlyRejected))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        // contrato da lista de pagamentos informados (RS-26, SEG-F05)
+        br.com.gestorcobranca.support.JsonContract.assertMatches(json.valueToTree(rejected),
+                "creditor-portal/reported-payment.txt");
 
         // aprovado por outra pessoa: confirmado
         ReportedPayment second = asCreditor(creditorA, REPORTER, () -> portal.report(command(List.of("T-30"), "200.00"),

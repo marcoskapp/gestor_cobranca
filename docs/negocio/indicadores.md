@@ -141,3 +141,21 @@ editável — não é prazo legal).
 ## 8. Exportação
 
 Todo relatório pode ser exportado (permissão `REPORT_EXPORT`) em XLSX ou CSV (UTF-8 com BOM, separador `;`, números com ponto decimal), com os mesmos filtros e escopo da tela, em formato longo: seção, chave, rótulo, indicador, valor, numerador, denominador e observação (motivo de indisponibilidade). Cada exportação fica no log de acesso (`DATA_EXPORTED`, com o SHA-256 do arquivo).
+
+## 10. Portal do credor (Início do próprio credor)
+
+Tela Início do portal do credor (fatia 7; [portal-credor.md](portal-credor.md) §3), perfil do credor com
+`CREDITOR_PORTAL_OVERVIEW`. Sempre e só do credor da sessão; período numa lista fechada — **este mês** (padrão, do dia 1
+até hoje), **mês passado**, **últimos 3 meses** (o mês corrente e os dois anteriores) e **este ano** — comparado com o
+período anterior de mesma duração (o mesmo trecho do mês anterior; o mês passado inteiro com o mês anterior inteiro).
+Valores na data de corte do último refresh dos painéis ("dados até", a cada 15 min); "Atualizado às" é o instante da
+resposta. Nunca por operador, equipe, canal ou origem; nada de comissão variável, custo ou motivo de suspensão. Regras em
+`analytics.domain.service.CreditorIndicatorRules` e `analytics.domain.model.CreditorPeriod`.
+
+| Indicador | Fórmula | Denominador |
+| --- | --- | --- |
+| Recuperado no período | pagamentos confirmados do credor com data do fato no período, menos os estornos (mesma base do §3 e da prestação de contas); a parte **paga direto ao credor** (recebimento `CREDITOR`, já confirmado pela assessoria) aparece separada e já está dentro do total; variação contra o período anterior; série fixa dos 6 últimos meses (o corrente incluído) e "por carteira" (as 5 com mais recuperado e "Outros" com as demais e o recebido sem carteira) | — |
+| Acordos em dia (**número principal**) | acordos ativos (formalizados ou em pagamento) sem parcela vencida e não paga na data de corte ÷ acordos ativos; parcela vencida = vencimento antes da data de corte e situação fora de paga ou cancelada (parcialmente paga conta como vencida); acordo com a **quebra suspensa** por pagamento informado em análise conta como **em dia**; o cartão fica em alerta **abaixo de 80%** (o texto diz o motivo); sem acordo ativo, "—" | acordos ativos do credor |
+| Saldo em cobrança | saldo em aberto dos títulos do credor em cobrança (em aberto ou suspensos, com saldo), na data de referência | — |
+| Repasse estimado | líquido do período em aberto da prestação de contas, calculado agora e sujeito ao fechamento; a direção diz quem paga quem (a assessoria repassa ou o credor paga) | — |
+| Aguardando você | contestações com pedido ao credor sem resposta, demonstrativos enviados sem aceite nem contestação (prazo de 10 dias corridos do envio, só lembrete) e pagamentos informados no portal recusados nos últimos 30 dias (aviso); "vence logo" = prazo de hoje até 2 dias; contados pelos mesmos filtros das listas de destino, sem cache | — |

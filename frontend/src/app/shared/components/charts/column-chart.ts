@@ -1,7 +1,7 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, input, signal } from '@angular/core';
 import { ChartRow, ChartSeries } from './chart.models';
-import { Icon } from '../../../shared/components/icon/icon';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { Icon } from '../icon/icon';
+import { InfoHint } from '../info-hint/info-hint';
 import { DrillLink } from './drill-link';
 
 let nextId = 0;
@@ -25,7 +25,7 @@ const AXIS_COUNT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
         <div class="d-flex align-items-center gap-1 min-w-0">
           <figcaption [id]="id + '-t'" class="cc__title">{{ title() }}</figcaption>
           @if (info(); as hint) {
-            <app-info-hint [indicator]="hint" [label]="title()" />
+            <app-info-hint [indicator]="hint" [label]="title()" [manualLink]="manualLink()" />
           }
         </div>
         <button class="btn btn-link" type="button" (click)="table.set(!table())" [attr.aria-pressed]="table()">
@@ -35,7 +35,7 @@ const AXIS_COUNT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
       </div>
       <p [id]="id + '-s'" class="cc__summary">{{ summary() }}</p>
       @if (rows().length === 0) {
-        <p class="cc__summary" role="status">Sem dados no período e filtros escolhidos.</p>
+        <p class="cc__summary" role="status">{{ emptyText() }}</p>
       } @else if (table()) {
         <div class="cc__table-wrap app-scroll-x">
           <table class="cc__table">
@@ -95,9 +95,13 @@ export class ColumnChart {
   readonly title = input.required<string>();
   /** Id do indicador no catálogo de informação contextual (o "i" ao lado do título). */
   readonly info = input<string | null>(null);
+  /** "Saiba mais no manual" no "i" (`false` fora do app interno, como no portal do credor). */
+  readonly manualLink = input(true);
   readonly summary = input.required<string>();
   readonly series = input.required<ChartSeries>();
   readonly rows = input.required<ChartRow[]>();
+  /** Texto do estado vazio (sem linhas); o padrão serve aos painéis com período e filtros. */
+  readonly emptyText = input('Sem dados no período e filtros escolhidos.');
   /** Cabeçalho da coluna de categorias na tabela equivalente (padrão: período, como nas séries temporais). */
   readonly categoryHeader = input('Período');
   /** Eixo em reais (marcas compactas "R$ 1,2 mil") ou contagem. */

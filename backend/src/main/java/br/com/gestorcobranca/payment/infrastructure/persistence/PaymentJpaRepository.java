@@ -99,6 +99,22 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
     List<Payment> creditorPortalReports(UUID creditorId, org.springframework.data.domain.Limit limit);
 
     @Override
+    default List<Payment> findCreditorPortalRejectedSince(UUID creditorId, java.time.Instant since, int limit) {
+        return creditorPortalRejectedSince(creditorId, since, org.springframework.data.domain.Limit.of(limit));
+    }
+
+    /** Pelo índice {@code ix_payment_creditor_portal} (credor e canal); poucos por credor. */
+    @Query("""
+            select p from Payment p
+             where p.creditorId = :creditorId and p.informedChannel = 'CREDITOR_PORTAL'
+               and p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.REJECTED
+               and p.reviewedAt >= :since
+             order by p.reviewedAt desc, p.id
+            """)
+    List<Payment> creditorPortalRejectedSince(UUID creditorId, java.time.Instant since,
+                                              org.springframework.data.domain.Limit limit);
+
+    @Override
     default Money sumExternalInformedBy(UUID informedBy, Instant since) {
         return Money.ofNullable(sumExternalByInformer(informedBy, since));
     }

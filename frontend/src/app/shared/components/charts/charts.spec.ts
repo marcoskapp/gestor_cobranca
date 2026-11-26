@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BarChart } from './bar-chart';
 import { columnPath, ColumnChart, niceCeil } from './column-chart';
-import { FunnelChart } from './funnel-chart';
 
 const el = (f: ComponentFixture<unknown>) => f.nativeElement as HTMLElement;
 
@@ -72,6 +71,19 @@ describe('gráficos acessíveis', () => {
     expect(el(fixture).querySelector('table')!.textContent).toContain('mai/26');
   });
 
+  it('colunas sem linhas mostram o texto de vazio escolhido pela tela', () => {
+    const fixture = TestBed.createComponent(ColumnChart);
+    fixture.componentRef.setInput('title', 'Recuperado por demonstrativo');
+    fixture.componentRef.setInput('summary', 'Resumo');
+    fixture.componentRef.setInput('series', { name: 'Recuperado', color: '--app-chart-1' });
+    fixture.componentRef.setInput('rows', []);
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('[role="status"]')!.textContent).toContain('Sem dados no período');
+    fixture.componentRef.setInput('emptyText', 'Nenhum demonstrativo enviado ainda.');
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('[role="status"]')!.textContent).toBe('Nenhum demonstrativo enviado ainda.');
+  });
+
   it('colunas de índice pequeno (PSI) com marcas de 2 casas; o padrão continua com 1', () => {
     const fixture = TestBed.createComponent(ColumnChart);
     fixture.componentRef.setInput('title', 'PSI');
@@ -85,20 +97,6 @@ describe('gráficos acessíveis', () => {
     fixture.componentRef.setInput('axisFractionDigits', 2);
     fixture.detectChanges();
     expect(ticks()).toEqual(['0', '0,05', '0,1']);
-  });
-
-  it('funil escreve a conversão entre as etapas', () => {
-    const fixture = TestBed.createComponent(FunnelChart);
-    fixture.componentRef.setInput('title', 'Funil');
-    fixture.componentRef.setInput('summary', '3 contatos');
-    fixture.componentRef.setInput('stages', [
-      { label: 'Contatos efetivos', value: 3, display: '3' },
-      { label: 'Propostas', value: 4, display: '4', conversion: '133,3% · 4 de 3' },
-    ]);
-    fixture.detectChanges();
-    const stages = el(fixture).querySelectorAll('.fn__stage');
-    expect(stages[1].getAttribute('aria-label')).toBe('Propostas: 4, conversão 133,3% · 4 de 3');
-    expect(el(fixture).querySelector('.fn__conv')!.textContent).toContain('4 de 3');
   });
 
   it('ranking: "Outros" por último abre a lista completa com busca, total e "Mostrar mais"; barra filtra o painel', async () => {

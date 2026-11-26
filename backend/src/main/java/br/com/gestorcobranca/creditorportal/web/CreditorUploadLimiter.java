@@ -22,7 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Limite dos envios com documentos no portal do credor: janelas fixas de 1 minuto por pessoa do credor, por instância
  * (mesmo padrão do limite de documentos da API pública). Excesso → 429 com {@code Retry-After}, log de acesso
- * {@code RATE_LIMITED} e a métrica {@code creditor_portal.document_uploads.rejected}.
+ * {@code RATE_LIMITED} (só na primeira recusa da janela) e a métrica {@code creditor_portal.document_uploads.rejected}
+ * (toda recusa).
  */
 @Component
 class CreditorUploadLimiter {
@@ -54,14 +55,18 @@ class CreditorUploadLimiter {
         long epochSecond = Instant.now(clock).getEpochSecond();
         long minute = epochSecond / 60;
         Window window = windows.compute(person + ":" + operation, (k, current) ->
-                current == null || current.minute() != minute ? new Window(minute, new AtomicInteger()) : current);
-        if (window.count().incrementAndGet() <= limitPerMinute) {
+                current == null || current.minute() < minute ? new Window(minute, new AtomicInteger()) : current);
+        int count = window.count().incrementAndGet();
+        if (count <= limitPerMinute) {
             return;
         }
         response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(60 - (epochSecond % 60)));
         registry.counter("creditor_portal.document_uploads.rejected", "operation", operation).increment();
-        accessLogger.log(AccessEvent.of(AccessEventType.RATE_LIMITED, currentActor.get(),
-                Map.of("operation", operation, "limit", String.valueOf(limitPerMinute), "scope", "creditor_upload")));
+        // a métrica conta toda recusa; o log de acesso só a primeira da janela (o cliente insistindo não inunda o log)
+        if (count == limitPerMinute + 1) {
+            accessLogger.log(AccessEvent.of(AccessEventType.RATE_LIMITED, currentActor.get(),
+                    Map.of("operation", operation, "limit", String.valueOf(limitPerMinute), "scope", "creditor_upload")));
+        }
         throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                 "Muitas tentativas em pouco tempo. Aguarde um minuto e tente de novo.");
     }

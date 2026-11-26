@@ -1,0 +1,11 @@
+# Contrato dos itens de GET /api/creditor/v1/payments (portal do credor, fatia 6). Campo novo só com decisão (RS-26).
+amount
+decidedAt
+id
+informedAt
+method
+paidOn
+reference
+rejectionReason
+status
+titleNumbers

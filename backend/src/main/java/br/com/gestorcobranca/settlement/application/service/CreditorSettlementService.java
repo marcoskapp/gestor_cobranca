@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.settlement.application.service;
 
 import br.com.gestorcobranca.settlement.application.port.in.creditor.CreditorSettlementUseCases;
+import br.com.gestorcobranca.settlement.application.port.in.SettlementPositionUseCases.DailyPoint;
 import br.com.gestorcobranca.settlement.application.port.in.SettlementPositionUseCases.PositionView;
 import br.com.gestorcobranca.settlement.domain.model.ResponseOrigin;
 import br.com.gestorcobranca.settlement.domain.model.SettlementExport;
@@ -8,6 +9,8 @@ import br.com.gestorcobranca.settlement.domain.model.SettlementStatement;
 import br.com.gestorcobranca.settlement.domain.model.StatementCreditorTerm;
 import br.com.gestorcobranca.settlement.domain.model.StatementStatus;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementStatementRepository;
+import br.com.gestorcobranca.settlement.domain.service.StatementResponseDeadline;
+import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.domain.ConflictException;
@@ -21,6 +24,7 @@ import br.com.gestorcobranca.shared.logging.access.AccessLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
+import br.com.gestorcobranca.shared.persistence.CreditorPortalReadTimeout;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -34,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -69,11 +74,13 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
     private final JsonCodec json;
     private final Clock clock;
     private final StepUpProofs stepUpProofs;
+    private final CreditorPortalReadTimeout readTimeout;
 
     CreditorSettlementService(SettlementStatementRepository statements, SettlementPositionService positions,
                               FileStorage storage, AccessScope accessScope, CurrentActor currentActor,
                               AccessLogger accessLogger, AuditTrail auditTrail, BusinessEventLogger businessEvents,
-                              SettlementMetrics metrics, JsonCodec json, Clock clock, StepUpProofs stepUpProofs) {
+                              SettlementMetrics metrics, JsonCodec json, Clock clock, StepUpProofs stepUpProofs,
+                              CreditorPortalReadTimeout readTimeout) {
         this.statements = statements;
         this.positions = positions;
         this.storage = storage;
@@ -86,15 +93,17 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
         this.json = json;
         this.clock = clock;
         this.stepUpProofs = stepUpProofs;
+        this.readTimeout = readTimeout;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CreditorStatementSummary> statements() {
         UUID creditorId = creditor(Permission.CREDITOR_PORTAL_OVERVIEW);
+        LocalDate today = today();
         return statements.findByCreditorIdOrderByPeriodStartDesc(creditorId).stream()
                 .filter(s -> VISIBLE.contains(s.getStatus()))
-                .map(CreditorSettlementService::summary).toList();
+                .map(s -> summary(s, today)).toList();
     }
 
     @Override
@@ -108,9 +117,29 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
     @Transactional(readOnly = true)
     public CreditorOpenPeriod openPeriod() {
         UUID creditorId = creditor(Permission.CREDITOR_PORTAL_OVERVIEW);
+        readTimeout.apply();
         PositionView p = positions.positionWithoutAccessCheck(creditorId);
         return new CreditorOpenPeriod(p.periodStart(), p.asOf(), p.expectedPeriodEnd(), p.totals().recovered(),
-                p.totals().netTransfer(), p.direction(), p.calculatedAt());
+                p.totals().netTransfer(), p.direction(), p.calculatedAt(), daily(p.daily()), daily(p.previousDaily()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CreditorStatementSummary> awaitingResponse() {
+        UUID creditorId = creditor(Permission.CREDITOR_PORTAL_OVERVIEW);
+        readTimeout.apply();
+        LocalDate today = today();
+        return statements.findAwaitingCreditorResponse(creditorId).stream()
+                .map(s -> summary(s, today)).toList();
+    }
+
+    private static List<CreditorDailyPoint> daily(List<DailyPoint> points) {
+        return points == null ? List.of() : points.stream()
+                .map(d -> new CreditorDailyPoint(d.day(), d.date(), d.recovered(), d.netTransfer())).toList();
+    }
+
+    private LocalDate today() {
+        return LocalDate.now(clock.withZone(TimeConfig.BUSINESS_ZONE));
     }
 
     @Override
@@ -262,15 +291,18 @@ class CreditorSettlementService implements CreditorSettlementUseCases {
                 .toList();
         boolean inPortal = s.getCreditorResponseOrigin() == ResponseOrigin.CREDITOR_PORTAL;
         // a observação registrada pela assessoria é texto interno (decisão 1421): ao credor, só a que ele mesmo escreveu
-        return new CreditorStatementDetail(summary(s), totals, files, s.getTransferredAmount().amount(),
+        return new CreditorStatementDetail(summary(s, today()), totals, files, s.getTransferredAmount().amount(),
                 s.outstanding().amount(), inPortal ? s.getCreditorResponseNote() : null, inPortal);
     }
 
-    private static CreditorStatementSummary summary(SettlementStatement s) {
+    private static CreditorStatementSummary summary(SettlementStatement s, LocalDate today) {
         Money net = s.getNetTransferAmount();
         String direction = net.isPositive() ? "AGENCY_TO_CREDITOR" : net.isZero() ? "NONE" : "CREDITOR_TO_AGENCY";
+        boolean overdue = s.getStatus() == StatementStatus.SENT
+                && StatementResponseDeadline.overdue(s.getResponseDueOn(), today);
         return new CreditorStatementSummary(s.getId(), s.getSequenceNumber(), s.getPeriodStart(), s.getPeriodEnd(),
                 s.getStatus().name(), s.totals().recovered().amount(), net.amount(), direction, s.getSentAt(),
-                s.getCreditorResponseAt());
+                s.getCreditorResponseAt(), s.getResponseDueOn(), overdue, s.getTransferredAmount().amount(),
+                s.outstanding().amount());
     }
 }

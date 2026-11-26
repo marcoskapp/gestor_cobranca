@@ -106,6 +106,9 @@ public class SettlementStatement extends TenantScopedEntity {
     private String sentChannel;
     @Column(name = "sent_reference", length = 200)
     private String sentReference;
+    /** Prazo para o credor aceitar ou contestar (só lembrete: vencido, continua {@code SENT}). */
+    @Column(name = "response_due_on")
+    private LocalDate responseDueOn;
     @Column(name = "creditor_response_at")
     private Instant creditorResponseAt;
     @Column(name = "creditor_response_by")
@@ -196,9 +199,15 @@ public class SettlementStatement extends TenantScopedEntity {
         this.status = StatementStatus.APPROVED;
     }
 
-    public void send(UUID by, String channel, String reference, Instant at) {
+    /**
+     * Envio ao credor, com o prazo para ele responder ({@code responseDueOn}, calculado por
+     * {@link br.com.gestorcobranca.settlement.domain.service.StatementResponseDeadline}). O prazo é só lembrete.
+     */
+    public void send(UUID by, String channel, String reference, Instant at, LocalDate responseDueOn) {
         Guard.requireState(status == StatementStatus.APPROVED, "statement.not_approved",
                 "Somente demonstrativo aprovado é enviado");
+        Guard.require(responseDueOn != null, "statement.response_due_required",
+                "Informe o prazo para o credor responder");
         Guard.require(channel != null && CHANNELS.contains(channel), "statement.channel_invalid",
                 "Canal de envio: EMAIL, PORTAL, API, LETTER ou OTHER");
         Guard.require(reference == null || reference.length() <= 200, "statement.reference_too_long",
@@ -207,6 +216,7 @@ public class SettlementStatement extends TenantScopedEntity {
         this.sentAt = at;
         this.sentChannel = channel;
         this.sentReference = reference == null || reference.isBlank() ? null : reference.trim();
+        this.responseDueOn = responseDueOn;
         this.status = StatementStatus.SENT;
     }
 
@@ -322,6 +332,7 @@ public class SettlementStatement extends TenantScopedEntity {
     public UUID getSentBy() { return sentBy; }
     public String getSentChannel() { return sentChannel; }
     public String getSentReference() { return sentReference; }
+    public LocalDate getResponseDueOn() { return responseDueOn; }
     public Instant getCreditorResponseAt() { return creditorResponseAt; }
     public UUID getCreditorResponseBy() { return creditorResponseBy; }
     public String getCreditorResponseNote() { return creditorResponseNote; }

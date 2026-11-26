@@ -113,6 +113,12 @@ tbody tr:last-child > td {
   &.app-table__item--link:has(.app-table__item-title a:hover) {
     background: var(--bs-tertiary-bg);
   }
+
+  // linha em destaque (`activeRow`), como a `table-active` da tabela
+  &.table-active {
+    background: var(--bs-secondary-bg);
+    box-shadow: inset 3px 0 0 var(--bs-primary);
+  }
 }
 
 .app-table__item-head {

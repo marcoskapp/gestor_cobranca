@@ -49,7 +49,7 @@ class SettlementLifecycleTest {
         assertThat(s.getStatus()).isEqualTo(StatementStatus.APPROVED);
         assertThatThrownBy(() -> s.calculated(net("1.00"), "{}", CALCULATOR, NOW, TODAY))
                 .isInstanceOf(DomainException.class);
-        s.send(CALCULATOR, "EMAIL", "msg-1", NOW);
+        s.send(CALCULATOR, "EMAIL", "msg-1", NOW, TODAY.plusDays(10));
         s.contest(CALCULATOR, ResponseOrigin.AGENCY, "Credor não reconhece o recebimento X", NOW);
         assertThat(s.getStatus()).isEqualTo(StatementStatus.CONTESTED);
         s.acknowledge(CALCULATOR, ResponseOrigin.AGENCY, "Corrigido no demonstrativo seguinte", NOW);
@@ -62,7 +62,7 @@ class SettlementLifecycleTest {
         SettlementStatement s = calculated("855.00");
         s.review(CALCULATOR, NOW);
         s.approve(APPROVER, NOW, Set.of());
-        s.send(CALCULATOR, "PORTAL", null, NOW);
+        s.send(CALCULATOR, "PORTAL", null, NOW, TODAY.plusDays(10));
         UUID creditorUser = UUID.randomUUID();
         s.contest(creditorUser, ResponseOrigin.CREDITOR_PORTAL, "Faltou o pagamento do dia 3", NOW);
         assertThatThrownBy(() -> s.acknowledge(CALCULATOR, ResponseOrigin.AGENCY, null, NOW))

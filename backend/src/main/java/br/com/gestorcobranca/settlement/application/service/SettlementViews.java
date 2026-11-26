@@ -98,7 +98,8 @@ class SettlementViews {
                 s.getPeriodEnd(), s.getStatus().name(), totals,
                 s.getCalculation() == null ? Map.of() : json.toMap(s.getCalculation()), s.getCalculatedAt(),
                 s.getCalculatedBy(), s.getReviewedAt(), s.getReviewedBy(), s.getApprovedAt(), s.getApprovedBy(),
-                s.getSentAt(), s.getSentBy(), s.getSentChannel(), s.getSentReference(), s.getCreditorResponseAt(),
+                s.getSentAt(), s.getSentBy(), s.getSentChannel(), s.getSentReference(), s.getResponseDueOn(),
+                s.getCreditorResponseAt(),
                 // a pessoa do credor não é usuário da assessoria: o id dela fica no termo, não na ficha interna
                 s.getCreditorResponseOrigin() == ResponseOrigin.CREDITOR_PORTAL ? null : s.getCreditorResponseBy(),
                 s.getCreditorResponseNote(),

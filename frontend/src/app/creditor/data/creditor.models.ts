@@ -63,6 +63,13 @@ export interface CreditorStatementItem {
   direction: TransferDirection;
   sentAt: string | null;
   respondedAt: string | null;
+  /** Prazo para aceitar ou contestar (data do envio + dias da assessoria; só lembrete, sem efeito automático). */
+  responseDueOn: string | null;
+  /** O prazo venceu e o demonstrativo segue sem resposta (continua "Aguardando sua resposta"). */
+  responseOverdue: boolean;
+  /** Do líquido, quanto já foi repassado (ou pago à assessoria) e quanto falta. */
+  transferred: number;
+  outstanding: number;
 }
 
 export interface CreditorStatementTotals {
@@ -106,6 +113,158 @@ export interface CreditorOpenPeriod {
   netTransfer: number;
   direction: TransferDirection;
   calculatedAt: string;
+  /** Acumulado por dia do período em aberto (dia 1 = início do período). */
+  daily: CreditorDailyPoint[];
+  /** Acumulado por dia do período anterior, para comparar no mesmo dia. */
+  previousDaily: CreditorDailyPoint[];
+}
+
+export interface CreditorDailyPoint {
+  day: number;
+  date: string;
+  recovered: number;
+  netTransfer: number;
+}
+
+// ------------------------------------------------------------------ Início (fatia 7): indicadores e pendências
+
+/** Período do Início, numa lista fechada (o servidor recusa outro valor). */
+export type CreditorPeriod = 'THIS_MONTH' | 'LAST_MONTH' | 'LAST_3_MONTHS' | 'THIS_YEAR';
+/** Fonte do Início fora do ar nesta resposta: a seção dela vem nula. */
+export type CreditorOverviewSource = 'INDICATORS' | 'TRANSFER';
+
+export interface CreditorRecovery {
+  recovered: number;
+  /** Parte do recuperado paga diretamente a você (já dentro de `recovered`). */
+  paidToCreditor: number;
+  previousRecovered: number;
+  previousPaidToCreditor: number;
+}
+
+export interface CreditorMonthlyRecovery {
+  /** `AAAA-MM` */
+  month: string;
+  recovered: number;
+  paidToCreditor: number;
+}
+
+export interface CreditorPortfolioShare {
+  /** Nulos na linha "Outros". */
+  portfolioId: string | null;
+  name: string | null;
+  recovered: number;
+  /** Soma das demais carteiras e do recebido sem carteira. */
+  others: boolean;
+}
+
+export interface CreditorBalance {
+  amount: number;
+  titles: number;
+  referenceDate: string;
+}
+
+export interface CreditorAgreements {
+  onTrack: number;
+  active: number;
+  /** Fração de 0 a 1; nula sem acordo em vigor. */
+  ratio: number | null;
+  /** Abaixo de 80%. */
+  alert: boolean;
+  referenceDate: string;
+}
+
+export interface CreditorTransferEstimate {
+  periodStart: string;
+  asOf: string;
+  expectedPeriodEnd: string | null;
+  netTransfer: number;
+  direction: TransferDirection;
+  calculatedAt: string;
+}
+
+/** `GET /api/creditor/v1/overview?period=` */
+export interface CreditorOverview {
+  period: CreditorPeriod;
+  from: string | null;
+  to: string | null;
+  previousFrom: string | null;
+  previousTo: string | null;
+  /** Instante em que o servidor montou a resposta ("Atualizado às"). */
+  generatedAt: string;
+  /** "Dados até" dos indicadores (nulo: ainda sem atualização). */
+  dataUntil: string | null;
+  recovery: CreditorRecovery | null;
+  /** Sempre os 6 últimos meses, o corrente incluído. */
+  monthly: CreditorMonthlyRecovery[] | null;
+  /** As 5 carteiras com mais recuperado e "Outros". */
+  byPortfolio: CreditorPortfolioShare[] | null;
+  balance: CreditorBalance | null;
+  agreements: CreditorAgreements | null;
+  transfer: CreditorTransferEstimate | null;
+  unavailable: CreditorOverviewSource[];
+}
+
+export type CreditorAwaitingKind = 'DISPUTE' | 'STATEMENT' | 'PAYMENT_REJECTED';
+export type CreditorAwaitingSource = 'DISPUTES' | 'STATEMENTS' | 'PAYMENTS';
+
+export interface CreditorAwaitingItem {
+  kind: CreditorAwaitingKind;
+  id: string;
+  /** Prazo (data, sem hora); nulo no pagamento recusado. */
+  dueOn: string | null;
+  overdue: boolean;
+  dueSoon: boolean;
+  /** A pessoa da sessão pode resolver (senão o item é do time). */
+  youCanAct: boolean;
+  dispute: { protocol: string; type: string } | null;
+  statement: { sequenceNumber: number; periodStart: string; periodEnd: string } | null;
+  payment: { paidOn: string; amount: number; rejectionReason: CreditorRejectionReason | null; decidedAt: string | null } | null;
+}
+
+/** `GET /api/creditor/v1/awaiting` (sem cache; mesmos filtros das listas de destino). */
+export interface CreditorAwaiting {
+  /** Todos os itens que dependem do credor (pode passar dos itens devolvidos). */
+  total: number;
+  dueSoon: number;
+  overdue: number;
+  counts: { disputes: number; statements: number; rejectedPayments: number };
+  /** Até 50: vencidos primeiro, depois pelo prazo, depois os sem prazo. */
+  items: CreditorAwaitingItem[];
+  unavailable: CreditorAwaitingSource[];
+}
+
+// ------------------------------------------------------------------ Minha atividade (fatia 7)
+
+export type CreditorActivityScope = 'own' | 'team';
+export type CreditorActivityAction =
+  | 'STATEMENT_ACKNOWLEDGED'
+  | 'STATEMENT_CONTESTED'
+  | 'DISPUTE_RESPONDED'
+  | 'PAYMENT_REPORTED'
+  | 'SIGNED_IN'
+  | 'SIGNED_OUT'
+  | 'PASSWORD_CHANGED'
+  | 'MFA_ENROLLED'
+  | 'FILE_DOWNLOADED';
+export type CreditorActivityReference = 'STATEMENT' | 'DISPUTE' | 'PAYMENT' | 'STATEMENT_FILE' | 'DISPUTE_DOCUMENT';
+
+export interface CreditorActivityItem {
+  occurredAt: string;
+  action: CreditorActivityAction;
+  /** Feita pela própria pessoa da sessão. */
+  mine: boolean;
+  personName: string | null;
+  referenceType: CreditorActivityReference | null;
+  referenceId: string | null;
+}
+
+/** `GET /api/creditor/v1/activity?scope=own|team&before=&size=` */
+export interface CreditorActivityPage {
+  scope: 'OWN' | 'TEAM';
+  /** Janela da consulta (90 dias). */
+  windowDays: number;
+  nextCursor: string | null;
+  items: CreditorActivityItem[];
 }
 
 /** Contestações no portal do credor (fatia 5): só as em que a assessoria pediu a posição do credor. */

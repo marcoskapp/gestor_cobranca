@@ -23,6 +23,7 @@ import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.logging.access.AccessEvent;
 import br.com.gestorcobranca.shared.logging.access.AccessEventType;
 import br.com.gestorcobranca.shared.logging.access.AccessLogger;
+import br.com.gestorcobranca.shared.persistence.CreditorPortalReadTimeout;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -78,12 +79,14 @@ class CreditorDisputeService implements CreditorDisputeUseCases {
     private final CurrentActor currentActor;
     private final AccessLogger accessLogger;
     private final Clock clock;
+    private final CreditorPortalReadTimeout readTimeout;
 
     CreditorDisputeService(DisputeRepository disputes, DisputeCreditorRequestRepository requests,
                            DisputeCreditorResponseRepository responses, DisputeEvidenceRepository evidences,
                            DisputeDocumentQuarantineRepository quarantine, DisputeViews views,
                            DisputeCreditorChannel channel, FileStorage fileStorage, AccessScope accessScope,
-                           CurrentActor currentActor, AccessLogger accessLogger, Clock clock) {
+                           CurrentActor currentActor, AccessLogger accessLogger, Clock clock,
+                           CreditorPortalReadTimeout readTimeout) {
         this.disputes = disputes;
         this.requests = requests;
         this.responses = responses;
@@ -96,6 +99,7 @@ class CreditorDisputeService implements CreditorDisputeUseCases {
         this.currentActor = currentActor;
         this.accessLogger = accessLogger;
         this.clock = clock;
+        this.readTimeout = readTimeout;
     }
 
     @Override
@@ -107,6 +111,34 @@ class CreditorDisputeService implements CreditorDisputeUseCases {
         Set<UUID> disputeIds = new LinkedHashSet<>();
         requests.findAwaitingByCreditorId(creditorId, AWAITING_LIMIT).forEach(r -> disputeIds.add(r.getDisputeId()));
         requests.findRecentByCreditorId(creditorId, RECENT_LIMIT).forEach(r -> disputeIds.add(r.getDisputeId()));
+        return summaries(creditorId, disputeIds);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CreditorDisputesAwaiting awaiting(int limit) {
+        UUID creditorId = creditor(Permission.CREDITOR_PORTAL_OVERVIEW);
+        readTimeout.apply();
+        Guard.require(limit >= 0 && limit <= AWAITING_LIMIT, "dispute.awaiting_limit_invalid", "Limite inválido");
+        // mesmo caminho da lista: os pedidos que aguardam e o resumo de cada contestação (situação AWAITING_YOU)
+        Set<UUID> disputeIds = new LinkedHashSet<>();
+        requests.findAwaitingByCreditorId(creditorId, AWAITING_LIMIT).forEach(r -> disputeIds.add(r.getDisputeId()));
+        LocalDate today = CollectionViews.today(clock);
+        LocalDate soon = today.plusDays(DUE_SOON_DAYS);
+        List<CreditorAwaitingDispute> all = summaries(creditorId, disputeIds).stream()
+                .filter(d -> "AWAITING_YOU".equals(d.situation()))
+                .map(d -> new CreditorAwaitingDispute(d.id(), d.protocol(), d.type(), d.requestedDueDate(), d.overdue(),
+                        !d.overdue() && d.requestedDueDate() != null && !d.requestedDueDate().isAfter(soon)))
+                .sorted(Comparator.comparing(CreditorAwaitingDispute::requestedDueDate,
+                        Comparator.nullsLast(Comparator.naturalOrder())).thenComparing(CreditorAwaitingDispute::id))
+                .toList();
+        return new CreditorDisputesAwaiting(all.size(), (int) all.stream().filter(CreditorAwaitingDispute::dueSoon).count(),
+                (int) all.stream().filter(CreditorAwaitingDispute::overdue).count(),
+                all.subList(0, Math.min(limit, all.size())));
+    }
+
+    /** Resumo de cada contestação do credor com pedido, calculado sobre todos os pedidos e respostas dela. */
+    private List<CreditorDisputeSummary> summaries(UUID creditorId, Set<UUID> disputeIds) {
         if (disputeIds.isEmpty()) {
             return List.of();
         }

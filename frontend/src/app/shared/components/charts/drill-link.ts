@@ -1,7 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { DrillTarget } from '../data/drill-down';
+import { DrillTarget } from './chart.models';
 
 /**
  * Número de painel que leva à lista com a base do indicador (drill-down, `data/drill-down.ts`). Sem destino (recorte

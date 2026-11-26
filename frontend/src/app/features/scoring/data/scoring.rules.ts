@@ -1,6 +1,6 @@
 import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { formatAmount, toAmount } from '../../../shared/components/amount/amount';
-import { ChartRow } from '../../analytics/components/chart.models';
+import { ChartRow } from '../../../shared/components/charts/chart.models';
 import { ALERT_KIND_LABELS, BANDS, TRAINING_REASON_LABELS, featureLabel } from './scoring.labels';
 import {
   BandCalibration,

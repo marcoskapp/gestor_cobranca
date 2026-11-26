@@ -1,8 +1,7 @@
 package br.com.gestorcobranca.pendingwork.infrastructure.persistence;
 
 import br.com.gestorcobranca.pendingwork.application.port.out.SourceStatementTimeout;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import br.com.gestorcobranca.shared.persistence.StatementTimeout;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -11,15 +10,14 @@ import java.time.Duration;
 @Component
 class JdbcSourceStatementTimeout implements SourceStatementTimeout {
 
-    private final NamedParameterJdbcTemplate jdbc;
+    private final StatementTimeout statementTimeout;
 
-    JdbcSourceStatementTimeout(NamedParameterJdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    JdbcSourceStatementTimeout(StatementTimeout statementTimeout) {
+        this.statementTimeout = statementTimeout;
     }
 
     @Override
     public void apply(Duration timeout) {
-        jdbc.queryForObject("select set_config('statement_timeout', :timeout, true)",
-                new MapSqlParameterSource("timeout", Long.toString(Math.max(1, timeout.toMillis()))), String.class);
+        statementTimeout.apply(timeout);
     }
 }

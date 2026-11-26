@@ -1,5 +1,5 @@
 import { ChartRow, ChartSeries } from './chart.models';
-import { matchesSearch, normalizeSearch } from '../../../shared/util/text-search';
+import { matchesSearch, normalizeSearch } from '../../util/text-search';
 
 /** Substantivo do item do ranking, no singular e no plural (ex.: credor/credores). */
 export interface RankNoun {

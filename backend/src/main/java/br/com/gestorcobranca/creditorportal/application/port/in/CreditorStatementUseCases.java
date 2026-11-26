@@ -37,12 +37,17 @@ public interface CreditorStatementUseCases {
     }
 
     /**
-     * @param status    SENT (aguarda a resposta), ACKNOWLEDGED (aceito) ou CONTESTED (contestado)
-     * @param direction AGENCY_TO_CREDITOR, CREDITOR_TO_AGENCY ou NONE
+     * @param status          SENT (aguarda a resposta), ACKNOWLEDGED (aceito) ou CONTESTED (contestado)
+     * @param direction       AGENCY_TO_CREDITOR, CREDITOR_TO_AGENCY ou NONE
+     * @param responseDueOn   prazo para aceitar ou contestar (só lembrete: vencido, continua SENT)
+     * @param responseOverdue aguarda a resposta e o prazo já passou
+     * @param transferred     já repassado (ou recebido) do líquido
+     * @param outstanding     quanto falta repassar (ou receber)
      */
     record StatementItem(UUID id, int sequenceNumber, LocalDate periodStart, LocalDate periodEnd, String status,
                          BigDecimal recovered, BigDecimal netTransfer, String direction, Instant sentAt,
-                         Instant respondedAt) {
+                         Instant respondedAt, LocalDate responseDueOn, boolean responseOverdue, BigDecimal transferred,
+                         BigDecimal outstanding) {
     }
 
     record Totals(BigDecimal receivedByAgency, BigDecimal receivedByCreditor, BigDecimal reversed, BigDecimal recovered,
@@ -58,8 +63,16 @@ public interface CreditorStatementUseCases {
                            BigDecimal outstanding, String responseNote, boolean respondedInPortal) {
     }
 
+    /**
+     * @param daily         acumulado por dia do período em aberto (dia 1 = início)
+     * @param previousDaily acumulado por dia do período anterior, para comparar no mesmo dia
+     */
     record OpenPeriod(LocalDate periodStart, LocalDate asOf, LocalDate expectedPeriodEnd, BigDecimal recovered,
-                      BigDecimal netTransfer, String direction, Instant calculatedAt) {
+                      BigDecimal netTransfer, String direction, Instant calculatedAt, List<DailyPoint> daily,
+                      List<DailyPoint> previousDaily) {
+    }
+
+    record DailyPoint(int day, LocalDate date, BigDecimal recovered, BigDecimal netTransfer) {
     }
 
     record FileContent(String fileName, String contentType, long size, String sha256, InputStream content) {

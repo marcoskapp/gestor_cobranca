@@ -560,7 +560,7 @@ com `source=CREDITOR_PORTAL` e a auditoria `dispute.creditor_responded` (`actor_
 `documents`); cada documento gera `dispute.document_quarantined` e segue a verificação (evento `dispute.creditor_document_scanned`).
 Log de acesso: `FILE_DOWNLOADED` (`resource=dispute_evidence`, `origin=creditor_portal`), `SCOPE_DENIED`
 (`resource=dispute`) para contestação de outro credor (a resposta é 404), `ACCESS_DENIED` (`resource=dispute`) para
-outro tipo de ator e `RATE_LIMITED` (`scope=creditor_upload`) no limite de envios. Métricas: `collection.disputes.creditor_responses{source=CREDITOR_PORTAL}` e `creditor_portal.document_uploads.rejected{operation}`.
+outro tipo de ator e `RATE_LIMITED` (`scope=creditor_upload`, só na primeira recusa de cada janela de 1 minuto — a métrica conta todas; decisão 1563) no limite de envios. Métricas: `collection.disputes.creditor_responses{source=CREDITOR_PORTAL}` e `creditor_portal.document_uploads.rejected{operation}`.
 
 **Pagamento informado no portal** (creditorportal → payment, fatia 6): evento `payment.informed` com
 `reviewReason=CREDITOR_PORTAL` e `origin=CREDITOR_DIRECT` (sempre em revisão; `informedBy` = id da pessoa do credor);
@@ -573,6 +573,24 @@ Métricas: `payment.creditor_portal.evidence_scans{engine,verdict}` (`clean`, `n
 `payment.creditor_portal.reports{outcome}` (`reported`, `rejected_limit`, `rejected_duplicate`); o limite de envios
 reaproveita `creditor_portal.document_uploads.rejected{operation}`. Nenhum número de título, valor, nome de arquivo ou
 código vai para log técnico ou métrica.
+
+**Início e "Minha atividade" no portal** (creditorportal → analytics, settlement, collection, payment e identity,
+fatia 7): **nenhum evento de negócio novo** (só leituras). Log de acesso: `RATE_LIMITED` (`scope=creditor_read`,
+`operation=overview|awaiting|activity`, `limit`) no limite de leituras por pessoa (30 por minuto no Início e na atividade,
+60 no "Aguardando você"), só na primeira recusa de cada janela de 1 minuto por pessoa e operação (a métrica conta todas;
+decisão 1563); `USER_DIRECTORY_QUERIED` (`detail.scope=creditor_team`, `origin=creditor_portal`) a cada
+consulta da atividade do time; `ACCESS_DENIED` (`permission=CREDITOR_ACTIVITY_VIEW`) quando o perfil sem a permissão pede
+o time, e (`resource=creditor_indicators` ou `creditor_activity`, `actorType`) quando outro tipo de ator chama as portas
+do credor. A própria "Minha atividade" lê a auditoria (`actor_type=CREDITOR`) e o log de acesso das pessoas do credor
+(`LOGIN_SUCCESS`, `LOGOUT`, `PASSWORD_CHANGED`, `MFA_ENROLLED` e `FILE_DOWNLOADED` com `origin=creditor_portal`) pela
+lista branca de `identity.domain.service.CreditorActivityCatalog`. Log técnico: WARN "Início do portal do credor lento"
+acima de 2 s, só com `durationMs`; WARN "Fonte do Início do portal do credor indisponível" com `source`
+(`INDICATORS`, `TRANSFER`, `DISPUTES`, `STATEMENTS`, `PAYMENTS`) e a classe do erro, só para falha técnica (indisponível,
+banco — inclusive o tempo limite de `app.creditor-portal.source-timeout`, padrão 2 s, por fonte — e transação; decisão
+1558). Métricas
+`creditor_portal.overview.duration{cache}`, `creditor_portal.reads.rejected{operation,reason}`,
+`creditor_portal.activity.requests{scope}` e `creditor_portal.sources.unavailable{source}` (§5). Nenhuma tag de
+assessoria, credor ou pessoa.
 
 ## 4. Consultas úteis (CloudWatch Logs Insights)
 
@@ -702,6 +720,10 @@ fields @timestamp, tenantId, callId, instance, process
 | `collection.disputes.document_scans{engine,outcome}`, `collection.disputes.document_scan.duration{engine}` | verificação de malware dos documentos do credor pela API: `clean`, `not_scanned`, `infected`, `unavailable` (daemon fora; job tenta de novo) — `infected` > 0 e `unavailable` contínuo pedem alarme |
 | `publicapi.document_uploads.rejected{operation}` | envios com documentos recusados pelo limite próprio por token (429) |
 | `creditor_portal.document_uploads.rejected{operation}` | envios com documentos do portal do credor recusados pelo limite por pessoa do credor (429; `operation=dispute_response`) |
+| `creditor_portal.overview.duration{cache}` (p50/p95/p99) | tempo do Início do portal do credor (indicadores + repasse estimado); `cache=hit`/`miss` do cache curto dos indicadores (60 s, por assessoria, credor e período), `none` quando os indicadores estão fora do ar |
+| `creditor_portal.reads.rejected{operation,reason}` | leituras do Início e da atividade recusadas pelo limite por pessoa do credor (429; `operation=overview\|awaiting\|activity`, `reason=rate_limited`) |
+| `creditor_portal.activity.requests{scope}` | consultas de "Minha atividade" (`scope=own\|team`) |
+| `creditor_portal.sources.unavailable{source}` | fonte do Início ou do "Aguardando você" fora do ar numa resposta por falha técnica, inclusive o tempo limite de 2 s por fonte (`indicators`, `transfer`, `disputes`, `statements`, `payments`); a seção fica indisponível e o restante responde — contínuo pede atenção |
 | `collection.disputes.evidence_link{outcome}` | downloads do link de evidências (`served`, `expired`, `exhausted`, `unknown`, `malformed`, `rate_limited`) — recusas em alta podem indicar varredura |
 | `integration.calls{provider=smtp,operation=dispute_mail,outcome}` | chamadas ao SMTP dos e-mails de contestação |
 | `collection.sync.cases{trigger}`, `collection.sync.duration{trigger}` | sincronização/reavaliação em lote (carga, roteamento, política, carteira) |

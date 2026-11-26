@@ -154,6 +154,10 @@ export class StatementDetail {
   protected readonly actionError = signal<string | null>(null);
   protected readonly downloading = signal<string | null>(null);
   protected readonly verified = signal<ReadonlyMap<string, boolean>>(new Map());
+  /** Prazo de resposta do credor vencido (data de negócio de hoje depois do prazo); só lembrete, sem efeito. */
+  protected responseOverdue(s: StatementView): boolean {
+    return !!s.responseDueOn && s.responseDueOn < zonedNow().date;
+  }
 
   constructor() {
     effect(() => {

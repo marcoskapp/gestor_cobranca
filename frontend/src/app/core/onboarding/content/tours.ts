@@ -1829,6 +1829,20 @@ export const TOURS: readonly TourDefinition[] = [
       { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor, como é calculado e como usar na decisão.' },
     ],
   },
+  {
+    id: 'creditor.home',
+    version: 1,
+    title: 'Início do portal do credor',
+    summary: 'Os números do credor, o que aguarda a sua resposta e os gráficos do recuperado.',
+    steps: [
+      { anchor: 'creditor-home-period', title: 'Período', body: 'Escolha este mês, mês passado, últimos 3 meses ou este ano. "Dados até" diz a data de corte dos números.' },
+      { anchor: 'creditor-home-kpis', title: 'Números do credor', body: 'Acordos em dia (o principal, em alerta abaixo de 80%), saldo em cobrança, recuperado com a variação, repasse estimado e pendências.' },
+      { anchor: 'info-hint', title: 'O "i" de cada número', body: 'Passe o mouse, toque ou use Tab no ícone: o que é o valor e como é calculado.' },
+      { anchor: 'creditor-home-awaiting', title: 'Aguardando você', body: 'Contestações, demonstrativos e pagamentos recusados que dependem do seu time, vencidos primeiro. Cada item abre a ficha ou o pagamento na lista.' },
+      { anchor: 'creditor-home-charts', title: 'Gráficos', body: 'Recuperado nos últimos 6 meses e por carteira no período. "Ver tabela" mostra os mesmos números em lista.' },
+      { anchor: 'creditor-home-account', title: 'Sua conta', body: 'Credor, perfil e acesso anterior, com o atalho para a sua atividade. Se notar algo que não fez, avise a assessoria.' },
+    ],
+  },
 ];
 
 export function findTour(id: string): TourDefinition | undefined {

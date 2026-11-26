@@ -234,9 +234,12 @@ export class CreditorContestDialog {
   selector: 'app-creditor-statement-detail',
   imports: [RouterLink, Amount, AppDatePipe, EmptyState, Icon, Skeleton, StatusChip],
   template: `
-    <a class="btn btn-link px-0" [routerLink]="['/credor', slug(), 'prestacao-de-contas']">
-      <app-icon name="arrow-left" /> Prestação de contas
-    </a>
+    <nav aria-label="Trilha">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a [routerLink]="['/credor', slug(), 'prestacao-de-contas']">Prestação de contas</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ current() ? 'Demonstrativo nº ' + current()!.statement.sequenceNumber : 'Demonstrativo' }}</li>
+      </ol>
+    </nav>
     @if (detail.isLoading() && !current()) {
       <app-skeleton variant="card" />
     } @else if (detail.error() && !current()) {
@@ -255,14 +258,19 @@ export class CreditorContestDialog {
       </section>
     }
     @if (current(); as d) {
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <h1 #pageTitle class="h4 mb-0" tabindex="-1">Demonstrativo nº {{ d.statement.sequenceNumber }}</h1>
-        <app-status-chip domain="creditorStatement" [status]="d.statement.status" />
-      </div>
-      <p class="app-muted">
-        Período de {{ d.statement.periodStart | appDate: 'date' }} a {{ d.statement.periodEnd | appDate: 'date' }} · enviado em
-        {{ d.statement.sentAt | appDate }}
-      </p>
+      <!-- cabeçalho de página com o título focável: depois de responder, o foco volta para ele -->
+      <header class="app-page-header" data-tour="page-header">
+        <div class="app-page-header__text">
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <h1 #pageTitle class="app-page-header__title" tabindex="-1">Demonstrativo nº {{ d.statement.sequenceNumber }}</h1>
+            <app-status-chip domain="creditorStatement" [status]="d.statement.status" />
+          </div>
+          <p class="app-page-header__subtitle">
+            Período de {{ d.statement.periodStart | appDate: 'date' }} a {{ d.statement.periodEnd | appDate: 'date' }} · enviado em
+            {{ d.statement.sentAt | appDate }}
+          </p>
+        </div>
+      </header>
       <div aria-live="polite">
         @if (notice(); as n) {
           <div class="alert d-flex align-items-start gap-2" [class.alert-success]="n.ok" [class.alert-warning]="!n.ok">
@@ -274,7 +282,16 @@ export class CreditorContestDialog {
       @switch (d.statement.status) {
         @case ('SENT') {
           <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2" role="note" data-tour="creditor-statement-respond">
-            <span class="flex-grow-1">Confira os valores e os arquivos e responda: aceite ou conteste.</span>
+            <span class="flex-grow-1">
+              @if (d.statement.responseDueOn && d.statement.responseOverdue) {
+                <strong>Prazo vencido em {{ d.statement.responseDueOn | appDate: 'date' }}.</strong>
+                Você ainda pode responder: confira os valores e os arquivos e aceite ou conteste.
+              } @else if (d.statement.responseDueOn) {
+                Confira os valores e os arquivos e responda até <strong>{{ d.statement.responseDueOn | appDate: 'date' }}</strong>: aceite ou conteste.
+              } @else {
+                Confira os valores e os arquivos e responda: aceite ou conteste.
+              }
+            </span>
             @if (canRespond()) {
               <button class="btn btn-primary" type="button" (click)="acknowledge(d)">Aceitar</button>
               <button class="btn btn-outline-danger" type="button" (click)="contest(d)">Contestar</button>
@@ -334,6 +351,15 @@ export class CreditorContestDialog {
             <dd><app-amount [value]="d.outstanding" /></dd>
           }
         </dl>
+        @if (paidShare(d); as share) {
+          <div class="csd-meter">
+            <div class="progress" role="progressbar" [attr.aria-label]="share.text" aria-valuemin="0" aria-valuemax="100"
+                 [attr.aria-valuenow]="share.percent">
+              <div class="progress-bar" [style.width.%]="share.percent"></div>
+            </div>
+            <span class="app-subline" aria-hidden="true">{{ share.text }}</span>
+          </div>
+        }
         <p class="app-muted mb-0">
           O líquido é o que a assessoria recebeu, menos estornos, honorários retidos, comissão, tarifas e despesas, mais ou
           menos os ajustes. Sobre o que você recebeu diretamente, você deve à assessoria os honorários, a comissão e as tarifas.
@@ -346,7 +372,7 @@ export class CreditorContestDialog {
           <div class="csd-file">
             <div class="csd-file__name">
               <strong>{{ formats[f.format] }}</strong> · {{ f.fileName }}
-              <div class="app-muted csd-small">Código de integridade: <span class="csd-hash">{{ hash(f.sha256) }}</span></div>
+              <span class="app-subline">Código de integridade: <span class="csd-hash">{{ hash(f.sha256) }}</span></span>
               @if (checked()[f.id] !== undefined) {
                 <app-status-chip domain="creditorFileCheck" [status]="checked()[f.id] ? 'OK' : 'MISMATCH'" />
               }
@@ -374,17 +400,17 @@ export class CreditorContestDialog {
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      padding: 8px 0;
-      border-bottom: var(--bs-border-width) solid var(--app-border);
+      padding: var(--app-space-2) 0;
     }
-    .csd-file:last-of-type {
-      border-bottom: 0;
+    .csd-file + .csd-file {
+      border-top: var(--bs-border-width) solid var(--app-border);
+    }
+    .csd-meter {
+      max-width: 28rem;
+      margin-bottom: var(--app-space-3);
     }
     .csd-file__name {
       min-width: 0;
-    }
-    .csd-small {
-      font-size: var(--app-text-xs);
     }
     .csd-hash {
       font-family: var(--bs-font-monospace);
@@ -418,6 +444,16 @@ export class CreditorStatementDetailPage {
   protected readonly hash = groupedHash;
   protected readonly direction = directionText;
   protected readonly abs = (value: number) => Math.abs(Number(value));
+  /** Medidor "pago × a pagar" do líquido (só quando há o que repassar ou pagar). */
+  protected paidShare(d: CreditorStatementDetail): { percent: number; text: string } | null {
+    const paid = Math.abs(Number(d.transferred));
+    const total = paid + Math.abs(Number(d.outstanding));
+    if (d.statement.direction === 'NONE' || total <= 0) {
+      return null;
+    }
+    const percent = Math.min(100, Math.floor((paid / total) * 100));
+    return { percent, text: percent >= 100 ? 'Líquido pago por inteiro' : `${percent}% do líquido já pago` };
+  }
   /** Observação depois de ": ", sem ponto duplicado no fim. */
   protected readonly note = (text: string | null) => (text ? ': ' + text.trim().replace(/[.\s]+$/, '') : '');
 

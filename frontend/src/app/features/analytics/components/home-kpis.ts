@@ -14,7 +14,7 @@ import { AnalyticsFilter } from '../data/analytics.models';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { Icon } from '../../../shared/components/icon/icon';
 import { casesTarget, drillAccess, ledgerTarget } from '../data/drill-down';
-import { DrillLink } from './drill-link';
+import { DrillLink } from '../../../shared/components/charts/drill-link';
 
 /**
  * Resumo da operação na página inicial (carregado sob demanda): carteira, saldo vencido, fila

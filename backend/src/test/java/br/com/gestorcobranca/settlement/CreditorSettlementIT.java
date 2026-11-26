@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.settlement;
 
+import br.com.gestorcobranca.creditorportal.application.port.in.CreditorHomeUseCases;
 import br.com.gestorcobranca.creditorportal.application.port.in.CreditorStatementUseCases;
 import br.com.gestorcobranca.creditorportal.application.port.in.CreditorStatementUseCases.AcknowledgeCommand;
 import br.com.gestorcobranca.creditorportal.application.port.in.CreditorStatementUseCases.ContestCommand;
@@ -57,6 +58,10 @@ class CreditorSettlementIT extends SettlementTestSupport {
     CreditorStatementUseCases portal;
     @Autowired
     CreditorSettlementUseCases creditorSettlement;
+    @Autowired
+    CreditorHomeUseCases home;
+    @Autowired
+    tools.jackson.databind.json.JsonMapper json;
 
     private final UUID creditorUser = Ids.newId();
     private final UUID session = Ids.newId();
@@ -89,6 +94,33 @@ class CreditorSettlementIT extends SettlementTestSupport {
 
         StatementDetail detail = asCreditor(creditorA, Permission.CREDITOR_ONLY, () -> portal.statement(first.id()));
         assertThat(detail.statement().status()).isEqualTo("SENT");
+        // prazo para responder (fatia 7): envio + 10 dias corridos, na lista, na ficha e na ficha interna
+        java.time.LocalDate dueOn = java.time.LocalDate.ofInstant(detail.statement().sentAt(),
+                br.com.gestorcobranca.shared.config.TimeConfig.BUSINESS_ZONE).plusDays(10);
+        assertThat(detail.statement().responseDueOn()).isEqualTo(dueOn);
+        assertThat(detail.statement().responseOverdue()).isFalse();
+        assertThat(detail.statement().outstanding()).isEqualByComparingTo(detail.outstanding());
+        assertThat(asFinance1(() -> statements.get(first.id())).responseDueOn()).isEqualTo(dueOn);
+        assertThat(asCreditor(creditorA, Permission.CREDITOR_ONLY, portal::statements)).singleElement()
+                .satisfies(i -> assertThat(i.responseDueOn()).isEqualTo(dueOn));
+        // "Aguardando você": o demonstrativo enviado, pelo prazo; quem não responde vê sem poder agir
+        CreditorHomeUseCases.Awaiting awaiting = asCreditor(creditorA, Set.of(Permission.CREDITOR_PORTAL_OVERVIEW),
+                home::awaiting);
+        assertThat(awaiting.counts().statements()).isEqualTo(1);
+        assertThat(awaiting.items()).filteredOn(i -> i.kind().equals("STATEMENT")).singleElement().satisfies(i -> {
+            assertThat(i.id()).isEqualTo(first.id());
+            assertThat(i.dueOn()).isEqualTo(dueOn);
+            assertThat(i.youCanAct()).isFalse();
+            assertThat(i.statement().sequenceNumber()).isEqualTo(first.sequenceNumber());
+            assertThat(i.statement().periodStart()).isEqualTo(first.periodStart());
+        });
+        assertThat(asCreditor(creditorB, Set.of(Permission.CREDITOR_PORTAL_OVERVIEW), home::awaiting).counts().statements())
+                .isZero();
+        // contrato das respostas da prestação de contas (RS-26, SEG-F05)
+        br.com.gestorcobranca.support.JsonContract.assertMatches(json.valueToTree(detail),
+                "creditor-portal/statement-detail.txt");
+        br.com.gestorcobranca.support.JsonContract.assertMatches(json.valueToTree(
+                asCreditor(creditorA, Permission.CREDITOR_ONLY, portal::openPeriod)), "creditor-portal/open-period.txt");
         assertThat(detail.files()).extracting(FileItem::sha256).containsExactlyInAnyOrder(csv.sha256(), pdf.sha256());
         List<String> hashes = detail.files().stream().map(FileItem::sha256).toList();
 
@@ -134,6 +166,7 @@ class CreditorSettlementIT extends SettlementTestSupport {
                 () -> portal.acknowledge(first.id(), new AcknowledgeCommand("123456", "Conferido", hashes,
                         "203.0.113.7")));
         assertThat(acknowledged.statement().status()).isEqualTo("ACKNOWLEDGED");
+        assertThat(asCreditor(creditorA, Permission.CREDITOR_ONLY, home::awaiting).counts().statements()).isZero();
         assertThat(acknowledged.respondedInPortal()).isTrue();
         verify(stepUp, org.mockito.Mockito.atLeastOnce()).verify("123456",
                 br.com.gestorcobranca.shared.security.StepUpPurpose.STATEMENT_ACKNOWLEDGE, first.id().toString());

@@ -20,7 +20,8 @@ function me(permissions: string[]): CreditorMe {
 function detail(status: 'SENT' | 'ACKNOWLEDGED' = 'SENT'): CreditorStatementDetail {
   return {
     statement: { id: 's1', sequenceNumber: 3, periodStart: '2026-10-01', periodEnd: '2026-10-31', status, recovered: 1000,
-      netTransfer: 820, direction: 'AGENCY_TO_CREDITOR', sentAt: '2026-11-05T12:00:00Z', respondedAt: null },
+      netTransfer: 820, direction: 'AGENCY_TO_CREDITOR', sentAt: '2026-11-05T12:00:00Z', respondedAt: null,
+      responseDueOn: '2026-11-15', responseOverdue: false, transferred: 0, outstanding: 820 },
     totals: { receivedByAgency: 1000, receivedByCreditor: 0, reversed: 0, recovered: 1000, agencyHonorarium: 0, commission: 160,
       fixedFees: 20, expenses: 0, adjustments: 0, netTransfer: 820 },
     files: [{ id: 'f1', format: 'PDF', fileName: 'demonstrativo-3.pdf', size: 1200, sha256: HASH, createdAt: '2026-11-05T11:00:00Z' }],
@@ -59,6 +60,25 @@ describe('ficha do demonstrativo no portal do credor', () => {
     expect(root.textContent).toContain('demonstrativo-3.pdf');
     expect(root.textContent).toContain('A assessoria repassa a você');
     expect([...root.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Aceitar')).toBe(false);
+    // prazo de resposta (só lembrete) e o medidor do que falta pagar
+    expect(root.textContent).toContain('responda até 15/11/2026');
+    expect(root.querySelector('[role="progressbar"]')!.getAttribute('aria-label')).toBe('0% do líquido já pago');
+  });
+
+  it('prazo vencido: o aviso diz a data, e o demonstrativo continua aguardando a resposta', async () => {
+    login(['CREDITOR_PORTAL_OVERVIEW']);
+    const harness = await RouterTestingHarness.create('/credor/aurora/prestacao-de-contas/s1');
+    const late = detail();
+    late.statement = { ...late.statement, responseOverdue: true };
+    late.transferred = 410;
+    late.outstanding = 410;
+    http.expectOne('/api/creditor/v1/statements/s1').flush(late);
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    const root = harness.routeNativeElement!;
+    expect(root.textContent).toContain('Prazo vencido em 15/11/2026.');
+    expect(root.textContent).toContain('Você ainda pode responder');
+    expect(root.querySelector('[role="progressbar"]')!.getAttribute('aria-label')).toBe('50% do líquido já pago');
   });
 
   it('aceite envia o código do autenticador e o SHA-256 dos arquivos mostrados', async () => {

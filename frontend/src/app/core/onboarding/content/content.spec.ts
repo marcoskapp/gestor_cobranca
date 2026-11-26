@@ -85,6 +85,19 @@ describe('conteúdo do onboarding', () => {
     }
   });
 
+  it('telas do portal do credor registradas (manual "portal-credor"), com o tour leve do Início', () => {
+    expect(findScreen('/credor/aurora/inicio')?.tourId).toBe('creditor.home');
+    expect(findScreen('/credor/aurora/prestacao-de-contas')?.key).toBe('creditor.statements');
+    expect(findScreen('/credor/aurora/prestacao-de-contas/s-1')?.key).toBe('creditor.statement');
+    expect(findScreen('/credor/aurora/contestacoes?situacao=CLOSED')?.key).toBe('creditor.disputes');
+    expect(findScreen('/credor/aurora/contestacoes/d-1')?.key).toBe('creditor.dispute');
+    expect(findScreen('/credor/aurora/pagamentos')?.key).toBe('creditor.payments');
+    const anchors = findTour('creditor.home')!.steps.map((s) => s.anchor);
+    expect(anchors).toEqual(['creditor-home-period', 'creditor-home-kpis', 'info-hint', 'creditor-home-awaiting', 'creditor-home-charts',
+      'creditor-home-account']);
+    expect(findScreen('/credor/aurora/atividade?aba=time')?.key).toBe('creditor.activity');
+  });
+
   it('estação de cobrança, gestão e negociação registradas com tour', () => {
     expect(findScreen('/cobranca/fila?caso=k-1')?.key).toBe('collection.queue');
     expect(findScreen('/cobranca/casos/k-1')?.tourId).toBe('collection.station');

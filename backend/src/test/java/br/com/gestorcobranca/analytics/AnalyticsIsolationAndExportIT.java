@@ -45,7 +45,7 @@ class AnalyticsIsolationAndExportIT extends AnalyticsTestSupport {
             "src_statement_import", "src_statement_line", "src_message", "src_call", "src_import_batch",
             "src_processing_job", "src_business_event", "src_performance_fact", "src_worked_case", "src_logged_time",
             "src_case_snapshot", "src_commission_statement", "src_policy_agreement", "src_portal_simulation",
-            "src_portal_service_request");
+            "src_portal_service_request", "src_break_suspension");
     static final List<String> SNAPSHOTS = List.of("recovery_daily", "agreement_cohort", "portfolio_position",
             "case_position", "refresh_state");
 
@@ -172,8 +172,11 @@ class AnalyticsIsolationAndExportIT extends AnalyticsTestSupport {
                 Map.entry("collection.collection_case:ck_case_status", List.of("OPEN", "IN_NEGOTIATION", "PROMISE",
                         "AGREEMENT", "DISPUTED", "SUSPENDED", "LEGAL", "CLOSED")),
                 Map.entry("collection.collection_case:ck_case_owner_type", List.of("QUEUE", "USER")),
-                Map.entry("negotiation.agreement:ck_agreement_status", List.of("BROKEN")),
-                Map.entry("negotiation.agreement_installment:ck_agreement_installment_status", List.of("PAID")),
+                Map.entry("negotiation.agreement:ck_agreement_status", List.of("BROKEN", "FORMALIZED", "IN_PAYMENT")),
+                Map.entry("negotiation.agreement_installment:ck_agreement_installment_status", List.of("PAID",
+                        "CANCELLED")),
+                Map.entry("negotiation.agreement_break_suspension:ck_break_suspension_status", List.of("ACTIVE")),
+                Map.entry("settlement.receipt:ck_receipt_received_by", List.of("AGENCY", "CREDITOR")),
                 Map.entry("negotiation.proposal:ck_proposal_actor", List.of("USER", "ASSISTANT")),
                 Map.entry("payment.payment_instruction:ck_instruction_status", List.of("FAILED")),
                 Map.entry("payment.divergence:ck_divergence_status", List.of("OPEN")),

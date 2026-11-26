@@ -6,6 +6,7 @@ import { Amount } from '../../shared/components/amount/amount';
 import { CellDef } from '../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../shared/components/data-table/data-table';
 import { Icon } from '../../shared/components/icon/icon';
+import { PageHeader } from '../../shared/components/page-header/page-header';
 import { StatusChip } from '../../shared/components/status-chip/status-chip';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { CreditorDisputesApi } from '../data/creditor-disputes.api';
@@ -47,13 +48,13 @@ const TABS: readonly { value: Tab; label: string; empty: string; hint: string }[
  */
 @Component({
   selector: 'app-creditor-disputes',
-  imports: [RouterLink, Amount, AppDatePipe, CellDef, DataTable, Icon, StatusChip],
+  imports: [RouterLink, Amount, AppDatePipe, CellDef, DataTable, Icon, PageHeader, StatusChip],
   template: `
-    <h1 class="h4">Contestações</h1>
-    <p class="app-muted">Contestações de devedores em que a assessoria pediu a sua posição. Quem decide é a assessoria.</p>
+    <app-page-header title="Contestações"
+                     subtitle="Contestações de devedores em que a assessoria pediu a sua posição. Quem decide é a assessoria." />
 
-    <section class="app-card" aria-labelledby="cd-lista">
-      <h2 class="app-card__title" id="cd-lista">Pedidos da assessoria</h2>
+    <section aria-labelledby="cd-lista">
+      <h2 class="app-section-title" id="cd-lista">Pedidos da assessoria</h2>
       <nav class="nav nav-tabs mb-3 app-scroll-x" aria-label="Filtrar por situação">
         @for (t of tabs; track t.value) {
           <a class="nav-link" [routerLink]="[]" [queryParams]="{ situacao: t.value === 'AWAITING_YOU' ? null : t.value }"
@@ -75,7 +76,7 @@ const TABS: readonly { value: Tab; label: string; empty: string; hint: string }[
       >
         <ng-template appCell="protocol" [appCellOf]="rows()" let-d>
           <a [routerLink]="[d.id]">Protocolo {{ d.protocol }}</a>
-          <div class="app-muted cd-small">{{ typeLabel(d.type) }}</div>
+          <span class="app-subline">{{ typeLabel(d.type) }}</span>
         </ng-template>
         <ng-template appCell="situation" [appCellOf]="rows()" let-d>
           <app-status-chip domain="creditorDispute" [status]="d.situation" />
@@ -86,7 +87,7 @@ const TABS: readonly { value: Tab; label: string; empty: string; hint: string }[
               @if (d.requestedDueDate) {
                 <span [class.cd-late]="d.overdue">até {{ d.requestedDueDate | appDate: 'date' }}</span>
                 @if (d.overdue) {
-                  <div class="cd-late cd-small"><app-icon name="exclamation-triangle" /> Prazo vencido</div>
+                  <span class="app-subline cd-late"><app-icon name="exclamation-triangle" /> Prazo vencido</span>
                 }
               }
             }
@@ -104,9 +105,6 @@ const TABS: readonly { value: Tab; label: string; empty: string; hint: string }[
     </section>
   `,
   styles: `
-    .cd-small {
-      font-size: var(--app-text-xs);
-    }
     .cd-late {
       font-weight: var(--app-weight-semibold);
       color: var(--app-danger-fg);

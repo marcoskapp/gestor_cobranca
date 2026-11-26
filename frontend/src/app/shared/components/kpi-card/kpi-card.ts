@@ -40,7 +40,7 @@ export type KpiTone = 'warning' | 'danger';
     <span class="app-kpi__head">
       <span class="app-kpi__label" [attr.title]="label()">{{ label() }}</span>
       @if (info(); as id) {
-        <app-info-hint [indicator]="id" [label]="label()" />
+        <app-info-hint [indicator]="id" [label]="label()" [manualLink]="manualLink()" />
       }
     </span>
     <span class="app-kpi__value app-numeric"><ng-content /></span>
@@ -56,6 +56,8 @@ export class KpiCard {
   readonly detail = input<string | null>(null);
   /** Id do indicador no catálogo de informação contextual. */
   readonly info = input<string | null>(null);
+  /** "Saiba mais no manual" no "i" (`false` fora do app interno, como no portal do credor). */
+  readonly manualLink = input(true);
   /** Valor do próprio registro (não é indicador calculado): dispensa `info`. */
   readonly record = input(false, { transform: booleanAttribute });
   readonly tone = input<KpiTone | null>(null);

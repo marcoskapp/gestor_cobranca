@@ -1,0 +1,30 @@
+# Contrato de GET /api/creditor/v1/awaiting (portal do credor, fatia 7). Campo novo só com decisão (RS-26).
+# Cenário com contestação, demonstrativo enviado (com e sem prazo) e informe de pagamento recusado: cada item traz só a
+# seção do seu tipo (as outras vêm nulas).
+counts
+counts.disputes
+counts.rejectedPayments
+counts.statements
+dueSoon
+items
+items[].dispute
+items[].dispute.protocol
+items[].dispute.type
+items[].dueOn
+items[].dueSoon
+items[].id
+items[].kind
+items[].overdue
+items[].payment
+items[].payment.amount
+items[].payment.decidedAt
+items[].payment.paidOn
+items[].payment.rejectionReason
+items[].statement
+items[].statement.periodEnd
+items[].statement.periodStart
+items[].statement.sequenceNumber
+items[].youCanAct
+overdue
+total
+unavailable

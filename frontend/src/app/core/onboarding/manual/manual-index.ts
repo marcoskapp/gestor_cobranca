@@ -29,6 +29,7 @@ export const MANUAL_MODULES: readonly (ManualModuleInfo & { icon: IconName })[] 
   { id: 'juridico', title: 'Jurídico', icon: 'bank2', summary: 'Casos que saem da cobrança amigável: viabilidade, autorização, medidas e processos.' },
   { id: 'compliance', title: 'Compliance', icon: 'shield-check', summary: 'Quando e como o devedor pode ser contatado e os direitos do titular dos dados.' },
   { id: 'paineis', title: 'Painéis', icon: 'grid-1x2', summary: 'Indicadores da operação, sempre com a base de cálculo, e exportação.' },
+  { id: 'portal-credor', title: 'Portal do credor', icon: 'building', summary: 'O que as pessoas do credor veem e fazem no portal: resultado, demonstrativos, contestações e pagamentos.' },
   { id: 'administracao', title: 'Administração', icon: 'people', summary: 'Credores, carteiras, usuários, perfis, equipes, configurações, integração dos credores e rastreabilidade.' },
 ];
 
@@ -61,6 +62,7 @@ const MODULE_BY_PREFIX: Readonly<Record<string, ManualModuleId>> = {
   governance: 'administracao',
   platform: 'administracao',
   publicapi: 'administracao',
+  creditor: 'portal-credor',
 };
 
 export function moduleOfScreen(screenKey: string): ManualModuleId | undefined {
@@ -93,6 +95,7 @@ const LOADERS: Readonly<Record<ManualModuleId, () => Promise<ModuleManual>>> = {
   juridico: () => import('./content/juridico').then((m) => m.MANUAL),
   compliance: () => import('./content/compliance').then((m) => m.MANUAL),
   paineis: () => import('./content/paineis').then((m) => m.MANUAL),
+  'portal-credor': () => import('./content/portal-credor').then((m) => m.MANUAL),
   // o faturamento da plataforma tem arquivo próprio, juntado ao manual da administração
   administracao: () =>
     Promise.all([import('./content/administracao'), import('./content/faturamento-plataforma')]).then(([m, platform]) => ({

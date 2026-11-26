@@ -22,6 +22,16 @@ public interface CreditorDisputeUseCases {
     CreditorDisputeDetail dispute(UUID disputeId);
 
     /**
+     * Contestações que aguardam a resposta do credor — o mesmo filtro da situação {@code AWAITING_YOU} da lista
+     * ({@link #disputes()}): contestação aberta com pedido na fila, enviado ou com falha de envio. As contagens valem
+     * para todas (até o teto de proteção da lista); os itens vêm pelo prazo, os vencidos primeiro, até {@code limit}.
+     * Vence logo = prazo de hoje até {@value #DUE_SOON_DAYS} dias, ainda não vencido.
+     */
+    CreditorDisputesAwaiting awaiting(int limit);
+
+    int DUE_SOON_DAYS = 2;
+
+    /**
      * Documento enviado no pedido da assessoria ou trazido por uma resposta do credor (já liberado da quarentena);
      * registra {@code FILE_DOWNLOADED}. O chamador fecha o stream.
      */
@@ -79,6 +89,17 @@ public interface CreditorDisputeUseCases {
 
     record CreditorDisputeDetail(CreditorDisputeSummary summary, List<CreditorDisputedTitle> titles,
                                  List<CreditorDisputeRequest> requests, List<CreditorDisputeResponse> responses) {
+    }
+
+    record CreditorDisputesAwaiting(int total, int dueSoon, int overdue, List<CreditorAwaitingDispute> items) {
+    }
+
+    /**
+     * @param type             natureza da contestação (como em {@link CreditorDisputeSummary#type()})
+     * @param requestedDueDate prazo pedido ao credor (o mais próximo dos pedidos que aguardam)
+     */
+    record CreditorAwaitingDispute(UUID id, String protocol, String type, LocalDate requestedDueDate, boolean overdue,
+                                   boolean dueSoon) {
     }
 
     /** @param position CONFIRMS_DEBT, ACCEPTS_CLAIM, PARTIAL ou INFORMATION */

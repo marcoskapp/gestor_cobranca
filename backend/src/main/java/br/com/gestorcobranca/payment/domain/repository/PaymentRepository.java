@@ -32,6 +32,9 @@ public interface PaymentRepository {
     /** Informes do portal do credor, do mais recente ao mais antigo. */
     List<Payment> findCreditorPortalReports(UUID creditorId, int limit);
 
+    /** Informes do portal do credor recusados com a decisão a partir de {@code since}, do mais recente ao mais antigo. */
+    List<Payment> findCreditorPortalRejectedSince(UUID creditorId, java.time.Instant since, int limit);
+
     /** Bloqueia o pagamento (alocação, estorno e conciliação são serializados por pagamento). */
     Optional<Payment> findByIdForUpdate(UUID id);
 

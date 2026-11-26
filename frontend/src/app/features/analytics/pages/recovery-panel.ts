@@ -7,9 +7,9 @@ import { InfoHint } from '../../../shared/components/info-hint/info-hint';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../components/analytics-filters';
-import { BarChart } from '../components/bar-chart';
-import { ChartRow } from '../components/chart.models';
-import { ColumnChart } from '../components/column-chart';
+import { BarChart } from '../../../shared/components/charts/bar-chart';
+import { ChartRow } from '../../../shared/components/charts/chart.models';
+import { ColumnChart } from '../../../shared/components/charts/column-chart';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
 import { AnalyticsApi } from '../data/analytics.api';
@@ -18,7 +18,7 @@ import { GROUP_BY_LABELS, groupLabel } from '../data/analytics.labels';
 import { AnalyticsFilter } from '../data/analytics.models';
 import { urlFilter } from '../data/url-filter';
 import { DrillTarget, bucketPeriod, drillAccess, ledgerTarget, withRow } from '../data/drill-down';
-import { DrillLink } from '../components/drill-link';
+import { DrillLink } from '../../../shared/components/charts/drill-link';
 import { peopleGroupBy } from './people-scope';
 
 interface Links {

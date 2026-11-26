@@ -23,6 +23,12 @@ public interface CreditorSettlementUseCases {
     /** Posição do período em aberto (estimativa, sujeita ao fechamento). */
     CreditorOpenPeriod openPeriod();
 
+    /**
+     * Demonstrativos enviados que aguardam o aceite ou a contestação do credor ({@code SENT}), pelo prazo — o mesmo
+     * filtro da situação "Aguardando sua resposta" da lista ({@code CREDITOR_PORTAL_OVERVIEW}).
+     */
+    List<CreditorStatementSummary> awaitingResponse();
+
     /** Arquivo do demonstrativo (CSV, XLSX ou PDF), com registro do download. */
     CreditorFileContent download(UUID statementId, UUID fileId);
 
@@ -51,10 +57,18 @@ public interface CreditorSettlementUseCases {
     record CreditorResponseCommand(String note, List<String> fileSha256, String clientIp, String stepUpProof) {
     }
 
-    /** @param direction {@code AGENCY_TO_CREDITOR} (a assessoria repassa), {@code CREDITOR_TO_AGENCY} (o credor paga) ou {@code NONE} */
+    /**
+     * @param direction       {@code AGENCY_TO_CREDITOR} (a assessoria repassa), {@code CREDITOR_TO_AGENCY} (o credor
+     *                        paga) ou {@code NONE}
+     * @param responseDueOn   prazo para o credor aceitar ou contestar (só lembrete)
+     * @param responseOverdue aguarda a resposta ({@code SENT}) e o prazo já passou
+     * @param transferred     já repassado (ou recebido) do líquido
+     * @param outstanding     quanto falta repassar (ou receber)
+     */
     record CreditorStatementSummary(UUID id, int sequenceNumber, LocalDate periodStart, LocalDate periodEnd, String status,
                                     BigDecimal recovered, BigDecimal netTransfer, String direction, Instant sentAt,
-                                    Instant respondedAt) {
+                                    Instant respondedAt, LocalDate responseDueOn, boolean responseOverdue,
+                                    BigDecimal transferred, BigDecimal outstanding) {
     }
 
     record CreditorTotals(BigDecimal receivedByAgency, BigDecimal receivedByCreditor, BigDecimal reversed,
@@ -76,7 +90,16 @@ public interface CreditorSettlementUseCases {
     record CreditorFileContent(String fileName, String contentType, long size, String sha256, InputStream content) {
     }
 
+    /**
+     * @param daily         recuperado e líquido acumulados por dia do período em aberto (dia 1 = início)
+     * @param previousDaily o mesmo do período anterior (último demonstrativo fechado), para comparar no mesmo dia
+     */
     record CreditorOpenPeriod(LocalDate periodStart, LocalDate asOf, LocalDate expectedPeriodEnd, BigDecimal recovered,
-                              BigDecimal netTransfer, String direction, Instant calculatedAt) {
+                              BigDecimal netTransfer, String direction, Instant calculatedAt,
+                              List<CreditorDailyPoint> daily, List<CreditorDailyPoint> previousDaily) {
+    }
+
+    /** Valores acumulados até o fim do dia {@code day} do período. */
+    record CreditorDailyPoint(int day, LocalDate date, BigDecimal recovered, BigDecimal netTransfer) {
     }
 }

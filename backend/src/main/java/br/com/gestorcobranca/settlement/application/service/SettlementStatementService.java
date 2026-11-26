@@ -16,6 +16,7 @@ import br.com.gestorcobranca.settlement.domain.repository.ReceiptRepository;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementFactRepository;
 import br.com.gestorcobranca.settlement.domain.repository.SettlementStatementRepository;
 import br.com.gestorcobranca.settlement.domain.service.SettlementCycle;
+import br.com.gestorcobranca.settlement.domain.service.StatementResponseDeadline;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.config.TimeConfig;
@@ -291,11 +292,14 @@ class SettlementStatementService implements SettlementStatementUseCases {
             Guard.require(export.getStatementId().equals(s.getId()), "statement.export_mismatch",
                     "Arquivo de outro demonstrativo");
         }
+        Instant sentAt = Instant.now(clock);
         s.send(currentActor.actorId(), c.channel() == null ? null : c.channel().trim().toUpperCase(), c.reference(),
-                Instant.now(clock));
+                sentAt, StatementResponseDeadline.dueOn(sentAt, TimeConfig.BUSINESS_ZONE,
+                        properties.statementResponseDays()));
         statements.save(s);
         auditTrail.record(AuditEntry.of("settlement_statement.sent", RESOURCE, s.getId()).creditor(s.getCreditorId())
                 .change("status", StatementStatus.APPROVED, StatementStatus.SENT).created("channel", s.getSentChannel())
+                .created("responseDueOn", s.getResponseDueOn().toString())
                 .created("exports", c.exportIds().toString()));
         businessEvents.log(statementEvent(BusinessEventTypes.SETTLEMENT_SENT, s).attr("channel", s.getSentChannel())
                 .attr("exports", c.exportIds().size())

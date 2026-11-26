@@ -2,12 +2,13 @@ import { Component, computed, effect, inject } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDropdown, NgbDropdownItem, NgbDropdownMenu, NgbDropdownToggle, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { filter, map } from 'rxjs';
 import { toApiError } from '../../core/http/problem';
 import { ThemeService } from '../../core/preferences/theme.service';
 import { Icon } from '../../shared/components/icon/icon';
 import { CreditorApi } from '../data/creditor.api';
+import { CreditorAwaitingState } from '../data/creditor-awaiting';
 import { CreditorSession } from '../data/creditor-session';
 import { CreditorLinkToken } from '../data/creditor-link-token';
 import { CreditorPermission } from '../data/creditor.models';
@@ -19,7 +20,7 @@ import { fragmentToken } from '../pages/creditor-errors';
  */
 @Component({
   selector: 'app-creditor-layout',
-  imports: [NgbTooltip, Icon, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [NgbDropdown, NgbDropdownItem, NgbDropdownMenu, NgbDropdownToggle, NgbTooltip, Icon, RouterOutlet, RouterLink, RouterLinkActive],
   styleUrl: './creditor-layout.scss',
   template: `
     <a class="app-skip-link" href="#credor-conteudo">Pular para o conteúdo</a>
@@ -39,11 +40,23 @@ import { fragmentToken } from '../pages/creditor-errors';
           <app-icon [name]="theme.effectiveTheme() === 'dark' ? 'sun' : 'moon-stars'" />
         </button>
         @if (me(); as m) {
-          <span class="cr__who d-none d-sm-inline">{{ m.name }}</span>
-          <button class="btn btn-link" type="button" (click)="logout()">
-            <app-icon name="box-arrow-right" />
-            Sair
-          </button>
+          <div ngbDropdown placement="bottom-end" class="cr__user">
+            <button ngbDropdownToggle class="btn btn-link cr__who" type="button" [attr.aria-label]="'Menu de ' + m.name">
+              <app-icon name="person" />
+              <span class="d-none d-sm-inline">{{ m.name }}</span>
+            </button>
+            <div ngbDropdownMenu>
+              <span class="dropdown-header">{{ m.roleLabel }}</span>
+              @if (can(permission.OVERVIEW)) {
+                <a ngbDropdownItem [routerLink]="['/credor', slug(), 'atividade']">
+                  <app-icon name="clock-history" /> Minha atividade
+                </a>
+              }
+              <button ngbDropdownItem type="button" (click)="logout()">
+                <app-icon name="box-arrow-right" /> Sair
+              </button>
+            </div>
+          </div>
         }
       </div>
       @if (me()) {
@@ -55,8 +68,12 @@ import { fragmentToken } from '../pages/creditor-errors';
             <a [routerLink]="['/credor', slug(), 'prestacao-de-contas']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page">
               <app-icon name="file-earmark-text" /> Prestação de contas
             </a>
-            <a [routerLink]="['/credor', slug(), 'contestacoes']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page">
+            <a [routerLink]="['/credor', slug(), 'contestacoes']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page"
+               [attr.aria-label]="disputesLabel()">
               <app-icon name="chat-square-text" /> Contestações
+              @if (awaitingDisputes(); as n) {
+                <span class="badge rounded-pill text-bg-warning cr__count" aria-hidden="true">{{ n }}</span>
+              }
             </a>
             <a [routerLink]="['/credor', slug(), 'pagamentos']" routerLinkActive="cr__nav--active" ariaCurrentWhenActive="page">
               <app-icon name="cash-coin" /> Pagamentos informados
@@ -104,6 +121,22 @@ export class CreditorLayout {
     return m && m.tenantSlug === this.slug() ? m : null;
   });
   protected readonly permission = CreditorPermission;
+
+  /**
+   * Contador do item "Contestações": as que aguardam a posição do credor, de `GET /awaiting` (sem cache, pelo mesmo
+   * filtro da aba "Aguardando você"), lido uma vez por navegação e compartilhado com o Início. Sem a visão geral,
+   * nenhuma chamada sai.
+   */
+  private readonly awaiting = inject(CreditorAwaitingState).resource;
+  protected readonly awaitingDisputes = computed(() => (this.awaiting.hasValue() ? this.awaiting.value()!.counts.disputes : 0));
+  protected readonly disputesLabel = computed(() => {
+    const n = this.awaitingDisputes();
+    if (!n) {
+      return null;
+    }
+    const who = this.can(CreditorPermission.DISPUTE_RESPOND) ? 'aguardando você' : 'aguardando o seu time';
+    return `Contestações, ${n} ${who}`;
+  });
   protected can(permission: string): boolean {
     return this.me()?.permissions.includes(permission) ?? false;
   }

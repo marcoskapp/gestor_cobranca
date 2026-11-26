@@ -177,6 +177,11 @@ export class InfoHint {
   readonly indicator = input.required<string>();
   /** Nome do indicador como aparece na tela: rótulo acessível "Sobre: <nome>". */
   readonly label = input.required<string>();
+  /**
+   * Mostra o "Saiba mais no manual" (o manual é do app interno, em `/ajuda`). `false` onde o manual não abre, como no
+   * portal do credor: o balão fica só com o que é, como é calculado e como usar.
+   */
+  readonly manualLink = input(true);
 
   private readonly document = inject(DOCUMENT);
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
@@ -378,7 +383,7 @@ export class InfoHint {
     try {
       const help = await loadIndicator(this.indicator());
       this.help.set(help);
-      this.link.set(help ? indicatorManualLink(help) : null);
+      this.link.set(help && this.manualLink() ? indicatorManualLink(help) : null);
       this.state.set(help ? 'ready' : 'missing');
     } catch {
       this.state.set('error');

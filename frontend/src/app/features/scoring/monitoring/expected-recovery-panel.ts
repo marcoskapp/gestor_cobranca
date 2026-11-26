@@ -15,7 +15,7 @@ import { sameValue } from '../../../shared/data/same-value';
 import { FORM_FIELD } from '../../../shared/forms/field';
 import { isoDate, toLocalDate } from '../../../shared/models/dates';
 import { USER_NAMES_BATCH, UserNames } from '../../admin/data/user-names';
-import { BarChart } from '../../analytics/components/bar-chart';
+import { BarChart } from '../../../shared/components/charts/bar-chart';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { CreditorLookup, CreditorNames, PortfolioNames } from '../../organization/data/organization.lookups';
 import { ScoringMonitoringApi } from '../data/scoring.api';

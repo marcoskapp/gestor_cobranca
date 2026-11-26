@@ -1,0 +1,18 @@
+# Contrato de GET /api/creditor/v1/statements/open-period (portal do credor, fatias 4 e 7). Campo novo só com decisão.
+asOf
+calculatedAt
+daily
+daily[].date
+daily[].day
+daily[].netTransfer
+daily[].recovered
+direction
+expectedPeriodEnd
+netTransfer
+periodStart
+previousDaily
+previousDaily[].date
+previousDaily[].day
+previousDaily[].netTransfer
+previousDaily[].recovered
+recovered

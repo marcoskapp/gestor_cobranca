@@ -111,6 +111,11 @@ export class DataTable<T> {
   readonly page = input<TablePage | null>(null);
   readonly sort = input<TableSort | null>(null);
   readonly rowKey = input<(row: T) => unknown>((row: T) => (row as { id?: unknown }).id ?? row);
+  /**
+   * Chave (`rowKey`) da linha em destaque — ex.: o registro aberto por um link com o id na URL. A linha recebe
+   * `table-active`, `aria-current="true"` e `tabindex="-1"` (a tela pode rolar até ela e mover o foco).
+   */
+  readonly activeRow = input<unknown>(null);
 
   readonly pageChange = output<PageRequest>();
   readonly sortChange = output<TableSort>();
@@ -124,6 +129,10 @@ export class DataTable<T> {
   protected readonly skeletonColumns = computed(() => Math.max(1, Math.min(this.columns().filter((c) => !c.actions).length, 6)));
   protected readonly templates = computed(() => new Map(this.cells().map((c) => [c.appCell(), c.template])));
   protected readonly trackRow = (row: T): unknown => this.rowKey()(row);
+  protected isActive(row: T): boolean {
+    const active = this.activeRow();
+    return active !== null && active !== undefined && this.trackRow(row) === active;
+  }
 
   /** Tela abaixo de 576 px (ponto `sm` do Bootstrap). */
   private readonly narrowScreen = toSignal(

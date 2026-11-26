@@ -3,6 +3,7 @@ package br.com.gestorcobranca.creditorportal.application.service;
 import br.com.gestorcobranca.creditorportal.application.port.in.CreditorStatementUseCases;
 import br.com.gestorcobranca.identity.application.port.in.creditor.CreditorStepUp;
 import br.com.gestorcobranca.settlement.application.port.in.creditor.CreditorSettlementUseCases;
+import br.com.gestorcobranca.settlement.application.port.in.creditor.CreditorSettlementUseCases.CreditorDailyPoint;
 import br.com.gestorcobranca.settlement.application.port.in.creditor.CreditorSettlementUseCases.CreditorFileContent;
 import br.com.gestorcobranca.settlement.application.port.in.creditor.CreditorSettlementUseCases.CreditorOpenPeriod;
 import br.com.gestorcobranca.settlement.application.port.in.creditor.CreditorSettlementUseCases.CreditorResponseCommand;
@@ -47,7 +48,7 @@ class CreditorStatementService implements CreditorStatementUseCases {
     public OpenPeriod openPeriod() {
         CreditorOpenPeriod p = settlement.openPeriod();
         return new OpenPeriod(p.periodStart(), p.asOf(), p.expectedPeriodEnd(), p.recovered(), p.netTransfer(),
-                p.direction(), p.calculatedAt());
+                p.direction(), p.calculatedAt(), daily(p.daily()), daily(p.previousDaily()));
     }
 
     @Override
@@ -77,9 +78,14 @@ class CreditorStatementService implements CreditorStatementUseCases {
                 new CreditorResponseCommand(c.reason(), List.of(), c.clientIp(), null)));
     }
 
-    private static StatementItem item(CreditorStatementSummary s) {
+    static StatementItem item(CreditorStatementSummary s) {
         return new StatementItem(s.id(), s.sequenceNumber(), s.periodStart(), s.periodEnd(), s.status(), s.recovered(),
-                s.netTransfer(), s.direction(), s.sentAt(), s.respondedAt());
+                s.netTransfer(), s.direction(), s.sentAt(), s.respondedAt(), s.responseDueOn(), s.responseOverdue(),
+                s.transferred(), s.outstanding());
+    }
+
+    private static List<DailyPoint> daily(List<CreditorDailyPoint> points) {
+        return points.stream().map(d -> new DailyPoint(d.day(), d.date(), d.recovered(), d.netTransfer())).toList();
     }
 
     private static StatementDetail detail(CreditorStatementDetail d) {

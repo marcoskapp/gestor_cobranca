@@ -4,6 +4,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { NAVIGATION, canOpen } from '../../../core/layout/navigation';
 import { zonedNow } from '../../collection/data/collection.rules';
 import { AnalyticsFilter } from './analytics.models';
+import { DrillTarget as ChartDrillTarget } from '../../../shared/components/charts/chart.models';
 
 /**
  * Drill-down dos painéis (revisão de produto 11/2026, J6): o número leva à lista que é a **base exata** do indicador,
@@ -17,11 +18,9 @@ import { AnalyticsFilter } from './analytics.models';
  *
  * Mapa completo de indicadores com e sem drill-down: docs/tecnico/desenho/analytics.md §"Drill-down".
  */
-export interface DrillTarget {
+export interface DrillTarget extends ChartDrillTarget {
+  /** Rota do menu (o `canOpen` confere pelo caminho). */
   route: string;
-  queryParams: Params;
-  /** Para leitor de tela: o que a lista mostra ("ver os casos em aberto na lista de casos"). */
-  label: string;
 }
 
 /** Listas de destino (rotas do menu, conferidas pelo `canOpen`). */

@@ -10,7 +10,7 @@ import { ShowMoreButton } from '../../../shared/components/show-more/show-more';
 import { injectUrlStateWriter } from '../../../shared/data/url-state';
 import { showMore } from '../../../shared/util/show-more';
 import { matchesSearch, normalizeSearch } from '../../../shared/util/text-search';
-import { DrillLink } from '../../analytics/components/drill-link';
+import { DrillLink } from '../../../shared/components/charts/drill-link';
 import { DrillTarget, drillAccess, ledgerTarget } from '../../analytics/data/drill-down';
 import { CATEGORY_LABELS, CATEGORY_SHORT_LABELS, MARGIN_REPORT_ROUTE } from '../data/costing.labels';
 import {

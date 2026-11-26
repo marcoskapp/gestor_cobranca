@@ -1,4 +1,15 @@
-import { DrillTarget } from '../data/drill-down';
+import { Params } from '@angular/router';
+
+/**
+ * Destino de um número ou rótulo de gráfico: a lista que mostra a base do valor (drill-down). Quem monta o destino é a
+ * tela (ex.: `features/analytics/data/drill-down.ts`), que confere antes se o perfil abre a lista.
+ */
+export interface DrillTarget {
+  route: string | unknown[];
+  queryParams: Params;
+  /** Para leitor de tela: o que a lista mostra ("ver os casos em aberto na lista de casos"). */
+  label: string;
+}
 
 /** Dados dos gráficos: valores numéricos para a geometria e textos já formatados para leitura. */
 export interface ChartSeries {

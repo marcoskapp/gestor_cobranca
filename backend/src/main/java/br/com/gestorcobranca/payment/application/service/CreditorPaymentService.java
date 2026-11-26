@@ -24,6 +24,7 @@ import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.idempotency.IdempotencyService;
 import br.com.gestorcobranca.shared.json.JsonCodec;
+import br.com.gestorcobranca.shared.persistence.CreditorPortalReadTimeout;
 import br.com.gestorcobranca.shared.security.AccessScope;
 import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.security.CurrentActor;
@@ -87,12 +88,14 @@ class CreditorPaymentService implements CreditorPaymentUseCases {
     private final AccessScope accessScope;
     private final CurrentActor currentActor;
     private final Clock clock;
+    private final CreditorPortalReadTimeout readTimeout;
 
     CreditorPaymentService(DebtTitleUseCases titles, TargetResolver resolver, AgreementAllocationQueries agreements,
                            PaymentRepository payments, EvidenceStore evidenceStore, CreditorEvidenceScreening screening,
                            ExternalPaymentLocks locks, IdempotencyService idempotency, StepUpProofs stepUpProofs,
                            PaymentRecorder recorder, PaymentMetrics metrics, AuditTrail auditTrail, JsonCodec json,
-                           AccessScope accessScope, CurrentActor currentActor, Clock clock) {
+                           AccessScope accessScope, CurrentActor currentActor, Clock clock,
+                           CreditorPortalReadTimeout readTimeout) {
         this.titles = titles;
         this.resolver = resolver;
         this.agreements = agreements;
@@ -109,6 +112,7 @@ class CreditorPaymentService implements CreditorPaymentUseCases {
         this.accessScope = accessScope;
         this.currentActor = currentActor;
         this.clock = clock;
+        this.readTimeout = readTimeout;
     }
 
     @Override
@@ -214,6 +218,16 @@ class CreditorPaymentService implements CreditorPaymentUseCases {
         UUID creditorId = creditor(Permission.CREDITOR_PORTAL_OVERVIEW);
         return payments.findCreditorPortalReports(creditorId, LIST_LIMIT).stream().map(CreditorPaymentService::item)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReportedPayment> recentlyRejected() {
+        UUID creditorId = creditor(Permission.CREDITOR_PORTAL_OVERVIEW);
+        readTimeout.apply();
+        Instant since = Instant.now(clock).minus(java.time.Duration.ofDays(REJECTED_WINDOW_DAYS));
+        return payments.findCreditorPortalRejectedSince(creditorId, since, LIST_LIMIT).stream()
+                .map(CreditorPaymentService::item).toList();
     }
 
     // ------------------------------------------------------------------ apoio

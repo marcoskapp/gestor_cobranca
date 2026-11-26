@@ -131,6 +131,82 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    /**
+     * Portas da pessoa do credor ({@code <modulo>.application.port.in.creditor}, ADR 0011): fora do módulo dono, só o
+     * {@code creditorportal} (e o {@code sandbox}, para a carga fictícia) as usa — nenhum outro módulo lê dados com o
+     * credor do ator. Complementa o {@code ModularityTest} (que confere as interfaces declaradas) também para o código
+     * do próprio pacote raiz de um módulo que venha a declará-las por engano.
+     */
+    @Test
+    void creditorPortsAreUsedOnlyByTheCreditorPortalAndTheirOwners() {
+        java.util.Set<String> owners = classes.stream().map(JavaClass::getPackageName)
+                .filter(p -> p.matches(java.util.regex.Pattern.quote(ROOT) + "\\.[a-z]+\\.application\\.port\\.in\\.creditor"))
+                .map(p -> p.substring(ROOT.length() + 1, p.indexOf('.', ROOT.length() + 1)))
+                .collect(java.util.stream.Collectors.toSet());
+        org.assertj.core.api.Assertions.assertThat(owners)
+                .containsExactlyInAnyOrder("identity", "settlement", "collection", "payment", "analytics");
+        for (String owner : owners) {
+            noClasses().that().resideOutsideOfPackages(ROOT + ".creditorportal..", ROOT + ".sandbox..",
+                            ROOT + "." + owner + "..")
+                    .should().dependOnClassesThat().resideInAPackage(ROOT + "." + owner + ".application.port.in.creditor..")
+                    .because("as portas do credor tiram o credor do ator e só servem ao portal do credor (ADR 0011)")
+                    .check(classes);
+        }
+    }
+
+    /**
+     * Nenhum endpoint do portal do credor recebe o credor do cliente (RS-06): o credor vem sempre do ator. Confere os
+     * parâmetros dos métodos mapeados (nome, {@code @RequestParam}, {@code @PathVariable}, {@code @RequestHeader},
+     * {@code @RequestPart}) e os componentes dos records de requisição do próprio módulo.
+     */
+    @Test
+    void creditorPortalEndpointsNeverTakeACreditorId() {
+        java.util.List<String> offenders = new java.util.ArrayList<>();
+        classes.stream().filter(c -> c.getPackageName().startsWith(ROOT + ".creditorportal.web")).forEach(c -> {
+            for (java.lang.reflect.Method m : c.reflect().getDeclaredMethods()) {
+                if (!isMapped(m)) {
+                    continue;
+                }
+                for (java.lang.reflect.Parameter p : m.getParameters()) {
+                    java.util.List<String> names = new java.util.ArrayList<>(java.util.List.of(p.getName()));
+                    for (java.lang.annotation.Annotation a : p.getAnnotations()) {
+                        names.addAll(bindingNames(a));
+                    }
+                    if (p.getType().isRecord() && p.getType().getPackageName().startsWith(ROOT + ".creditorportal")) {
+                        for (java.lang.reflect.RecordComponent rc : p.getType().getRecordComponents()) {
+                            names.add(rc.getName());
+                        }
+                    }
+                    names.stream().filter(n -> n.toLowerCase(java.util.Locale.ROOT).replace("_", "").contains("creditorid"))
+                            .forEach(n -> offenders.add(c.getSimpleName() + "#" + m.getName() + "(" + n + ")"));
+                }
+            }
+        });
+        org.assertj.core.api.Assertions.assertThat(offenders)
+                .as("o credor vem do ator, nunca do cliente (RS-06)").isEmpty();
+    }
+
+    private static boolean isMapped(java.lang.reflect.Method m) {
+        return java.util.Arrays.stream(m.getAnnotations()).anyMatch(a -> a.annotationType()
+                .isAnnotationPresent(org.springframework.web.bind.annotation.RequestMapping.class)
+                || a.annotationType() == org.springframework.web.bind.annotation.RequestMapping.class);
+    }
+
+    private static java.util.List<String> bindingNames(java.lang.annotation.Annotation a) {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (String attribute : new String[]{"value", "name"}) {
+            try {
+                Object v = a.annotationType().getMethod(attribute).invoke(a);
+                if (v instanceof String s && !s.isEmpty()) {
+                    names.add(s);
+                }
+            } catch (ReflectiveOperationException ignored) {
+                // anotação sem o atributo
+            }
+        }
+        return names;
+    }
+
     /** O comprovante da nova verificação do MFA só é emitido e conferido pelo identity (SEG-F07, decisão 1436). */
     @Test
     void onlyIdentityImplementsStepUpProofs() {

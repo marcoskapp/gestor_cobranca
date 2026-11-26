@@ -56,6 +56,12 @@ class JpaSettlementStatementRepository implements SettlementStatementRepository 
     }
 
     @Override
+    public List<SettlementStatement> findAwaitingCreditorResponse(UUID creditorId) {
+        return statements.findByCreditorIdAndStatusOrderByResponseDueOnAscPeriodStartAsc(creditorId,
+                StatementStatus.SENT);
+    }
+
+    @Override
     public Page<SettlementStatement> search(Collection<UUID> creditorIds, UUID creditorId, StatementStatus status,
                                             Pageable pageable) {
         Specification<SettlementStatement> spec = Specification.unrestricted();

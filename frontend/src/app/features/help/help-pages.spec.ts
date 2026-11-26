@@ -31,8 +31,8 @@ describe('manual do sistema (/ajuda)', () => {
   it('central: encaixe dos módulos, um cartão por módulo e o glossário', async () => {
     const el = await open('/ajuda');
     expect(el.querySelector('h1')?.textContent).toContain('Manual do sistema');
-    expect(el.querySelectorAll('.help__module').length).toBe(16);
-    expect(el.querySelectorAll('.help__flow li').length).toBe(15);
+    expect(el.querySelectorAll('.help__module').length).toBe(17);
+    expect(el.querySelectorAll('.help__flow li').length).toBe(16);
     expect(el.querySelectorAll('.help__term').length).toBeGreaterThan(50);
   });
 

@@ -57,8 +57,12 @@
 
 .cr__portal,
 .cr__who {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
   font-size: var(--app-text-sm);
   color: var(--bs-secondary-color);
+  text-decoration: none;
 }
 
 .cr__spacer {
@@ -92,6 +96,10 @@
     color: var(--bs-emphasis-color);
     border-bottom-color: var(--bs-primary);
   }
+}
+
+.cr__count {
+  font-size: var(--app-text-xs);
 }
 
 .cr__main {

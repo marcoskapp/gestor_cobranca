@@ -191,3 +191,29 @@ describe('InfoHint (informação contextual de indicador)', () => {
     expect(popover()!.querySelector('a')).toBeNull();
   });
 });
+
+@Component({
+  imports: [InfoHint],
+  template: `<app-info-hint indicator="creditor.home.recovered" label="Recuperado no período" [manualLink]="false" />`,
+})
+class PortalHost {}
+
+describe('InfoHint fora do app interno (portal do credor)', () => {
+  afterEach(() => document.querySelectorAll('.app-info-popover').forEach((p) => p.remove()));
+
+  it('sem "Saiba mais no manual": o manual do app interno não abre no portal', async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(PortalHost);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button')!.click();
+    for (let i = 0; i < 5; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      fixture.detectChanges();
+      await fixture.whenStable();
+    }
+    const pop = document.querySelector<HTMLElement>('.app-info-popover')!;
+    expect(pop.textContent).toContain('Como é calculado');
+    expect(pop.querySelector('a')).toBeNull();
+    fixture.destroy();
+  });
+});

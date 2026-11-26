@@ -127,7 +127,7 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
   },
   // demonstrativo visto pelo credor no portal do credor (só os já enviados)
   creditorStatement: {
-    SENT: { label: 'Aguardando resposta do credor', tone: 'warning' },
+    SENT: { label: 'Aguardando sua resposta', tone: 'warning' },
     ACKNOWLEDGED: { label: 'Aceito', tone: 'success' },
     CONTESTED: { label: 'Contestado', tone: 'info' },
   },

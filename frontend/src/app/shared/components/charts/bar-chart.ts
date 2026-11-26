@@ -4,12 +4,12 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, debounce, filter, of, timer } from 'rxjs';
 import { ChartRow, ChartSeries } from './chart.models';
-import { Icon } from '../../../shared/components/icon/icon';
-import { InfoHint } from '../../../shared/components/info-hint/info-hint';
+import { Icon } from '../icon/icon';
+import { InfoHint } from '../info-hint/info-hint';
 import { DrillLink } from './drill-link';
-import { ShowMoreButton } from '../../../shared/components/show-more/show-more';
-import { injectUrlStateWriter } from '../../../shared/data/url-state';
-import { showMore } from '../../../shared/util/show-more';
+import { ShowMoreButton } from '../show-more/show-more';
+import { injectUrlStateWriter } from '../../data/url-state';
+import { showMore } from '../../util/show-more';
 import { OTHERS_KEY, RankNoun, RankSort, formatRankSort, parseRankSort, rankTable, rankView, seriesTotals } from './ranking';
 
 let nextId = 0;
@@ -43,7 +43,7 @@ type Typing = { value: string; now: boolean } | null;
         <div class="d-flex align-items-center gap-1 min-w-0">
           <figcaption [id]="id + '-t'" class="bc__title">{{ title() }}</figcaption>
           @if (info(); as hint) {
-            <app-info-hint [indicator]="hint" [label]="title()" />
+            <app-info-hint [indicator]="hint" [label]="title()" [manualLink]="manualLink()" />
           }
         </div>
         @if (rows().length > 0) {
@@ -65,7 +65,7 @@ type Typing = { value: string; now: boolean } | null;
         </ul>
       }
       @if (rows().length === 0) {
-        <p class="bc__empty" role="status">Sem dados no período e filtros escolhidos.</p>
+        <p class="bc__empty" role="status">{{ emptyText() }}</p>
       } @else if (table()) {
         @if (searchable()) {
           <div class="bc__search">
@@ -228,12 +228,16 @@ export class BarChart {
   readonly title = input.required<string>();
   /** Id do indicador no catálogo de informação contextual (o "i" ao lado do título). */
   readonly info = input<string | null>(null);
+  /** "Saiba mais no manual" no "i" (`false` fora do app interno, como no portal do credor). */
+  readonly manualLink = input(true);
   /** Texto alternativo: o que o gráfico mostra e o destaque principal. */
   readonly summary = input.required<string>();
   readonly series = input.required<ChartSeries[]>();
   /** Todas as linhas, já na ordem do critério do gráfico (o corte é feito aqui, com {@code limit}). */
   readonly rows = input.required<ChartRow[]>();
   readonly categoryHeader = input('Categoria');
+  /** Texto do estado vazio (sem linhas); o padrão serve aos painéis com período e filtros. */
+  readonly emptyText = input('Sem dados no período e filtros escolhidos.');
   readonly noteHeader = input('Observação');
   /** Quantos itens o gráfico mostra antes de "Outros" (nulo = todos, sem ranking). */
   readonly limit = input<number | null>(null);

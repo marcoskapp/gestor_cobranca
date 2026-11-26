@@ -1,19 +1,22 @@
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, afterRenderEffect, computed, inject, signal, viewChild } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { NgbCalendar, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
-import { finalize } from 'rxjs';
+import { finalize, map } from 'rxjs';
 import { ApiError, toApiError, userMessage } from '../../core/http/problem';
 import { Amount } from '../../shared/components/amount/amount';
 import { CellDef } from '../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../shared/components/data-table/data-table';
 import { Icon } from '../../shared/components/icon/icon';
+import { PageHeader } from '../../shared/components/page-header/page-header';
 import { StatusChip } from '../../shared/components/status-chip/status-chip';
 import { DialogRef } from '../../shared/dialog/dialog-ref';
 import { DIALOG_DIRECTIVES } from '../../shared/dialog/dialog.directives';
 import { DialogService } from '../../shared/dialog/dialog.service';
 import { FORM_FIELD } from '../../shared/forms/field';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
+import { PAYMENT_PARAM } from '../data/creditor-awaiting';
 import { CreditorPaymentsApi } from '../data/creditor-payments.api';
 import { CreditorSession } from '../data/creditor-session';
 import {
@@ -313,35 +316,34 @@ export class CreditorPaymentReportDialog {
 
 /**
  * Pagamentos informados no portal do credor: o que o time do credor informou que recebeu diretamente, com a situação
- * da análise da assessoria e, na recusa, o motivo.
+ * da análise da assessoria e, na recusa, o motivo. Com `?pagamento=<id>` (o link do "Aguardando você" e da atividade),
+ * a linha do pagamento fica em destaque, a tela rola até ela e o foco vai para ela.
  */
 @Component({
   selector: 'app-creditor-payments',
-  imports: [Amount, AppDatePipe, CellDef, DataTable, Icon, StatusChip],
+  imports: [Amount, AppDatePipe, CellDef, DataTable, Icon, PageHeader, StatusChip],
   template: `
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-      <h1 class="h4 mb-0 flex-grow-1">Pagamentos informados</h1>
+    <app-page-header title="Pagamentos informados"
+                     subtitle="Pagamentos que o devedor fez diretamente a você. A assessoria confere cada um antes de dar baixa nos títulos.">
       @if (canReport()) {
         <button class="btn btn-primary" type="button" (click)="report()" data-tour="creditor-payment-report">
           <app-icon name="plus-lg" /> Informar pagamento
         </button>
       }
-    </div>
-    <p class="app-muted">
-      Pagamentos que o devedor fez diretamente a você. A assessoria confere cada um antes de dar baixa nos títulos.
-    </p>
+    </app-page-header>
     <div aria-live="polite">
       @if (notice(); as n) {
         <div class="alert alert-success d-flex align-items-start gap-2"><app-icon name="check-circle" /><span>{{ n }}</span></div>
       }
     </div>
 
-    <section class="app-card" aria-labelledby="cp-lista">
-      <h2 class="app-card__title" id="cp-lista">Informes do seu time</h2>
+    <section aria-labelledby="cp-lista">
+      <h2 class="app-section-title" id="cp-lista">Informes do seu time</h2>
       <app-data-table
         caption="Pagamentos informados pelo seu time"
         [rows]="rows()"
         [columns]="columns"
+        [activeRow]="highlighted()"
         [loading]="list.isLoading()"
         [failed]="!!list.error()"
         (retry)="list.reload()"
@@ -351,47 +353,67 @@ export class CreditorPaymentReportDialog {
       >
         <ng-template appCell="paidOn" [appCellOf]="rows()" let-p>
           {{ p.paidOn | appDate: 'date' }}
-          <div class="app-muted cp-small">{{ method(p.method) }}</div>
+          <span class="app-subline">{{ method(p.method) }}</span>
         </ng-template>
         <ng-template appCell="titles" [appCellOf]="rows()" let-p>
           {{ p.titleNumbers.join(', ') }}
           @if (p.reference) {
-            <div class="app-muted cp-small">Ref. {{ p.reference }}</div>
+            <span class="app-subline">Ref. {{ p.reference }}</span>
           }
         </ng-template>
         <ng-template appCell="amount" [appCellOf]="rows()" let-p><app-amount [value]="p.amount" /></ng-template>
         <ng-template appCell="status" [appCellOf]="rows()" let-p>
           <app-status-chip domain="creditorPayment" [status]="p.status" />
           @if (p.status === 'REJECTED' && p.rejectionReason) {
-            <div class="cp-small mt-1">{{ reason(p.rejectionReason) }}</div>
+            <span class="app-subline">{{ reason(p.rejectionReason) }}</span>
           }
           @if (p.status === 'CONFIRMED') {
-            <div class="cp-small mt-1">Baixado nos títulos{{ p.decidedAt ? ' em ' + (p.decidedAt | appDate: 'date') : '' }}.</div>
+            <span class="app-subline">Baixado nos títulos{{ p.decidedAt ? ' em ' + (p.decidedAt | appDate: 'date') : '' }}.</span>
           }
           @if (p.status === 'REVERSED') {
-            <div class="cp-small mt-1">A assessoria desfez a baixa; os títulos voltaram a ter saldo. Fale com a assessoria para os detalhes.</div>
+            <span class="app-subline">A assessoria desfez a baixa; os títulos voltaram a ter saldo. Fale com a assessoria para os detalhes.</span>
           }
         </ng-template>
         <ng-template appCell="informedAt" [appCellOf]="rows()" let-p>{{ p.informedAt | appDate }}</ng-template>
       </app-data-table>
     </section>
   `,
-  styles: `
-    .cp-small {
-      font-size: var(--app-text-xs);
-    }
-  `,
 })
 export class CreditorPayments {
   private readonly api = inject(CreditorPaymentsApi);
   private readonly dialog = inject(DialogService);
   private readonly session = inject(CreditorSession);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly list = rxResource({ stream: () => this.api.list() });
   protected readonly rows = computed(() => this.list.value() ?? []);
+  /** Pagamento pedido na URL (`?pagamento=`), destacado quando está na lista. */
+  private readonly requested = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map((q) => q.get(PAYMENT_PARAM))),
+    { initialValue: null });
+  protected readonly highlighted = computed(() => {
+    const id = this.requested();
+    return id && this.rows().some((r) => r.id === id) ? id : null;
+  });
+  /** Último pagamento para o qual a tela já rolou e moveu o foco (uma vez por pedido, não a cada recarga). */
+  private focusedId: string | null = null;
   protected readonly canReport = computed(() => this.session.me()?.permissions.includes(CreditorPermission.PAYMENT_REPORT) ?? false);
   protected readonly notice = signal<string | null>(null);
   protected readonly method = (m: CreditorPaymentMethod) => CREDITOR_PAYMENT_METHOD_LABELS[m];
   protected readonly reason = (r: CreditorReportedPayment['rejectionReason']) => (r ? CREDITOR_REJECTION_REASON_LABELS[r] : '');
+
+  constructor() {
+    afterRenderEffect(() => {
+      const id = this.highlighted();
+      if (!id || id === this.focusedId) {
+        return;
+      }
+      const row = this.host.nativeElement.querySelector<HTMLElement>('[aria-current="true"]');
+      if (row) {
+        this.focusedId = id;
+        row.scrollIntoView?.({ block: 'center' });
+        row.focus({ preventScroll: true });
+      }
+    });
+  }
 
   protected readonly columns: TableColumn[] = [
     { key: 'paidOn', header: 'Pago em', mobile: 'title' },

@@ -214,9 +214,12 @@ export class CreditorDisputeRespondDialog {
   selector: 'app-creditor-dispute-detail',
   imports: [NgTemplateOutlet, RouterLink, Amount, AppDatePipe, EmptyState, Icon, Skeleton, StatusChip],
   template: `
-    <a class="btn btn-link px-0" [routerLink]="['/credor', slug(), 'contestacoes']">
-      <app-icon name="arrow-left" /> Contestações
-    </a>
+    <nav aria-label="Trilha">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a [routerLink]="['/credor', slug(), 'contestacoes']">Contestações</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ current() ? 'Protocolo ' + current()!.dispute.protocol : 'Contestação' }}</li>
+      </ol>
+    </nav>
     @if (detail.isLoading() && !current()) {
       <app-skeleton variant="card" />
     } @else if (detail.error() && !current()) {
@@ -235,11 +238,16 @@ export class CreditorDisputeRespondDialog {
       </section>
     }
     @if (current(); as d) {
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <h1 #pageTitle class="h4 mb-0" tabindex="-1">Contestação · protocolo {{ d.dispute.protocol }}</h1>
-        <app-status-chip domain="creditorDispute" [status]="d.dispute.situation" />
-      </div>
-      <p class="app-muted">{{ typeLabel(d.dispute.type) }} · aberta em {{ d.dispute.openedAt | appDate: 'date' }}</p>
+      <!-- cabeçalho de página com o título focável: depois de responder, o foco volta para ele -->
+      <header class="app-page-header" data-tour="page-header">
+        <div class="app-page-header__text">
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <h1 #pageTitle class="app-page-header__title" tabindex="-1">Contestação · protocolo {{ d.dispute.protocol }}</h1>
+            <app-status-chip domain="creditorDispute" [status]="d.dispute.situation" />
+          </div>
+          <p class="app-page-header__subtitle">{{ typeLabel(d.dispute.type) }} · aberta em {{ d.dispute.openedAt | appDate: 'date' }}</p>
+        </div>
+      </header>
       <div aria-live="polite">
         @if (notice(); as n) {
           <div class="alert d-flex align-items-start gap-2" [class.alert-success]="n.ok" [class.alert-warning]="!n.ok">
@@ -253,7 +261,7 @@ export class CreditorDisputeRespondDialog {
              role="note" data-tour="creditor-dispute-respond">
           <span class="flex-grow-1">
             A assessoria pediu a sua posição até {{ r.requestedDueDate | appDate: 'date' }}{{ r.overdue ? ' (prazo vencido)' : '' }}.
-            Leia o pedido abaixo e responda.
+            {{ r.overdue ? 'Você ainda pode responder: leia o pedido abaixo.' : 'Leia o pedido abaixo e responda.' }}
           </span>
           @if (canRespond()) {
             <button class="btn btn-primary" type="button" (click)="respond(d, r)">Responder</button>
@@ -307,7 +315,7 @@ export class CreditorDisputeRespondDialog {
         @for (r of d.requests; track r.id) {
           <article class="cdd-item" [attr.aria-labelledby]="'cdd-req-' + r.id">
             <h3 class="h6 mb-1" [id]="'cdd-req-' + r.id">Pedido {{ r.sequenceNumber }} · {{ r.subject }}</h3>
-            <p class="app-muted cdd-small mb-2">
+            <p class="app-subline mb-2">
               {{ r.sentAt ? 'Enviado em ' : 'Registrado pela assessoria' }}{{ r.sentAt ? (r.sentAt | appDate) : '' }} · responder até {{ r.requestedDueDate | appDate: 'date' }}
               @if (r.awaiting && r.overdue) {
                 <span class="cdd-late"><app-icon name="exclamation-triangle" /> prazo vencido</span>
@@ -327,7 +335,7 @@ export class CreditorDisputeRespondDialog {
         @for (r of d.responses; track r.id) {
           <article class="cdd-item">
             <h3 class="h6 mb-1">{{ positionLabel(r) }}</h3>
-            <p class="app-muted cdd-small mb-2">
+            <p class="app-subline mb-2">
               @if (requestOf(d, r); as q) {
                 <a [routerLink]="[]" [fragment]="'cdd-req-' + q.id">Resposta ao pedido {{ q.sequenceNumber }}</a> ·
               }
@@ -340,12 +348,12 @@ export class CreditorDisputeRespondDialog {
               <ng-container [ngTemplateOutlet]="fileRow" [ngTemplateOutletContext]="{ $implicit: f, dispute: d }" />
             }
             @if (r.documentsInVerification) {
-              <p class="app-muted cdd-small mb-0">
+              <p class="app-subline mb-0">
                 <app-icon name="hourglass-split" /> {{ r.documentsInVerification }} documento(s) em verificação de segurança antes de chegar à assessoria.
               </p>
             }
             @if (r.documentsRejected) {
-              <p class="cdd-late cdd-small mb-0">
+              <p class="app-subline cdd-late mb-0">
                 <app-icon name="exclamation-triangle" /> {{ r.documentsRejected }} documento(s) recusado(s) na verificação de segurança. Combine outro envio com a assessoria.
               </p>
             }
@@ -359,7 +367,7 @@ export class CreditorDisputeRespondDialog {
         <div class="cdd-file">
           <div class="cdd-file__name">
             <strong>{{ f.fileName }}</strong>
-            <div class="app-muted cdd-small">Código de integridade: <span class="cdd-hash">{{ hash(f.sha256) }}</span></div>
+            <span class="app-subline">Código de integridade: <span class="cdd-hash">{{ hash(f.sha256) }}</span></span>
             @if (checked()[f.id] !== undefined) {
               <app-status-chip domain="creditorFileCheck" [status]="checked()[f.id] ? 'OK' : 'MISMATCH'" />
             }
@@ -381,14 +389,10 @@ export class CreditorDisputeRespondDialog {
   `,
   styles: `
     .cdd-item {
-      padding: 12px 0;
-      border-bottom: var(--bs-border-width) solid var(--app-border);
+      padding: var(--app-space-3) 0;
     }
-    .cdd-item:last-of-type {
-      border-bottom: 0;
-    }
-    .cdd-small {
-      font-size: var(--app-text-xs);
+    .cdd-item + .cdd-item {
+      border-top: var(--bs-border-width) solid var(--app-border);
     }
     .cdd-pre {
       white-space: pre-line;
@@ -403,8 +407,8 @@ export class CreditorDisputeRespondDialog {
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 6px 0;
+      gap: var(--app-space-2);
+      padding: var(--app-space-2) 0;
     }
     .cdd-file__name {
       min-width: 0;

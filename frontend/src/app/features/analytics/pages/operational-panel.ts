@@ -10,8 +10,8 @@ import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AppDatePipe } from '../../../shared/pipes/date-time.pipe';
 import { AnalyticsFilters } from '../components/analytics-filters';
-import { BarChart } from '../components/bar-chart';
-import { ChartRow, ChartSeries } from '../components/chart.models';
+import { BarChart } from '../../../shared/components/charts/bar-chart';
+import { ChartRow, ChartSeries } from '../../../shared/components/charts/chart.models';
 import { FocusChip } from '../components/focus-chip';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
 import { PanelFrame } from '../components/panel-frame';
@@ -20,7 +20,7 @@ import { count, num, percent, ratioDetail } from '../data/analytics.format';
 import { CASE_STATUS_LABELS, DELAY_BUCKET_LABELS } from '../data/analytics.labels';
 import { CaseStatusRow, PortfolioRow, QueueRow } from '../data/analytics.models';
 import { DrillTarget, casesTarget, drillAccess, ledgerTarget } from '../data/drill-down';
-import { DrillLink } from '../components/drill-link';
+import { DrillLink } from '../../../shared/components/charts/drill-link';
 import { focusFilter, focusableKey, unfocusFilter, urlFilter } from '../data/url-filter';
 
 /**

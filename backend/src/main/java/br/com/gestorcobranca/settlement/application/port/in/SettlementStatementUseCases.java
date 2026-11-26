@@ -110,10 +110,11 @@ public interface SettlementStatementUseCases {
                       BigDecimal pendingRules, int openDivergences, int receipts) {
     }
 
+    /** @param responseDueOn prazo para o credor aceitar ou contestar, gravado no envio (só lembrete; nulo antes do envio) */
     record StatementView(UUID id, UUID creditorId, int sequenceNumber, LocalDate periodStart, LocalDate periodEnd,
                          String status, TotalsView totals, Map<String, Object> calculation, Instant calculatedAt,
                          UUID calculatedBy, Instant reviewedAt, UUID reviewedBy, Instant approvedAt, UUID approvedBy,
-                         Instant sentAt, UUID sentBy, String sentChannel, String sentReference,
+                         Instant sentAt, UUID sentBy, String sentChannel, String sentReference, LocalDate responseDueOn,
                          Instant creditorResponseAt, UUID creditorResponseBy, String creditorResponseNote,
                          String creditorResponseOrigin, String cancelledReason, long version) {
     }

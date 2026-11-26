@@ -134,8 +134,11 @@ time {
 // e classes do componente (que levam o atributo do encapsulamento) continuam valendo. Nunca zere esta margem
 // tela a tela.
 // Num contêiner grid/flex (`.app-columns`/`.app-stack`) o espaço é só o `gap`: lá a margem desceria o
-// segundo cartão da linha (cartões lado a lado desalinhados) e somaria ao `gap` numa coluna.
-:is(.app-card, app-data-table) + :not(:is(.app-columns, .app-stack) > *) {
+// segundo cartão da linha (cartões lado a lado desalinhados) e somaria ao `gap` numa coluna. A grade de cartões
+// (`.app-columns`), vista de fora, é um bloco de cartões: o que vem depois dela fica a `--app-gap` (decisão 1561).
+// `.app-stack` fica fora de propósito: ela é coluna de uma grade de ficha (`.pd-grid`, `.as-grid`…), e a margem
+// desceria a coluna lateral.
+:is(.app-card, app-data-table, .app-columns) + :not(:is(.app-columns, .app-stack) > *) {
   margin-top: var(--app-gap);
 }
 
@@ -197,6 +200,37 @@ time {
   .app-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--app-space-2);
+  }
+}
+
+// Cinco cartões (decisão 1560): no celular o primeiro (o número principal) ocupa a linha toda e os outros ficam
+// 2 + 2; entre sm e lg, 2 + 3 numa grade de 6 trilhas (os dois de cima com 3 cada, os três de baixo com 2); de lg
+// em diante, os cinco numa linha. O `auto-fit` sozinho deixaria 4 + 1 ou 3 + 2 desiguais.
+@include media-breakpoint-down(sm) {
+  .app-kpi-grid:has(> :nth-child(5):last-child) > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@include media-breakpoint-between(sm, lg) {
+  .app-kpi-grid:has(> :nth-child(5):last-child) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+
+    > :nth-child(-n + 2) {
+      grid-column: span 3;
+    }
+
+    > :nth-child(n + 3) {
+      grid-column: span 2;
+    }
+  }
+}
+
+// De lg em diante, os cinco numa linha quando o contêiner comporta cinco de 180 px; numa coluna estreita (ficha com
+// lateral) volta ao `auto-fit` comum, em vez de espremer cinco colunas.
+@include media-breakpoint-up(lg) {
+  .app-kpi-grid:has(> :nth-child(5):last-child) {
+    grid-template-columns: repeat(auto-fit, minmax(max(180px, calc((100% - 4 * var(--app-space-3)) / 5)), 1fr));
   }
 }
 
@@ -423,6 +457,21 @@ time {
     margin: 0;
     word-break: break-word;
   }
+}
+
+// nota, aviso ou ação logo depois da lista de dados (ex.: "Estimativa calculada em…"): separada das linhas, que
+// ficam a 6 px entre si
+.app-definition-list + * {
+  margin-top: var(--app-space-3);
+}
+
+// linha de apoio abaixo do valor principal de uma célula ou item (ex.: forma de pagamento abaixo da data, natureza
+// abaixo do protocolo): bloco próprio, em texto pequeno e cor secundária
+.app-subline {
+  display: block;
+  margin-top: var(--app-space-1);
+  font-size: var(--app-text-xs);
+  color: var(--bs-secondary-color);
 }
 
 .app-muted {

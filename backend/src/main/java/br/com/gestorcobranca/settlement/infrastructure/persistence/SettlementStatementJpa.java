@@ -22,6 +22,9 @@ interface SettlementStatementJpa extends JpaRepository<SettlementStatement, UUID
 
     List<SettlementStatement> findByCreditorIdOrderByPeriodStartDesc(UUID creditorId);
 
+    List<SettlementStatement> findByCreditorIdAndStatusOrderByResponseDueOnAscPeriodStartAsc(UUID creditorId,
+                                                                                         StatementStatus status);
+
     List<SettlementStatement> findByStatusInOrderByPeriodStartAsc(Collection<StatementStatus> statuses);
 
     List<SettlementStatement> findByCreditorIdInAndStatusInOrderByPeriodStartAsc(Collection<UUID> creditorIds,

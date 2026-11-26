@@ -1,0 +1,11 @@
+# Contrato de GET /api/creditor/v1/activity (portal do credor, fatia 7). Campo novo só com decisão (RS-26, RS-47 a RS-49).
+items
+items[].action
+items[].mine
+items[].occurredAt
+items[].personName
+items[].referenceId
+items[].referenceType
+nextCursor
+scope
+windowDays

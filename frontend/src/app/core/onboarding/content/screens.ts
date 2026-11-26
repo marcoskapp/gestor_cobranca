@@ -711,7 +711,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'settlement.statements', version: 1, path: '/prestacao-de-contas/demonstrativos', tourId: 'settlement.statements' },
   {
     key: 'settlement.statement',
-    version: 5,
+    version: 6,
     path: '/prestacao-de-contas/demonstrativos/:id',
     tourId: 'settlement.statement',
     changes: [
@@ -719,6 +719,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Cancelar demonstrativo passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
       { version: 4, items: ['Na aba de recebimentos, a data de cada recebimento abre o pagamento de origem.'] },
       { version: 5, items: ['Com o portal do credor liberado, o próprio credor aceita ou contesta o demonstrativo enviado; a ficha mostra quando a resposta veio dele pelo portal.'] },
+      { version: 6, items: ['Demonstrativo enviado mostra o prazo do credor para aceitar ou contestar (10 dias do envio, só lembrete) e avisa quando venceu.'] },
     ],
   },
   { key: 'settlement.transfers', version: 1, path: '/prestacao-de-contas/repasses', tourId: 'settlement.transfers' },
@@ -1189,6 +1190,15 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   { key: 'publicapi.platform-charges', version: 1, path: '/integracoes/cobranca-plataforma', tourId: 'publicapi.platform-charges' },
   { key: 'app.pending-work', version: 1, path: '/pendencias' },
+  // portal do credor (moldura própria, fora do shell): o Início tem tour leve, iniciado pelo botão da tela e sem
+  // gravar o desfecho; as novidades destas telas ainda não aparecem no portal
+  { key: 'creditor.home', version: 1, path: '/credor/:slug/inicio', tourId: 'creditor.home' },
+  { key: 'creditor.statements', version: 1, path: '/credor/:slug/prestacao-de-contas' },
+  { key: 'creditor.statement', version: 1, path: '/credor/:slug/prestacao-de-contas/:id' },
+  { key: 'creditor.disputes', version: 1, path: '/credor/:slug/contestacoes' },
+  { key: 'creditor.dispute', version: 1, path: '/credor/:slug/contestacoes/:id' },
+  { key: 'creditor.payments', version: 1, path: '/credor/:slug/pagamentos' },
+  { key: 'creditor.activity', version: 1, path: '/credor/:slug/atividade' },
   { key: 'help.center', version: 1, path: '/ajuda' },
   { key: 'help.module', version: 1, path: '/ajuda/:modulo' },
 ];

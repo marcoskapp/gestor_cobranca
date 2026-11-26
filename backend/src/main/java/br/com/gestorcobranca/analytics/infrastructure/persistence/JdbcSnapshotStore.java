@@ -24,7 +24,7 @@ class JdbcSnapshotStore implements SnapshotStore {
     /** Conjunto → chamada da função de reconstrução (lista fixa: nada vem do cliente). */
     private static final Map<String, String> CALLS = Map.of(
             "recovery_daily", "select analytics.refresh_recovery_daily()",
-            "agreement_cohort", "select analytics.refresh_agreement_cohort(:zone)",
+            "agreement_cohort", "select analytics.refresh_agreement_cohort(:zone, :reference)",
             "portfolio_position", "select analytics.refresh_portfolio_position(:reference)",
             "case_position", "select analytics.refresh_case_position(:reference)");
 

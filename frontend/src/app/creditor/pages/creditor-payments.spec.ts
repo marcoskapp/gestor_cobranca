@@ -40,8 +40,8 @@ describe('pagamentos informados no portal do credor', () => {
       me: me(permissions) });
   }
 
-  async function open(list: CreditorReportedPayment[]): Promise<{ harness: RouterTestingHarness; root: HTMLElement }> {
-    const harness = await RouterTestingHarness.create('/credor/aurora/pagamentos');
+  async function open(list: CreditorReportedPayment[], url = '/credor/aurora/pagamentos'): Promise<{ harness: RouterTestingHarness; root: HTMLElement }> {
+    const harness = await RouterTestingHarness.create(url);
     http.expectOne('/api/creditor/v1/payments').flush(list);
     await harness.fixture.whenStable();
     harness.detectChanges();
@@ -54,6 +54,25 @@ describe('pagamentos informados no portal do credor', () => {
     expect(root.textContent).toContain('T-60');
     expect(root.textContent).toContain('O comprovante não permite confirmar o pagamento');
     expect(root.textContent).not.toContain('Informar pagamento');
+  });
+
+  it('?pagamento= destaca a linha do pagamento e move o foco para ela', async () => {
+    login(['CREDITOR_PORTAL_OVERVIEW']);
+    const other: CreditorReportedPayment = { ...REJECTED, id: 'p2', status: 'IN_REVIEW', rejectionReason: null, decidedAt: null };
+    const { harness, root } = await open([other, REJECTED], '/credor/aurora/pagamentos?pagamento=p1');
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    const current = root.querySelectorAll('[aria-current="true"]');
+    expect(current).toHaveLength(1);
+    expect(current[0].classList).toContain('table-active');
+    expect(current[0].textContent).toContain('O comprovante não permite confirmar o pagamento');
+    expect(document.activeElement).toBe(current[0]);
+  });
+
+  it('?pagamento= de um pagamento fora da lista não destaca nada', async () => {
+    login(['CREDITOR_PORTAL_OVERVIEW']);
+    const { root } = await open([REJECTED], '/credor/aurora/pagamentos?pagamento=outro');
+    expect(root.querySelector('[aria-current="true"]')).toBeNull();
   });
 
   it('informe confere o título, envia o comprovante com a chave e o código', async () => {

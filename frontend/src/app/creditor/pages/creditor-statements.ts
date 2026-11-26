@@ -2,14 +2,18 @@ import { Component, computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Amount } from '../../shared/components/amount/amount';
+import { CumulativeChart } from '../../shared/components/charts/cumulative-chart';
 import { CellDef } from '../../shared/components/data-table/cell-def';
 import { DataTable, TableColumn } from '../../shared/components/data-table/data-table';
 import { Icon } from '../../shared/components/icon/icon';
+import { PageHeader } from '../../shared/components/page-header/page-header';
 import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { StatusChip } from '../../shared/components/status-chip/status-chip';
 import { AppDatePipe } from '../../shared/pipes/date-time.pipe';
 import { CreditorStatementsApi } from '../data/creditor-statements.api';
-import { TransferDirection } from '../data/creditor.models';
+import { statementDeadlineText } from '../data/creditor-awaiting';
+import { cumulativeRows, cumulativeSummary } from '../data/creditor-indicators';
+import { CreditorOpenPeriod, CreditorStatementItem, TransferDirection } from '../data/creditor.models';
 
 /** Texto de "quem paga quem" para o credor (o valor vem sempre positivo na tela). */
 export function directionText(direction: TransferDirection, estimated = false): string {
@@ -29,10 +33,10 @@ export function directionText(direction: TransferDirection, estimated = false): 
  */
 @Component({
   selector: 'app-creditor-statements',
-  imports: [RouterLink, Amount, AppDatePipe, CellDef, DataTable, Icon, Skeleton, StatusChip],
+  imports: [RouterLink, Amount, AppDatePipe, CumulativeChart, CellDef, DataTable, Icon, PageHeader, Skeleton, StatusChip],
   template: `
-    <h1 class="h4">Prestação de contas</h1>
-    <p class="app-muted">O que a assessoria recebeu, o que ficou com ela e o valor a repassar, por período.</p>
+    <app-page-header title="Prestação de contas"
+                     subtitle="O que a assessoria recebeu, o que ficou com ela e o valor a repassar, por período." />
 
     <section class="app-card" aria-labelledby="cs-aberto" data-tour="creditor-open-period">
       <h2 class="app-card__title" id="cs-aberto">Período em aberto</h2>
@@ -53,11 +57,22 @@ export function directionText(direction: TransferDirection, estimated = false): 
           <dd><app-amount [value]="abs(p.netTransfer)" /></dd>
         </dl>
         <p class="app-muted mb-0">Estimativa calculada em {{ p.calculatedAt | appDate }}. O valor final sai no demonstrativo do fechamento.</p>
+        @if (p.daily.length) {
+          <div class="cs-chart" data-tour="creditor-open-period-chart">
+            <app-cumulative-chart
+              title="Recuperado acumulado no período"
+              [summary]="cumulativeSummary(p)"
+              [rows]="cumulative(p)"
+              currentLabel="Período em aberto"
+              previousLabel="Período anterior"
+            />
+          </div>
+        }
       }
     </section>
 
-    <section class="app-card" aria-labelledby="cs-lista">
-      <h2 class="app-card__title" id="cs-lista">Demonstrativos enviados</h2>
+    <section aria-labelledby="cs-lista">
+      <h2 class="app-section-title" id="cs-lista">Demonstrativos enviados</h2>
       <app-data-table
         caption="Demonstrativos enviados pela assessoria"
         [rows]="rows()"
@@ -71,27 +86,50 @@ export function directionText(direction: TransferDirection, estimated = false): 
       >
         <ng-template appCell="period" [appCellOf]="rows()" let-s>
           <a [routerLink]="[s.id]">nº {{ s.sequenceNumber }} · {{ s.periodStart | appDate: 'date' }} a {{ s.periodEnd | appDate: 'date' }}</a>
+          <!-- no celular o selo da situação fica no canto e sem espaço para o prazo: ele vem abaixo do título -->
+          @if (s.status === 'SENT' && deadline(s); as due) {
+            <span class="app-subline d-sm-none" [class.cs-late]="s.responseOverdue">
+              @if (s.responseOverdue) { <app-icon name="exclamation-triangle" /> }{{ due }}
+            </span>
+          }
         </ng-template>
         <ng-template appCell="status" [appCellOf]="rows()" let-s>
           <app-status-chip domain="creditorStatement" [status]="s.status" />
+          @if (s.status === 'SENT' && deadline(s); as due) {
+            <span class="app-subline d-none d-sm-block" [class.cs-late]="s.responseOverdue">
+              @if (s.responseOverdue) { <app-icon name="exclamation-triangle" /> }{{ due }}
+            </span>
+          }
         </ng-template>
         <ng-template appCell="recovered" [appCellOf]="rows()" let-s><app-amount [value]="s.recovered" /></ng-template>
         <ng-template appCell="net" [appCellOf]="rows()" let-s>
           <app-amount [value]="abs(s.netTransfer)" />
-          <div class="app-muted cs-small">{{ direction(s.direction) }}</div>
+          <span class="app-subline">{{ direction(s.direction) }}</span>
+        </ng-template>
+        <ng-template appCell="outstanding" [appCellOf]="rows()" let-s>
+          @if (s.direction === 'NONE') {
+            <span class="app-muted">Nada a pagar</span>
+          } @else {
+            <app-amount [value]="s.outstanding" />
+            <span class="app-subline">Já pago: <app-amount [value]="s.transferred" /></span>
+          }
         </ng-template>
         <ng-template appCell="sentAt" [appCellOf]="rows()" let-s>{{ s.sentAt | appDate: 'date' }}</ng-template>
       </app-data-table>
     </section>
 
-    <p class="app-muted">
+    <p class="app-muted mt-3">
       <app-icon name="info-circle" />
       Os valores de um demonstrativo enviado não mudam: correções entram como ajuste no período seguinte.
     </p>
   `,
   styles: `
-    .cs-small {
-      font-size: var(--app-text-xs);
+    .cs-chart {
+      margin-top: var(--app-space-3);
+    }
+    .cs-late {
+      font-weight: var(--app-weight-semibold);
+      color: var(--app-danger-fg);
     }
   `,
 })
@@ -102,12 +140,16 @@ export class CreditorStatements {
   protected readonly rows = computed(() => this.list.value() ?? []);
   protected readonly direction = directionText;
   protected readonly abs = (value: number) => Math.abs(Number(value));
+  protected readonly deadline = (s: CreditorStatementItem) => statementDeadlineText(s.responseDueOn, s.responseOverdue);
+  protected readonly cumulative = (p: CreditorOpenPeriod) => cumulativeRows(p.daily, p.previousDaily);
+  protected readonly cumulativeSummary = (p: CreditorOpenPeriod) => cumulativeSummary(p.daily, p.previousDaily);
 
   protected readonly columns: TableColumn[] = [
     { key: 'period', header: 'Demonstrativo', mobile: 'title' },
     { key: 'status', header: 'Situação', mobile: 'badge' },
     { key: 'recovered', header: 'Recuperado', align: 'end' },
     { key: 'net', header: 'Líquido', align: 'end' },
+    { key: 'outstanding', header: 'Falta pagar', align: 'end' },
     { key: 'sentAt', header: 'Enviado em' },
   ];
 }

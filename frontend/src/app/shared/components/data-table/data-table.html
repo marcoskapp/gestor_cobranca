@@ -10,7 +10,8 @@
     @let s = stack();
     <ul class="app-table__stack" [attr.aria-label]="caption()">
       @for (row of rows(); track trackRow(row); let i = $index) {
-        <li class="app-table__item" [class.app-table__item--link]="s.title?.mobile === 'title'">
+        <li class="app-table__item" [class.app-table__item--link]="s.title?.mobile === 'title'" [class.table-active]="isActive(row)"
+            [attr.aria-current]="isActive(row) ? 'true' : null" [attr.tabindex]="isActive(row) ? -1 : null">
           <div class="app-table__item-head">
             @if (s.title; as c) {
               <div class="app-table__item-title">
@@ -95,7 +96,8 @@
         </thead>
         <tbody>
           @for (row of rows(); track trackRow(row)) {
-            <tr>
+            <tr [class.table-active]="isActive(row)" [attr.aria-current]="isActive(row) ? 'true' : null"
+                [attr.tabindex]="isActive(row) ? -1 : null">
               @for (column of columns(); track column.key) {
                 <td
                   [class.text-end]="column.align === 'end' || column.actions"

@@ -295,6 +295,13 @@
             <div class="alert alert-secondary d-flex align-items-start gap-2" role="note">
               <app-icon name="send" />
               <span>Enviado por {{ channels[s.sentChannel!] || s.sentChannel }} em {{ s.sentAt | appDate }} por {{ userName(s.sentBy) }}{{ s.sentReference ? ' · ' + s.sentReference : '' }}.
+                @if (s.status === 'SENT' && s.responseDueOn) {
+                  @if (responseOverdue(s)) {
+                    <strong>Prazo do credor para aceitar ou contestar vencido em {{ s.responseDueOn | appDate: 'date' }}</strong> (só lembrete: o demonstrativo segue aguardando a resposta).
+                  } @else {
+                    Prazo do credor para aceitar ou contestar: até {{ s.responseDueOn | appDate: 'date' }}.
+                  }
+                }
                 @if (s.creditorResponseAt) {
                   @if (s.creditorResponseOrigin === 'CREDITOR_PORTAL') {
                     Resposta do próprio credor no portal do credor em {{ s.creditorResponseAt | appDate }}{{ s.creditorResponseNote ? ': ' + s.creditorResponseNote : '' }}.

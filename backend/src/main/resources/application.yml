@@ -720,11 +720,17 @@ app:
         region: ${INBOUND_MAIL_REGION:}
       local:
         directory: ${INBOUND_MAIL_LOCAL_DIR:}
+  creditor-portal:
+    # tempo limite de cada consulta das fontes do Início do portal do credor (statement_timeout local à transação);
+    # a fonte que passar dele aparece como indisponível, sem derrubar as outras
+    source-timeout: PT2S
   settlement:
     # ajuste de demonstrativo acima deste valor (absoluto) exige segunda aprovação (SETTLEMENT_APPROVE)
     adjustment-dual-approval-threshold: 1000.00
     # comprovante de repasse (PDF, PNG ou JPEG)
     evidence-max-size-bytes: 10485760
+    # dias corridos, a partir do envio, para o credor aceitar ou contestar o demonstrativo (só lembrete; 1 a 90)
+    statement-response-days: 10
   legal:
     # varredura diária: vencimentos, alertas e prazos perdidos, indicação pelas regras, captura automática
     daily-cron: "0 40 5 * * *"

@@ -214,6 +214,8 @@ export interface StatementView {
   sentBy: string | null;
   sentChannel: SendChannel | null;
   sentReference: string | null;
+  /** Prazo para o credor aceitar ou contestar, gravado no envio (só lembrete; nulo antes do envio). */
+  responseDueOn?: string | null;
   creditorResponseAt: string | null;
   creditorResponseBy: string | null;
   creditorResponseNote: string | null;

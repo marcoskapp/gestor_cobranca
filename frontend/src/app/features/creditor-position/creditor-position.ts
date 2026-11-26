@@ -21,7 +21,7 @@ import { CYCLE_KIND_LABELS, METRIC_LABELS, formatCycle, prorationLabel } from '.
 import { BillingPositionView } from '../public-api/data/public-api.models';
 import { TransfersApi } from '../settlement/data/settlement.api';
 import { SettlementPositionView } from '../settlement/data/settlement.models';
-import { CumulativeChart, mergeCumulative } from './cumulative-chart';
+import { CumulativeChart, mergeCumulative } from '../../shared/components/charts/cumulative-chart';
 import { InfoHint } from '../../shared/components/info-hint/info-hint';
 
 /** Intervalo da atualização automática (o consumo da API chega em lotes de ~1 min; a posição de repasse tem cache de 60 s). */

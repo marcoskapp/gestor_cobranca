@@ -47,6 +47,15 @@ public interface CreditorPaymentUseCases {
     List<ReportedPayment> reported();
 
     /**
+     * Informes do portal recusados pela assessoria nos últimos {@value #REJECTED_WINDOW_DAYS} dias (pela data da
+     * decisão), do mais recente ao mais antigo — o aviso "Confira e informe de novo" do "Aguardando você"
+     * ({@code CREDITOR_PORTAL_OVERVIEW}). Mesmo filtro da lista: só os informes feitos no portal pelo credor da sessão.
+     */
+    List<ReportedPayment> recentlyRejected();
+
+    int REJECTED_WINDOW_DAYS = 30;
+
+    /**
      * @param titleNumbers números dos títulos no credor (até 20)
      * @param method       PIX, BOLETO, CARD, TRANSFER, CASH ou OTHER
      */

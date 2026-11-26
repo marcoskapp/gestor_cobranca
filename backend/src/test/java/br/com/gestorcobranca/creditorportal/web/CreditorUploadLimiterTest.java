@@ -45,8 +45,11 @@ class CreditorUploadLimiterTest {
         assertThatThrownBy(() -> limiter.acquire("dispute_response", rejected))
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("429");
         assertThat(rejected.getHeader("Retry-After")).isEqualTo("55");
+        // segunda recusa na mesma janela: a métrica conta, o log de acesso não se repete
+        assertThatThrownBy(() -> limiter.acquire("dispute_response", new MockHttpServletResponse()))
+                .isInstanceOf(ResponseStatusException.class);
         assertThat(registry.counter("creditor_portal.document_uploads.rejected", "operation", "dispute_response").count())
-                .isEqualTo(1);
+                .isEqualTo(2);
         verify(accessLogger).log(any());
 
         clock.set(Instant.parse("2026-11-24T12:01:00Z"));

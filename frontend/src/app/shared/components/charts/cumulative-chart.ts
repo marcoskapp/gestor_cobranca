@@ -1,5 +1,5 @@
-import { Component, computed, input, signal } from '@angular/core';
-import { Icon } from '../../shared/components/icon/icon';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, input, signal } from '@angular/core';
+import { Icon } from '../icon/icon';
 
 /** Ponto do acumulado por dia do período: valor do período atual e do anterior no mesmo dia (nulo se não houver). */
 export interface CumulativeRow {
@@ -9,7 +9,6 @@ export interface CumulativeRow {
 }
 
 let nextId = 0;
-const W = 640;
 const H = 220;
 const PAD = { top: 14, right: 16, bottom: 28, left: 72 };
 const MONEY = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -20,7 +19,9 @@ const COUNT_AXIS = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
 /**
  * Crescimento acumulado por dia do período: linha do período atual (cor de série 1), linha do período anterior no mesmo
  * dia (tinta neutra tracejada, só referência) e, opcionalmente, a projeção até o fim (tracejada na cor da série). Um
- * eixo, grade recessiva, legenda, dica por dia (ponteiro e teclado) e tabela equivalente.
+ * eixo, grade recessiva, legenda, dica por dia (ponteiro) e tabela equivalente. Desenhado na largura real do contêiner
+ * (escala 1:1, sem distorcer o texto), como o `app-column-chart`. Os dias ficam fora da ordem do Tab: o conteúdo
+ * inteiro, para teclado e leitor de tela, está em "Ver tabela".
  */
 @Component({
   selector: 'app-cumulative-chart',
@@ -57,15 +58,15 @@ const COUNT_AXIS = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
         </div>
       } @else {
         <div class="cum__plot">
-          <svg [attr.viewBox]="'0 0 ' + w + ' ' + h" role="group" [attr.aria-label]="title()" (pointerleave)="hover.set(null)"
-               (pointermove)="onMove($event)" preserveAspectRatio="none">
+          <svg [attr.viewBox]="'0 0 ' + w() + ' ' + h" [attr.width]="w()" [attr.height]="h" role="group" [attr.aria-label]="title()"
+               (pointerleave)="hover.set(null)" (pointermove)="onMove($event)">
             @for (t of ticks(); track t.value) {
-              <line class="cum__grid" [attr.x1]="pad.left" [attr.x2]="w - pad.right" [attr.y1]="t.y" [attr.y2]="t.y" />
+              <line class="cum__grid" [attr.x1]="pad.left" [attr.x2]="w() - pad.right" [attr.y1]="t.y" [attr.y2]="t.y" />
               <text class="cum__tick" [attr.x]="pad.left - 6" [attr.y]="t.y + 4" text-anchor="end">{{ t.label }}</text>
             }
-            <line class="cum__axis" [attr.x1]="pad.left" [attr.x2]="w - pad.right" [attr.y1]="baseline" [attr.y2]="baseline" />
+            <line class="cum__axis" [attr.x1]="pad.left" [attr.x2]="w() - pad.right" [attr.y1]="baseline" [attr.y2]="baseline" />
             <text class="cum__tick" [attr.x]="pad.left" [attr.y]="h - 8">dia 1</text>
-            <text class="cum__tick" [attr.x]="w - pad.right" [attr.y]="h - 8" text-anchor="end">dia {{ maxDay() }}</text>
+            <text class="cum__tick" [attr.x]="w() - pad.right" [attr.y]="h - 8" text-anchor="end">dia {{ maxDay() }}</text>
             <path class="cum__line cum__line--previous" [attr.d]="previousPath()" />
             @if (projectionPath(); as d) {
               <path class="cum__line cum__line--projection" [attr.d]="d" />
@@ -79,11 +80,11 @@ const COUNT_AXIS = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
             }
             @for (r of rows(); track r.day) {
               <rect class="cum__hit" [attr.x]="x(r.day) - step() / 2" [attr.y]="pad.top" [attr.width]="step()" [attr.height]="baseline - pad.top"
-                    tabindex="0" role="img" [attr.aria-label]="'Dia ' + r.day + ': ' + describe(r)" (focus)="hover.set(r)" (blur)="hover.set(null)" />
+                    tabindex="-1" role="img" [attr.aria-label]="'Dia ' + r.day + ': ' + describe(r)" (focus)="hover.set(r)" (blur)="hover.set(null)" />
             }
           </svg>
           @if (hover(); as hv) {
-            <div class="cum__tip" role="status" [style.left.%]="(x(hv.day) / w) * 100">
+            <div class="cum__tip" role="status" [style.left.%]="(x(hv.day) / w()) * 100">
               <strong>Dia {{ hv.day }}</strong>
               <span><span class="cum__key cum__key--current"></span>{{ hv.current === null ? '—' : fmt(hv.current) }}</span>
               <span><span class="cum__key cum__key--previous"></span>{{ hv.previous === null ? '—' : fmt(hv.previous) }}</span>
@@ -94,6 +95,7 @@ const COUNT_AXIS = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
     </figure>
   `,
   styles: `
+    :host { display: block; min-width: 0; }
     .cum { margin: 0; }
     .cum__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
     .cum__title { font-weight: var(--app-weight-semibold); }
@@ -105,7 +107,7 @@ const COUNT_AXIS = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximum
     .cum__key--previous { border-top: 2px dashed var(--bs-secondary-color); }
     .cum__key--projection { border-top: 2px dashed var(--app-chart-1); opacity: 0.6; }
     .cum__plot { position: relative; }
-    .cum__plot svg { width: 100%; height: 220px; display: block; overflow: visible; }
+    .cum__plot svg { display: block; max-width: 100%; overflow: visible; }
     .cum__grid { stroke: var(--app-chart-grid); stroke-width: 1; }
     .cum__axis { stroke: var(--app-chart-axis); stroke-width: 1; }
     .cum__tick { font-size: var(--app-text-xs); fill: var(--bs-secondary-color); }
@@ -134,7 +136,8 @@ export class CumulativeChart {
   readonly projection = input<{ day: number; value: number } | null>(null);
 
   protected readonly id = `cum-${nextId++}`;
-  protected readonly w = W;
+  /** Largura real do contêiner (px): o SVG é desenhado em escala 1:1, sem distorcer o texto. */
+  protected readonly w = signal(640);
   protected readonly h = H;
   protected readonly pad = PAD;
   protected readonly baseline = H - PAD.bottom;
@@ -146,7 +149,7 @@ export class CumulativeChart {
     const values = this.rows().flatMap((r) => [r.current ?? 0, r.previous ?? 0]);
     return Math.max(1, this.projection()?.value ?? 0, ...values);
   });
-  protected readonly step = computed(() => (W - PAD.left - PAD.right) / Math.max(1, this.maxDay() - 1));
+  protected readonly step = computed(() => (this.w() - PAD.left - PAD.right) / Math.max(1, this.maxDay() - 1));
   protected readonly ticks = computed(() => {
     const top = niceCeil(this.maxValue());
     return [0, top / 2, top].map((v) => ({ value: v, y: this.yOf(v, top), label: this.money() ? MONEY_AXIS.format(v) : COUNT_AXIS.format(v) }));
@@ -162,6 +165,21 @@ export class CumulativeChart {
     const last = [...this.rows()].reverse().find((r) => r.current !== null);
     return p && last && p.day > last.day ? this.path([[last.day, last.current!], [p.day, p.value]]) : null;
   });
+
+  constructor() {
+    const host = inject(ElementRef<HTMLElement>);
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      const element = host.nativeElement as HTMLElement;
+      const measure = () => this.w.set(Math.max(240, Math.round(element.clientWidth || 640)));
+      measure();
+      if (typeof ResizeObserver !== 'undefined') {
+        const observer = new ResizeObserver(measure);
+        observer.observe(element);
+        destroyRef.onDestroy(() => observer.disconnect());
+      }
+    });
+  }
 
   protected x(day: number): number {
     return PAD.left + (day - 1) * this.step();
@@ -183,7 +201,7 @@ export class CumulativeChart {
   protected onMove(event: PointerEvent): void {
     const svg = event.currentTarget as SVGSVGElement;
     const rect = svg.getBoundingClientRect();
-    const px = ((event.clientX - rect.left) / rect.width) * W;
+    const px = ((event.clientX - rect.left) / Math.max(1, rect.width)) * this.w();
     const day = Math.round((px - PAD.left) / this.step()) + 1;
     this.hover.set(this.rows().find((r) => r.day === day) ?? null);
   }

@@ -26,6 +26,9 @@ public interface SettlementStatementRepository {
 
     List<SettlementStatement> findByCreditorIdOrderByPeriodStartDesc(UUID creditorId);
 
+    /** Enviados ao credor e sem resposta dele ({@code SENT}), pelo prazo (índice {@code ix_statement_creditor_awaiting}). */
+    List<SettlementStatement> findAwaitingCreditorResponse(UUID creditorId);
+
     /** @param creditorIds credores visíveis; {@code null} = todos */
     Page<SettlementStatement> search(Collection<UUID> creditorIds, UUID creditorId, StatementStatus status,
                                      Pageable pageable);

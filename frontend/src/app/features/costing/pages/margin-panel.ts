@@ -14,7 +14,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { valueOr } from '../../../shared/data/resource-value';
 import { AnalyticsFilters } from '../../analytics/components/analytics-filters';
-import { DrillLink } from '../../analytics/components/drill-link';
+import { DrillLink } from '../../../shared/components/charts/drill-link';
 import { AnalyticsFilter } from '../../analytics/data/analytics.models';
 import { drillAccess, ledgerTarget } from '../../analytics/data/drill-down';
 import { zonedNow } from '../../collection/data/collection.rules';

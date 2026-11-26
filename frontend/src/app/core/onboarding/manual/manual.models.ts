@@ -34,7 +34,8 @@ export type ManualModuleId =
   | 'juridico'
   | 'importacao'
   | 'paineis'
-  | 'administracao';
+  | 'administracao'
+  | 'portal-credor';
 
 /** Perfis padrão da assessoria (docs/negocio/perfis-de-acesso.md), na linguagem do usuário. */
 export type ManualProfile =
@@ -52,7 +53,8 @@ export type ManualProfile =
   | 'QUALIDADE'
   | 'COMPLIANCE'
   | 'INTEGRACAO'
-  | 'PLATAFORMA';
+  | 'PLATAFORMA'
+  | 'CREDOR';
 
 export const PROFILE_LABELS: Readonly<Record<ManualProfile, string>> = {
   TODOS: 'Todos os usuários',
@@ -70,6 +72,7 @@ export const PROFILE_LABELS: Readonly<Record<ManualProfile, string>> = {
   COMPLIANCE: 'Compliance e privacidade',
   INTEGRACAO: 'Integrações',
   PLATAFORMA: 'Administrador da plataforma',
+  CREDOR: 'Pessoa do credor (portal do credor)',
 };
 
 /** Tela relacionada: o vínculo é a chave da tela; o rótulo vem do manual dela. */

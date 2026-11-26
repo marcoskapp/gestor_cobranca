@@ -108,12 +108,18 @@ create view analytics.src_installment with (security_invoker = true) as
 select i.tenant_id, i.agreement_id, i.number, i.due_date, i.amount, i.paid_amount, i.status, i.paid_at
 from negotiation.agreement_installment i;
 
+-- Suspensão da quebra do acordo (pagamento informado em análise, V0753): só o acordo e a situação. Acordo com
+-- suspensão em vigor conta como "em dia" nos indicadores do credor (portal do credor, fatia 7).
+create view analytics.src_break_suspension with (security_invoker = true) as
+select s.tenant_id, s.agreement_id, s.status
+from negotiation.agreement_break_suspension s;
+
 -- ------------------------------------------------------------------- settlement
 -- Recebimentos: PAYMENT (valor aplicado, positivo) e REVERSAL (compensação, negativo).
 -- competence_date = data do fato (pagamento ou estorno).
 create view analytics.src_receipt with (security_invoker = true) as
 select r.tenant_id, r.id as receipt_id, r.kind, r.payment_id, r.agreement_id, r.creditor_id, r.portfolio_id,
-       r.amount, r.days_past_due, r.paid_on, r.competence_date
+       r.amount, r.days_past_due, r.paid_on, r.competence_date, r.received_by
 from settlement.receipt r;
 
 -- ---------------------------------------------------------------------- payment
@@ -251,23 +257,37 @@ begin
     perform analytics.require_tenant();
     delete from analytics.recovery_daily;
     insert into analytics.recovery_daily (tenant_id, fact_date, creditor_id, portfolio_id, operator_id, team_id, channel,
-                                          origin, origin_group, delay_bucket, recovered_gross, reversed, receipts)
+                                          origin, origin_group, delay_bucket, received_by, recovered_gross, reversed,
+                                          receipts)
     select r.tenant_id, r.competence_date, r.creditor_id, r.portfolio_id,
            case when a.closer_type = 'USER' then a.closer_id end, a.team_id,
            coalesce(a.channel, 'UNKNOWN'), coalesce(a.origin, 'NO_AGREEMENT'), analytics.origin_group(a.origin),
-           analytics.delay_bucket(r.days_past_due),
+           analytics.delay_bucket(r.days_past_due), r.received_by,
            coalesce(sum(r.amount) filter (where r.kind = 'PAYMENT'), 0),
            coalesce(-sum(r.amount) filter (where r.kind = 'REVERSAL'), 0),
            count(*) filter (where r.kind = 'PAYMENT')
     from analytics.src_receipt r
     left join analytics.src_agreement a on a.agreement_id = r.agreement_id
-    group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10;
+    group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11;
     get diagnostics n = row_count;
     return n;
 end
 $$;
 
+-- A assinatura ganhou a data de referência (fatia 7 do portal do credor). Expand/contract (scripts/deploy/release.sh):
+-- a assinatura antiga fica por uma versão como adaptador, para a versão anterior da aplicação (implantação gradual e
+-- rollback) continuar reconstruindo a safra; sai na versão seguinte (decisão 1557).
 create or replace function analytics.refresh_agreement_cohort(p_zone text) returns bigint
+    language plpgsql
+as $$
+begin
+    return analytics.refresh_agreement_cohort(p_zone, (now() at time zone p_zone)::date);
+end
+$$;
+
+-- p_reference: data de referência do refresh (a mesma das posições); parcela vencida = vencimento antes dela e
+-- situação fora de PAID e CANCELLED.
+create or replace function analytics.refresh_agreement_cohort(p_zone text, p_reference date) returns bigint
     language plpgsql
 as $$
 declare
@@ -279,7 +299,7 @@ begin
                                             team_id, channel, origin, origin_group, formalized_at, formalized_on, status,
                                             ended_at, broken_at, renegotiation, total_amount, negotiated_amount,
                                             discount_amount, installment_count, first_installment_paid_at,
-                                            first_receipt_on, paid_net)
+                                            first_receipt_on, paid_net, overdue_installments, break_suspended)
     select a.tenant_id, a.agreement_id, a.creditor_id, a.portfolio_id, a.case_id,
            case when a.closer_type = 'USER' then a.closer_id end, a.team_id, coalesce(a.channel, 'UNKNOWN'), a.origin,
            analytics.origin_group(a.origin), a.formalized_at, (a.formalized_at at time zone p_zone)::date, a.status,
@@ -289,7 +309,12 @@ begin
             where i.agreement_id = a.agreement_id and i.number = 1 and i.status = 'PAID'),
            (select min(r.competence_date) from analytics.src_receipt r
             where r.agreement_id = a.agreement_id and r.kind = 'PAYMENT'),
-           coalesce((select sum(r.amount) from analytics.src_receipt r where r.agreement_id = a.agreement_id), 0)
+           coalesce((select sum(r.amount) from analytics.src_receipt r where r.agreement_id = a.agreement_id), 0),
+           (select count(*) from analytics.src_installment i
+            where i.agreement_id = a.agreement_id and i.due_date < p_reference
+              and i.status not in ('PAID', 'CANCELLED')),
+           exists (select 1 from analytics.src_break_suspension b
+                   where b.agreement_id = a.agreement_id and b.status = 'ACTIVE')
     from analytics.src_agreement a;
     get diagnostics n = row_count;
     return n;
@@ -340,5 +365,5 @@ end
 $$;
 
 grant execute on function analytics.require_tenant(), analytics.refresh_recovery_daily(),
-    analytics.refresh_agreement_cohort(text), analytics.refresh_portfolio_position(date),
+    analytics.refresh_agreement_cohort(text, date), analytics.refresh_agreement_cohort(text), analytics.refresh_portfolio_position(date),
     analytics.refresh_case_position(date) to app_runtime;

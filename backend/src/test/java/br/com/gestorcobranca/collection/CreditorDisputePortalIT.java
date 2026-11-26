@@ -58,6 +58,8 @@ class CreditorDisputePortalIT extends CollectionTestSupport {
     CreditorDisputePortalUseCases portal;
     @Autowired
     CreditorDisputeUseCases creditorDisputes;
+    @Autowired
+    tools.jackson.databind.json.JsonMapper json;
 
     private final UUID creditorUser = Ids.newId();
     private final UUID session = Ids.newId();
@@ -161,6 +163,9 @@ class CreditorDisputePortalIT extends CollectionTestSupport {
         DisputeDetail afterScan = asCreditor(creditorA, READ_ONLY, () -> portal.dispute(dispute.id()));
         assertThat(afterScan.responses().getFirst().documents()).extracting(d -> d.fileName())
                 .containsExactly("extrato.pdf");
+        // contrato da ficha da contestação no portal (RS-26, SEG-F05)
+        br.com.gestorcobranca.support.JsonContract.assertMatches(json.valueToTree(afterScan),
+                "creditor-portal/dispute-detail.txt");
 
         // a resposta não resolve a contestação: segue aberta, sem "aguardando o credor"; o pedido ficou respondido
         DisputeView after = asOperator(operatorX, () -> disputes.get(dispute.id()));
