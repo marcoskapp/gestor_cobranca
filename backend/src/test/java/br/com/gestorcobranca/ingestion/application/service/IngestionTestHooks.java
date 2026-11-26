@@ -20,8 +20,21 @@ public final class IngestionTestHooks {
 
     /** Anonimização do titular no ingestion (consumidor {@code ingestion.debtor-anonymized}), síncrona, no tenant. */
     public static void anonymizeDebtor(ApplicationContext context, UUID tenantId, UUID debtorId) {
+        anonymizeDebtor(context, tenantId, debtorId, br.com.gestorcobranca.shared.domain.Ids.newId());
+    }
+
+    /** Idem, com o id do evento (reentrega do mesmo evento). */
+    public static void anonymizeDebtor(ApplicationContext context, UUID tenantId, UUID debtorId, UUID eventId) {
         context.getBean(br.com.gestorcobranca.shared.tenancy.TenantExecution.class).inTenant(tenantId,
-                "test.ingestion-anonymize", () -> context.getBean(IngestionAnonymizer.class)
-                        .anonymize(debtorId, br.com.gestorcobranca.shared.domain.Ids.newId()));
+                "test.ingestion-anonymize", () -> context.getBean(IngestionAnonymizer.class).anonymize(debtorId, eventId));
+    }
+
+    /** Job de uso único {@code ingestion.pending-erasure}, como o {@code JobWorker} (sem transação externa). */
+    public static void runPendingErasureJob(ApplicationContext context, UUID tenantId, UUID batchId) {
+        context.getBean(br.com.gestorcobranca.shared.tenancy.TenantExecution.class).withTenantContext(tenantId,
+                "job:" + PendingErasureJobHandler.TYPE, () -> context.getBean(PendingErasureJobHandler.class).handle(
+                        new br.com.gestorcobranca.shared.jobs.JobContext(br.com.gestorcobranca.shared.domain.Ids.newId(),
+                                tenantId, PendingErasureJobHandler.TYPE, 1),
+                        new PendingErasureJobHandler.Payload(batchId)));
     }
 }

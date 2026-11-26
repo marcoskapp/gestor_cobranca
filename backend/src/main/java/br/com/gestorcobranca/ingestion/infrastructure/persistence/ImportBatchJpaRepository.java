@@ -12,12 +12,30 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 
 interface ImportBatchJpaRepository extends JpaRepository<ImportBatch, UUID>, JpaSpecificationExecutor<ImportBatch>,
         ImportBatchRepository {
+
+    @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from ImportBatch b where b.id = :id")
+    Optional<ImportBatch> findByIdForUpdate(@Param("id") UUID id);
+
+    @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from ImportBatch b where b.id in :ids order by b.id")
+    List<ImportBatch> findAllByIdInForUpdate(@Param("ids") Collection<UUID> ids);
+
+    @Override
+    boolean existsByCreditorIdAndFileSha256AndBlockedReasonIsNotNull(UUID creditorId, String fileSha256);
 
     @Override
     default List<ImportBatch> findChanges(UUID creditorId, ChangeQuery query) {

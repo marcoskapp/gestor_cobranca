@@ -135,6 +135,11 @@ class IngestionMetrics {
                 .publishPercentiles(0.5, 0.95).register(registry));
     }
 
+    /** Lote bloqueado por titular anonimizado ({@code effect}: cancelled_now, stop_requested, already_finished). */
+    void batchBlocked(String effect) {
+        registry.counter("ingestion.batches.blocked", "effect", effect).increment();
+    }
+
     /** Linha recusada antes da gravação ({@code reason}: {@code subject_anonymized} — titular eliminado, decisão 1470). */
     void rowsRejected(String reason) {
         registry.counter("ingestion.rows.rejected", "reason", reason).increment();

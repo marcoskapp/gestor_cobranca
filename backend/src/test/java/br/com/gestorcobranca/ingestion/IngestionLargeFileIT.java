@@ -83,18 +83,19 @@ class IngestionLargeFileIT extends IngestionTestSupport {
         ImportBatchView cancelled = batch(received.id());
         assertThat(cancelled.status()).isEqualTo("CANCELLED");
         assertThat(cancelled.statusReason()).isEqualTo("Carteira errada");
-        assertThat(cancelled.counters().rowsRead()).isEqualTo(200);
-        assertThat(titleCount(creditorA)).isEqualTo(200);
+        // pedido entre fatias: a próxima fatia encerra sem ler outro bloco (só o primeiro bloco ficou gravado)
+        assertThat(cancelled.counters().rowsRead()).isEqualTo(100);
+        assertThat(titleCount(creditorA)).isEqualTo(100);
         // o que foi gravado já está na carteira: os casos precisam ser abertos
         assertThat(events.stream(PortfolioLoaded.class).filter(e -> e.importBatchId().equals(received.id())))
-                .singleElement().satisfies(e -> assertThat(e.titlesCreated()).isEqualTo(200));
+                .singleElement().satisfies(e -> assertThat(e.titlesCreated()).isEqualTo(100));
 
         // o restante pode ser completado reenviando o arquivo (reimportação idempotente)
         ImportBatchView rest = uploadCsv("cancelar.csv", generated(500), null);
         runJobs();
         ImportBatchView completed = batch(rest.id());
-        assertThat(completed.counters().titlesCreated()).isEqualTo(300);
-        assertThat(completed.counters().titlesUnchanged()).isEqualTo(200);
+        assertThat(completed.counters().titlesCreated()).isEqualTo(400);
+        assertThat(completed.counters().titlesUnchanged()).isEqualTo(100);
         assertThat(titleCount(creditorA)).isEqualTo(500);
     }
 

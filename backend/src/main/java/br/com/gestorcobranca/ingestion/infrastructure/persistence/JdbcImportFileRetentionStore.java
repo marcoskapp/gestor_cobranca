@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,10 +61,17 @@ class JdbcImportFileRetentionStore implements ImportFileRetentionStore {
 
     @Override
     public int markDeleted(String fileKey, Instant at) {
+        // trava os lotes da chave em ordem de id (a mesma do anonimizador, que os trava numa instrução): sem ciclo
         return jdbc.update("""
-                update ingestion.import_batch
-                   set file_key = null, file_deleted_at = :at, updated_at = :at, version = version + 1
-                 where tenant_id = shared.current_tenant_id() and file_key = :key
+                with locked as (
+                    select b.id from ingestion.import_batch b
+                     where b.tenant_id = shared.current_tenant_id() and b.file_key = :key
+                     order by b.id
+                       for update)
+                update ingestion.import_batch u
+                   set file_key = null, file_deleted_at = :at, updated_at = :at, version = u.version + 1
+                  from locked l
+                 where u.id = l.id and u.tenant_id = shared.current_tenant_id()
                    and not exists (select 1 from ingestion.import_batch y
                                     where y.tenant_id = shared.current_tenant_id() and y.file_key = :key
                                       and y.status not in %s)
@@ -91,6 +99,82 @@ class JdbcImportFileRetentionStore implements ImportFileRetentionStore {
                 """, new MapSqlParameterSource("debtorId", debtorId),
                 (rs, i) -> new ExpiredFile(rs.getString("file_key"), rs.getObject("batch_id", UUID.class),
                         rs.getObject("creditor_id", UUID.class), rs.getString("file_sha256"), rs.getInt("batches")));
+    }
+
+    private static final org.springframework.jdbc.core.RowMapper<SubjectRow> SUBJECT_ROW = (rs, i) -> new SubjectRow(
+            rs.getObject("batch_id", UUID.class), rs.getObject("creditor_id", UUID.class), rs.getLong("row_number"),
+            rs.getString("external_id"), rs.getBoolean("by_debtor"));
+
+    /** Índice: {@code ix_import_batch_row_by_debtor} (V2304). */
+    @Override
+    public List<SubjectRow> rowsOfDebtor(UUID debtorId) {
+        return jdbc.query("""
+                select r.batch_id, b.creditor_id, r.row_number, r.external_id, true as by_debtor
+                  from ingestion.import_batch_row r
+                  join ingestion.import_batch b on b.tenant_id = r.tenant_id and b.id = r.batch_id
+                 where r.tenant_id = shared.current_tenant_id() and r.debtor_id = :debtorId
+                 order by r.batch_id, r.row_number
+                """, new MapSqlParameterSource("debtorId", debtorId), SUBJECT_ROW);
+    }
+
+    /** Índice: {@code ix_import_batch_row_by_external_id} (V2305). */
+    @Override
+    public List<SubjectRow> rowsOfTitles(UUID creditorId, Collection<String> externalIds) {
+        if (externalIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.query("""
+                select r.batch_id, b.creditor_id, r.row_number, r.external_id, false as by_debtor
+                  from ingestion.import_batch_row r
+                  join ingestion.import_batch b on b.tenant_id = r.tenant_id and b.id = r.batch_id
+                 where r.tenant_id = shared.current_tenant_id() and r.external_id in (:ids)
+                   and b.creditor_id = :creditorId
+                 order by r.batch_id, r.row_number
+                """, new MapSqlParameterSource("ids", externalIds).addValue("creditorId", creditorId), SUBJECT_ROW);
+    }
+
+    @Override
+    public List<UUID> batchesWithFileKey(String fileKey) {
+        return jdbc.queryForList("""
+                select b.id from ingestion.import_batch b
+                 where b.tenant_id = shared.current_tenant_id() and b.file_key = :key
+                 order by b.id
+                """, new MapSqlParameterSource("key", fileKey), UUID.class);
+    }
+
+    @Override
+    public List<BatchFile> filesOfBatches(Collection<UUID> batchIds) {
+        if (batchIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.query("""
+                select b.id, b.creditor_id, b.file_key, b.file_sha256 from ingestion.import_batch b
+                 where b.tenant_id = shared.current_tenant_id() and b.id in (:ids)
+                """, new MapSqlParameterSource("ids", batchIds),
+                (rs, i) -> new BatchFile(rs.getObject("id", UUID.class), rs.getObject("creditor_id", UUID.class),
+                        rs.getString("file_key"), rs.getString("file_sha256")));
+    }
+
+    @Override
+    public List<UUID> batchesWithContent(UUID creditorId, String fileSha256) {
+        return jdbc.queryForList("""
+                select b.id from ingestion.import_batch b
+                 where b.tenant_id = shared.current_tenant_id() and b.creditor_id = :creditorId
+                   and b.file_sha256 = :sha
+                 order by b.id
+                """, new MapSqlParameterSource("creditorId", creditorId).addValue("sha", fileSha256), UUID.class);
+    }
+
+    @Override
+    public List<UUID> pdfImportsOfBatches(Collection<UUID> batchIds) {
+        if (batchIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.queryForList("""
+                select distinct p.id from ingestion.pdf_import p
+                  join ingestion.import_batch b on b.tenant_id = p.tenant_id and b.review_id = p.review_id
+                 where p.tenant_id = shared.current_tenant_id() and p.file_key is not null and b.id in (:ids)
+                """, new MapSqlParameterSource("ids", batchIds), UUID.class);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.ingestion.application.port.out;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,6 +42,42 @@ public interface ImportFileRetentionStore {
 
     /** PDFs ainda guardados das importações PDF cujos lotes têm linha do devedor. */
     List<UUID> pdfImportsWithDebtor(UUID debtorId);
+
+    /**
+     * Linha de lote com o titular anonimizado (SEG-20261124-D01h).
+     *
+     * @param externalId identificador do título como veio no arquivo — pode ter o CPF embutido: só para casar e
+     *                   mascarar, nunca gravar nem registrar em log
+     * @param byDebtor   a linha gravou o devedor (senão, casou pelo título do credor)
+     */
+    record SubjectRow(UUID batchId, UUID creditorId, long rowNumber, String externalId, boolean byDebtor) {
+
+        @Override
+        public String toString() {
+            return "SubjectRow[batchId=" + batchId + ", rowNumber=" + rowNumber + ", byDebtor=" + byDebtor + "]";
+        }
+    }
+
+    /** Linhas de lotes que gravaram o devedor, em ordem de lote e linha. */
+    List<SubjectRow> rowsOfDebtor(UUID debtorId);
+
+    /** Linhas de lotes do credor com estes identificadores de título (inclusive sem gravação: prévia, erro). */
+    List<SubjectRow> rowsOfTitles(UUID creditorId, Collection<String> externalIds);
+
+    /** Lotes que usam a chave do arquivo (prévia, importação, reprocessamento e nova conferência compartilham). */
+    List<UUID> batchesWithFileKey(String fileKey);
+
+    /** Chave e conteúdo do arquivo de cada lote (descoberta sem carregar a entidade antes da trava). */
+    record BatchFile(UUID batchId, UUID creditorId, String fileKey, String fileSha256) {
+    }
+
+    List<BatchFile> filesOfBatches(Collection<UUID> batchIds);
+
+    /** Lotes do credor com o mesmo conteúdo (o reenvio do mesmo arquivo grava outra chave). */
+    List<UUID> batchesWithContent(UUID creditorId, String fileSha256);
+
+    /** Importações PDF ainda com arquivo cujas conferências têm algum destes lotes. */
+    List<UUID> pdfImportsOfBatches(Collection<UUID> batchIds);
 
     /** Remoção pendente (lote ainda aberto): exatamente um de {@code fileKey} ou {@code pdfImportId}. */
     record PendingErasure(UUID id, String fileKey, UUID pdfImportId, UUID sourceEventId) {

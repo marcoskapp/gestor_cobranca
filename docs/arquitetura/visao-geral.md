@@ -58,7 +58,7 @@ Pacote raiz: `br.com.gestorcobranca`. Cada pacote de primeiro nível é um módu
 ```
 shared ◄── organization ◄── identity
               ▲   ▲
-              │   └─ debt ◄── ingestion
+              │   └─ debt ◄── ingestion (→ debt, organization, compliance [retenção, aviso ao credor da anonimização])
               │       ▲  ▲
               │       │  └── compliance  (→ debt, organization, identity [responsável por solicitação de titular])
               │       │        ▲

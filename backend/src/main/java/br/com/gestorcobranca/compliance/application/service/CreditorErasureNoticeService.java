@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.compliance.application.service;
 
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeStatusQueries;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases;
 import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice;
 import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice.Channel;
@@ -47,6 +48,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -57,7 +59,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional
-class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases {
+class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases, CreditorErasureNoticeStatusQueries {
 
     private static final String RESOURCE = "creditor_erasure_notice";
     private static final Sort SORT = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
@@ -151,6 +153,14 @@ class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases {
                 .orElseThrow(() -> ResourceNotFoundException.of(RESOURCE, id));
         markNotified(notice, command.notifiedAt(), channel(command.channel()), null);
         return view(notice);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UUID> noticeFor(UUID debtorId, UUID creditorId) {
+        accessScope.requirePermission(Permission.IMPORT_EXECUTE);
+        accessScope.requireCreditor(creditorId);
+        return notices.findIdByDebtorIdAndCreditorId(debtorId, creditorId);
     }
 
     @Override

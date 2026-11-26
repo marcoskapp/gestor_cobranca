@@ -114,4 +114,64 @@ class ImportBatchTest {
         assertThat(batch.getErrors()).isEqualTo(1);
         assertThat(batch.progressPercent()).isNull();
     }
+
+    @Test
+    void blockCancelsAQueuedBatchAtOnceAndOnlyMarksAFinishedOne() {
+        UUID system = br.com.gestorcobranca.shared.security.Actor.SYSTEM_ID;
+        ImportBatch queued = batch(ImportMode.IMPORT);
+        assertThat(queued.block(BlockReason.SUBJECT_ANONYMIZED, NOW, system)).isEqualTo(BlockEffect.CANCELLED_NOW);
+        assertThat(queued.getStatus()).isEqualTo(ImportBatchStatus.CANCELLED);
+        assertThat(queued.isBlocked()).isTrue();
+        assertThat(queued.getStatusReason()).isEqualTo(ImportBatch.SUBJECT_BLOCK_REASON);
+        // idempotente: a segunda vez só confirma
+        assertThat(queued.block(BlockReason.SUBJECT_ANONYMIZED, NOW.plusSeconds(5), system))
+                .isEqualTo(BlockEffect.ALREADY_FINISHED);
+        assertThat(queued.getBlockedAt()).isEqualTo(NOW);
+
+        ImportBatch done = batch(ImportMode.VALIDATE_ONLY);
+        done.begin(NOW, 1);
+        done.recordBlock(tally(1, 0), 0, 1, 0);
+        done.complete(NOW, 0, 0);
+        assertThat(done.block(BlockReason.SUBJECT_ANONYMIZED, NOW, system)).isEqualTo(BlockEffect.ALREADY_FINISHED);
+        assertThat(done.getStatus()).isEqualTo(ImportBatchStatus.VALIDATED);
+        assertThat(done.isBlocked()).isTrue();
+    }
+
+    @Test
+    void blockAsksARunningBatchToStopAtTheEndOfTheBlock() {
+        UUID system = br.com.gestorcobranca.shared.security.Actor.SYSTEM_ID;
+        ImportBatch running = batch(ImportMode.IMPORT);
+        running.begin(NOW, 10);
+        assertThat(running.block(BlockReason.SUBJECT_ANONYMIZED, NOW, system)).isEqualTo(BlockEffect.STOP_REQUESTED);
+        assertThat(running.getStatus()).isEqualTo(ImportBatchStatus.PROCESSING);
+        assertThat(running.isCancelRequested()).isTrue();
+        assertThat(running.getCancelRequestedBy()).isEqualTo(system);
+        // pedido do usuário anterior é mantido; o bloqueio não falha por isso
+        ImportBatch cancelled = batch(ImportMode.IMPORT);
+        cancelled.begin(NOW, 10);
+        UUID user = UUID.randomUUID();
+        cancelled.requestCancel(NOW, user, "Pedido do usuário");
+        assertThat(cancelled.block(BlockReason.SUBJECT_ANONYMIZED, NOW, system)).isEqualTo(BlockEffect.STOP_REQUESTED);
+        assertThat(cancelled.getCancelRequestedBy()).isEqualTo(user);
+        cancelled.stopCancelled(NOW, 0, 0);
+        assertThat(cancelled.getStatus()).isEqualTo(ImportBatchStatus.CANCELLED);
+        assertThat(cancelled.isBlocked()).isTrue();
+    }
+
+    @Test
+    void blockCancelsAPreviewAwaitingFormatAndStopsAValidatingOne() {
+        UUID system = br.com.gestorcobranca.shared.security.Actor.SYSTEM_ID;
+        ImportBatch awaiting = new ImportBatch(UUID.randomUUID(), UUID.randomUUID(), FileLayout.standard(ImportFormat.CSV),
+                ImportSource.CSV, ImportMode.VALIDATE_ONLY, new ImportBatch.StoredContent("tenants/x/imports/f.csv", "f.csv",
+                "text/csv", 10, SHA), null, null, new ImportBatch.Options(UUID.randomUUID(), null, null));
+        awaiting.awaitFormat(NOW, 3, "{}", null);
+        assertThat(awaiting.block(BlockReason.SUBJECT_ANONYMIZED, NOW, system)).isEqualTo(BlockEffect.CANCELLED_NOW);
+        assertThat(awaiting.getStatus()).isEqualTo(ImportBatchStatus.CANCELLED);
+
+        ImportBatch validating = batch(ImportMode.VALIDATE_ONLY);
+        validating.begin(NOW, 10);
+        assertThat(validating.block(BlockReason.SUBJECT_ANONYMIZED, NOW, system)).isEqualTo(BlockEffect.STOP_REQUESTED);
+        assertThat(validating.getStatus()).isEqualTo(ImportBatchStatus.VALIDATING);
+        assertThat(validating.isCancelRequested()).isTrue();
+    }
 }

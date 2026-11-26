@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.ingestion;
 
+import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.OpenRequestCommand;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtLedgerPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtLedgerPort.ComponentAmounts;
@@ -34,6 +36,9 @@ class AnonymizedSubjectImportIT extends IngestionTestSupport {
 
     @Autowired
     ImportReviewUseCases reviews;
+
+    @Autowired
+    DataSubjectRequestUseCases requests;
 
     @Test
     void newLoadRejectsRowsOfAnonymizedSubjectAndImportsTheRest() {
@@ -112,6 +117,61 @@ class AnonymizedSubjectImportIT extends IngestionTestSupport {
         runJobs();
         assertThat(subjectIssues(paid.id())).singleElement()
                 .satisfies(i -> assertThat(i.field()).isEqualTo("id_titulo"));
+    }
+
+    /** Decisão 1488: a prévia que trouxe o título do titular (sem gravar o devedor) também é bloqueada. */
+    @Test
+    void earlierPreviewWithTheSubjectsTitleIsBlockedByTheTitleReference() {
+        ImportBatchView first = uploadCsv("t1.csv", HEADER + "\n" + line(cpf(13), "Joana", "R-13", "90,00", null)
+                + "\n", "IMPORT");
+        runJobs();
+        UUID joana = system(() -> jdbcTemplate.queryForObject("select debtor_id from ingestion.import_batch_row "
+                + "where batch_id = ? and debtor_id is not null", UUID.class, first.id()));
+        UUID title = system(() -> jdbcTemplate.queryForObject("select title_id from ingestion.import_batch_row "
+                + "where batch_id = ?", UUID.class, first.id()));
+        // prévia com o título dela e outra pessoa: nenhuma linha grava devedor
+        ImportBatchView preview = uploadCsv("t2.csv", HEADER + "\n" + line(cpf(13), "Joana", "R-13", "90,00", null)
+                + "\n" + line(cpf(14), "Kai", "R-14", "10,00", null) + "\n", "VALIDATE_ONLY");
+        runJobs();
+        assertThat(count("select count(*) from ingestion.import_batch_row where batch_id = ? and debtor_id is not null",
+                preview.id())).isZero();
+
+        system(() -> ledger.applyPayment(new PaymentApplication(title, Ids.newId(),
+                ComponentAmounts.principalOnly(new BigDecimal("90.00")), Instant.now())));
+        // pelo caminho real: pedido do titular → portão do compliance (abre o aviso ao credor) → evento → ingestion
+        var request = system(() -> {
+            var opened = requests.open(new OpenRequestCommand("ANONYMIZATION", "EMAIL", "Joana", cpf(13), null,
+                    "Pedido do titular", null));
+            requests.verifyIdentity(opened.id(), joana);
+            requests.start(opened.id(), null);
+            return requests.execute(opened.id());
+        });
+        assertThat(request.executedAt()).isNotNull();
+        long deadline = System.currentTimeMillis() + 15_000;
+        while (count("select count(*) from ingestion.import_subject_block where batch_id = ?", preview.id()) == 0) {
+            assertThat(System.currentTimeMillis()).as("bloqueio da prévia").isLessThan(deadline);
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+            }
+        }
+        assertThat(system(() -> jdbcTemplate.queryForList("select l.row_number, l.matched_by, b.effect "
+                + "from ingestion.import_subject_block b join ingestion.import_subject_block_line l on l.block_id = b.id "
+                + "where b.batch_id = ?", preview.id()))).singleElement().satisfies(r -> {
+                    assertThat(r.get("row_number")).isEqualTo(2L);
+                    assertThat(r.get("matched_by")).isEqualTo("TITLE_REFERENCE");
+                    assertThat(r.get("effect")).isEqualTo("ALREADY_FINISHED");
+                });
+        // o bloqueio aponta para o aviso ao credor aberto pela eliminação
+        UUID notice = system(() -> jdbcTemplate.queryForObject("select id from compliance.creditor_erasure_notice "
+                + "where debtor_id = ? and creditor_id = ?", UUID.class, joana, creditorA));
+        assertThat(count("select count(*) from ingestion.import_subject_block where batch_id in (?, ?) and notice_id = ?",
+                first.id(), preview.id(), notice)).isEqualTo(2);
+        // os dois arquivos (o da carga e o da prévia) saem inteiros
+        assertThat(count("select count(*) from ingestion.import_batch where id in (?, ?) and file_key is null "
+                + "and blocked_reason = 'SUBJECT_ANONYMIZED'", first.id(), preview.id())).isEqualTo(2);
     }
 
     private List<ImportIssueView> subjectIssues(UUID batchId) {

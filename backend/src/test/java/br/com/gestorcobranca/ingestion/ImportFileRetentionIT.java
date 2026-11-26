@@ -134,35 +134,133 @@ class ImportFileRetentionIT extends IngestionTestSupport {
         assertThat(fileKey(other.id())).isNotNull();
     }
 
+    /** SEG-20261124-D01h (decisões 1469 e 1488): conferência aberta com o titular é encerrada na hora e o arquivo sai. */
     @Test
-    void debtorAnonymizationLeavesAPendingErasureWhileAReviewOfTheFileIsOpenAndTheJobCompletesIt() {
-        ImportBatchView closed = uploadCsv("encerrado.csv", HEADER + "\n" + line(cpf(6), "Fabio", "R-6", "10,00", null)
-                + "\n", "IMPORT");
+    void debtorAnonymizationBlocksTheBatchesClosesTheOpenReviewAndDeletesTheFileAtOnce() {
+        String csv = HEADER + "\n" + line(cpf(6), "Fabio", "R-6", "10,00", null) + "\n";
+        ImportBatchView closed = uploadCsv("encerrado.csv", csv, "IMPORT");
         runJobs();
         UUID fabio = system(() -> jdbcTemplate.queryForObject("select debtor_id from ingestion.import_batch_row "
                 + "where batch_id = ? and debtor_id is not null limit 1", UUID.class, closed.id()));
         String closedKey = fileKey(closed.id());
-        // nova conferência a partir do mesmo lote: o arquivo está em uso
+        // nova conferência a partir do mesmo lote: a prévia usa o mesmo arquivo
         var review = asImporterOf(creditorA, () -> reviews.startFromBatch(closed.id()));
         runJobs();
         assertThat(system(() -> reviews.get(review.id())).status()).isEqualTo("OPEN");
 
         IngestionTestHooks.anonymizeDebtor(context, tenant, fabio);
-        // nada sai enquanto a conferência está aberta; a remoção fica pendente (sem falhar o consumo)
-        assertThat(fileKey(closed.id())).isEqualTo(closedKey);
-        assertThat(stored(closedKey)).isTrue();
-        assertThat(count("select count(*) from ingestion.pending_file_erasure where tenant_id = ? and file_key = ?",
-                tenant, closedKey)).isEqualTo(1);
-        // o job diário só conclui depois que a conferência encerra
-        IngestionTestHooks.purgeImportFiles(context, tenant);
-        assertThat(stored(closedKey)).isTrue();
-
-        asImporterOf(creditorA, () -> reviews.cancel(review.id(), "Cancelada no teste"));
-        runJobs();
-        IngestionTestHooks.purgeImportFiles(context, tenant);
+        // conferência cancelada pelo sistema, lotes bloqueados, arquivo apagado na hora (nada pendente)
+        assertThat(system(() -> reviews.get(review.id())).status()).isEqualTo("CANCELLED");
+        assertThat(count("select count(*) from ingestion.import_batch where tenant_id = ? and file_sha256 = "
+                + "(select file_sha256 from ingestion.import_batch where id = ?) and blocked_reason = 'SUBJECT_ANONYMIZED'",
+                tenant, closed.id())).isEqualTo(2);
         assertThat(fileKey(closed.id())).isNull();
         assertThat(stored(closedKey)).isFalse();
         assertThat(count("select count(*) from ingestion.pending_file_erasure where tenant_id = ?", tenant)).isZero();
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? "
+                + "and action = 'import_review.closed_by_system' and entity_id = ?", tenant, review.id())).isEqualTo(1);
+        // registro do bloqueio com a linha do titular (referência sem dado pessoal)
+        assertThat(system(() -> jdbcTemplate.queryForList("select l.row_number, l.reference, l.matched_by "
+                + "from ingestion.import_subject_block b join ingestion.import_subject_block_line l on l.block_id = b.id "
+                + "where b.batch_id = ?", closed.id()))).singleElement().satisfies(r -> {
+                    assertThat(r.get("row_number")).isEqualTo(2L);
+                    assertThat(r.get("reference")).isEqualTo("R-6");
+                    assertThat(r.get("matched_by")).isEqualTo("DEBTOR");
+                });
+
+        // lote bloqueado: sem reprocessar, sem nova conferência; o mesmo arquivo é recusado no reenvio (também prévia)
+        assertThatThrownBy(() -> asImporterOf(creditorA, () -> batches.reprocess(closed.id(),
+                new ReprocessCommand("VALIDATE_ONLY", null))))
+                .hasFieldOrPropertyWithValue("code", "import_batch.blocked_subject_anonymized");
+        assertThatThrownBy(() -> asImporterOf(creditorA, () -> reviews.startFromBatch(closed.id())))
+                .hasFieldOrPropertyWithValue("code", "import_batch.blocked_subject_anonymized");
+        assertThatThrownBy(() -> uploadCsv("de-novo.csv", csv, "VALIDATE_ONLY"))
+                .hasFieldOrPropertyWithValue("code", "import.file_blocked_subject_anonymized");
+        assertThatThrownBy(() -> uploadCsv("de-novo.csv", csv, "IMPORT", true, "Forçar"))
+                .hasFieldOrPropertyWithValue("code", "import.file_blocked_subject_anonymized");
+        // o arquivo corrigido (sem a linha) passa
+        ImportBatchView fixed = uploadCsv("corrigido.csv", HEADER + "\n" + line(cpf(8), "Hugo", "R-8", "20,00", null)
+                + "\n", "VALIDATE_ONLY");
+        assertThat(fixed.status()).isEqualTo("RECEIVED");
+    }
+
+    /** Lote em processamento quando o titular é anonimizado: para no fim do bloco e o encerramento conclui a remoção. */
+    @Test
+    void runningBatchOfTheSubjectStopsAndItsFileIsErasedWhenItFinishes() {
+        ImportBatchView first = uploadCsv("rodando.csv", HEADER + "\n" + line(cpf(12), "Iara", "R-12", "10,00", null)
+                + "\n", "IMPORT");
+        runJobs();
+        UUID iara = system(() -> jdbcTemplate.queryForObject("select debtor_id from ingestion.import_batch_row "
+                + "where batch_id = ? and debtor_id is not null limit 1", UUID.class, first.id()));
+        String key = fileKey(first.id());
+        // reprocessamento do mesmo arquivo, posto em processamento (sem ler o arquivo ainda)
+        ImportBatchView again = asImporterOf(creditorA, () -> batches.reprocess(first.id(),
+                new ReprocessCommand("VALIDATE_ONLY", null)));
+        system(() -> jdbcTemplate.update("update ingestion.import_batch set status = 'VALIDATING', started_at = now(), "
+                + "total_rows = 1 where id = ?", again.id()));
+
+        IngestionTestHooks.anonymizeDebtor(context, tenant, iara);
+        assertThat(system(() -> jdbcTemplate.queryForObject("select effect from ingestion.import_subject_block "
+                + "where batch_id = ?", String.class, again.id()))).isEqualTo("STOP_REQUESTED");
+        assertThat(batch(again.id()).status()).isEqualTo("VALIDATING");
+        // arquivo em uso: remoção pendente
+        assertThat(stored(key)).isTrue();
+        assertThat(count("select count(*) from ingestion.pending_file_erasure where tenant_id = ? and file_key = ?",
+                tenant, key)).isEqualTo(1);
+
+        // a próxima fatia vê o pedido do sistema, encerra sem ler o arquivo e agenda a conclusão da remoção
+        runJobs();
+        assertThat(batch(again.id()).status()).isEqualTo("CANCELLED");
+        assertThat(count("select count(*) from shared.processing_job where tenant_id = ? "
+                + "and type = 'ingestion.pending-erasure'", tenant)).isEqualTo(1);
+        IngestionTestHooks.runPendingErasureJob(context, tenant, again.id());
+        assertThat(stored(key)).isFalse();
+        assertThat(count("select count(*) from ingestion.pending_file_erasure where tenant_id = ?", tenant)).isZero();
+    }
+
+    /** SEG-20261126-M08 (b) e M11: reenvio sob outra chave, reentrega do evento e isolamento das tabelas novas. */
+    @Test
+    void sameContentUnderAnotherKeyIsBlockedTooAndRedeliveryDoesNotRepeatTheBlock() {
+        String csv = HEADER + "\n" + line(cpf(20), "Joana", "R-20", "10,00", null) + "\n";
+        ImportBatchView imported = uploadCsv("a.csv", csv, "IMPORT");
+        runJobs();
+        UUID joana = system(() -> jdbcTemplate.queryForObject("select debtor_id from ingestion.import_batch_row "
+                + "where batch_id = ? and debtor_id is not null limit 1", UUID.class, imported.id()));
+        // o mesmo conteúdo enviado de novo (outra chave), ainda na fila e sem linhas
+        ImportBatchView again = uploadCsv("b.csv", csv, "VALIDATE_ONLY");
+        String againKey = fileKey(again.id());
+
+        UUID eventId = br.com.gestorcobranca.shared.domain.Ids.newId();
+        IngestionTestHooks.anonymizeDebtor(context, tenant, joana, eventId);
+        assertThat(batch(again.id()).status()).isEqualTo("CANCELLED");
+        assertThat(fileKey(again.id())).isNull();
+        assertThat(stored(againKey)).isFalse();
+        // o job do lote cancelado na fila saiu da fila
+        assertThat(count("select count(*) from shared.processing_job where tenant_id = ? and status = 'PENDING' "
+                + "and payload::text like ?", tenant, "%" + again.id() + "%")).isZero();
+        assertThatThrownBy(() -> asImporterOf(creditorA, () -> reviews.startFromBatch(again.id())))
+                .hasFieldOrPropertyWithValue("code", "import_batch.blocked_subject_anonymized");
+
+        // reentrega do mesmo evento: nenhum bloqueio nem auditoria a mais
+        IngestionTestHooks.anonymizeDebtor(context, tenant, joana, eventId);
+        assertThat(count("select count(*) from ingestion.import_subject_block where tenant_id = ?", tenant)).isEqualTo(2);
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? "
+                + "and action = 'import_batch.blocked_subject_anonymized'", tenant)).isEqualTo(2);
+
+        // outra assessoria não lê nem grava linhas do bloqueio
+        UUID blockId = system(() -> jdbcTemplate.queryForObject("select id from ingestion.import_subject_block "
+                + "where batch_id = ?", UUID.class, imported.id()));
+        UUID otherTenant = tenantExecution.callInTenant(br.com.gestorcobranca.shared.domain.Ids.newId(), "test.setup",
+                () -> context.getBean(br.com.gestorcobranca.organization.application.port.in.TenantAdministration.class)
+                        .createTenant(new br.com.gestorcobranca.organization.application.port.in.TenantAdministration
+                                .CreateTenantCommand("ing-x" + UUID.randomUUID().toString().substring(0, 6), "Outra Ltda",
+                                "Outra", "45.997.418/0001-53")).id());
+        assertThat(tenantExecution.callInTenant(otherTenant, "test", () -> jdbcTemplate.queryForObject(
+                "select count(*) from ingestion.import_subject_block_line", Long.class))).isZero();
+        assertThatThrownBy(() -> tenantExecution.callInTenant(otherTenant, "test", () -> jdbcTemplate.update(
+                "insert into ingestion.import_subject_block_line (block_id, position, row_number, reference, matched_by) "
+                        + "values (?, 9, 9, 'x', 'DEBTOR')", blockId)))
+                .isInstanceOf(org.springframework.dao.DataAccessException.class);
     }
 
     private boolean stored(String key) {

@@ -19,6 +19,9 @@ public interface CreditorErasureNoticeRepository {
     /** Trava o aviso para registrar o aviso ao credor (dois registros simultâneos: o segundo vê o primeiro). */
     Optional<CreditorErasureNotice> findByIdForUpdate(UUID id);
 
+    /** Id do aviso do par devedor × credor (único, {@code uk_creditor_erasure_notice}). */
+    Optional<UUID> findIdByDebtorIdAndCreditorId(UUID debtorId, UUID creditorId);
+
     /** Trava os avisos em ordem de id (sem impasse entre dois registros em lote). */
     List<CreditorErasureNotice> findAllByIdInForUpdate(Collection<UUID> ids);
 

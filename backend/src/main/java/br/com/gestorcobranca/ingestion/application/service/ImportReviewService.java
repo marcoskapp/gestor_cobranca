@@ -134,13 +134,14 @@ class ImportReviewService implements ImportReviewUseCases {
         String fileName = creation.fileName(command.fileName());
         ImportFormat format = creation.formatOf(fileName);
         FileLayout layout = creation.resolveLayout(command.layoutId(), portfolio, format);
-        StoredFile stored = creation.storeUpload(command.content(), fileName, command.contentType(), command.size(), format);
+        StoredFile stored = creation.storeUpload(portfolio.creditorId(), command.content(), fileName, command.contentType(), command.size(), format);
         return open(portfolio, layout, ImportSource.of(format), stored, null);
     }
 
     @Override
     public ReviewView startFromBatch(UUID batchId) {
-        ImportBatch original = batches.findById(batchId)
+        // travado antes de qualquer leitura: serializa com o bloqueio por titular anonimizado e lê o estado atual
+        ImportBatch original = batches.findByIdForUpdate(batchId)
                 .orElseThrow(() -> ResourceNotFoundException.of(BatchCreation.RESOURCE, batchId));
         accessScope.requireVisible(BatchCreation.RESOURCE, batchId, original.getCreditorId());
         Guard.requireState(original.getStatus().isTerminal(), "import_batch.not_finished",

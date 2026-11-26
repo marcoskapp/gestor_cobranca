@@ -207,4 +207,14 @@ class ArchitectureTest {
                 .because("só o serviço do aviso, chamado pelo portão, cria o aviso (decisão 1481)")
                 .check(classes);
     }
+
+    /** O ingestion lê só o id do aviso ao credor (porta mínima); remessa e registro são da equipe do titular. */
+    @Test
+    void ingestionUsesOnlyTheMinimalCreditorNoticePort() {
+        noClasses().that().resideInAPackage(ROOT + ".ingestion..")
+                .should().dependOnClassesThat().haveFullyQualifiedName(
+                        ROOT + ".compliance.application.port.in.CreditorErasureNoticeUseCases")
+                .because("o ingestion não registra nem monta o aviso ao credor (parecer AQ-04 da fatia 3b)")
+                .check(classes);
+    }
 }

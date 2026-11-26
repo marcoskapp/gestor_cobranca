@@ -20,6 +20,8 @@ public final class BusinessEventTypes {
     public static final String IMPORT_COMPLETED = "import.completed";
     public static final String IMPORT_FAILED = "import.failed";
     public static final String IMPORT_CANCELLED = "import.cancelled";
+    /** Lote bloqueado por titular anonimizado (SEG-20261124-D01h): só ids, efeito e quantidade de linhas. */
+    public static final String IMPORT_BATCH_BLOCKED = "import.batch_blocked";
     public static final String IMPORT_FORMAT_CONFIRMED = "import.format_confirmed";
     public static final String IMPORT_TOTALS_MATCHED = "import.totals_matched";
     public static final String IMPORT_TOTALS_MISMATCH = "import.totals_mismatch";

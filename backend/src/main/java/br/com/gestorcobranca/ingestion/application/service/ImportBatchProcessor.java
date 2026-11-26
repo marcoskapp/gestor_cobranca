@@ -205,6 +205,12 @@ class ImportBatchProcessor {
             return SliceOutcome.FINISHED;
         }
         try {
+            if (batch.isInProgress() && batch.isCancelRequested()) {
+                // cancelamento pedido entre fatias (pelo usuário ou pelo bloqueio): para antes de ler outro bloco
+                finish(batchId, true);
+                metrics.slice(sample, mode, "cancelled");
+                return SliceOutcome.FINISHED;
+            }
             FileLayout layout = layoutOf(batch);
             if (batch.isAwaitingStart()) {
                 if (start(batch, layout)) {
@@ -668,7 +674,7 @@ class ImportBatchProcessor {
                             List<RowValue> values, int rowIssuesStored, boolean last) {
             long expected = checkpoint;
             ImportBatch committed = tx.execute(s -> {
-                ImportBatch b = require(batchId);
+                ImportBatch b = lock(batchId);
                 if (!b.isInProgress()) {
                     throw new StopSlice(SliceOutcome.FINISHED);
                 }
@@ -727,7 +733,7 @@ class ImportBatchProcessor {
 
     private void finish(UUID batchId, boolean cancelled) {
         ImportBatch batch = tx.execute(s -> {
-            ImportBatch b = require(batchId);
+            ImportBatch b = lock(batchId);
             if (!b.isInProgress()) {
                 return null;
             }
@@ -744,6 +750,12 @@ class ImportBatchProcessor {
             batches.save(b);
             publishLoadedIfWritten(b);
             queueReviewAnalysis(b);
+            if (b.isBlocked()) {
+                // titular anonimizado durante o processamento: a remoção do arquivo ficou pendente; conclui logo
+                // depois do commit (o job diário fica como última rede)
+                jobQueue.enqueue(PendingErasureJobHandler.TYPE, new PendingErasureJobHandler.Payload(b.getId()), null,
+                        PendingErasureJobHandler.deduplicationKey(b.getId()));
+            }
             BusinessEvent event = finishedEvent(b, eventType);
             if (b.getStatus() == ImportBatchStatus.FAILED) {
                 event.attr("failureCode", "import.no_rows");
@@ -863,6 +875,14 @@ class ImportBatchProcessor {
 
     private ImportBatch require(UUID batchId) {
         return batches.findById(batchId).orElseThrow(() -> ResourceNotFoundException.of("import_batch", batchId));
+    }
+
+    /**
+     * Lote travado até o fim da transação: o bloqueio por titular anonimizado (que trava os lotes em ordem de id) e o
+     * avanço ou o encerramento do processamento não se cruzam (SEG-20261124-D01h).
+     */
+    private ImportBatch lock(UUID batchId) {
+        return batches.findByIdForUpdate(batchId).orElseThrow(() -> ResourceNotFoundException.of("import_batch", batchId));
     }
 
     private <T> T read(Supplier<T> action) {

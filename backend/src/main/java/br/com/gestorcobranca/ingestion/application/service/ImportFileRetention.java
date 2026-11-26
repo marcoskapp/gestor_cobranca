@@ -100,7 +100,21 @@ class ImportFileRetention {
      * Remoções deixadas pendentes pela anonimização do titular (decisão 1461), com ou sem política, em rodadas na própria
      * transação; a falha não para a retenção.
      */
-    private int completePendingErasures(UUID tenantId) {
+    int completePendingErasures(UUID tenantId) {
+        try {
+            return completePendingErasuresOrThrow(tenantId);
+        } catch (RuntimeException e) {
+            LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("job", JOB).setCause(e)
+                    .log("Falha ao concluir as remoções pendentes da anonimização");
+            return 0;
+        }
+    }
+
+    /**
+     * Como {@link #completePendingErasures}, mas a falha sobe: o job de uso único {@code ingestion.pending-erasure} é
+     * tentado de novo pela fila (o diário só registra a falha e segue para a retenção).
+     */
+    int completePendingErasuresOrThrow(UUID tenantId) {
         int deleted = 0;
         try {
             for (int round = 0; round < MAX_ROUNDS; round++) {
@@ -111,11 +125,9 @@ class ImportFileRetention {
                     break;
                 }
             }
-        } catch (RuntimeException e) {
-            LOG.atError().addKeyValue("tenantId", tenantId).addKeyValue("job", JOB).setCause(e)
-                    .log("Falha ao concluir as remoções pendentes da anonimização");
+        } finally {
+            metrics.filesDeleted(deleted, IngestionMetrics.REASON_ANONYMIZATION);
         }
-        metrics.filesDeleted(deleted, IngestionMetrics.REASON_ANONYMIZATION);
         return deleted;
     }
 

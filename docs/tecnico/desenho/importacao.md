@@ -307,12 +307,13 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
   mistura vários devedores e sai **inteiro**, em todos os lotes que o usam, com as mesmas marcações da retenção
   (auditoria `import_batch.file_deleted` com motivo "anonimização do titular"); o PDF de origem das importações PDF com
   linha do titular também sai (`pdf_import.file_deleted`). O armazenamento é o último passo da transação (ADR 0012).
-  Lote em processamento ou conferência aberta → remoção pendente em `ingestion.pending_file_erasure` (`V2304`, só a
-  chave ou o id do PDF), concluída pelo job diário `ingestion.file-retention` quando o lote encerra, com ou sem a
-  política `IMPORT_FILES` (decisão 1461). Só encontra arquivos com **linha gravada** do titular (`import_batch_row.debtor_id`):
-  linhas com erro, prévias e títulos só baixados ficam para a retenção (SEG-20261124-D01h). Testes:
-  `ImportFileRetentionIT#debtorAnonymizationDeletesTheWholeLoadFileThatContainsTheDebtor` e
-  `#debtorAnonymizationLeavesAPendingErasureWhileAReviewOfTheFileIsOpenAndTheJobCompletesIt`.
+  Desde a fatia 4 do D01h o lote também é **bloqueado** (§8.2): a conferência aberta é cancelada na hora e só o lote
+  ainda em processamento deixa a remoção pendente em `ingestion.pending_file_erasure` (`V2304`, só a chave ou o id do
+  PDF), concluída logo depois do encerramento pelo job de uso único `ingestion.pending-erasure` e, como última rede,
+  pelo job diário `ingestion.file-retention`, com ou sem a política `IMPORT_FILES` (decisão 1461). Testes:
+  `ImportFileRetentionIT#debtorAnonymizationDeletesTheWholeLoadFileThatContainsTheDebtor`,
+  `#debtorAnonymizationBlocksTheBatchesClosesTheOpenReviewAndDeletesTheFileAtOnce` e
+  `#runningBatchOfTheSubjectStopsAndItsFileIsErasedWhenItFinishes`.
 - **Carga nova com o titular anonimizado** (SEG-20261124-D01h, decisões 1469 e 1470): a linha cujo título ou contrato
   de origem, no credor, pertence a um devedor anonimizado é recusada com `title.subject_anonymized` e nenhum devedor é
   criado (o debt confere em `DebtIngestionService#requireSubjectNotAnonymized`, antes de gravar contrato e título; a
@@ -337,6 +338,47 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
   `scripts/ops/tag-import-objects.sh`).
 - O PDF da importação inteligente tem retenção própria de 120 dias (importacao-pdf.md §11); o CSV canônico que ele gera
   segue esta política.
+
+
+### 8.2 Bloqueio do lote por titular anonimizado (SEG-20261124-D01h, decisões 1469 e 1488–1493)
+
+- **Detecção** (`IngestionAnonymizer`, na transação do consumidor `ingestion.debtor-anonymized`): linhas com o devedor
+  gravado (`ix_import_batch_row_by_debtor`) **e** linhas do credor com o identificador de um título conservado do titular
+  (`AnonymizedSubjectQueries#referencesOf`; `ix_import_batch_row_by_external_id`, V2305) — pega prévia, linha com erro,
+  conferência recusada e título só baixado. Os lotes que compartilham o arquivo (nova conferência, reprocessamento)
+  e os do credor com o mesmo conteúdo sob outra chave (reenvio, decisão 1495) entram com as mesmas linhas; as importações
+  PDF das conferências desses lotes também. Depois das travas o anonimizador procura de novo (lote criado com o mesmo
+  arquivo enquanto isso); reprocessar e abrir nova conferência travam o lote de origem.
+- **Bloqueio** (`ImportBatch#block`, idempotente; lotes travados numa instrução, em ordem de id): na fila ou aguardando formato →
+  cancelado na hora; em validação ou importação → cancelamento do sistema, que para ao fim do bloco corrente ou no
+  início da próxima fatia (`commit` e `finish` do processador travam o lote); encerrado → só marcado
+  (`blocked_reason = SUBJECT_ANONYMIZED`, `blocked_at`). Conferência aberta (`OPEN`, `AWAITING_APPROVAL`) → cancelada
+  pelo sistema (`import_review.closed_by_system`); o lote cancelado na fila sai da fila de jobs. O PDF de origem achado
+  já foi aprovado e sai com o arquivo (o PDF aberto não tem lote: resíduo).
+- **Registro** `ingestion.import_subject_block` (V2305, append-only): efeito, conferência fechada, aviso ao credor do
+  compliance (`CreditorErasureNoticeStatusQueries#noticeFor`, porta mínima; nulo se o credor do lote não tem título
+  conservado do titular; `on delete set null`), quantidade de linhas e até 500 linhas (`import_subject_block_line`: número, referência
+  mascarada por `Document.maskIfDocument` sem caracteres de controle, `DEBTOR` ou `TITLE_REFERENCE`). Base do pedido de
+  novo arquivo ao credor (fatia 5). Retenção: enquanto o lote existir (decisão 1494).
+- **Arquivo**: sai na hora (conferência já cancelada); lote em processamento → pendente e job de uso único
+  `ingestion.pending-erasure` enfileirado no encerramento do lote bloqueado (a falha sobe e a fila tenta de novo; o job
+  diário é a última rede). O reenvio recusado pelo SHA-256 não chega a gravar o arquivo no armazenamento.
+- **Guardas** (`BatchCreation`): lote bloqueado não reprocessa, não abre nova conferência nem baixa o arquivo (409
+  `import_batch.blocked_subject_anonymized`, antes do "arquivo descartado"); o mesmo conteúdo (SHA-256) de lote bloqueado
+  do credor é recusado em todo caminho de criação — envio, API, conferência, prévia — mesmo com confirmação (422
+  `import.file_blocked_subject_anonymized`). O SHA-256 é conveniência, não controle: o arquivo alterado passa, e a
+  recusa por linha (§8.1, decisão 1477) protege.
+- **Trilha e indicadores**: auditoria `import_batch.blocked_subject_anonymized` (status, efeito, linhas, quantas pelo
+  título, conferência, aviso, evento), evento de negócio `import.batch_blocked` e métrica `ingestion.batches.blocked{effect}`
+  ([logs-e-metricas.md](../logs-e-metricas.md)).
+- **Resíduos** (decisão 1493): linha sem `id_titulo` ou com mais de 80 caracteres não é registrada e não é achada; PDF
+  ainda aberto (sem lote) e o reenvio do mesmo PDF; título novo do titular que nunca chegou ao debt. **Aberto** (SEG-20261126-M08a, decisão do
+  responsável): lote cujo arquivo traz o titular mas que ainda não gravou a linha dele (na fila, aguardando formato, em
+  processamento antes da linha) não é achado; quando chega à linha, a recusa por linha (1477) a barra, mas o lote
+  termina sem bloqueio e o arquivo fica guardado.
+- Testes: `ImportBatchTest` (efeito em cada estado, idempotência, pedido do usuário mantido),
+  `ImportFileRetentionIT` (conferência fechada e arquivo apagado na hora; 409 e 422; lote em processamento para e o
+  encerramento agenda a remoção), `AnonymizedSubjectImportIT#earlierPreviewWithTheSubjectsTitleIsBlockedByTheTitleReference`.
 
 ## 9. Testes
 

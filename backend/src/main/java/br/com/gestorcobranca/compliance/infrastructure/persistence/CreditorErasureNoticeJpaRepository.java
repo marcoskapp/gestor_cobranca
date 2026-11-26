@@ -33,6 +33,10 @@ interface CreditorErasureNoticeJpaRepository extends JpaRepository<CreditorErasu
     Optional<CreditorErasureNotice> findByIdForUpdate(@Param("id") UUID id);
 
     @Override
+    @Query("select n.id from CreditorErasureNotice n where n.debtorId = :debtorId and n.creditorId = :creditorId")
+    Optional<UUID> findIdByDebtorIdAndCreditorId(@Param("debtorId") UUID debtorId, @Param("creditorId") UUID creditorId);
+
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select n from CreditorErasureNotice n where n.id in :ids order by n.id")
     List<CreditorErasureNotice> findAllByIdInForUpdate(@Param("ids") Collection<UUID> ids);

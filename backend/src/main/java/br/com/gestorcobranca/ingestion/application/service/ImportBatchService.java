@@ -125,7 +125,7 @@ class ImportBatchService implements ImportBatchUseCases {
         ImportFormat format = creation.formatOf(fileName);
         FileLayout layout = creation.resolveLayout(command.layoutId(), portfolio, format);
         NumberFormat preset = NumberFormats.forAllColumns(command.decimalSeparator(), DecisionSource.API);
-        StoredFile stored = creation.storeUpload(command.content(), fileName, command.contentType(), command.size(), format);
+        StoredFile stored = creation.storeUpload(portfolio.creditorId(), command.content(), fileName, command.contentType(), command.size(), format);
         BatchCreation.Forcing forcing = creation.checkDuplicate(portfolio.id(), stored.sha256(), mode, command.force(),
                 command.reason());
         return ImportViews.batch(creation.create(portfolio, layout, ImportSource.of(format), mode, stored, forcing, null,
@@ -162,6 +162,7 @@ class ImportBatchService implements ImportBatchUseCases {
         UUID batchId = idempotency.execute(IDEMPOTENCY_SCOPE, idempotencyKey.strip(), requestHash, () -> {
             BatchCreation.Forcing forcing = creation.checkDuplicate(portfolio.id(), contentHash, mode, command.force(),
                     command.reason());
+            creation.requireNotBlocked(portfolio.creditorId(), contentHash);
             String name = "api-%s.json".formatted(Instant.now(clock).toString().replace(':', '-'));
             StoredFile stored = creation.store(() -> new ByteArrayInputStream(content), name, "application/json",
                     content.length);
@@ -182,7 +183,10 @@ class ImportBatchService implements ImportBatchUseCases {
 
     @Override
     public ImportBatchView reprocess(UUID batchId, ReprocessCommand command) {
-        ImportBatch original = loadVisible(batchId);
+        // travado antes de qualquer leitura: serializa com o bloqueio por titular anonimizado e lê o estado atual
+        ImportBatch original = batches.findByIdForUpdate(batchId)
+                .orElseThrow(() -> ResourceNotFoundException.of(RESOURCE, batchId));
+        accessScope.requireVisible(RESOURCE, batchId, original.getCreditorId());
         PortfolioView portfolio = creation.requirePortfolio(original.getPortfolioId());
         Guard.requireState(original.getStatus().isTerminal(), "import_batch.not_finished",
                 "Somente lotes encerrados podem ser reprocessados");

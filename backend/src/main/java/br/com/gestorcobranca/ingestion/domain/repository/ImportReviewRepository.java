@@ -13,7 +13,12 @@ public interface ImportReviewRepository {
 
     ImportReview save(ImportReview review);
 
+    /** Grava já (o descarte do arquivo confere por SQL direto se há conferência aberta). */
+    ImportReview saveAndFlush(ImportReview review);
+
     Optional<ImportReview> findById(UUID id);
+
+    Optional<ImportReview> findByIdForUpdate(UUID id);
 
     /**
      * @param allowedCreditorIds credores visíveis ao ator; {@code null} = sem restrição

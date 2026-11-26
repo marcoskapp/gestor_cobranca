@@ -57,6 +57,11 @@ class BatchCreation {
     static final String RESOURCE = "import_batch";
     private static final Logger LOG = LoggerFactory.getLogger(BatchCreation.class);
     private static final int FILE_NAME_MAX = 200;
+    /** Lote bloqueado por titular anonimizado (reprocessar, nova conferência, baixar o arquivo): 409. */
+    static final String BLOCKED = "import_batch.blocked_subject_anonymized";
+    /** Reenvio do mesmo arquivo de lote bloqueado: 422. */
+    static final String FILE_BLOCKED = "import.file_blocked_subject_anonymized";
+
     private static final List<ImportBatchStatus> IN_FLIGHT = List.of(ImportBatchStatus.RECEIVED, ImportBatchStatus.PROCESSING);
     private static final List<ImportBatchStatus> IMPORTED = List.of(ImportBatchStatus.COMPLETED,
             ImportBatchStatus.COMPLETED_WITH_ERRORS);
@@ -137,13 +142,15 @@ class BatchCreation {
     }
 
     /** Confere tamanho e tipo pelo conteúdo, grava o original e confirma que o conteúdo não mudou durante o envio. */
-    StoredFile storeUpload(FileContent content, String fileName, String contentType, long declaredSize,
+    StoredFile storeUpload(UUID creditorId, FileContent content, String fileName, String contentType, long declaredSize,
                            ImportFormat format) {
         long maxSize = properties.maxFileSize().toBytes();
         if (declaredSize > maxSize) {
             throw tooLarge();
         }
         Digest digest = digest(content, maxSize, format);
+        // antes de gravar: o reenvio recusado não deixa cópia (nem versão anterior no armazenamento) do arquivo
+        requireNotBlocked(creditorId, digest.sha256());
         StoredFile stored = store(content, fileName, contentType, digest.size());
         Guard.require(stored.sha256().equals(digest.sha256()), "import.file_changed",
                 "Conteúdo do arquivo mudou durante o envio");
@@ -188,7 +195,24 @@ class BatchCreation {
                 batch.getFileSize(), batch.getFileSha256());
     }
 
+    /**
+     * Mesmo conteúdo de lote bloqueado do credor: recusado em todo caminho (envio, API, conferência), mesmo com
+     * confirmação (decisão 1491). O SHA-256 é conveniência, não controle: o arquivo alterado passa e a recusa por linha
+     * protege.
+     */
+    void requireNotBlocked(UUID creditorId, String sha256) {
+        if (batches.existsByCreditorIdAndFileSha256AndBlockedReasonIsNotNull(creditorId, sha256)) {
+            throw rejected(new BusinessRuleException(FILE_BLOCKED,
+                    "Este arquivo tem um titular cujos dados foram eliminados (LGPD); peça ao credor um arquivo sem as "
+                            + "linhas dele"));
+        }
+    }
+
     static void requireFile(ImportBatch batch) {
+        // antes do "arquivo descartado": o motivo certo é o titular eliminado, e o pedido é de novo arquivo ao credor
+        Guard.requireState(!batch.isBlocked(), BLOCKED,
+                "Este arquivo tem um titular cujos dados foram eliminados (LGPD) e não pode ser usado de novo; peça ao "
+                        + "credor um arquivo sem as linhas dele");
         Guard.requireState(batch.isFileAvailable(), "import_batch.file_deleted",
                 "O arquivo deste lote já foi descartado pela política de retenção");
     }
@@ -236,6 +260,8 @@ class BatchCreation {
 
     ImportBatch create(PortfolioView portfolio, FileLayout layout, ImportSource source, ImportMode mode,
                        StoredFile stored, Forcing forcing, UUID reprocessOf, ImportBatch.Options options) {
+        // também aqui: caminhos que reaproveitam um arquivo já guardado (reprocessar, nova conferência, formato)
+        requireNotBlocked(portfolio.creditorId(), stored.sha256());
         ImportBatch batch = new ImportBatch(portfolio.creditorId(), portfolio.id(), layout, source, mode,
                 new ImportBatch.StoredContent(stored.key(), stored.originalName(), stored.contentType(), stored.size(),
                         stored.sha256()),

@@ -177,6 +177,14 @@ public class ImportBatch extends TenantScopedEntity {
     @Column(name = "finished_at")
     private Instant finishedAt;
 
+    /** Bloqueio (SEG-20261124-D01h): nulo enquanto o lote não foi bloqueado. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "blocked_reason", length = 30)
+    private BlockReason blockedReason;
+
+    @Column(name = "blocked_at")
+    private Instant blockedAt;
+
     protected ImportBatch() {
     }
 
@@ -397,6 +405,46 @@ public class ImportBatch extends TenantScopedEntity {
 
     public boolean isCancelRequested() {
         return cancelRequestedAt != null;
+    }
+
+    /** Motivo do cancelamento pelo bloqueio por titular anonimizado (exibido no lote). */
+    public static final String SUBJECT_BLOCK_REASON = "Arquivo eliminado: titular com dados eliminados (LGPD)";
+
+    /**
+     * Bloqueia o lote (idempotente): na fila ou aguardando formato, cancela na hora; em validação ou importação, pede o
+     * cancelamento do sistema (para ao fim do bloco corrente, como o pedido do usuário); encerrado, só marca.
+     *
+     * @param systemActor ator registrado como quem cancelou (o sistema)
+     */
+    public BlockEffect block(BlockReason reason, Instant now, UUID systemActor) {
+        Guard.require(reason != null, "import_batch.block_reason_required", "Motivo do bloqueio obrigatório");
+        if (blockedReason == null) {
+            blockedReason = reason;
+            blockedAt = now;
+        }
+        if (status == ImportBatchStatus.RECEIVED || status == ImportBatchStatus.AWAITING_FORMAT) {
+            requestCancel(now, systemActor, SUBJECT_BLOCK_REASON);
+            return BlockEffect.CANCELLED_NOW;
+        }
+        if (isInProgress()) {
+            if (cancelRequestedAt == null) {
+                requestCancel(now, systemActor, SUBJECT_BLOCK_REASON);
+            }
+            return BlockEffect.STOP_REQUESTED;
+        }
+        return BlockEffect.ALREADY_FINISHED;
+    }
+
+    public boolean isBlocked() {
+        return blockedReason != null;
+    }
+
+    public BlockReason getBlockedReason() {
+        return blockedReason;
+    }
+
+    public Instant getBlockedAt() {
+        return blockedAt;
     }
 
     /** Interrompe o processamento a pedido do usuário; contadores e checkpoint ficam como estão. */

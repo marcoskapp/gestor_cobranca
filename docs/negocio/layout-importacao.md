@@ -118,7 +118,7 @@ Colunas que o layout não usa são ignoradas, com um aviso único no lote (linha
 | XLSX | até 1.000 partes, 1 GB descompactado, tabela de textos até 100 MB, razão de compressão até 100:1 (proteção contra *zip bomb*) |
 | Ocorrências gravadas por lote | 50.000 (além disso, apenas contadas) |
 
-O envio responde imediatamente (HTTP 202) e o lote segue `RECEIVED → PROCESSING → COMPLETED | COMPLETED_WITH_ERRORS | FAILED` (pré-visualização: `VALIDATING → VALIDATED`). O processamento lê o arquivo inteiro antes de gravar (estrutura, cabeçalho, limite de linhas), depois grava em blocos de 500 linhas com checkpoint: uma queda retoma do ponto em que parou, sem duplicar. O lote pode ser cancelado na fila (de imediato) ou em processamento (ao fim do bloco corrente; o que já foi gravado permanece e pode ser completado reenviando o arquivo).
+O envio responde imediatamente (HTTP 202) e o lote segue `RECEIVED → PROCESSING → COMPLETED | COMPLETED_WITH_ERRORS | FAILED` (pré-visualização: `VALIDATING → VALIDATED`). O processamento lê o arquivo inteiro antes de gravar (estrutura, cabeçalho, limite de linhas), depois grava em blocos de 500 linhas com checkpoint: uma queda retoma do ponto em que parou, sem duplicar. O lote pode ser cancelado na fila (de imediato) ou em processamento (ao fim do bloco corrente, ou antes de ler outro bloco se o pedido chegou entre duas etapas do processamento; o que já foi gravado permanece e pode ser completado reenviando o arquivo).
 
 **Pré-visualização** (`mode=VALIDATE_ONLY`): valida e gera o relatório sem gravar nada. Na tela, toda importação passa pela **conferência** (§8); pela API o lote validado ainda pode ser importado com `POST /batches/{id}/reprocess`.
 
