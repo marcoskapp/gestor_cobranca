@@ -177,4 +177,34 @@ class ArchitectureTest {
         com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS.check(classes);
         com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING.check(classes);
     }
+
+    /**
+     * Toda eliminação do titular passa pelo portão único do compliance (SEG-20261124-D01h, decisão 1481): é ele que
+     * abre o aviso ao credor (LGPD art. 18 §6º) na mesma transação e, depois, confere as pendências que impedem a
+     * eliminação. Outra classe chamando o debt anonimizaria sem aviso.
+     */
+    @Test
+    void onlyErasureGateAnonymizesDebtors() {
+        noClasses().that().doNotHaveFullyQualifiedName(ROOT + ".compliance.application.service.ErasureGate")
+                .should().callMethod(ROOT + ".debt.application.port.in.DebtorUseCases", "anonymize",
+                        "java.util.UUID", "java.lang.String")
+                .because("a eliminação sem o portão não avisa o credor (decisão 1481)")
+                .check(classes);
+    }
+
+    /** O aviso ao credor só nasce no portão da eliminação, na transação da anonimização (decisão 1481). */
+    @Test
+    void onlyErasureGateOpensCreditorErasureNotices() {
+        String notice = ROOT + ".compliance.domain.model.CreditorErasureNotice";
+        noClasses().that().doNotHaveFullyQualifiedName(ROOT + ".compliance.application.service.ErasureGate")
+                .should().callMethod(ROOT + ".compliance.application.service.CreditorErasureNoticeService", "openFor",
+                        "java.util.UUID", notice + "$Origin", "java.util.UUID", "java.time.Instant")
+                .because("aviso aberto fora do portão poderia existir sem a anonimização (decisão 1481)")
+                .check(classes);
+        noClasses().that().doNotHaveFullyQualifiedName(ROOT + ".compliance.application.service.CreditorErasureNoticeService")
+                .should().callConstructor(notice, "java.util.UUID", "java.util.UUID", notice + "$Origin",
+                        "java.util.UUID", "java.time.Instant", "java.util.List")
+                .because("só o serviço do aviso, chamado pelo portão, cria o aviso (decisão 1481)")
+                .check(classes);
+    }
 }

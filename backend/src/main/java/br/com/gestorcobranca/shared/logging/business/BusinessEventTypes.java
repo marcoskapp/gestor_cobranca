@@ -193,6 +193,9 @@ public final class BusinessEventTypes {
     public static final String DATA_SUBJECT_REQUEST_OPENED = "data_subject_request.opened";
     public static final String DATA_SUBJECT_REQUEST_COMPLETED = "data_subject_request.completed";
     public static final String RETENTION_RUN_COMPLETED = "retention.run_completed";
+    // Aviso ao credor da anonimização do titular (LGPD art. 18 §6º, decisão 1478) — só ids, origem, quantidade e canal
+    public static final String CREDITOR_ERASURE_NOTICE_OPENED = "creditor_erasure_notice.opened";
+    public static final String CREDITOR_ERASURE_NOTICE_NOTIFIED = "creditor_erasure_notice.notified";
     // Marcador de vulnerabilidade (compliance) — sem devedor e sem a categoria sensível; §3.1a de logs-e-metricas.md
     public static final String VULNERABILITY_REGISTERED = "vulnerability.registered";
     public static final String VULNERABILITY_RETIRED = "vulnerability.retired";

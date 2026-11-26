@@ -4,6 +4,8 @@ import br.com.gestorcobranca.compliance.application.ComplianceProperties;
 import br.com.gestorcobranca.compliance.application.port.in.FileContent;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases;
 import br.com.gestorcobranca.compliance.domain.model.ContactRestriction;
+import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice;
+import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice.Origin;
 import br.com.gestorcobranca.compliance.domain.model.DataSubjectRequest;
 import br.com.gestorcobranca.compliance.domain.model.LegalBasisRecord;
 import br.com.gestorcobranca.compliance.domain.model.RequestChannel;
@@ -71,6 +73,7 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
     private final DataSubjectExportBuilder exportBuilder;
     private final RestrictionRecorder restrictionRecorder;
     private final DebtorUseCases debtors;
+    private final ErasureGate erasureGate;
     private final DebtTitleUseCases titles;
     private final BlindIndex blindIndex;
     private final AccessScope accessScope;
@@ -86,8 +89,8 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
 
     DataSubjectRequestService(DataSubjectRequestRepository requests, LegalBasisRecordRepository legalBases,
                               DataSubjectExportBuilder exportBuilder, RestrictionRecorder restrictionRecorder,
-                              DebtorUseCases debtors, DebtTitleUseCases titles, BlindIndex blindIndex,
-                              AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
+                              DebtorUseCases debtors, ErasureGate erasureGate, DebtTitleUseCases titles,
+                              BlindIndex blindIndex, AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
                               AccessLogger accessLogger, BusinessEventLogger businessEvents, FileStorage fileStorage,
                               StoredFileCleanup fileCleanup, ComplianceProperties properties,
                               DataSubjectRequestAssignees assignees, Clock clock) {
@@ -96,6 +99,7 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
         this.exportBuilder = exportBuilder;
         this.restrictionRecorder = restrictionRecorder;
         this.debtors = debtors;
+        this.erasureGate = erasureGate;
         this.titles = titles;
         this.blindIndex = blindIndex;
         this.accessScope = accessScope;
@@ -246,10 +250,12 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
             reject(request, refusalJustification(inCollection, now), now, "open_titles");
             return;
         }
-        debtors.anonymize(debtorId, "Solicitação de titular %s (LGPD art. 18)".formatted(request.getId()));
+        List<CreditorErasureNotice> opened = erasureGate.erase(debtorId, Origin.DATA_SUBJECT_REQUEST, request.getId(),
+                "Solicitação de titular %s (LGPD art. 18)".formatted(request.getId()));
         request.markExecuted(now);
         auditTrail.record(AuditEntry.of("data_subject_request.anonymized", RESOURCE, request.getId())
-                .meta("debtorId", debtorId));
+                .meta("debtorId", debtorId)
+                .meta("creditorNotices", opened.size()));
     }
 
     private String refusalJustification(List<TitleView> inCollection, Instant now) {

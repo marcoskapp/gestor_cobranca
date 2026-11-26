@@ -201,6 +201,9 @@ class DebtorService implements DebtorUseCases {
             throw new BusinessRuleException("debtor.anonymize_reason_required", "Informe o motivo da anonimização");
         }
         Debtor debtor = visibility.requireFullScope(debtorId);
+        // trava e relê o devedor (SEG-20261124-D01h, decisão 1481): a segunda eliminação simultânea vê o devedor já
+        // anonimizado. A carga que cria título ainda lê o devedor sem trava (for share com a decisão 1471)
+        debtors.refreshForUpdate(debtor);
         // coobrigado de contrato em cobrança também responde pela dívida: não pode ser anonimizado
         if (titles.existsOpenByDebtorId(debtorId) || parties.existsActiveWithOpenTitles(debtorId)) {
             throw new ConflictException("debtor.has_open_titles",

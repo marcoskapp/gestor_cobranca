@@ -11,6 +11,11 @@ import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUs
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases.CreateRestrictionCommand;
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases.RestrictionFilter;
 import br.com.gestorcobranca.compliance.application.port.in.ContactRestrictionUseCases.RestrictionView;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.NoticeSearch;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.NoticeSummary;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.NoticeView;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases.RegisterNotifiedCommand;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.OpenRequestCommand;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.RequestView;
@@ -75,6 +80,7 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * Fluxos críticos do módulo compliance contra PostgreSQL real: porteiro de contato com
@@ -118,6 +124,8 @@ class ComplianceModuleIT extends IntegrationTest {
     LegalBasisUseCases legalBases;
     @Autowired
     RetentionUseCases retention;
+    @Autowired
+    CreditorErasureNoticeUseCases notices;
     @Autowired
     JdbcTemplate jdbcTemplate;
     @Autowired
@@ -443,6 +451,139 @@ class ComplianceModuleIT extends IntegrationTest {
         assertThat(evaluate(creditorA, "PHONE", null).reasons()).containsExactly(DenialReason.DEBTOR_ANONYMIZED);
     }
 
+    /** SEG-20261124-D01h (decisões 1478–1481): a anonimização abre um aviso por credor com títulos do titular. */
+    @Test
+    void anonymizationOpensOneCreditorNoticePerCreditorWithTitlesAndRecordsTheNotice() {
+        // título do credor B com o CPF do titular embutido na referência: o aviso nunca o mostra em claro
+        UUID titleB = title(creditorB, portfolioB, debtor, "B-52998224725", "30.00");
+        system(() -> ledger.applyPayment(new PaymentApplication(titleA, Ids.newId(),
+                ComponentAmounts.principalOnly(new BigDecimal("100.00")), Instant.now())));
+        system(() -> ledger.applyPayment(new PaymentApplication(titleB, Ids.newId(),
+                ComponentAmounts.principalOnly(new BigDecimal("30.00")), Instant.now())));
+        RequestView request = openAndStart("ANONYMIZATION");
+        system(() -> requests.execute(request.id()));
+
+        List<NoticeSummary> opened = system(() -> notices.search(new NoticeSearch("PENDING", null, request.id()),
+                PageQuery.of(0, 10)).content());
+        assertThat(opened).extracting(NoticeSummary::creditorId, NoticeSummary::creditorName, NoticeSummary::origin)
+                .containsExactlyInAnyOrder(tuple(creditorA, "Banco A", "DATA_SUBJECT_REQUEST"),
+                        tuple(creditorB, "Loja B", "DATA_SUBJECT_REQUEST"));
+        UUID noticeB = opened.stream().filter(n -> n.creditorId().equals(creditorB)).findFirst().orElseThrow().id();
+        NoticeView view = system(() -> notices.get(noticeB));
+        assertThat(view.items()).singleElement().satisfies(i -> {
+            assertThat(i.reference()).startsWith("B-").contains("*").doesNotContain("52998224725");
+            assertThat(i.portfolioName()).isEqualTo("Carteira B-01");
+            assertThat(i.installmentNumber()).isEqualTo(1);
+        });
+        assertThat(view.message()).contains("Loja B", "Carteira B-01", view.items().getFirst().reference(),
+                        "art. 18, § 6º")
+                .doesNotContain("Maria", "52998224725", "529.982.247-25", "maria@exemplo.com", "98765");
+        // a trilha e o evento de negócio não carregam a referência
+        assertThat(count("select count(*) from shared.audit_event where action = 'creditor_erasure_notice.opened' "
+                + "and tenant_id = ?", tenant)).isEqualTo(2);
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? and action like "
+                + "'creditor_erasure_notice.%' and cast(after_state as text) || cast(metadata as text) like '%98224%'",
+                tenant)).isZero();
+        assertThat(count("select count(*) from shared.business_event where event_type = 'creditor_erasure_notice.opened' "
+                + "and tenant_id = ?", tenant)).isEqualTo(2);
+
+        // só quem atende titulares, com todos os credores
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> notices.get(noticeB)))
+                .isInstanceOf(ScopeAccessDeniedException.class);
+        assertThatThrownBy(() -> asUserOf(creditorA, () -> notices.search(new NoticeSearch(null, null, null),
+                PageQuery.of(0, 10)))).isInstanceOf(ScopeAccessDeniedException.class);
+
+        // registro do aviso: data futura ou anterior à anonimização recusada; uma vez só
+        assertThatThrownBy(() -> system(() -> notices.registerNotified(noticeB, new RegisterNotifiedCommand(
+                Instant.now().plusSeconds(3600), "EMAIL"))))
+                .hasFieldOrPropertyWithValue("code", "creditor_erasure_notice.notified_at_future");
+        assertThatThrownBy(() -> system(() -> notices.registerNotified(noticeB, new RegisterNotifiedCommand(
+                view.erasedAt().minusSeconds(60), "EMAIL"))))
+                .hasFieldOrPropertyWithValue("code", "creditor_erasure_notice.notified_at_before_erasure");
+        assertThatThrownBy(() -> system(() -> notices.registerNotified(noticeB, new RegisterNotifiedCommand(
+                Instant.now(), "FAX")))).hasFieldOrPropertyWithValue("code", "creditor_erasure_notice.channel_invalid");
+        NoticeView notified = system(() -> notices.registerNotified(noticeB, new RegisterNotifiedCommand(Instant.now(),
+                "EMAIL")));
+        assertThat(notified.status()).isEqualTo("NOTIFIED");
+        assertThat(notified.notifiedChannel()).isEqualTo("EMAIL");
+        assertThat(notified.registeredAt()).isNotNull();
+        assertThatThrownBy(() -> system(() -> notices.registerNotified(noticeB, new RegisterNotifiedCommand(
+                Instant.now(), "PHONE")))).hasFieldOrPropertyWithValue("code", "creditor_erasure_notice.already_notified");
+        assertThat(count("select count(*) from shared.audit_event where action = 'creditor_erasure_notice.notified' "
+                + "and entity_id = ?", noticeB)).isEqualTo(1);
+        assertThat(system(() -> notices.search(new NoticeSearch("PENDING", null, null), PageQuery.of(0, 10)).content()))
+                .extracting(NoticeSummary::creditorId).containsExactly(creditorA);
+
+        // itens append-only; o aviso não se apaga nem troca de titular
+        assertThatThrownBy(() -> system(() -> jdbcTemplate.update(
+                "update compliance.creditor_erasure_notice_item set reference = 'x'"))).isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> system(() -> jdbcTemplate.update("delete from compliance.creditor_erasure_notice")))
+                .isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> system(() -> jdbcTemplate.update(
+                "update compliance.creditor_erasure_notice set debtor_id = debtor_id"))).isInstanceOf(DataAccessException.class);
+
+        // outra assessoria não vê nem grava nada do aviso (RLS do aviso e política própria do item)
+        UUID otherTenant = tenantExecution.callInTenant(Ids.newId(), "test.setup", () -> tenantAdministration
+                .createTenant(new CreateTenantCommand("comp-x" + UUID.randomUUID().toString().substring(0, 6),
+                        "Outra Ltda", "Outra", "45.997.418/0001-53")).id());
+        assertThatThrownBy(() -> tenantExecution.callInTenant(otherTenant, "test", () -> notices.get(noticeB)))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(tenantExecution.callInTenant(otherTenant, "test", () -> notices.search(new NoticeSearch(null, null,
+                null), PageQuery.of(0, 10)).content())).isEmpty();
+        assertThat(tenantExecution.callInTenant(otherTenant, "test", () -> jdbcTemplate.queryForObject(
+                "select count(*) from compliance.creditor_erasure_notice_item", Long.class))).isZero();
+        assertThatThrownBy(() -> tenantExecution.callInTenant(otherTenant, "test", () -> jdbcTemplate.update(
+                "insert into compliance.creditor_erasure_notice_item (notice_id, position, portfolio_id, reference) "
+                        + "values (?, 9, ?, 'x')", noticeB, portfolioB))).isInstanceOf(DataAccessException.class);
+    }
+
+    @Test
+    void creditorNoticesRequireDataSubjectPermissionAndValidFilters() {
+        Actor withoutPermission = new Actor(Actor.ActorType.USER, Ids.newId(), tenant, Ids.newId(), "operador",
+                EnumSet.of(Permission.DEBTOR_VIEW, Permission.CASE_WORK), CreditorScope.ALL);
+        assertThatThrownBy(() -> tenantExecution.callAs(withoutPermission, () -> notices.search(
+                new NoticeSearch(null, null, null), PageQuery.of(0, 10)))).isInstanceOf(ScopeAccessDeniedException.class);
+        assertThatThrownBy(() -> tenantExecution.callAs(withoutPermission, () -> notices.registerNotified(Ids.newId(),
+                new RegisterNotifiedCommand(Instant.now(), "EMAIL")))).isInstanceOf(ScopeAccessDeniedException.class);
+        assertThatThrownBy(() -> system(() -> notices.search(new NoticeSearch("SENT", null, null), PageQuery.of(0, 10))))
+                .hasFieldOrPropertyWithValue("code", "creditor_erasure_notice.status_invalid");
+        assertThatThrownBy(() -> system(() -> notices.get(Ids.newId()))).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    /** Decisão 1481: aviso que não pode ser aberto desfaz a anonimização (nada fica pela metade). */
+    @Test
+    void failingToOpenTheCreditorNoticeUndoesTheAnonymization() {
+        system(() -> ledger.applyPayment(new PaymentApplication(titleA, Ids.newId(),
+                ComponentAmounts.principalOnly(new BigDecimal("100.00")), Instant.now())));
+        // aviso conflitante do mesmo par devedor × credor (uk): o portão falha depois de anonimizar no debt
+        system(() -> jdbcTemplate.update("insert into compliance.creditor_erasure_notice (id, tenant_id, version, "
+                + "created_at, updated_at, debtor_id, creditor_id, origin, origin_id, erased_at, status) "
+                + "values (?, ?, 0, now(), now(), ?, ?, 'RETENTION', ?, now(), 'PENDING')", Ids.newId(), tenant, debtor,
+                creditorA, Ids.newId()));
+        RequestView request = openAndStart("ANONYMIZATION");
+        assertThatThrownBy(() -> system(() -> requests.execute(request.id()))).isInstanceOf(DataAccessException.class);
+        assertThat(system(() -> debtors.get(debtor)).status()).isEqualTo("ACTIVE");
+        assertThat(count("select count(*) from shared.audit_event where entity_id = ? and action = 'debtor.anonymized'",
+                debtor)).isZero();
+        assertThat(system(() -> requests.get(request.id())).executedAt()).isNull();
+    }
+
+    @Test
+    void retentionAnonymizationAlsoOpensTheCreditorNotice() {
+        system(() -> ledger.applyPayment(new PaymentApplication(titleA, Ids.newId(),
+                ComponentAmounts.principalOnly(new BigDecimal("100.00")), Instant.now())));
+        ageDebtor(debtor, "40 months");
+        system(() -> retention.configure("DEBTOR_INACTIVE", 24, true));
+        RetentionRunView run = system(() -> retention.run("DEBTOR_INACTIVE", false));
+        assertThat(run.processedCount()).isEqualTo(1);
+        assertThat(system(() -> notices.search(new NoticeSearch(null, null, run.id()), PageQuery.of(0, 10)).content()))
+                .singleElement().satisfies(n -> {
+                    assertThat(n.creditorId()).isEqualTo(creditorA);
+                    assertThat(n.origin()).isEqualTo("RETENTION");
+                    assertThat(n.debtorId()).isEqualTo(debtor);
+                });
+    }
+
     @Test
     void identityMustMatchTheRequesterDocument() {
         UUID other = system(() -> ingestion.upsertDebtor(new DebtorRecord("11144477735", "João", null, List.of(), null)).id());
@@ -539,6 +680,9 @@ class ComplianceModuleIT extends IntegrationTest {
         assertThat(real.failedCount()).isZero();
         assertThat(system(() -> debtors.get(inactive)).status()).isEqualTo("ANONYMIZED");
         assertThat(system(() -> debtors.get(retained)).status()).isEqualTo("ACTIVE");
+        // sem título conservado não há credor a avisar
+        assertThat(count("select count(*) from compliance.creditor_erasure_notice where debtor_id = ?", inactive))
+                .isZero();
         assertThat(system(() -> debtors.get(debtor)).status()).isEqualTo("ACTIVE");
         assertThat(count("select count(*) from shared.business_event where event_type = 'retention.run_completed'"))
                 .isEqualTo(2);

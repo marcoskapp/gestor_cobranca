@@ -26,7 +26,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-interface DebtorJpaRepository extends JpaRepository<Debtor, UUID>, JpaSpecificationExecutor<Debtor>, DebtorRepository {
+interface DebtorJpaRepository extends JpaRepository<Debtor, UUID>, JpaSpecificationExecutor<Debtor>, DebtorRepository,
+        DebtorLocking {
 
     @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)

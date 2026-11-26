@@ -2,6 +2,7 @@ package br.com.gestorcobranca.compliance.application.service;
 
 import br.com.gestorcobranca.compliance.application.ComplianceProperties;
 import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases;
+import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice.Origin;
 import br.com.gestorcobranca.compliance.domain.model.LegalBasisRecord;
 import br.com.gestorcobranca.compliance.domain.model.RetentionCategory;
 import br.com.gestorcobranca.compliance.domain.model.RetentionPolicy;
@@ -72,6 +73,7 @@ class RetentionService implements RetentionUseCases {
     private final RetentionRunItemRepository items;
     private final LegalBasisRecordRepository legalBases;
     private final DebtorUseCases debtors;
+    private final ErasureGate erasureGate;
     private final AccessScope accessScope;
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
@@ -82,8 +84,9 @@ class RetentionService implements RetentionUseCases {
     private final Clock clock;
 
     RetentionService(RetentionPolicyRepository policies, RetentionRunRepository runs, RetentionRunItemRepository items,
-                     LegalBasisRecordRepository legalBases, DebtorUseCases debtors, AccessScope accessScope,
-                     AuditTrail auditTrail, BusinessEventLogger businessEvents, MeterRegistry meterRegistry,
+                     LegalBasisRecordRepository legalBases, DebtorUseCases debtors, ErasureGate erasureGate,
+                     AccessScope accessScope, AuditTrail auditTrail, BusinessEventLogger businessEvents,
+                     MeterRegistry meterRegistry,
                      ComplianceProperties properties, RetentionDefaultRegistry defaults,
                      PlatformTransactionManager transactionManager, Clock clock) {
         this.policies = policies;
@@ -91,6 +94,7 @@ class RetentionService implements RetentionUseCases {
         this.items = items;
         this.legalBases = legalBases;
         this.debtors = debtors;
+        this.erasureGate = erasureGate;
         this.accessScope = accessScope;
         this.auditTrail = auditTrail;
         this.businessEvents = businessEvents;
@@ -312,8 +316,9 @@ class RetentionService implements RetentionUseCases {
             }
             try {
                 newTransaction.executeWithoutResult(s -> {
-                    debtors.anonymize(debtor.debtorId(), "Política de retenção: sem movimentação há %d meses (execução %s)"
-                            .formatted(run.getRetentionMonths(), run.getId()));
+                    erasureGate.erase(debtor.debtorId(), Origin.RETENTION, run.getId(),
+                            "Política de retenção: sem movimentação há %d meses (execução %s)"
+                                    .formatted(run.getRetentionMonths(), run.getId()));
                     items.save(new RetentionRunItem(run.getId(), debtor.debtorId(), Outcome.ANONYMIZED, null, null,
                             Instant.now(clock)));
                 });

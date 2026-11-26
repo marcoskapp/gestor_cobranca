@@ -22,6 +22,12 @@ public interface DebtorRepository {
      */
     Optional<Debtor> findByIdForUpdate(UUID id);
 
+    /**
+     * Trava a linha do devedor e relê o estado: o registro pode já estar no contexto de persistência, carregado sem
+     * trava (a eliminação simultânea do mesmo devedor vê o que a outra gravou).
+     */
+    void refreshForUpdate(Debtor debtor);
+
     /** Ids das unidades da mesma empresa (mesma raiz do CNPJ), sem escopo — uso interno (insolvência). */
     List<UUID> findIdsByDocumentRootHash(String documentRootHash);
 

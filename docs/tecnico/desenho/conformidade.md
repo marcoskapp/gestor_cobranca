@@ -445,3 +445,58 @@ inativo e vencido fora; isolamento de outro devedor e de outra assessoria; cadas
 sem cadastro, 403 com escopo parcial; 403 sem permissão e com escopo parcial sem vazamento; log de acesso; auditoria do
 uso). Front: `response-draft-card.spec` (nada consultado ao abrir), `processor-list.spec` (sem chamada sem todos os
 credores), `data-sharing.spec` (permissões dos atalhos = rotas), `request-list.spec` (filtro do titular).
+
+## 9. Aviso ao credor da anonimização e portão único da eliminação (LGPD art. 18 §6º) — 26/11/2026
+
+SEG-20261124-D01h, decisões 1469 e 1478–1483. A tela (`/compliance/avisos-credores`), a pendência e o manual entram na
+fatia 3b.
+
+### 9.1 Portão único (`ErasureGate`)
+
+- Única classe que chama `DebtorUseCases#anonymize` (`ArchitectureTest#onlyErasureGateAnonymizesDebtors`). A execução da
+  solicitação de anonimização (`DataSubjectRequestService`) e a retenção `DEBTOR_INACTIVE` (`RetentionService`, uma
+  transação por devedor) passam por ele.
+- Na transação do chamador (`Propagation.MANDATORY`): o debt trava o devedor (`DebtorService#anonymize` com
+  `findByIdForUpdate`), confere os títulos em cobrança e anonimiza; o portão abre em seguida os avisos. Falhou qualquer
+  parte, nada fica.
+- A trava protege contra outra eliminação simultânea; a carga que cria título para o mesmo devedor no mesmo instante lê
+  o devedor sem trava (lacuna registrada no D01h; `for share` nos caminhos que criam ou reabrem título com a decisão 1471).
+- É o ponto em que entram a retenção jurídica antes da eliminação (decisão 1467; ADR 0013 na fatia do jurídico) e a
+  releitura por devedor da elegibilidade da retenção (hoje calculada por lote antes da trava).
+
+### 9.2 Aviso (`compliance.creditor_erasure_notice`, V0511)
+
+- Um por par devedor × credor com títulos conservados do titular (`AnonymizedSubjectQueries#referencesOf`, no debt);
+  credor sem título e coobrigado sem título próprio não geram aviso (resíduo, decisão 1480).
+- Guarda origem (`DATA_SUBJECT_REQUEST` ou `RETENTION`) e o id da solicitação ou da execução, a data da anonimização e
+  os itens (`creditor_erasure_notice_item`: carteira, referência mascarada por `Document.maskIfDocument`, parcela;
+  append-only, RLS pelo aviso). Nenhum nome, documento ou contato; a referência mascarada ainda é pseudonimizada
+  (risco SEG-20261126-M02, decisão pendente).
+- Situação `PENDING` → `NOTIFIED`: a pessoa avisa o credor pelo canal da assessoria e registra canal (`EMAIL`, `PHONE`,
+  `LETTER`, `MEETING`, `OTHER`) e data (nem futura nem anterior à anonimização), uma vez só, sem texto livre. O
+  `grant update` só alcança as colunas do registro; o aviso não se apaga.
+- Texto pronto (`CreditorErasureNoticeText`, decisão 1479): carteira, referência e parcela de cada título, pedido de
+  eliminação no sistema do credor e de cargas sem essas linhas.
+- Retenção: guarda indefinida, como a solicitação e a execução de retenção que o originam (decisão 1483); `origin_id`
+  é polimórfico, sem FK.
+- Remessa por credor (decisão 1484, fatia 3b): texto único com os avisos pendentes do credor e registro de vários de
+  uma vez.
+
+### 9.3 Contrato, API e permissões
+
+- `CreditorErasureNoticeUseCases` (`search`, `get`, `registerNotified`): `DATA_SUBJECT_REQUEST_MANAGE` e todos os
+  credores, como as solicitações de titulares. Não há criação pela porta: só o portão abre aviso. O ingestion (fatia 5)
+  não usa o `get`: ganha métodos próprios e mínimos (`findFor(devedor, credor)` e a situação do aviso, com
+  `IMPORT_EXECUTE` e o credor do lote, 404 para outro credor).
+- `GET /api/v1/compliance/creditor-erasure-notices?status=&creditorId=&originId=&page=&size=`, `GET /{id}` e
+  `POST /{id}/notified` (`{notifiedAt, channel}`).
+- Auditoria `creditor_erasure_notice.opened` (credor, origem, quantidade de títulos) e `.notified` (canal, data);
+  eventos de negócio de mesmo nome ([logs-e-metricas.md](../logs-e-metricas.md) §3.1). Sem eventos de domínio nem porta
+  `compliance :: creditor` por ora (decisão 1482): entram com o portal do credor e o e-mail (fase 2, issue #9).
+
+### 9.4 Testes
+
+`CreditorErasureNoticeTest`, `CreditorErasureNoticeTextTest` (unidade); `ComplianceModuleIT`
+(`anonymizationOpensOneCreditorNoticePerCreditorWithTitlesAndRecordsTheNotice`: um aviso por credor, referência com CPF
+mascarada, texto sem dado pessoal, escopo parcial recusado, registro único, itens append-only;
+`retentionAnonymizationAlsoOpensTheCreditorNotice`; devedor sem título sem aviso); `ArchitectureTest`.

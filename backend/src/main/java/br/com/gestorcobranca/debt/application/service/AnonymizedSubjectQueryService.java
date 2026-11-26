@@ -46,7 +46,7 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
         }
         return titles.findByDebtor(debtorId, null).stream()
                 .map(t -> new TitleReference(t.getCreditorId(), t.getPortfolioId(), t.getExternalId(),
-                        Document.maskIfDocument(t.getExternalId()), t.getInstallmentNumber()))
+                        display(t.getExternalId()), t.getInstallmentNumber()))
                 .toList();
     }
 
@@ -63,6 +63,11 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
         Set<String> anonymizedContracts = contractKeys.isEmpty() ? Set.of()
                 : Set.copyOf(contracts.findExternalIdsOfAnonymizedDebtors(creditorId, contractKeys));
         return new AnonymizedKeys(anonymizedTitles, anonymizedContracts);
+    }
+
+    /** Referência para exibição a terceiros: documento mascarado e sem caracteres de controle (vai para texto copiado). */
+    static String display(String externalId) {
+        return Document.maskIfDocument(externalId).replaceAll("\\p{Cntrl}", " ").strip();
     }
 
     private static Set<String> normalized(Collection<String> ids) {
