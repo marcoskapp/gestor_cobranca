@@ -58,6 +58,18 @@ class LedgerRecorder {
                 && !posting.previousCreditorPaid().equals(title.getCreditorPaidTotal())) {
             audit.change("creditorPaidTotal", posting.previousCreditorPaid(), title.getCreditorPaidTotal());
         }
+        if (posting.previousSettledByImportBatchId() != null
+                && !posting.previousSettledByImportBatchId().equals(title.getSettledByImportBatchId())) {
+            // título zerado pela carga do credor que reabriu: o lote deixa de valer (H07 2b, RS-98)
+            audit.change("settledByImportBatchId", posting.previousSettledByImportBatchId(),
+                    title.getSettledByImportBatchId());
+        }
+        if (posting.previousSuspensionImportBatchId() != null
+                && !posting.previousSuspensionImportBatchId().equals(title.getSuspensionImportBatchId())) {
+            // título suspenso pela carga do credor que saiu da suspensão pelo razão: o lote deixa de valer (RC-05)
+            audit.change("suspensionImportBatchId", posting.previousSuspensionImportBatchId(),
+                    title.getSuspensionImportBatchId());
+        }
         posting.entries().forEach(e -> audit.meta("component." + e.getComponent().name(), e.getAmount()));
         auditTrail.record(audit);
         notifier.changed(title, posting.previousStatus(), posting.previousBalance(), trigger);

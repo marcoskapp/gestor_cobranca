@@ -41,11 +41,14 @@ public interface PaymentReviewStatusUseCases {
      *                          parcelas em aberto a partir da de menor número
      * @param rejectionReason   motivo da recusa; só para quem informou ou tem {@code PAYMENT_VIEW}
      * @param reasonRestricted  há motivo, mas o perfil de quem consulta não o vê
+     * @param informedBy        quem informou; nulo no canal {@code INTEGRATION} (o token nunca sai daqui — RS-99)
+     * @param channel           INTEGRATION (integração do credor), CREDITOR_PORTAL (pessoa do credor no portal) ou
+     *                          OPERATOR (pessoa da assessoria, inclusive quem importou o extrato)
      */
     record ReviewItem(UUID paymentId, String status, BigDecimal amount, Instant paidAt, String method,
                       UUID informedBy, Instant informedAt, String targetKind, UUID agreementId,
                       List<UUID> requestedItemIds, UUID reviewedBy, Instant reviewedAt, String rejectionReason,
-                      boolean reasonRestricted) {
+                      boolean reasonRestricted, String channel) {
 
         public ReviewItem {
             requestedItemIds = requestedItemIds == null ? List.of() : List.copyOf(requestedItemIds);

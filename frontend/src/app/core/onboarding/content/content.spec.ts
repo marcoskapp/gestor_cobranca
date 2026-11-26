@@ -79,7 +79,7 @@ describe('conteúdo do onboarding', () => {
       ...guarded('/assistente', ASSISTANT_ROUTES),
     ]);
     const items = NAVIGATION.flatMap((s) => s.items).filter((i) => routePermissions.has(i.route));
-    expect(items.length).toBe(70);
+    expect(items.length).toBe(71);
     for (const item of items) {
       expect([...routePermissionsOf(item)].sort(), item.route).toEqual([...routePermissions.get(item.route)!].sort());
     }
@@ -287,7 +287,9 @@ describe('conteúdo do onboarding', () => {
     // v10: endereço único do caso (J9); v11: selo de vulnerabilidade; v12: "Avaliado por você" no histórico; v13: responsável do retorno só entre quem pode trabalhar o caso
     // v14: empresa em recuperação judicial ou falência (cobrança B2B §7); v15: cartão "Melhor forma de contato"; v16: selo "Novo" no contato recebido numa nova carga
     // v17: aba "Acordos"; v18: prévia do template com o nome e o credor preenchidos, acompanhando a digitação
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(19);
+    // v19: selo "Pago ao credor"; v20: canal no aviso de pagamento em aprovação (H07, UX-09)
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(20);
+    expect(findScreen('/cobranca/casos/k-1')?.version).toBe(18);
     expect(findTour('collection.station')?.version).toBe(4);
     expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(7);
     // aprovações no padrão único (revisão 11/2026, 3.1): decisão da fila antes do detalhe (":id" casaria o caminho)

@@ -224,12 +224,19 @@ export interface PaymentView {
   version: number;
 }
 
+/**
+ * Situação do token no momento da consulta: ativo, pausado pela plataforma, revogado, expirado ou não encontrado (apagado
+ * ou de outra assessoria, sem distinguir). Qualquer uma diferente de ativo exige a confirmação explícita para aprovar.
+ */
+export type IntegrationTokenState = 'ACTIVE' | 'PAUSED' | 'REVOKED' | 'EXPIRED' | 'NOT_FOUND';
+
 /** Token de integração do credor que registrou o pagamento (nome atual; nulo se o token não existe mais). */
 export interface IntegrationView {
   tokenId: string;
   tokenName: string | null;
   tokenPrefix: string | null;
   tokenRevoked: boolean;
+  tokenState: IntegrationTokenState;
 }
 
 /** Motivo da recusa que o credor vê no portal (a nota da revisão é interna). */

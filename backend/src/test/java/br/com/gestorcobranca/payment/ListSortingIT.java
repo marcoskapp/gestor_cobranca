@@ -34,7 +34,10 @@ class ListSortingIT extends PaymentTestSupport {
             "/api/v1/negotiation/proposals", new String[] {"createdAt", "totalAmount"},
             "/api/v1/negotiation/agreements", new String[] {"formalizedAt", "totalAmount"},
             "/api/v1/payment/payments", new String[] {"paidAt", "amount"},
-            "/api/v1/ingestion/batches", new String[] {"createdAt", "rowsRead"});
+            "/api/v1/ingestion/batches", new String[] {"createdAt", "rowsRead"},
+            // período obrigatório (H07 2b)
+            "/api/v1/payment/creditor-reported?from=2026-01-01&to=2026-12-31", new String[] {"paidAt", "amount"},
+            "/api/v1/titles/creditor-reported?from=2026-01-01&to=2026-12-31", new String[] {"occurredAt", "amount"});
 
     @Autowired
     WebApplicationContext webApplicationContext;

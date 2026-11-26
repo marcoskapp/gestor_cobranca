@@ -92,7 +92,7 @@ class SettlementFlowIT extends SettlementTestSupport {
                 amount, paidAt, "TRANSFER", "AGENCY_ACCOUNT", "TED-1", null,
                 new TargetInput("AGREEMENT", agreement.id(), List.of(first.id()), null)), pdf(), null));
         if ("INFORMED".equals(informed.status())) {
-            asFinance2(() -> payments.approve(informed.id(), "Comprovante conferido"));
+            asFinance2(() -> payments.approve(informed.id(), "Comprovante conferido", false));
         }
         PaymentView payment = asFinance1(() -> payments.get(informed.id()));
         assertThat(payment.status()).isEqualTo("CONFIRMED");
@@ -293,6 +293,33 @@ class SettlementFlowIT extends SettlementTestSupport {
         assertThat(asFinance1(() -> statements.get(created.id())).totals().netTransfer()).isEqualByComparingTo(net);
         assertThat(count("select count(*) from shared.audit_event where action like 'settlement_statement.%' "
                 + "and tenant_id = ?", tenant)).isGreaterThanOrEqualTo(8);
+    }
+
+    /**
+     * RS-102 (H07 parte 2b): a prestação de contas grava "recebido pelo credor" a partir do evento — título avulso pelo
+     * {@code PaymentConfirmed.receivedBy} e acordo pelo {@code AgreementPaymentRecorded.receivedBy}, que o negotiation
+     * repete do pagamento.
+     */
+    @Test
+    void paymentReceivedByTheCreditorIsRecordedAsSuchForTitleAndAgreement() {
+        provision("settle-credor");
+        Instant paidAt = Instant.now().minus(1, ChronoUnit.DAYS);
+        PaymentView toTitle = asOperator(() -> payments.registerExternal(new ExternalPaymentCommand(creditorB, debtor,
+                new BigDecimal("100.00"), paidAt, "PIX", "CREDITOR_DIRECT", "CR-1", null,
+                new TargetInput("TITLES", null, List.of(titleB), null)), pdf(), null));
+        AgreementView agreement = formalizeAgreement(2);
+        InstallmentView first = agreement.installments().getFirst();
+        PaymentView toAgreement = asOperator(() -> payments.registerExternal(new ExternalPaymentCommand(creditorA, debtor,
+                new BigDecimal("50.00"), paidAt, "PIX", "CREDITOR_REPORT", "CR-2", null,
+                new TargetInput("AGREEMENT", agreement.id(), List.of(first.id()), null)), pdf(), null));
+        assertThat(toTitle.status()).isEqualTo("CONFIRMED");
+        assertThat(toAgreement.status()).isEqualTo("CONFIRMED");
+        UUID titleAllocation = toTitle.allocations().getFirst().id();
+        UUID agreementAllocation = toAgreement.allocations().getFirst().id();
+        awaitTrue("recebimento do título avulso", () -> count("select count(*) from settlement.receipt "
+                + "where allocation_id = ? and kind = 'PAYMENT' and received_by = 'CREDITOR'", titleAllocation) == 1);
+        awaitTrue("recebimento do acordo", () -> count("select count(*) from settlement.receipt "
+                + "where allocation_id = ? and kind = 'PAYMENT' and received_by = 'CREDITOR'", agreementAllocation) == 1);
     }
 
     private static String sha256(byte[] content) throws IOException {

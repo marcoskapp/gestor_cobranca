@@ -65,8 +65,8 @@ final class PaymentViews {
     }
 
     private static IntegrationView integration(UUID tokenId, IntegrationTokenLabels.TokenLabel label) {
-        return label == null ? new IntegrationView(tokenId, null, null, false)
-                : new IntegrationView(tokenId, label.name(), label.displayPrefix(), label.revoked());
+        return label == null ? new IntegrationView(tokenId, null, null, false, PaymentService.TOKEN_NOT_FOUND)
+                : new IntegrationView(tokenId, label.name(), label.displayPrefix(), label.revoked(), label.state().name());
     }
 
     /** Ids do destino solicitado ({@code target_items}, JSON gravado no registro do pagamento externo). */

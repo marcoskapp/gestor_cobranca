@@ -69,6 +69,18 @@ class ReceiptPostingService {
         this.json = json;
     }
 
+    /**
+     * Quem recebeu o dinheiro: o que o evento informa; sem o campo (evento publicado antes dele), o que a origem do
+     * pagamento externo diz, e assessoria quando nem ela é encontrada.
+     */
+    static ReceivedBy receivedBy(boolean informed, boolean creditor, Optional<PaymentFacts> payment) {
+        if (informed) {
+            return creditor ? ReceivedBy.CREDITOR : ReceivedBy.AGENCY;
+        }
+        return payment.map(p -> p.receivedByCreditor() ? ReceivedBy.CREDITOR : ReceivedBy.AGENCY)
+                .orElse(ReceivedBy.AGENCY);
+    }
+
     /** @param lookups fatos pré-carregados ({@link SourceSnapshot#forTitlePayment}) */
     void paymentConfirmed(PaymentConfirmed e, SettlementSources lookups) {
         if (e.agreementId() != null) {
@@ -77,8 +89,9 @@ class ReceiptPostingService {
         }
         locks.lockAllocation(e.paymentId());
         Optional<PaymentFacts> payment = lookups.paymentOfAllocation(e.paymentId());
-        ReceivedBy receivedBy = payment.map(p -> p.receivedByCreditor() ? ReceivedBy.CREDITOR : ReceivedBy.AGENCY)
-                .orElse(ReceivedBy.AGENCY);
+        // quem recebeu vem do evento (fonte única, RS-102); evento no formato anterior ao campo (nulo) mantém a dedução
+        // pela consulta ao payment (ADR-0004, decisão 1630)
+        ReceivedBy receivedBy = receivedBy(e.receivedByInformed(), e.receivedByCreditor(), payment);
         LocalDate paidOn = date(e.paidAt() == null ? e.occurredAt() : e.paidAt());
         List<Receipt> created = new ArrayList<>();
         for (PaymentConfirmed.Allocation line : e.allocations()) {
@@ -128,8 +141,9 @@ class ReceiptPostingService {
                 .orElseThrow(() -> new IllegalStateException("Distribuição do pagamento " + e.paymentId()
                         + " não encontrada no acordo " + e.agreementId()));
         Optional<PaymentFacts> payment = lookups.paymentOfAllocation(e.paymentId());
-        ReceivedBy receivedBy = payment.map(p -> p.receivedByCreditor() ? ReceivedBy.CREDITOR : ReceivedBy.AGENCY)
-                .orElse(ReceivedBy.AGENCY);
+        // quem recebeu vem do evento do negotiation, que o repete do PaymentConfirmed (fonte única, RS-102); evento no
+        // formato anterior ao campo (nulo) mantém a dedução pela consulta ao payment (ADR-0004, decisão 1630)
+        ReceivedBy receivedBy = receivedBy(e.receivedByInformed(), e.receivedByCreditor(), payment);
         Money applied = Money.of(e.appliedAmount());
         Money honorarium = d.components().stream().filter(c -> "HONORARIUM".equals(c.component()))
                 .map(c -> Money.of(c.amount())).reduce(Money.ZERO, Money::plus).min(applied);

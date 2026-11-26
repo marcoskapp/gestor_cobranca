@@ -1,4 +1,7 @@
-import { Component, inject, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { Permission } from '../../../../core/auth/permission';
 import { map } from 'rxjs';
 import { Amount } from '../../../../shared/components/amount/amount';
 import { CellDef } from '../../../../shared/components/data-table/cell-def';
@@ -15,7 +18,7 @@ import { LEDGER_COMPONENT_LABELS, LEDGER_ENTRY_LABELS, REFERENCE_TYPE_LABELS } f
  */
 @Component({
   selector: 'app-title-ledger',
-  imports: [DataTable, CellDef, Amount, AppDatePipe, Icon],
+  imports: [DataTable, CellDef, Amount, AppDatePipe, Icon, RouterLink],
   template: `
     <app-data-table
       caption="Razão do título"
@@ -42,6 +45,10 @@ import { LEDGER_COMPONENT_LABELS, LEDGER_ENTRY_LABELS, REFERENCE_TYPE_LABELS } f
       <ng-template appCell="amount" [appCellOf]="query.rows()" let-e><app-amount [value]="e.amount" [signed]="true" /></ng-template>
       <ng-template appCell="origin" [appCellOf]="query.rows()" let-e>
         {{ e.referenceType ? (referenceLabels[e.referenceType] ?? e.referenceType) : '—' }}
+        @if (e.referenceType === 'payment' && e.referenceId && canViewPayment()) {
+          <!-- a referência do lançamento é a alocação: a rota resolve o pagamento dono dela -->
+          <div><a [routerLink]="['/pagamentos/alocacao', e.referenceId]" [attr.aria-label]="'Ver pagamento do lançamento de ' + (e.occurredAt | appDate)">Ver pagamento</a></div>
+        }
       </ng-template>
       <ng-template appCell="reason" [appCellOf]="query.rows()" let-e>{{ e.reason || '—' }}</ng-template>
       <ng-template appCell="recordedAt" [appCellOf]="query.rows()" let-e>
@@ -53,6 +60,8 @@ import { LEDGER_COMPONENT_LABELS, LEDGER_ENTRY_LABELS, REFERENCE_TYPE_LABELS } f
 export class TitleLedger {
   readonly titleId = input.required<string>();
   private readonly api = inject(TitlesApi);
+  private readonly auth = inject(AuthService);
+  protected readonly canViewPayment = computed(() => this.auth.hasPermission(Permission.PAYMENT_VIEW));
 
   protected readonly entryLabels: Record<string, string> = LEDGER_ENTRY_LABELS;
   protected readonly componentLabels: Record<string, string> = LEDGER_COMPONENT_LABELS;

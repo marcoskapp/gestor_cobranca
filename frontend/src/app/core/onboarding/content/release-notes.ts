@@ -3,6 +3,16 @@ import { ReleaseNote } from '../onboarding.models';
 /** Central de novidades, da mais recente para a mais antiga. */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: 46,
+    date: '2026-11-26',
+    title: 'Baixas informadas pelo credor',
+    items: [
+      { text: 'Nova tela em Pagamentos: os pagamentos feitos diretamente ao credor (informados pela integração, pelo portal do credor ou por um operador), com canal, situação, totais e o aviso "Comprovante sem verificação de vírus"; e, em outra aba, os títulos que a carga do credor zerou ou suspendeu por pagamento ou cancelamento informado.', route: '/pagamentos/baixas-do-credor' },
+      { text: 'Na aprovação, o pagamento da integração do credor com o acesso revogado, pausado pela plataforma ou expirado (ou com a integração não encontrada) aparece em destaque, com o motivo, e pede a confirmação de que você conferiu com o credor.', route: '/pagamentos/aprovacoes' },
+      { text: 'O aviso de pagamento em aprovação no acordo e na estação diz por onde ele foi informado; no razão do título, "Ver pagamento" abre a ficha do pagamento.', route: '/pagamentos' },
+    ],
+  },
+  {
     version: 45,
     date: '2026-11-25',
     title: 'Selo "Pago ao credor" nos títulos',

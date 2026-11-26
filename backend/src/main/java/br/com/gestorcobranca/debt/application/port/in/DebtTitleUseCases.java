@@ -62,6 +62,16 @@ public interface DebtTitleUseCases {
 
     TitleView reactivate(UUID titleId, Long expectedVersion);
 
+    /**
+     * Suspensão pela carga do credor porque ele informou o título como pago ou cancelado (H07 2b): motivo em texto e
+     * codificado, com o lote em processamento. Só o processamento da carga chama: ator {@code SYSTEM} com
+     * {@code IMPORT_EXECUTE}; os demais atores são recusados (403). Vai para o {@code DebtIngestionPort} quando o
+     * {@code DebtIngestionService} for liberado (decisão 1580).
+     *
+     * @param reportedSituation PAID ou CANCELLED
+     */
+    TitleView suspendReportedByCreditor(UUID titleId, String reportedSituation, UUID importBatchId, String reason);
+
     TitleView cancel(UUID titleId, String reason, Long expectedVersion);
 
     /** Devolve os títulos ao credor e encerra a titularidade. */

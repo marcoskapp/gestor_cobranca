@@ -101,6 +101,8 @@ Nenhum evento leva placa, RENAVAM, chassi, matrícula, documento ou nome: apenas
 | `debtor.insolvency_ended` | processo encerrado (a cobrança volta a ser avaliada) | `kind`, `activeDays` |
 | `title.prescription_approaching` | varredura diária: data estimada entrou na janela da regra (uma vez por data) | `claim` (`EXECUTION`/`COLLECTION`), `instrumentType`, `executiveTitle`, `estimatedDate`, `daysRemaining`, `ruleValidated`, `titleStatus`; `amount` = saldo em aberto |
 
+Auditoria da carga do credor (H07 parte 2b, `V0314`): `debt_title.settled_by_import` (a redução de principal da carga zerou o saldo: `status` antes e depois, `settledByImportBatchId`, `importBatchId`), `debt_title.suspended_by_creditor_report` (o credor informou o título como pago ou cancelado; entrada única da transição, no lugar do `debt_title.suspended`: `status` antes e depois, `suspensionReasonCode`, `suspensionImportBatchId`; ator sistema — decisão 1632) e, quando o título sai da situação, a mudança de `settledByImportBatchId` ou de `suspensionImportBatchId` (no lançamento do razão que o reabre ou tira da suspensão, `TitleLedger.Posting`, ou na transição manual). Só ids e enums.
+
 Auditoria da correção de valor (decisão 810): `title_amount.requested`, `adjusted`, `applied`, `rejected`, `cancelled`, `divergence_detected`, `divergence_resolved`; do limite da assessoria: `title_amount.settings_updated` (redução ou manutenção do limite, que vale na hora; `discardedProposal` quando descarta uma proposta de aumento em aberto), `title_amount.settings_proposed` (aumento proposto, que **não** muda o limite vigente: antes e depois de `proposedThreshold`, mais `approvalThreshold` vigente), `title_amount.settings_confirmed` (outra pessoa confirmou: antes e depois de `approvalThreshold`, `proposedBy`) e `title_amount.settings_proposal_expired` (job diário `debt.amount_threshold_proposal_expiry`, ator sistema: proposta vencida sem confirmação descartada; antes e depois de `proposedThreshold`, mais `approvalThreshold` vigente, `proposedBy` e `proposedAt`). `title_amount.requested` leva `cumulativeLimit` (limite acumulado por título).
 
 ### 3.2b Atributos dos eventos de contato recebido na carga (debt)
@@ -336,6 +338,8 @@ Ids, enums e valores apenas — nunca documento, nome, observação, descrição
 | `payment.reallocated` | sobra/não aplicado realocado ou devolvido | `fromKind`, `fromAgreementId`, `toKind`, `toAgreementId`; `amount` |
 | `payment.divergence` | divergência aberta ou resolvida | `type`, `source`, `status`, `paymentId`, `expectedAmount`, `resolution`, `resolvedBy`; `durationMs` até a resolução |
 | `payment.reversed` | estorno | `reason`, `reversalSource`, `previousStatus`, `allocations`, `daysSinceConfirmation`; `amount` |
+
+Auditoria (H07 parte 2b): `payment.approved` na decisão de aprovação, antes do `payment.confirmed` (`decision`, `channel` e, no canal `INTEGRATION`, `tokenState` — `ACTIVE`, `PAUSED`, `REVOKED`, `EXPIRED` ou `NOT_FOUND`, estado do token reconsultado no momento —, `tokenRevokedAtDecision` (verdadeiro em todo estado diferente de `ACTIVE`; decisão 1631) e `inactiveTokenConfirmed`, a confirmação explícita de quem aprovou); nunca o nome nem o prefixo do token. A lista "Baixas informadas pelo credor" é somente leitura: sem evento de negócio nem auditoria (como as demais listas), só a métrica `payment.creditor_reported.queries`/`debt.creditor_reported.queries` (§5).
 
 ### 3.7 Atributos dos eventos da telefonia
 
@@ -773,6 +777,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `payment.payments{source,method,status}`, `payment.confirmation.latency{source}` (p50/p95/p99) | transições de pagamento e tempo do pagamento à confirmação |
 | `payment.allocations{kind,origin,outcome}`, `payment.leftovers{reason}`, `payment.agreement.outcomes{outcome}` | alocações (`allocated`, `leftover`, `released`, `reversed`), sobras (`no_target`, `agreement_closed`, `title_unavailable`, `excess`) e resultado da baixa no negotiation (UNAPPLIED contínuo = fila de realocação crescendo) |
 | `payment.review.decisions{decision}`, `payment.review.wait{decision}` | revisão por segunda pessoa e espera na fila |
+| `payment.creditor_reported.queries{tab,channel,outcome}` | consultas da aba "Pagamentos informados pelo credor" da lista "Baixas informadas pelo credor" (H07 2b): `tab=payments`, `channel` (`INTEGRATION`, `CREDITOR_PORTAL`, `OPERATOR`, `ALL`), `outcome` (`ok`, `empty`) — nunca credor, token ou valor |
 | `payment.anonymizations`, `payment.anonymization.evidences_removed` | anonimizações do titular consumidas pelo payment e comprovantes apagados (SEG-20261124-D01, decisão 1458) |
 | `payment.external.review_decisions{decision}` | pagamento externo: `AUTO`, `AMOUNT`, `DESTINATION_CUMULATIVE`, `INFORMER_CUMULATIVE`, `CREDITOR_CUMULATIVE` (integração do credor, todos os tokens) (crescimento dos acumulados = possível fracionamento) |
 | `payment.pix.endpoint_refused{reason}`, `payment.pix_account.endpoint_changes{action}` | chamada a PSP recusada (`host_not_allowed`, `internal_address`, `invalid` — alarme) e criação/troca de endereços de conta Pix (`created`, `changed`; alerta de segurança) |
@@ -789,6 +794,7 @@ fields @timestamp, tenantId, callId, instance, process
 | `negotiation.ledger.postings{operation,outcome}` | lançamentos no razão do título (PAYMENT inclui a quitação do título; REVERSAL); `FAILED` = job em DEAD (alarme) |
 | `negotiation.anonymized_records` | registros neutralizados na anonimização LGPD do devedor |
 | `negotiation.jobs.failures{job}` | falhas dos agendamentos do módulo (alarme) |
+| `debt.creditor_reported.queries{tab,situation,outcome}` | consultas da aba "Pela carga do credor" (H07 2b): `tab=imports`, `situation` (`SETTLED_BY_IMPORT`, `REPORTED_PAID`, `REPORTED_CANCELLED`, `ALL`), `outcome` (`ok`, `empty`) |
 | `debt.collateral.registered{type,source}`, `debt.collateral.transitions{type,to}`, `debt.collateral.appraisals{source}` | garantias cadastradas, mudanças de situação e avaliações |
 | `debt.obligation_parties.registered{role,source}` | coobrigados incluídos |
 | `debt.title_amount.adjustments{outcome,mode}` | correções de valor: `requested`, `applied`, `rejected`, `cancelled` por `WITHIN_LIMIT`/`DUAL_CONTROL` |

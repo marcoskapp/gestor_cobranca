@@ -33,7 +33,7 @@ class PaymentConfirmedCompatibilityTest {
     }
 
     @Test
-    void storedFormatWithoutReceivedByIsTheAgency() {
+    void storedFormatWithoutReceivedByIsNotInformed() {
         String stored = """
                 {"eventId":"8d6f1c1e-0000-4000-8000-000000000001","tenantId":"8d6f1c1e-0000-4000-8000-000000000002",
                  "occurredAt":"2026-11-25T12:00:00Z","paymentId":"8d6f1c1e-0000-4000-8000-000000000003",
@@ -42,7 +42,9 @@ class PaymentConfirmedCompatibilityTest {
                  "source":"EXTERNAL","method":"PIX","allocations":[]}""";
 
         PaymentConfirmed read = mapper.readValue(stored, PaymentConfirmed.class);
-        assertThat(read.receivedBy()).isEqualTo(PaymentConfirmed.RECEIVED_BY_AGENCY);
+        // nulo = não informado: quem consome mantém a dedução que fazia antes do campo (ADR-0004; decisão 1630)
+        assertThat(read.receivedBy()).isNull();
+        assertThat(read.receivedByInformed()).isFalse();
         assertThat(read.receivedByCreditor()).isFalse();
     }
 }

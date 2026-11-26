@@ -1,6 +1,6 @@
 {
  "generatedBy": "frontend/scripts/export-knowledge-base.mjs",
- "contentVersion": "a1bb60fc47887711",
+ "contentVersion": "0a08ce1a296ab865",
  "schemaVersion": 2,
  "profiles": {
   "TODOS": "Todos os usuários",
@@ -3940,6 +3940,50 @@
    }
   },
   {
+   "id": "payment.creditor-reported",
+   "module": "pagamentos",
+   "title": "Baixas informadas pelo credor",
+   "objective": "O que o credor recebeu diretamente e avisou à assessoria, e o que a carga do credor zerou ou suspendeu.",
+   "purpose": [
+    "Aba \"Pagamentos informados pelo credor\": pagamentos feitos diretamente ao credor, informados pela integração do credor (com o nome da integração), pela pessoa do credor no portal ou por um operador da assessoria. Mostra a situação (confirmado, aguardando aprovação, recusado, estornado), os títulos ou o acordo, os totais do período (o \"i\" ao lado do confirmado explica o que entra) e o aviso \"Comprovante sem verificação de vírus\" quando o arquivo não passou pela verificação de vírus: abra com cuidado.",
+    "Aba \"Pela carga do credor\": títulos que a carga do credor quitou ao reduzir o principal (\"Saldo zerado pela carga do credor\") e títulos suspensos porque o credor informou pagamento ou cancelamento na carga, com a data, o valor do título e a carga de origem. O título de titular anonimizado aparece sem a referência, com o link \"Abrir título\".",
+    "O período é obrigatório e vai até 366 dias. O devedor, os títulos, o acordo, a carga e o token só aparecem para quem pode abri-los. A ficha do token e a ficha da carga levam a esta lista já filtrada, e o aviso do filtro diz qual token ou carga está aplicado."
+   ],
+   "profiles": [
+    "FINANCEIRO",
+    "SUPERVISOR",
+    "GESTOR",
+    "AUDITOR"
+   ],
+   "inputs": [
+    "Pagamentos externos recebidos diretamente pelo credor (origem \"Pago direto ao credor\" ou \"Relatório do credor\").",
+    "Cargas do credor que zeraram o saldo ou informaram título pago ou cancelado."
+   ],
+   "outputs": [
+    "Conferência das baixas feitas fora da assessoria; nada é alterado nesta tela."
+   ],
+   "related": [
+    {
+     "screen": "payment.list",
+     "why": "Todos os pagamentos."
+    },
+    {
+     "screen": "payment.review",
+     "why": "Pagamentos que aguardam aprovação."
+    }
+   ],
+   "terms": [
+    "pagamento-informado"
+   ],
+   "path": "/pagamentos/baixas-do-credor",
+   "access": {
+    "kind": "MENU",
+    "permissions": [
+     "PAYMENT_VIEW"
+    ]
+   }
+  },
+  {
    "id": "payment.detail",
    "module": "pagamentos",
    "title": "Pagamento",
@@ -4074,8 +4118,8 @@
    "inputs": [
     "Pagamentos informados acima do limite definido em Parâmetros de pagamentos.",
     "Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova).",
-    "Pagamentos que a pessoa do credor informou no portal do credor, recebidos diretamente por ele (sempre revisados, qualquer valor). Na recusa, escolha o motivo que o credor vê; a observação fica só com a assessoria. \"Comprovante não verificado\" indica que a verificação de vírus está desligada: abra com cuidado.",
-    "Pagamentos que a integração do credor informou (recebidos diretamente por ele) acima do limite; em \"Informado por\" aparece \"Integração do credor\", com o nome da integração."
+    "Pagamentos que a pessoa do credor informou no portal do credor, recebidos diretamente por ele (sempre revisados, qualquer valor). Na recusa, escolha o motivo que o credor vê; a observação fica só com a assessoria. \"Comprovante sem verificação de vírus\" indica que o arquivo não passou pela verificação de vírus: abra com cuidado.",
+    "Pagamentos que a integração do credor informou (recebidos diretamente por ele) acima do limite; em \"Informado por\" aparece \"Integração do credor\", com o nome da integração. Com o acesso da integração revogado, pausado pela plataforma ou expirado (ou a integração não encontrada), o aviso fica em destaque com o motivo e a aprovação pede a confirmação de que você conferiu com o credor; a confirmação vale só para o pagamento aberto e recusar não exige."
    ],
    "outputs": [
     "Pagamento confirmado e alocado, ou recusado com motivo."
@@ -10340,6 +10384,50 @@
    "use": "Confira o total creditado com o extrato do banco antes de importar: diferença indica arquivo errado ou incompleto.",
    "screens": [
     "payment.reconciliation"
+   ]
+  },
+  {
+   "id": "payment.creditor-reported.evidence-unverified",
+   "module": "pagamentos",
+   "title": "Comprovante sem verificação de vírus",
+   "what": "O arquivo não passou pela verificação de vírus. Abra com cuidado.",
+   "how": "Vale para o comprovante enviado pela integração do credor e para o do portal do credor que não foi considerado limpo na verificação; o pagamento registrado por operador não leva o aviso.",
+   "use": "Abra o arquivo com cuidado e confira o pagamento com o credor antes de aprovar ou de considerar a baixa.",
+   "screens": [
+    "payment.creditor-reported"
+   ]
+  },
+  {
+   "id": "payment.creditor-reported.confirmed-total",
+   "module": "pagamentos",
+   "title": "Total confirmado",
+   "what": "Soma dos pagamentos do filtro que já abateram a dívida, confirmados ou conciliados.",
+   "how": "Inclui só os pagamentos confirmados e os conciliados; os que aguardam aprovação, os recusados e os estornados ficam de fora.",
+   "use": "Compare com o total informado: a diferença é o que ainda espera aprovação ou não chegou a abater a dívida.",
+   "screens": [
+    "payment.creditor-reported"
+   ]
+  },
+  {
+   "id": "payment.creditor-reported.import-date",
+   "module": "pagamentos",
+   "title": "Zerado ou suspenso em",
+   "what": "Dia em que a carga do credor zerou o saldo do título ou o suspendeu.",
+   "how": "Data do processamento da carga que reduziu o principal até zerar ou que trouxe o título como pago ou cancelado pelo credor.",
+   "use": "Use o período para conferir com o credor o que cada carga encerrou ou suspendeu no mês.",
+   "screens": [
+    "payment.creditor-reported"
+   ]
+  },
+  {
+   "id": "payment.creditor-reported.title-amount",
+   "module": "pagamentos",
+   "title": "Valor do título",
+   "what": "Valor que a carga tirou do título: o que foi zerado ou o saldo que ficou suspenso.",
+   "how": "No saldo zerado, é a redução do principal feita pela carga; no suspenso, é o saldo do título no momento da suspensão.",
+   "use": "Some com os pagamentos informados para saber quanto o credor diz ter recebido diretamente no período.",
+   "screens": [
+    "payment.creditor-reported"
    ]
   },
   {

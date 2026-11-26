@@ -30,6 +30,9 @@ public interface ImportBatchRepository {
     /** Trava os lotes numa instrução, na ordem de id do banco (a mesma de qualquer outro SQL que os trave). */
     List<ImportBatch> findAllByIdInForUpdate(Collection<UUID> ids);
 
+    /** Leitura de vários lotes (rótulos da lista "Baixas informadas pelo credor"); sem lock. */
+    List<ImportBatch> findAllByIdIn(Collection<UUID> ids);
+
     /** Algum lote do credor com este conteúdo foi bloqueado (reenvio recusado). */
     boolean existsByCreditorIdAndFileSha256AndBlockedReasonIsNotNull(UUID creditorId, String fileSha256);
 

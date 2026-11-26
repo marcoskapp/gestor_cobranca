@@ -131,6 +131,13 @@ class ImportBatchController {
     record RequestSentRequest(@NotNull Instant sentAt, @NotBlank @Size(max = 20) String channel) {
     }
 
+    /** Rótulos dos lotes visíveis (data, layout, origem; nunca o nome do arquivo). Os demais ficam de fora. */
+    @GetMapping("/labels")
+    @PreAuthorize("hasAuthority('IMPORT_VIEW')")
+    List<ImportBatchUseCases.BatchLabel> labels(@RequestParam List<UUID> ids) {
+        return batches.labels(ids);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('IMPORT_VIEW')")
     ImportBatchView get(@PathVariable UUID id) {

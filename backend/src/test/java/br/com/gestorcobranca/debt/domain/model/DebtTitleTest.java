@@ -52,6 +52,49 @@ class DebtTitleTest {
         assertThatThrownBy(() -> t.cancel("x")).isInstanceOf(ConflictException.class);
     }
 
+    /** H07 2b (RS-98): o lote da carga só fica no título quitado e sai quando o título reabre. */
+    @Test
+    void importSettlementIsKeptOnlyWhileSettled() {
+        DebtTitle t = title("50.00", LocalDate.of(2026, 1, 10));
+        UUID batch = UUID.randomUUID();
+        java.time.Instant at = java.time.Instant.parse("2026-11-26T12:00:00Z");
+        assertThat(t.markSettledByImport(batch, at)).isFalse();
+        assertThat(t.getSettledByImportBatchId()).isNull();
+
+        t.recordPosting(LedgerEntryType.ADJUSTMENT, Money.ZERO, Money.ZERO, Money.ZERO, null);
+        assertThat(t.getStatus()).isEqualTo(TitleStatus.SETTLED);
+        assertThat(t.markSettledByImport(batch, at)).isTrue();
+        assertThat(t.getSettledByImportBatchId()).isEqualTo(batch);
+        assertThat(t.getSettledByImportAt()).isEqualTo(at);
+        assertThatThrownBy(() -> t.markSettledByImport(null, at)).isInstanceOf(BusinessRuleException.class);
+
+        t.recordPosting(LedgerEntryType.REVERSAL, Money.of("10.00"), Money.ZERO, Money.ZERO, null);
+        assertThat(t.getStatus()).isEqualTo(TitleStatus.OPEN);
+        assertThat(t.getSettledByImportBatchId()).isNull();
+        assertThat(t.getSettledByImportAt()).isNull();
+    }
+
+    /** H07 2b: suspensão pela carga com motivo codificado e lote; a reativação limpa os dois. */
+    @Test
+    void creditorReportedSuspensionIsStructuredAndClearedOnReactivation() {
+        DebtTitle t = title("100.00", LocalDate.of(2026, 1, 10));
+        UUID batch = UUID.randomUUID();
+        java.time.Instant at = java.time.Instant.parse("2026-11-26T12:00:00Z");
+        assertThatThrownBy(() -> t.suspendReportedByCreditor(TitleSuspensionReason.CREDITOR_REPORTED_PAID, "motivo",
+                null, at)).isInstanceOf(BusinessRuleException.class);
+        assertThat(t.suspendReportedByCreditor(TitleSuspensionReason.CREDITOR_REPORTED_PAID,
+                "Credor informou pagamento; aguardando conciliação (carga 1)", batch, at)).isEqualTo(TitleStatus.OPEN);
+        assertThat(t.getStatus()).isEqualTo(TitleStatus.SUSPENDED);
+        assertThat(t.getSuspensionReasonCode()).isEqualTo(TitleSuspensionReason.CREDITOR_REPORTED_PAID);
+        assertThat(t.getSuspensionImportBatchId()).isEqualTo(batch);
+        t.reactivate();
+        assertThat(t.getSuspensionReasonCode()).isNull();
+        assertThat(t.getSuspensionImportBatchId()).isNull();
+        // a suspensão comum não leva motivo codificado
+        t.suspend("pedido do credor");
+        assertThat(t.getSuspensionReasonCode()).isNull();
+    }
+
     @Test
     void manualChangesRequireReason() {
         DebtTitle t = title("100.00", LocalDate.of(2026, 1, 10));

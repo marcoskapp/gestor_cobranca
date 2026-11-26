@@ -96,7 +96,11 @@ Severidade: **erro** — a linha não é gravada; **aviso** — a linha é grava
 
 ## 4. Situação informada pelo credor (`situacao`)
 
-A carga **nunca** dá baixa financeira nem encerra títulos — isso exige registro de pagamento ou cancelamento explícito — mas também não deixa em cobrança o que o credor diz estar pago, suspenso ou contestado.
+A coluna `situacao` **nunca** dá baixa financeira nem encerra títulos — isso exige registro de pagamento ou cancelamento explícito — mas também não deixa em cobrança o que o credor diz estar pago, suspenso ou contestado.
+
+**Redução do principal** (correção da decisão 31, resposta do responsável de 25/11/2026): quando a carga informa um principal menor que o atual e o novo saldo chega a zero (o que já foi pago ou descontado cobre o novo principal), o título **é encerrado** (`SETTLED`) pelo ajuste no razão. O título guarda o lote que o zerou (`settled_by_import_batch_id`, H07 parte 2b) e aparece em "Pagamentos › Baixas informadas pelo credor", aba "Pela carga do credor", como "Saldo zerado pela carga do credor". Se o título reabrir (por exemplo, por estorno), o lote deixa de valer.
+
+Título informado como `PAGO` ou `CANCELADO` e suspenso pela carga grava também o motivo codificado e o lote (mesma aba, "Credor informou pagamento/cancelamento").
 
 | Situação | Título inexistente | Em cobrança | Já suspenso | Encerrado |
 | --- | --- | --- | --- | --- |

@@ -54,16 +54,16 @@ const DEFAULT_ROLES: Record<string, readonly string[]> = {
  * (quem tem a tarefa da área continua com ela). As seções recolhíveis cuidam dos perfis amplos (gestor, administrador).
  */
 const MENU_COUNTS: Record<string, number> = {
-  ADMIN: 100,
-  GESTOR: 82,
-  SUPERVISOR: 52,
-  OPERADOR: 16,
-  FINANCEIRO: 44,
-  AUDITOR: 52,
+  ADMIN: 101,
+  GESTOR: 83,
+  SUPERVISOR: 53,
+  OPERADOR: 17,
+  FINANCEIRO: 45,
+  AUDITOR: 53,
   JURIDICO: 19,
   ADVOGADO_PARCEIRO: 4,
   ANALISTA_CARTEIRA: 17,
-  ESTRATEGIA: 35,
+  ESTRATEGIA: 36,
   QUALIDADE: 26,
   COMPLIANCE: 28,
   INTEGRACAO: 11,
@@ -95,6 +95,7 @@ describe('menu por tarefa (D6)', () => {
       'Contestações',
       'Pedidos do portal',
       'Pagamentos',
+      'Baixas informadas pelo credor',
       'Instruções de pagamento',
       'Meu desempenho',
     ]);

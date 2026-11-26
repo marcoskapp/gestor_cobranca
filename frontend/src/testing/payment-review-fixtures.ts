@@ -10,6 +10,7 @@ export function reviewItem(overrides: Partial<ReviewItem> = {}): ReviewItem {
     method: 'TRANSFER',
     informedBy: 'u-2',
     informedAt: '2026-10-25T13:30:00Z',
+    channel: 'OPERATOR',
     targetKind: 'AGREEMENT',
     agreementId: 'a-1',
     requestedItemIds: ['i-2'],

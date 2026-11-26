@@ -60,7 +60,7 @@ class SettlementPositionIT extends SettlementTestSupport {
                 amount, paidAt, "TRANSFER", "AGENCY_ACCOUNT", "TED-P1", null,
                 new TargetInput("AGREEMENT", agreement.id(), List.of(first.id()), null)), pdf(), null));
         if ("INFORMED".equals(informed.status())) {
-            asFinance2(() -> payments.approve(informed.id(), "Comprovante conferido"));
+            asFinance2(() -> payments.approve(informed.id(), "Comprovante conferido", false));
         }
         UUID allocation = asFinance1(() -> payments.get(informed.id())).allocations().getFirst().id();
         awaitTrue("recebimento apurado", () -> count("select count(*) from settlement.receipt where allocation_id = ? "

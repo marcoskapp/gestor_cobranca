@@ -150,7 +150,8 @@ class RowWriter {
                         DebtIngestionPort.subjectAnonymizedMessage(false));
             }
             if (decision.suspendExisting()) {
-                debtTitles.suspend(titleId, TitleSituationPolicy.suspensionReason(row.situation(), target.batchReference()), null);
+                debtTitles.suspendReportedByCreditor(titleId, row.situation().name(), target.batchId(),
+                        TitleSituationPolicy.suspensionReason(row.situation(), target.batchReference()));
             }
             if (decision.warningCode() != null) {
                 rowIssues.add(RowIssue.of(row.rowNumber(), IssueSeverity.WARNING,

@@ -25,6 +25,7 @@ import { ImportBatchesApi, ImportReviewsApi } from '../data/ingestion.api';
 import { OPTION_LABELS } from '../data/review.rules';
 import { MODE_LABELS, SOURCE_LABELS, UPLOAD_ERROR_LABELS, isTerminal, progressText, sizeText } from '../data/ingestion.labels';
 import { BatchContactReceipt, ImportBatchView, IssueSeverity } from '../data/ingestion.models';
+import { periodSince } from '../../payment/creditor-reported/creditor-reported.rules';
 import { POLL_MS } from './batch-list';
 import { Icon } from '../../../shared/components/icon/icon';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -210,6 +211,10 @@ export function batchActions(
           }
           <dt>Recebido</dt>
           <dd>{{ b.createdAt | appDate }}{{ b.startedAt ? ' · iniciado ' + (b.startedAt | appDate: 'time') : '' }}</dd>
+          @if (canViewCreditorReported() && b.mode === 'IMPORT') {
+            <dt>Baixas do credor</dt>
+            <dd><a [routerLink]="['/pagamentos/baixas-do-credor']" [queryParams]="creditorReportedParams(b)" data-testid="batch-creditor-reported">Ver títulos zerados ou suspensos por esta carga</a></dd>
+          }
           @if (b.forced) {
             <dt>Reprocessamento</dt>
             <dd>{{ b.forceReason }}</dd>
@@ -335,6 +340,8 @@ export class BatchDetail {
   protected readonly canOriginal = computed(() => this.auth.hasPermission(Permission.DEBTOR_SENSITIVE_VIEW));
   /** A lista de títulos aceita `DEBTOR_VIEW` ou `CASE_VIEW` (como a rota); sem elas o link fica oculto. */
   protected readonly canOpenTitles = computed(() => this.auth.hasAnyPermission([Permission.DEBTOR_VIEW, Permission.CASE_VIEW]));
+  /** "Baixas informadas pelo credor" exige `PAYMENT_VIEW` (como a rota); sem ela o link fica oculto (UX-03). */
+  protected readonly canViewCreditorReported = computed(() => this.auth.hasPermission(Permission.PAYMENT_VIEW));
 
   protected readonly batch = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.batch, undefined);
@@ -449,6 +456,11 @@ export class BatchDetail {
         this.notifications.error((e.code && UPLOAD_ERROR_LABELS[e.code]) || userMessage(e));
       },
     });
+  }
+
+  /** Aba da carga das baixas do credor, filtrada por este lote, do dia do lote até hoje (até 366 dias). */
+  protected creditorReportedParams(b: ImportBatchView): Record<string, string> {
+    return { aba: 'carga', lote: b.id, ...periodSince(b.createdAt) };
   }
 
   protected formats(b: ImportBatchView): { column: string; label: string }[] {

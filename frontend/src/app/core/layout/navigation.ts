@@ -162,6 +162,7 @@ export const NAVIGATION: readonly NavSection[] = [
     label: 'Pagamentos',
     items: [
       { label: 'Pagamentos', icon: 'cash-stack', route: '/pagamentos', permissions: [P.PAYMENT_VIEW] },
+      { label: 'Baixas informadas pelo credor', icon: 'shop', route: '/pagamentos/baixas-do-credor', permissions: [P.PAYMENT_VIEW] },
       { label: 'Instruções de pagamento', icon: 'qr-code', route: '/pagamentos/instrucoes', permissions: [P.PAYMENT_VIEW] },
       { label: 'Aprovação de pagamentos', icon: 'check2-circle', route: '/pagamentos/aprovacoes', permissions: [P.PAYMENT_REVIEW] },
       { label: 'Sobras e realocação', icon: 'piggy-bank', route: '/pagamentos/sobras', permissions: [P.RECONCILIATION_MANAGE] },

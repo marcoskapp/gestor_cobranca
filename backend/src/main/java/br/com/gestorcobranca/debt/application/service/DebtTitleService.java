@@ -9,6 +9,7 @@ import br.com.gestorcobranca.debt.domain.model.TitleBalanceSnapshot;
 import br.com.gestorcobranca.debt.domain.model.TitleLedgerEntry;
 import br.com.gestorcobranca.debt.domain.model.TitleOwnership;
 import br.com.gestorcobranca.debt.domain.model.TitleStatus;
+import br.com.gestorcobranca.debt.domain.model.TitleSuspensionReason;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.repository.TitleBalanceSnapshotRepository;
 import br.com.gestorcobranca.debt.domain.repository.TitleLedgerEntryRepository;
@@ -30,6 +31,8 @@ import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 import br.com.gestorcobranca.shared.paging.SortableFields;
 import br.com.gestorcobranca.shared.security.AccessScope;
+import br.com.gestorcobranca.shared.security.CurrentActor;
+import br.com.gestorcobranca.shared.security.Permission;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +47,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Service
@@ -68,11 +72,12 @@ class DebtTitleService implements DebtTitleUseCases {
     private final AuditTrail auditTrail;
     private final TitleChangeNotifier notifier;
     private final Clock clock;
+    private final CurrentActor currentActor;
 
     DebtTitleService(DebtTitleRepository titles, TitleLedgerEntryRepository ledger,
                      TitleBalanceSnapshotRepository snapshots, TitleOwnershipRepository ownerships,
                      DebtorVisibility debtorVisibility, PortfolioUseCases portfolios, AccessScope accessScope,
-                     AuditTrail auditTrail, TitleChangeNotifier notifier, Clock clock) {
+                     AuditTrail auditTrail, TitleChangeNotifier notifier, Clock clock, CurrentActor currentActor) {
         this.titles = titles;
         this.ledger = ledger;
         this.snapshots = snapshots;
@@ -82,6 +87,7 @@ class DebtTitleService implements DebtTitleUseCases {
         this.accessScope = accessScope;
         this.auditTrail = auditTrail;
         this.notifier = notifier;
+        this.currentActor = currentActor;
         this.clock = clock;
     }
 
@@ -286,15 +292,55 @@ class DebtTitleService implements DebtTitleUseCases {
 
     private TitleView transition(UUID titleId, Long expectedVersion, Function<DebtTitle, TitleStatus> change,
                                  String auditAction) {
+        return transition(titleId, expectedVersion, change, auditAction, audit -> {
+        });
+    }
+
+    /** @param details campos a mais na mesma {@code AuditEntry} da transição (uma só entrada por mudança) */
+    private TitleView transition(UUID titleId, Long expectedVersion, Function<DebtTitle, TitleStatus> change,
+                                 String auditAction, Consumer<AuditEntry> details) {
         DebtTitle title = lockForCommand(titleId);
         requireVersion(title, expectedVersion);
+        UUID previousSuspensionBatch = title.getSuspensionImportBatchId();
         TitleStatus previous = change.apply(title);
         titles.save(title);
-        auditTrail.record(AuditEntry.of(auditAction, "debt_title", titleId)
+        AuditEntry audit = AuditEntry.of(auditAction, "debt_title", titleId)
                 .creditor(title.getCreditorId()).reason(title.getStatusReason())
-                .change("status", previous, title.getStatus()));
+                .change("status", previous, title.getStatus());
+        if (previousSuspensionBatch != null && !previousSuspensionBatch.equals(title.getSuspensionImportBatchId())) {
+            // suspensão pela carga do credor encerrada: o motivo codificado e o lote deixam de valer (H07 2b)
+            audit.change("suspensionImportBatchId", previousSuspensionBatch, title.getSuspensionImportBatchId());
+        }
+        details.accept(audit);
+        auditTrail.record(audit);
         notifier.changed(title, previous, title.getOpenBalance(), Trigger.MANUAL);
         return view(title);
+    }
+
+    /**
+     * Só o processamento da carga (ator {@code SYSTEM}, com {@code IMPORT_EXECUTE}) grava a suspensão estruturada: o
+     * lote vem do lote em processamento, nunca de uma requisição (RS-98, SEG-03). Quando o {@code DebtIngestionService}
+     * for liberado pela frente do D01h, o método vai para o {@code DebtIngestionPort} (decisão 1580, AQ-04).
+     */
+    @Override
+    public TitleView suspendReportedByCreditor(UUID titleId, String reportedSituation, UUID importBatchId,
+                                               String reason) {
+        if (!currentActor.get().isSystem()) {
+            throw accessScope.denyActorType("debt_title");
+        }
+        accessScope.requirePermission(Permission.IMPORT_EXECUTE);
+        TitleSuspensionReason code = switch (reportedSituation == null ? "" : reportedSituation) {
+            case "PAID" -> TitleSuspensionReason.CREDITOR_REPORTED_PAID;
+            case "CANCELLED" -> TitleSuspensionReason.CREDITOR_REPORTED_CANCELLED;
+            default -> throw new BusinessRuleException("title.reported_situation_invalid",
+                    "Situação informada pelo credor inválida");
+        };
+        Instant now = Instant.now(clock);
+        // uma única auditoria: a transição para SUSPENDED com o motivo codificado e o lote (RC-05)
+        return transition(titleId, null, t -> t.suspendReportedByCreditor(code, reason, importBatchId, now),
+                "debt_title.suspended_by_creditor_report", audit -> audit
+                        .created("suspensionReasonCode", code)
+                        .created("suspensionImportBatchId", importBatchId));
     }
 
     /** Encerra o período aberto antes de abrir outro (índice único de período aberto por título). */

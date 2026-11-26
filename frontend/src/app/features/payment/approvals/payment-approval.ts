@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
@@ -28,7 +28,8 @@ import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, PAYMENT_ERROR_LABELS } from '../data/payment.labels';
 import { PaymentView, ReviewAssessmentView } from '../data/payment.models';
-import { fromStatementReview, informerLabel } from '../data/payment.rules';
+import { fromStatementReview, informerLabel, integrationTokenInactive } from '../data/payment.rules';
+import { IntegrationTokenNote } from '../components/integration-token-note';
 import { CreditorPortalNote } from '../components/creditor-portal-note';
 import { breakHoldBadge } from '../data/review-status';
 
@@ -85,7 +86,7 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
  */
 @Component({
   selector: 'app-payment-approval',
-  imports: [CreditorPortalNote, RouterLink, ApprovalDecision, Amount, AppDatePipe, EmptyState, Icon, KpiCard, PageHeader, RequestedTarget, Skeleton],
+  imports: [CreditorPortalNote, IntegrationTokenNote, RouterLink, ApprovalDecision, Amount, AppDatePipe, EmptyState, Icon, KpiCard, PageHeader, RequestedTarget, Skeleton],
   template: `
     @if (resource.isLoading() && !payment()) {
       <app-skeleton variant="card" [rows]="6" />
@@ -114,6 +115,7 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
         <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ error() }}</span></div>
       }
       <app-creditor-portal-note [payment]="p" />
+      <app-integration-token-note [payment]="p" [confirmable]="p.status === 'INFORMED' && canReview()" [(confirmed)]="tokenConfirmed" />
       @if (p.status !== 'INFORMED') {
         <div class="alert alert-secondary d-flex gap-2 align-items-start" role="note">
           <app-icon name="check2-circle" />
@@ -133,6 +135,7 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
           [approver]="approver()"
           [canDecide]="canReview()"
           [blockedReason]="blockedReason()"
+          [approveBlockedReason]="approveBlockedReason()"
           [busy]="busy()"
           rejectLabel="Recusar"
           (approve)="approve(p)"
@@ -262,6 +265,18 @@ export class PaymentApproval {
       : null,
   );
 
+  /**
+   * Confirmação explícita para aprovar com a integração do credor inativa (UX-05, SEG-04). Zera a cada pagamento: a
+   * fila reaproveita o componente ao avançar, e a confirmação de um pagamento nunca vale para o seguinte (RC-01).
+   */
+  protected readonly tokenConfirmed = linkedSignal({ source: this.id, computation: () => false });
+  protected readonly approveBlockedReason = computed(() => {
+    const p = this.payment();
+    return p && integrationTokenInactive(p) && !this.tokenConfirmed()
+      ? 'Para aprovar, marque no aviso da integração que você conferiu o pagamento com o credor. Recusar não exige a confirmação.'
+      : null;
+  });
+
   protected fromStatement(p: PaymentView): boolean {
     return fromStatementReview(p);
   }
@@ -284,6 +299,9 @@ export class PaymentApproval {
   }
 
   protected approve(p: PaymentView): void {
+    if (this.approveBlockedReason()) {
+      return;
+    }
     this.confirm
       .confirm({
         title: fromStatementReview(p) ? 'Aprovar pagamento do extrato' : 'Aprovar pagamento informado',
@@ -331,7 +349,7 @@ export class PaymentApproval {
   private decide(p: PaymentView, action: 'approve' | 'reject', note: string | null, creditorReason: string | null = null): void {
     this.busy.set(true);
     this.error.set(null);
-    const call = action === 'approve' ? this.api.approve(p.id, note) : this.api.reject(p.id, note ?? '', creditorReason);
+    const call = action === 'approve' ? this.api.approve(p.id, note, integrationTokenInactive(p) && this.tokenConfirmed()) : this.api.reject(p.id, note ?? '', creditorReason);
     // ocupado até a próxima abrir (ou a fila voltar)
     call.subscribe({
       next: () => {
@@ -342,6 +360,10 @@ export class PaymentApproval {
         this.busy.set(false);
         const e = toApiError(err);
         this.error.set((e.code && PAYMENT_ERROR_LABELS[e.code]) || userMessage(e));
+        if (e.code === 'payment.integration_token_inactive') {
+          // o token ficou inativo depois que a tela abriu: recarrega o estado e pede a confirmação
+          this.tokenConfirmed.set(false);
+        }
         this.resource.reload();
       },
     });

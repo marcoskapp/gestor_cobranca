@@ -15,7 +15,9 @@ import java.util.UUID;
  * @param source       PROVIDER (integrado) ou EXTERNAL (informado e revisado)
  * @param method       PIX, BOLETO, CARD, TRANSFER, CASH, OTHER
  * @param allocations  alocação por título/parcela
- * @param receivedBy   quem recebeu o dinheiro: AGENCY ou CREDITOR (pago diretamente ao credor, H07); nulo vale AGENCY
+ * @param receivedBy   quem recebeu o dinheiro: AGENCY ou CREDITOR (pago diretamente ao credor, H07); nulo = não
+ *                     informado (evento no formato anterior ao campo): o consumidor que deduzia o receptor por outra
+ *                     fonte mantém essa dedução (ADR-0004, evolução de eventos; decisão 1630)
  */
 public record PaymentConfirmed(
         UUID eventId,
@@ -38,24 +40,27 @@ public record PaymentConfirmed(
 
     public PaymentConfirmed {
         allocations = allocations == null ? List.of() : List.copyOf(allocations);
-        if (receivedBy == null) {
-            receivedBy = RECEIVED_BY_AGENCY;
-        } else if (!RECEIVED_BY_AGENCY.equals(receivedBy) && !RECEIVED_BY_CREDITOR.equals(receivedBy)) {
+        if (receivedBy != null && !RECEIVED_BY_AGENCY.equals(receivedBy) && !RECEIVED_BY_CREDITOR.equals(receivedBy)) {
             throw new IllegalArgumentException("receivedBy inválido: " + receivedBy);
         }
     }
 
-    /** Pagamento recebido pela assessoria (assinatura anterior ao H07). */
+    /** Assinatura anterior ao H07: quem recebeu não é informado ({@code receivedBy} nulo). */
     public PaymentConfirmed(UUID eventId, UUID tenantId, Instant occurredAt, UUID paymentId, UUID debtorId,
                             UUID creditorId, UUID portfolioId, UUID agreementId, BigDecimal amount, Instant paidAt,
                             String source, String method, List<Allocation> allocations) {
         this(eventId, tenantId, occurredAt, paymentId, debtorId, creditorId, portfolioId, agreementId, amount, paidAt,
-                source, method, allocations, RECEIVED_BY_AGENCY);
+                source, method, allocations, null);
     }
 
-    /** Dinheiro recebido diretamente pelo credor. */
+    /** Dinheiro recebido diretamente pelo credor (falso quando não informado). */
     public boolean receivedByCreditor() {
         return RECEIVED_BY_CREDITOR.equals(receivedBy);
+    }
+
+    /** O evento diz quem recebeu (formato do H07 em diante). */
+    public boolean receivedByInformed() {
+        return receivedBy != null;
     }
 
     /**

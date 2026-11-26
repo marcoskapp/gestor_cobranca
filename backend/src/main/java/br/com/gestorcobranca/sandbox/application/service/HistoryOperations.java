@@ -228,7 +228,7 @@ class HistoryOperations {
                 "sandbox-hist-pay-" + installment.id()));
         if ("INFORMED".equals(payment.status())) {
             rt.as(seed.actor("financeiro"), () -> payments.approve(payment.id(),
-                    "Comprovante conferido com o extrato (histórico fictício)"));
+                    "Comprovante conferido com o extrato (histórico fictício)", false));
         }
     }
 

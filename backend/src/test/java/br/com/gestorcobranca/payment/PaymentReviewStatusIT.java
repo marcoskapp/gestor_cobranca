@@ -213,7 +213,7 @@ class PaymentReviewStatusIT extends PaymentTestSupport {
                 .andExpect(status().isForbidden());
 
         // aprovado: deixa de estar pendente e a parcela é baixada
-        asFinance2(() -> payments.approve(toSecond.id(), "Conferido no extrato"));
+        asFinance2(() -> payments.approve(toSecond.id(), "Conferido no extrato", false));
         settle();
         awaitTrue("parcela baixada", () -> agreement(agreement.id()).installments().get(1).paidAmount()
                 .compareTo(second.amount()) == 0);

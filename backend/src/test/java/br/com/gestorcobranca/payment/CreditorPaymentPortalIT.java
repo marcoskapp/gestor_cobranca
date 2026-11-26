@@ -189,7 +189,7 @@ class CreditorPaymentPortalIT extends PaymentTestSupport {
         // aprovado por outra pessoa: confirmado
         ReportedPayment second = asCreditor(creditorA, REPORTER, () -> portal.report(command(List.of("T-30"), "200.00"),
                 pdf(BLANK), "chave-informe-0006"));
-        asFinance1(() -> payments.approve(second.id(), null));
+        asFinance1(() -> payments.approve(second.id(), null, false));
         assertThat(asCreditor(creditorA, REPORTER, portal::reported)).filteredOn(p -> p.id().equals(second.id()))
                 .singleElement().satisfies(p -> assertThat(p.status()).isEqualTo("CONFIRMED"));
         // repetição com a mesma chave depois da aprovação (saldo já baixado): devolve o mesmo informe

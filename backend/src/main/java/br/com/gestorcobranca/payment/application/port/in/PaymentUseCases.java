@@ -73,7 +73,13 @@ public interface PaymentUseCases {
                                 boolean ownPayment) {
     }
 
-    PaymentView approve(UUID paymentId, String note);
+    /**
+     * Aprova o pagamento informado. No canal integração, com o token inativo (revogado, pausado pela plataforma,
+     * expirado ou não encontrado) no momento da decisão,
+     * exige {@code confirmInactiveToken} (decisão do responsável de 26/11/2026; sem ele, 409
+     * {@code payment.integration_token_inactive}); a auditoria da aprovação grava o estado do token e a confirmação.
+     */
+    PaymentView approve(UUID paymentId, String note, boolean confirmInactiveToken);
 
     PaymentView reject(UUID paymentId, String note);
 
@@ -201,8 +207,10 @@ public interface PaymentUseCases {
      * Pagamento registrado pela integração do credor (canal {@code INTEGRATION}, H07): o token que informou (nome
      * atual e prefixo de exibição; nulos se o token não for mais encontrado). Recebido diretamente pelo credor e,
      * abaixo dos limites, confirmado sem revisão.
+     *
+     * @param tokenState ACTIVE, PAUSED (pela plataforma), REVOKED, EXPIRED ou NOT_FOUND, no momento da consulta
      */
-    record IntegrationView(UUID tokenId, String tokenName, String tokenPrefix, boolean tokenRevoked) {
+    record IntegrationView(UUID tokenId, String tokenName, String tokenPrefix, boolean tokenRevoked, String tokenState) {
     }
 
     record PaymentView(UUID id, String source, String method, String status, UUID creditorId, UUID debtorId,

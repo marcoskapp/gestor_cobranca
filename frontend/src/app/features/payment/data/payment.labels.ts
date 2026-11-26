@@ -147,6 +147,7 @@ export const CREDITOR_REJECTION_REASON_PORTAL_TEXT: Record<CreditorRejectionReas
 };
 
 export const PAYMENT_ERROR_LABELS: Record<string, string> = {
+  'payment.integration_token_inactive': 'O acesso da integração do credor que informou este pagamento foi revogado ou ela não foi encontrada. Confira com o credor e marque a confirmação para aprovar.',
   'payment.creditor_rejection_reason_required': 'Escolha o motivo da recusa que o credor vai ver.',
   'payment.self_review': 'Você informou este pagamento. A aprovação precisa ser feita por outra pessoa com permissão de revisão.',
   'payment.instruction_already_paid': 'A cobrança citada no extrato já foi paga por outro pagamento. Recuse este para não baixar em dobro.',

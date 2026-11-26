@@ -21,7 +21,7 @@
     }
     @if (act.review) {
       <button type="button" class="btn btn-outline-secondary" (click)="reject()" [disabled]="busy()">Recusar</button>
-      <button class="btn btn-primary" type="button" (click)="approve()" [disabled]="busy()" data-tour="payment-approve">
+      <button class="btn btn-primary" type="button" (click)="approve()" [disabled]="busy()" [class.disabled]="approveBlocked()" [attr.aria-disabled]="approveBlocked() ? 'true' : null" [attr.aria-describedby]="approveBlocked() ? 'pd-approve-blocked' : null" data-tour="payment-approve">
         <app-icon name="person-check" />
         Aprovar
       </button>
@@ -39,8 +39,14 @@
     }
   </div>
 
+  @if (tokenInactive()) {
+    <app-integration-token-note [payment]="p" [confirmable]="act.review" [(confirmed)]="tokenConfirmed" />
+  }
   @if (reviewError()) {
     <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert"><app-icon name="exclamation-circle" /><span>{{ reviewError() }}</span></div>
+  }
+  @if (act.review && approveBlocked()) {
+    <p class="app-muted" id="pd-approve-blocked">Para aprovar, marque no aviso da integração que você conferiu o pagamento com o credor.</p>
   }
   @if (act.ownPending) {
     <div class="alert alert-info d-flex gap-2 align-items-start" role="note" data-tour="payment-own">

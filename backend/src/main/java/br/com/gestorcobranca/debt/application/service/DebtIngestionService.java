@@ -18,6 +18,7 @@ import br.com.gestorcobranca.debt.domain.model.OriginContract;
 import br.com.gestorcobranca.debt.domain.model.TitleBalanceSnapshot;
 import br.com.gestorcobranca.debt.domain.model.TitleLedgerEntry;
 import br.com.gestorcobranca.debt.domain.model.TitleOwnership;
+import br.com.gestorcobranca.debt.domain.model.TitleStatus;
 import br.com.gestorcobranca.debt.domain.repository.CollateralAppraisalRepository;
 import br.com.gestorcobranca.debt.domain.repository.CollateralRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
@@ -297,7 +298,17 @@ class DebtIngestionService implements DebtIngestionPort {
             return Outcome.UNCHANGED;
         }
         title.touchedByImport(importBatchId);
+        // redução de principal da carga que zerou o saldo: o lote em processamento fica no título (H07 2b, RS-98)
+        boolean settledByImport = adjustment.applied() && adjustment.previousStatus() != TitleStatus.SETTLED
+                && title.markSettledByImport(importBatchId, now);
         titles.save(title);
+        if (settledByImport) {
+            auditTrail.record(AuditEntry.of("debt_title.settled_by_import", "debt_title", title.getId())
+                    .creditor(title.getCreditorId())
+                    .change("status", adjustment.previousStatus(), title.getStatus())
+                    .created("settledByImportBatchId", importBatchId)
+                    .meta("importBatchId", importBatchId));
+        }
         if (termsChanged) {
             auditTrail.record(AuditEntry.of("debt_title.updated", "debt_title", title.getId())
                     .creditor(title.getCreditorId())

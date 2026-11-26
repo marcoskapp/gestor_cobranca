@@ -43,12 +43,27 @@ public final class TitleLedger {
      * @param previousStatus status antes da operação
      * @param previousBalance saldo em aberto antes da operação
      * @param previousCreditorPaid parte do total pago recebida pelo credor antes da operação (nulo = não informado)
+     * @param previousSettledByImportBatchId lote da carga que tinha zerado o saldo antes da operação (a reabertura o
+     *                                       limpa; a auditoria registra a mudança)
+     * @param previousSuspensionImportBatchId lote da carga que tinha suspendido o título antes da operação (a saída de
+     *                                        SUSPENDED o limpa; a auditoria registra a mudança)
      */
     public record Posting(List<TitleLedgerEntry> entries, TitleStatus previousStatus, Money previousBalance,
-                          Money previousCreditorPaid) {
+                          Money previousCreditorPaid, UUID previousSettledByImportBatchId,
+                          UUID previousSuspensionImportBatchId) {
 
         public Posting {
             entries = List.copyOf(entries);
+        }
+
+        public Posting(List<TitleLedgerEntry> entries, TitleStatus previousStatus, Money previousBalance,
+                       Money previousCreditorPaid, UUID previousSettledByImportBatchId) {
+            this(entries, previousStatus, previousBalance, previousCreditorPaid, previousSettledByImportBatchId, null);
+        }
+
+        public Posting(List<TitleLedgerEntry> entries, TitleStatus previousStatus, Money previousBalance,
+                       Money previousCreditorPaid) {
+            this(entries, previousStatus, previousBalance, previousCreditorPaid, null);
         }
 
         public Posting(List<TitleLedgerEntry> entries, TitleStatus previousStatus, Money previousBalance) {
@@ -211,6 +226,8 @@ public final class TitleLedger {
         TitleStatus previousStatus = title.getStatus();
         Money previousBalance = title.getOpenBalance();
         Money previousCreditorPaid = title.getCreditorPaidTotal();
+        UUID previousSettledByImport = title.getSettledByImportBatchId();
+        UUID previousSuspensionBatch = title.getSuspensionImportBatchId();
         if (alreadyApplied(existing, type, referenceType, referenceId, signedParts)) {
             if (type == LedgerEntryType.PAYMENT) {
                 requireSameReceiver(existing, referenceType, referenceId, receivedBy);
@@ -228,7 +245,8 @@ public final class TitleLedger {
         TitleBalance balance = TitleBalance.of(all);
         title.recordPosting(type, balance.openBalance(), balance.paidTotal(), balance.creditorPaidTotal(),
                 balance.lastPaymentAt());
-        return new Posting(created, previousStatus, previousBalance, previousCreditorPaid);
+        return new Posting(created, previousStatus, previousBalance, previousCreditorPaid, previousSettledByImport,
+                previousSuspensionBatch);
     }
 
     /** A repetição do pagamento indica o mesmo receptor (lançamento sem receptor vale assessoria). */

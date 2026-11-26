@@ -57,7 +57,7 @@ Exemplos verificados à mão (`CommissionCalculatorTest`): 1.100,00 com 100,00 d
 | `AgreementAttributionRecorded`, `AgreementStatusChanged` | `agreement_fact` (valor negociado, comissão prevista) |
 | `LegalExpenseChanged` (**novo**, publicado pelo legal) | `reimbursable_expense` (§6) |
 
-Origem do pagamento (`PaymentView.externalOrigin`): `CREDITOR_DIRECT`/`CREDITOR_REPORT` → recebido pelo credor; demais → conta da assessoria.
+Quem recebeu o dinheiro (`ReceivedBy`) vem do evento (H07 parte 2b, RS-102; decisões 1584 e 1630): título avulso por `PaymentConfirmed.receivedBy` e acordo por `AgreementPaymentRecorded.receivedBy`, que o negotiation repete do `PaymentConfirmed` de origem. O payment decide pela origem do pagamento externo (`CREDITOR_DIRECT`/`CREDITOR_REPORT` → recebido pelo credor; demais → conta da assessoria). Evento no formato anterior ao campo (`receivedBy` nulo = não informado) mantém a dedução de antes pela origem do pagamento consultada no payment (`PaymentFacts`; assessoria quando não encontrado), como manda o adendo da [ADR-0004](../../arquitetura/adr/0004-eventos-e-fila-no-postgresql.md). Testes: `ReceiptPostingReceivedByTest` e `SettlementFlowIT#paymentReceivedByTheCreditorIsRecordedAsSuchForTitleAndAgreement`.
 
 Serialização: lock consultivo por alocação (eventos da mesma alocação), por credor (apuração × cálculo do demonstrativo) e por acordo (valor fixo devido uma vez); índices únicos `(alocação, título)` e `(estorno, recebimento)`; `shared.consumed_event`. Recebimentos: colunas de fato imutáveis (gatilho `receipt_guard` + privilégio de coluna); `commission_entry` e `statement_export`: só `INSERT`.
 

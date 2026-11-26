@@ -7,6 +7,8 @@ import {
   expirationText,
   importIndicators,
   informerLabel,
+  integrationTokenInactive,
+  integrationTokenInactiveReason,
   isFingerprint,
   paidAtInstant,
   paymentActions,
@@ -140,13 +142,22 @@ describe('regras de pagamentos', () => {
   });
 
   it('pagamento da integração do credor mostra o token e a origem certa (não "operador")', () => {
-    const viaApi = payment({ source: 'EXTERNAL', informedBy: 't-1', integration: { tokenId: 't-1', tokenName: 'ERP do credor', tokenPrefix: 'gc_ab12', tokenRevoked: false } });
+    const viaApi = payment({ source: 'EXTERNAL', informedBy: 't-1', integration: { tokenId: 't-1', tokenName: 'ERP do credor', tokenPrefix: 'gc_ab12', tokenRevoked: false, tokenState: 'ACTIVE' } });
     expect(informerLabel(viaApi, () => 'não usado')).toBe('Integração do credor · ERP do credor (gc_ab12)');
     expect(sourceLabel(viaApi)).toBe('Informado pela integração do credor');
-    const revoked = payment({ source: 'EXTERNAL', informedBy: 't-1', integration: { tokenId: 't-1', tokenName: 'ERP', tokenPrefix: null, tokenRevoked: true } });
+    const revoked = payment({ source: 'EXTERNAL', informedBy: 't-1', integration: { tokenId: 't-1', tokenName: 'ERP', tokenPrefix: null, tokenRevoked: true, tokenState: 'REVOKED' } });
     expect(informerLabel(revoked, () => '')).toBe('Integração do credor · ERP, acesso revogado');
-    const missing = payment({ source: 'EXTERNAL', informedBy: 't-9', integration: { tokenId: 't-9', tokenName: null, tokenPrefix: null, tokenRevoked: false } });
+    const missing = payment({ source: 'EXTERNAL', informedBy: 't-9', integration: { tokenId: 't-9', tokenName: null, tokenPrefix: null, tokenRevoked: false, tokenState: 'NOT_FOUND' } });
     expect(informerLabel(missing, () => '')).toBe('Integração do credor · integração não identificada');
+    expect(integrationTokenInactive(viaApi)).toBe(false);
+    expect(integrationTokenInactive(missing)).toBe(true);
+    const paused = payment({ source: 'EXTERNAL', informedBy: 't-2', integration: { tokenId: 't-2', tokenName: 'ERP', tokenPrefix: null, tokenRevoked: false, tokenState: 'PAUSED' } });
+    expect(integrationTokenInactive(paused)).toBe(true);
+    expect(informerLabel(paused, () => '')).toBe('Integração do credor · ERP, acesso pausado pela plataforma');
+    expect(integrationTokenInactiveReason(paused.integration!)).toBe('O acesso desta integração está pausado pela plataforma.');
+    const expired = payment({ source: 'EXTERNAL', informedBy: 't-3', integration: { tokenId: 't-3', tokenName: 'ERP', tokenPrefix: null, tokenRevoked: false, tokenState: 'EXPIRED' } });
+    expect(integrationTokenInactive(expired)).toBe(true);
+    expect(integrationTokenInactiveReason(expired.integration!)).toBe('O acesso desta integração expirou.');
     const byOperator = payment({ source: 'EXTERNAL', informedBy: 'u-1', integration: null });
     expect(informerLabel(byOperator, () => 'Ana')).toBe('Ana');
     expect(sourceLabel(byOperator)).toBe('Informado por operador');

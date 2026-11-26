@@ -179,6 +179,11 @@ class IngestionModuleIT extends IngestionTestSupport {
         // pago informado não altera o principal nem dá baixa: só suspende para conciliação
         assertThat(title(creditorA, "S-1").principalAmount()).isEqualByComparingTo("100.00");
         assertThat(issues(paid.id())).extracting(ImportIssueView::code).containsExactly("row.title_reported_paid");
+        // H07 2b: a suspensão grava o motivo codificado e o lote em processamento (nunca da linha)
+        UUID s1 = title(creditorA, "S-1").id();
+        assertThat(system(() -> jdbcTemplate.queryForObject("select count(*) from debt.debt_title where id = ? "
+                + "and suspension_reason_code = 'CREDITOR_REPORTED_PAID' and suspension_import_batch_id = ?",
+                Long.class, s1, paid.id()))).isEqualTo(1L);
     }
 
     @Test

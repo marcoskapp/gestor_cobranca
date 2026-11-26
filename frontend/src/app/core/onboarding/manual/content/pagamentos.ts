@@ -44,6 +44,24 @@ export const MANUAL: ModuleManual = {
       terms: ['pagamento-confirmado', 'pagamento-informado', 'sobra'],
     },
     {
+      id: 'payment.creditor-reported',
+      title: 'Baixas informadas pelo credor',
+      objective: 'O que o credor recebeu diretamente e avisou à assessoria, e o que a carga do credor zerou ou suspendeu.',
+      purpose: [
+        'Aba "Pagamentos informados pelo credor": pagamentos feitos diretamente ao credor, informados pela integração do credor (com o nome da integração), pela pessoa do credor no portal ou por um operador da assessoria. Mostra a situação (confirmado, aguardando aprovação, recusado, estornado), os títulos ou o acordo, os totais do período (o "i" ao lado do confirmado explica o que entra) e o aviso "Comprovante sem verificação de vírus" quando o arquivo não passou pela verificação de vírus: abra com cuidado.',
+        'Aba "Pela carga do credor": títulos que a carga do credor quitou ao reduzir o principal ("Saldo zerado pela carga do credor") e títulos suspensos porque o credor informou pagamento ou cancelamento na carga, com a data, o valor do título e a carga de origem. O título de titular anonimizado aparece sem a referência, com o link "Abrir título".',
+        'O período é obrigatório e vai até 366 dias. O devedor, os títulos, o acordo, a carga e o token só aparecem para quem pode abri-los. A ficha do token e a ficha da carga levam a esta lista já filtrada, e o aviso do filtro diz qual token ou carga está aplicado.',
+      ],
+      profiles: ['FINANCEIRO', 'SUPERVISOR', 'GESTOR', 'AUDITOR'],
+      inputs: ['Pagamentos externos recebidos diretamente pelo credor (origem "Pago direto ao credor" ou "Relatório do credor").', 'Cargas do credor que zeraram o saldo ou informaram título pago ou cancelado.'],
+      outputs: ['Conferência das baixas feitas fora da assessoria; nada é alterado nesta tela.'],
+      related: [
+        { screen: 'payment.list', why: 'Todos os pagamentos.' },
+        { screen: 'payment.review', why: 'Pagamentos que aguardam aprovação.' },
+      ],
+      terms: ['pagamento-informado'],
+    },
+    {
       id: 'payment.detail',
       title: 'Pagamento',
       objective: 'Destinos, linha do tempo, comprovante, aprovação, realocação e estorno de um pagamento.',
@@ -91,7 +109,7 @@ export const MANUAL: ModuleManual = {
         'Enquanto o pagamento aguarda, a quebra do acordo fica suspensa. O selo mostra até quando; com o prazo vencido, a quebra já voltou a valer e o pagamento aparece em destaque.',
       ],
       profiles: ['FINANCEIRO', 'SUPERVISOR'],
-      inputs: ['Pagamentos informados acima do limite definido em Parâmetros de pagamentos.', 'Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova).', 'Pagamentos que a pessoa do credor informou no portal do credor, recebidos diretamente por ele (sempre revisados, qualquer valor). Na recusa, escolha o motivo que o credor vê; a observação fica só com a assessoria. "Comprovante não verificado" indica que a verificação de vírus está desligada: abra com cuidado.', 'Pagamentos que a integração do credor informou (recebidos diretamente por ele) acima do limite; em "Informado por" aparece "Integração do credor", com o nome da integração.'],
+      inputs: ['Pagamentos informados acima do limite definido em Parâmetros de pagamentos.', 'Créditos de extrato importado que citam uma cobrança Pix ou boleto do sistema (sempre revisados; quem importou não aprova).', 'Pagamentos que a pessoa do credor informou no portal do credor, recebidos diretamente por ele (sempre revisados, qualquer valor). Na recusa, escolha o motivo que o credor vê; a observação fica só com a assessoria. "Comprovante sem verificação de vírus" indica que o arquivo não passou pela verificação de vírus: abra com cuidado.', 'Pagamentos que a integração do credor informou (recebidos diretamente por ele) acima do limite; em "Informado por" aparece "Integração do credor", com o nome da integração. Com o acesso da integração revogado, pausado pela plataforma ou expirado (ou a integração não encontrada), o aviso fica em destaque com o motivo e a aprovação pede a confirmação de que você conferiu com o credor; a confirmação vale só para o pagamento aberto e recusar não exige.'],
       outputs: ['Pagamento confirmado e alocado, ou recusado com motivo.'],
       related: [
         { screen: 'payment.settings', why: 'Limite que exige aprovação.' },

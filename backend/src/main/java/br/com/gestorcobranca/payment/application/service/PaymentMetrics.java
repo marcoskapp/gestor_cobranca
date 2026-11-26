@@ -20,6 +20,18 @@ class PaymentMetrics {
         this.registry = registry;
     }
 
+    /**
+     * Consulta da lista "Baixas informadas pelo credor" (H07). Só tags de baixa cardinalidade (RS-103).
+     *
+     * @param tab     payments (esta aba) — a aba da carga é contada no debt
+     * @param channel INTEGRATION, CREDITOR_PORTAL, OPERATOR ou ALL (sem filtro)
+     * @param outcome ok, empty
+     */
+    void creditorReportedQuery(String tab, String channel, String outcome) {
+        registry.counter("payment.creditor_reported.queries", "tab", tab, "channel", channel, "outcome", outcome)
+                .increment();
+    }
+
     /** @param outcome created, reused, registered, failed, expired, cancelled, paid, provider_unavailable */
     void instruction(String type, String outcome) {
         registry.counter("payment.instructions", "type", type, "outcome", outcome).increment();

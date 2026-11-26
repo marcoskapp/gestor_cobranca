@@ -17,6 +17,18 @@ class DebtMetrics {
         this.registry = registry;
     }
 
+    /**
+     * Consulta da aba "Pela carga do credor" da lista "Baixas informadas pelo credor" (H07). Só tags de baixa
+     * cardinalidade (RS-103).
+     *
+     * @param situation SETTLED_BY_IMPORT, REPORTED_PAID, REPORTED_CANCELLED ou ALL
+     * @param outcome   ok, empty
+     */
+    void creditorReportedQuery(String situation, String outcome) {
+        registry.counter("debt.creditor_reported.queries", "tab", "imports", "situation", situation, "outcome",
+                outcome).increment();
+    }
+
     void collateralRegistered(Object type, String source) {
         registry.counter("debt.collateral.registered", "type", String.valueOf(type), "source", source).increment();
     }

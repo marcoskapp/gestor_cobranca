@@ -71,7 +71,7 @@ export const SCOPE_PERMISSIONS: Record<string, readonly string[]> = {
             <app-entity-picker [control]="form.controls.creditor" [source]="creditors" label="Credor" [single]="true" hint="O token só enxerga os dados deste credor." />
           }
           <div class="app-form-grid">
-            <app-field label="Nome" hint="Ex.: ERP do Banco A — produção">
+            <app-field label="Nome" hint="Nome do sistema, nunca de uma pessoa (aparece nos pagamentos). Ex.: ERP do Banco A — produção">
               <input appInput formControlName="name" maxlength="100" required />
             </app-field>
             <app-field label="Limite por minuto" hint="Requisições por minuto (1 a 6.000).">

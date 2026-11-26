@@ -123,7 +123,7 @@ import { breakHoldBadge } from '../data/review-status';
       <ng-template appCell="actions" [appCellOf]="query.rows()" let-p>
         @if (p.evidenceAvailable) {
           @if (p.creditorPortal?.evidenceScanVerdict === 'NOT_SCANNED') {
-            <button class="btn btn-sm btn-link" type="button" (click)="download(p)" [disabled]="downloading() === p.id" aria-label="Baixar comprovante não verificado (abra com cuidado)" ngbTooltip="Comprovante não verificado contra vírus: abra com cuidado">
+            <button class="btn btn-sm btn-link" type="button" (click)="download(p)" [disabled]="downloading() === p.id" aria-label="Baixar comprovante sem verificação de vírus (abra com cuidado)" ngbTooltip="Comprovante sem verificação de vírus: abra com cuidado">
               <app-icon name="exclamation-triangle" />
             </button>
           } @else {

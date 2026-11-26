@@ -324,3 +324,65 @@ São a única referência que sobra dele no debt, e servem para três coisas (SE
   (decisão 1605).
 
 Testes: `ErasedSubjectReturnIT`, `DebtTitleTest#reopenedTitleOfErasedHolderStaysSettled`.
+
+## 14. O que a carga do credor fez com o título (`V0314`, H07 parte 2b)
+
+Decisões 1576–1581 e 1632–1633. Resposta 2 do responsável (25/11/2026): a carga pode encerrar o título ao reduzir o principal.
+
+- **Saldo zerado pela carga**: `debt_title.settled_by_import_batch_id` + `settled_by_import_at`, gravados por
+  `DebtTitle#markSettledByImport` só no caminho da carga (`DebtIngestionService#updateTitle`, logo depois do
+  `TitleLedger.adjustPrincipal`), com o lote em processamento, na mesma transação, e só quando o ajuste levou o título a
+  `SETTLED` (auditoria `debt_title.settled_by_import`). Toda mudança de status limpa as colunas (`DebtTitle#moveTo`); a
+  reabertura pelo razão registra a mudança de `settledByImportBatchId` na auditoria do lançamento
+  (`TitleLedger.Posting.previousSettledByImportBatchId`). Reprocessamento (outro lote) não sobrescreve: o título
+  quitado não é alterado pela carga. Linha recusada por titular anonimizado (D01h) não grava nada (a recusa vem antes).
+- **Suspensão por "credor informou pagamento/cancelamento"**: `suspension_reason_code`
+  (`CREDITOR_REPORTED_PAID`/`CREDITOR_REPORTED_CANCELLED`, `check`), `suspension_import_batch_id` e `suspended_at`
+  (`check`: motivo codificado exige lote e instante), gravados por `DebtTitleUseCases#suspendReportedByCreditor`
+  (só ator `SYSTEM` com `IMPORT_EXECUTE` — os demais atores são recusados com `denyActorType`; chamado pelo `RowWriter`
+  com o lote em processamento; uma única auditoria `debt_title.suspended_by_creditor_report` com a mudança de status, o
+  motivo codificado e o lote). Vai para o `DebtIngestionPort` quando o `DebtIngestionService` for liberado pela frente
+  do D01h (decisão 1580). A saída da suspensão — manual (`transition`) ou pelo razão
+  (`TitleLedger.Posting.previousSuspensionImportBatchId`, registrado pelo `LedgerRecorder`) — registra a mudança de
+  `suspensionImportBatchId` na auditoria. O texto livre do motivo nunca é lido: sem tratamento de títulos suspensos antes
+  da `V0314` (o sistema não está em produção e o sandbox é recriado; decisão 1579).
+- **Expand/contract**: a `V0314` (expand) só acrescenta colunas anuláveis e `check`s que a versão anterior não viola; a
+  coerência com o status (lote só em `SETTLED`, motivo só em `SUSPENDED`) fica para a migration de **contract** (pendência
+  registrada). A leitura sempre filtra pelo status.
+  - **Gatilho**: só depois que todas as instâncias rodarem a versão com a `V0314` (troca concluída, nenhuma instância
+    antiga no balanceador). Antes disso, uma instância antiga que muda o status do título não limpa as colunas e teria a
+    transação recusada pelo `check` novo.
+  - **Caso RC-07** (revisão de código): durante a troca, uma instância antiga pode reabrir, reativar ou cancelar um título
+    sem limpar o lote ou o motivo. A migration de contract limpa esses restos **antes** dos `check`s (o status vale; a
+    leitura já os ignorava), e os `check`s entram `not valid` e depois `validate` (a verificação das linhas existentes
+    não bloqueia as escritas):
+
+    ```sql
+    -- contract da V0314 (faixa do debt; número definido quando for escrita)
+    update debt.debt_title set settled_by_import_batch_id = null, settled_by_import_at = null
+     where settled_by_import_batch_id is not null and status <> 'SETTLED';
+    update debt.debt_title set suspension_reason_code = null, suspension_import_batch_id = null, suspended_at = null
+     where suspension_reason_code is not null and status <> 'SUSPENDED';
+    alter table debt.debt_title
+        add constraint ck_debt_title_settled_by_import_status
+            check (settled_by_import_batch_id is null or status = 'SETTLED') not valid,
+        add constraint ck_debt_title_suspension_reason_status
+            check (suspension_reason_code is null or status = 'SUSPENDED') not valid;
+    alter table debt.debt_title validate constraint ck_debt_title_settled_by_import_status;
+    alter table debt.debt_title validate constraint ck_debt_title_suspension_reason_status;
+    ```
+  - **Rollback**: o rollback da aplicação não reverte o banco (as migrations só avançam). Voltar para a versão anterior à
+    `V0314` funciona com as colunas presentes (ela as ignora). Depois da contract, voltar para uma versão anterior a ela
+    exige antes uma migration nova que remova os dois `check`s (`alter table debt.debt_title drop constraint ...`), porque
+    a versão antiga não limpa as colunas ao mudar o status.
+- **Lista** (`CreditorReportedTitlesQueries`, `GET /api/v1/titles/creditor-reported`, `PAYMENT_VIEW`; aba "Pela carga do
+  credor" de "Baixas informadas pelo credor", [pagamentos.md](pagamentos.md) §5.0): duas partes (zerado; suspenso com
+  motivo codificado e lote) com o escopo por credor na SQL (`JdbcCreditorReportedTitlesReader`), período obrigatório até
+  366 dias, `size` ≤ 100, `sort` `occurredAt`/`amount`; o filtro por lote só vale com `IMPORT_VIEW` (sem a permissão, é
+  ignorado). Referência do título só com `DEBTOR_VIEW` ou `CASE_VIEW` (nula para titular anonimizado; o link para o
+  título continua), nome só com `DEBTOR_VIEW`, lote só com `IMPORT_VIEW`; não lê o schema do ingestion — o rótulo do
+  lote (data, layout, origem; nunca o arquivo) vem de `ImportBatchUseCases#labels` (teste `ImportBatchLabelsIT`).
+  Índices `ix_debt_title_settled_by_import` e `ix_debt_title_creditor_report`. Métrica `debt.creditor_reported.queries`.
+- **Testes**: `DebtTitleTest` (domínio), `CreditorReportedIsolationIT#importSettlementIsRecordedOnlyBySettlingImportAndClearedWhenTheTitleReopens`,
+  `IngestionModuleIT` (suspensão com motivo codificado e lote).
+

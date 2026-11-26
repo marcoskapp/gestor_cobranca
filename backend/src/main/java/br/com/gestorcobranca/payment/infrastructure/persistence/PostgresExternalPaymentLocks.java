@@ -8,7 +8,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/** {@code pg_advisory_xact_lock} com chaves no namespace do módulo (por tenant). */
+/**
+ * {@code pg_advisory_xact_lock} com chaves no namespace do módulo (por tenant). Toda trava exige a transação do
+ * chamador ({@code MANDATORY}): fora dela o lock seria liberado no fim do próprio comando e a soma acumulada ficaria
+ * desprotegida (RS-101).
+ */
 @Component
 class PostgresExternalPaymentLocks implements ExternalPaymentLocks {
 
@@ -26,11 +30,13 @@ class PostgresExternalPaymentLocks implements ExternalPaymentLocks {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
     public void lockCreditorIntegration(UUID tenantId, UUID creditorId) {
         lock("payment.external.creditor_integration:" + tenantId + ":" + creditorId);
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
     public void lockCreditorPortalReports(UUID tenantId, UUID creditorId) {
         lock("payment.creditor_portal:" + tenantId + ":" + creditorId);
     }

@@ -122,8 +122,8 @@ class PaymentController {
 
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAuthority('PAYMENT_REVIEW')")
-    PaymentView approve(@PathVariable UUID id, @Valid @RequestBody NoteRequest request) {
-        return payments.approve(id, request.note());
+    PaymentView approve(@PathVariable UUID id, @Valid @RequestBody ApproveRequest request) {
+        return payments.approve(id, request.note(), Boolean.TRUE.equals(request.confirmInactiveToken()));
     }
 
     @PostMapping("/{id}/reject")
@@ -185,7 +185,11 @@ class PaymentController {
                            @Size(max = 1000) String note, @NotNull @Valid TargetRequest target) {
     }
 
-    record NoteRequest(@Size(max = 1000) String note) {
+    /**
+     * @param confirmInactiveToken quem aprova confirma que conferiu o pagamento da integração do credor mesmo com o token
+     *                             revogado ou não encontrado (exigido nesse caso; 409 sem ele)
+     */
+    record ApproveRequest(@Size(max = 1000) String note, Boolean confirmInactiveToken) {
     }
 
     /** @param creditorReason motivo que o credor vê (só para informe do portal do credor) */

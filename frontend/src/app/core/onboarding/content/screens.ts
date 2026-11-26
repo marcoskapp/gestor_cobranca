@@ -278,7 +278,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.title-amount-approval', version: 1, path: '/titulos/correcoes-de-valor/:id', tourId: 'approval.decision' },
   {
     key: 'debt.title-detail',
-    version: 7,
+    version: 8,
     path: '/titulos/:id',
     tourId: 'debt.title-detail',
     changes: [
@@ -303,11 +303,12 @@ export const SCREENS: readonly ScreenGuide[] = [
       },
       { version: 6, items: ['Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, caso da carteira, acordos que incluem o título, contestação, caso jurídico e o lote que trouxe o título.'] },
       { version: 7, items: ['Título com parte paga diretamente ao credor: aviso com o valor, "ao credor" abaixo do total pago e, no razão, o lançamento marcado "pago ao credor". O estorno desse pagamento tira o aviso.'] },
+      { version: 8, items: ['No razão, o lançamento de pagamento tem "Ver pagamento", que abre a ficha do pagamento (para quem consulta pagamentos).'] },
     ],
   },
   {
     key: 'collection.queue',
-    version: 19,
+    version: 20,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -347,11 +348,12 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 17, items: ['Aba "Acordos" (Alt + 8, em "Mais"): histórico de acordos do caso com resumo, situação e parcelas; cada acordo abre numa aba nova, sem interromper o atendimento. A aba Negociação mostra só os acordos em vigor.', 'Ficha do devedor no painel ao lado: contatos, títulos e demais listas em linhas com o resumo e "Mais detalhes", sem rolagem lateral.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial do cabeçalho.'] },
       { version: 18, items: ['Mensagem (Alt + W): ao escolher o template, o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores (o que ainda falta aparece entre colchetes, como [saldo]); se um valor não for aceito, o motivo aparece abaixo da prévia.'] },
       { version: 19, items: ['Aba Títulos: o título com parte paga diretamente ao credor mostra o selo "Pago ao credor" ao lado do número.'] },
+      { version: 20, items: ['O aviso de pagamento em aprovação diz por onde ele foi informado: pela integração do credor, pelo credor no portal ou por um usuário.'] },
     ],
   },
   {
     key: 'collection.case',
-    version: 17,
+    version: 18,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -393,6 +395,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 15, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
       { version: 16, items: ['Aba "Acordos" (Alt + 8, em "Mais"): histórico de acordos do caso com resumo, situação e parcelas; cada acordo abre numa aba nova. A aba Negociação mostra só os acordos em vigor.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial do cabeçalho.'] },
       { version: 17, items: ['Mensagem (Alt + W): ao escolher o template, o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores (o que ainda falta aparece entre colchetes, como [saldo]); se um valor não for aceito, o motivo aparece abaixo da prévia.'] },
+      { version: 18, items: ['O aviso de pagamento em aprovação diz por onde ele foi informado: pela integração do credor, pelo credor no portal ou por um usuário.'] },
     ],
   },
   {
@@ -563,7 +566,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'negotiation.agreement-detail',
-    version: 6,
+    version: 7,
     path: '/negociacao/acordos/:id',
     tourId: 'negotiation.agreement-detail',
     changes: [
@@ -572,6 +575,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 4, items: ['Cancelar acordo passou para o menu "Mais ações" (⋯) no cabeçalho da ficha.'] },
       { version: 5, items: ['Cada pagamento aplicado abre o pagamento (data na tabela) e o nome do devedor abre a ficha dele.', 'Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, caso, proposta, pagamentos e acordos da renegociação.'] },
       { version: 6, items: ['Pagamento de parcela feito diretamente ao credor aparece com "Pago ao credor" na situação.'] },
+      { version: 7, items: ['O aviso de pagamento em aprovação diz por onde ele foi informado: pela integração do credor, pelo credor no portal ou por um usuário.'] },
     ],
   },
   {
@@ -581,6 +585,7 @@ export const SCREENS: readonly ScreenGuide[] = [
     tourId: 'payment.list',
     changes: [{ version: 2, items: ['Ao informar pagamento, o aviso de que o valor vai para a aprovação de outra pessoa aparece para todos que informam, mesmo sem acesso aos parâmetros de pagamentos.'] }],
   },
+  { key: 'payment.creditor-reported', version: 1, path: '/pagamentos/baixas-do-credor', tourId: 'payment.creditor-reported' },
   { key: 'payment.instructions', version: 1, path: '/pagamentos/instrucoes', tourId: 'payment.instructions' },
   { key: 'payment.instruction', version: 1, path: '/pagamentos/instrucoes/:id', tourId: 'payment.instruction' },
   {
@@ -600,13 +605,14 @@ export const SCREENS: readonly ScreenGuide[] = [
   // decisão da fila antes do detalhe do pagamento (":id" casaria o caminho)
   {
     key: 'payment.approval',
-    version: 4,
+    version: 5,
     path: '/pagamentos/aprovacoes/:id',
     tourId: 'approval.decision',
     changes: [
       { version: 2, items: ['Pagamento vindo de extrato importado mostra "Crédito em extrato importado": confira o crédito no extrato do banco antes de aprovar.'] },
       { version: 3, items: ['Pagamento informado pelo próprio credor no portal mostra os títulos informados e se o comprovante passou pela verificação de segurança; na recusa, escolha o motivo que o credor vê.'] },
       { version: 4, items: ['Pagamento informado pela integração do credor mostra a integração (token) que informou; novo motivo "Soma da integração do credor": todas as integrações do credor juntas passaram do limite.'] },
+      { version: 5, items: ['Pagamento da integração do credor com o acesso revogado, pausado pela plataforma ou expirado, ou com a integração não encontrada, aparece em destaque com o motivo e o atalho "Abrir token"; para aprovar, marque que conferiu com o credor (recusar não exige). A confirmação vale só para o pagamento aberto.'] },
     ],
   },
   { key: 'payment.reallocation', version: 1, path: '/pagamentos/sobras', tourId: 'payment.reallocation' },
@@ -644,17 +650,21 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'payment.settings', version: 1, path: '/pagamentos/parametros' },
   {
     key: 'publicapi.tokens',
-    version: 2,
+    version: 3,
     path: '/integracoes/tokens',
     tourId: 'publicapi.tokens',
-    changes: [{ version: 2, items: ['Nova situação "Pausado pela plataforma": as chamadas do token são recusadas, sem cobrança, até a plataforma retomar.'] }],
+    changes: [{ version: 2, items: ['Nova situação "Pausado pela plataforma": as chamadas do token são recusadas, sem cobrança, até a plataforma retomar.'] },
+      { version: 3, items: ['Dica no nome do token: use o nome do sistema, nunca o de uma pessoa (o nome aparece nos pagamentos que a integração informa).'] },
+    ],
   },
   {
     key: 'publicapi.token',
-    version: 4,
+    version: 5,
     path: '/integracoes/tokens/:id',
     tourId: 'publicapi.token',
-    changes: [{ version: 2, items: ['Aviso de pausa pela plataforma, com motivo e retomada agendada; você continua podendo editar, rotacionar e revogar.', 'Revogação feita pela plataforma identificada na ficha.'] }, { version: 3, items: ['Editar e Rotacionar só aparecem se o seu perfil tem as permissões de todos os escopos do token (as mesmas exigidas para criá-lo); Revogar continua disponível.'] }, { version: 4, items: ['"Revogar token" foi para o menu "Mais ações" (⋯), separado das demais ações; continua imediato, com motivo.'] }],
+    changes: [{ version: 2, items: ['Aviso de pausa pela plataforma, com motivo e retomada agendada; você continua podendo editar, rotacionar e revogar.', 'Revogação feita pela plataforma identificada na ficha.'] }, { version: 3, items: ['Editar e Rotacionar só aparecem se o seu perfil tem as permissões de todos os escopos do token (as mesmas exigidas para criá-lo); Revogar continua disponível.'] }, { version: 4, items: ['"Revogar token" foi para o menu "Mais ações" (⋯), separado das demais ações; continua imediato, com motivo.'] },
+      { version: 5, items: ['Atalho "Ver pagamentos informados por este token" (para quem consulta pagamentos), na lista de baixas informadas pelo credor.'] },
+    ],
   },
   {
     key: 'publicapi.usage',
@@ -682,7 +692,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'payment.detail',
-    version: 6,
+    version: 7,
     path: '/pagamentos/:id',
     tourId: 'payment.detail',
     changes: [
@@ -691,6 +701,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 4, items: ['O nome do devedor abre a ficha dele.', 'Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, acordos e títulos que receberam o pagamento.'] },
       { version: 5, items: ['Pagamento informado pelo próprio credor no portal: aparece como "Pessoa do credor (portal do credor)", com os títulos informados e o resultado da verificação de vírus do comprovante; na recusa, escolha o motivo que o credor vê.'] },
       { version: 6, items: ['Pagamento informado pela integração do credor aparece como "Integração do credor", com o nome da integração e o atalho para a ficha do token (para quem administra integrações).'] },
+      { version: 7, items: ['Aviso da integração do credor na ficha quando o acesso foi revogado, pausado pela plataforma ou expirou, ou quando a integração não foi encontrada, com o motivo; para aprovar nesse caso, marque no aviso que conferiu com o credor.'] },
     ],
   },
   { key: 'settlement.rules', version: 1, path: '/prestacao-de-contas/regras', tourId: 'settlement.rules' },
@@ -1012,7 +1023,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'ingestion.batch-detail',
-    version: 6,
+    version: 7,
     path: '/importacao/:id',
     tourId: 'ingestion.batch-detail',
     changes: [
@@ -1027,6 +1038,7 @@ export const SCREENS: readonly ScreenGuide[] = [
           '"Pedido de novo arquivo ao credor": as linhas do titular, o texto pronto para copiar e "Registrar pedido enviado".',
         ],
       },
+      { version: 7, items: ['"Ver títulos zerados ou suspensos por esta carga" abre as baixas informadas pelo credor filtradas por este lote (para quem consulta pagamentos).'] },
     ],
   },
   {

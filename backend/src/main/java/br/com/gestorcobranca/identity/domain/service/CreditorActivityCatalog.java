@@ -39,6 +39,9 @@ public final class CreditorActivityCatalog {
             "payment.informed",
             // revisão, alocação e conciliação do pagamento (PaymentRecorder): ações da assessoria ou do sistema
             "payment.confirmed", "payment.rejected", "payment.reversed", "payment.reallocated", "payment.reconciled",
+            "payment.approved",
+            // suspensão do título pela carga do credor (H07 2b): gravada pelo processamento da carga (sistema)
+            "debt_title.suspended_by_creditor_report",
             "payment_divergence.opened", "payment_divergence.resolved", "payment_instruction.created",
             // cadastro do credor, contatos de contestação e liberação do portal: ações da assessoria
             "creditor.created", "creditor.updated", "creditor.status_changed",

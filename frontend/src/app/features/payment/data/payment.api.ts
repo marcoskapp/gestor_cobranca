@@ -81,8 +81,9 @@ export class PaymentsApi {
   }
 
   /** Pagamento dono de uma alocação (o `paymentId` das baixas no acordo). */
+  /** Pagamento dono da alocação (link do razão do título); o erro fica com a tela (mensagem própria). */
   byAllocation(allocationId: string): Observable<PaymentView> {
-    return this.http.get<PaymentView>(`${this.base}/by-allocation/${allocationId}`);
+    return this.http.get<PaymentView>(`${this.base}/by-allocation/${allocationId}`, { context: silentErrorContext() });
   }
 
   /** Multipart `payment` (JSON) + `evidence` (arquivo). Erros de regra ficam com o diálogo. */
@@ -105,8 +106,13 @@ export class PaymentsApi {
     return this.http.get<ReviewAssessmentView>(`${this.base}/${id}/review-assessment`, { context: silentErrorContext() });
   }
 
-  approve(id: string, note: string | null): Observable<PaymentView> {
-    return this.http.post<PaymentView>(`${this.base}/${id}/approve`, { note }, { context: silentErrorContext() });
+  /**
+   * @param confirmInactiveToken confirmação explícita de quem aprova o pagamento da integração do credor com o token
+   *                             revogado ou não encontrado (sem ela, o servidor responde 409 `payment.integration_token_inactive`)
+   */
+  approve(id: string, note: string | null, confirmInactiveToken = false): Observable<PaymentView> {
+    const body = confirmInactiveToken ? { note, confirmInactiveToken } : { note };
+    return this.http.post<PaymentView>(`${this.base}/${id}/approve`, body, { context: silentErrorContext() });
   }
 
   /** @param creditorReason motivo que o credor vê (obrigatório no informe do portal do credor) */

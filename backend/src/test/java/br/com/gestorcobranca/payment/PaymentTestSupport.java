@@ -298,6 +298,42 @@ abstract class PaymentTestSupport extends IntegrationTest {
                 .substring(0, 6) + "@teste.com", null, Set.of(roleId), all, creditorIds)).id());
     }
 
+    /** Devedor fictício novo com um título em aberto no credor (H07 2b). @return {devedor, título} */
+    UUID[] debtorWithTitle(UUID creditorId, UUID portfolioId, int seed, String name, String externalId, String amount) {
+        UUID debtorId = system(() -> ingestion.upsertDebtor(new DebtorRecord(cpf(seed), name, LocalDate.of(1980, 1, 1),
+                List.of(), null)).id());
+        UUID batch = Ids.newId();
+        UUID titleId = system(() -> ingestion.upsertTitle(new TitleRecord(creditorId, portfolioId, debtorId, externalId,
+                null, 1, today.minusDays(15), new BigDecimal(amount), null, null), batch).id());
+        system(() -> {
+            ingestion.completeImport(new ImportSummary(batch, creditorId, portfolioId, 1, 0, 1));
+            return null;
+        });
+        return new UUID[] {debtorId, titleId};
+    }
+
+    /** CPF fictício válido (dígitos verificadores calculados) a partir de uma semente. */
+    static String cpf(int seed) {
+        int[] d = new int[11];
+        String base = String.format("%09d", 100_000_000 + (seed * 7919) % 899_999_999);
+        for (int i = 0; i < 9; i++) {
+            d[i] = base.charAt(i) - '0';
+        }
+        for (int k = 9; k < 11; k++) {
+            int sum = 0;
+            for (int i = 0; i < k; i++) {
+                sum += d[i] * (k + 1 - i);
+            }
+            int r = (sum * 10) % 11;
+            d[k] = r == 10 ? 0 : r;
+        }
+        StringBuilder out = new StringBuilder();
+        for (int x : d) {
+            out.append(x);
+        }
+        return out.toString();
+    }
+
     <T> T system(Supplier<T> action) {
         return tenantExecution.callInTenant(tenant, "test", action);
     }

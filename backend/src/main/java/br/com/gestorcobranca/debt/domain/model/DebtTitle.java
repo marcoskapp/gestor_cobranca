@@ -107,6 +107,24 @@ public class DebtTitle extends TenantScopedEntity {
     @Column(name = "acknowledged_principal", precision = 19, scale = 2)
     private Money acknowledgedPrincipal;
 
+    /** Lote da carga do credor cuja redução de principal levou o título a {@code SETTLED} (H07 2b); nulo nos demais. */
+    @Column(name = "settled_by_import_batch_id")
+    private UUID settledByImportBatchId;
+
+    @Column(name = "settled_by_import_at")
+    private Instant settledByImportAt;
+
+    /** Motivo codificado da suspensão pela carga ("credor informou pagamento/cancelamento"); nulo nas demais. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "suspension_reason_code", length = 30)
+    private TitleSuspensionReason suspensionReasonCode;
+
+    @Column(name = "suspension_import_batch_id")
+    private UUID suspensionImportBatchId;
+
+    @Column(name = "suspended_at")
+    private Instant suspendedAt;
+
     /** Como a carga do credor deve tratar o principal informado. */
     public enum CreditorPrincipal {
         /** Sem correção manual: o valor do credor vale (ajuste no razão se diferente). */
@@ -173,6 +191,40 @@ public class DebtTitle extends TenantScopedEntity {
         this.installmentNumber = installmentNumber;
         this.dueDate = dueDate;
         return changed;
+    }
+
+    /**
+     * Saldo zerado pela carga do credor (H07 2b): chamado só pelo caminho da carga, logo depois do ajuste de principal
+     * que levou o título a {@code SETTLED}, com o lote em processamento. Fora de {@code SETTLED} não grava nada; a saída
+     * de {@code SETTLED} (reabertura) limpa o lote.
+     *
+     * @return se gravou
+     */
+    public boolean markSettledByImport(UUID importBatchId, Instant at) {
+        Guard.require(importBatchId != null && at != null, "title.import_batch_required", "Lote de importação obrigatório");
+        if (status != TitleStatus.SETTLED) {
+            return false;
+        }
+        this.settledByImportBatchId = importBatchId;
+        this.settledByImportAt = at;
+        return true;
+    }
+
+    /**
+     * Suspensão pela carga porque o credor informou o título como pago ou cancelado (H07 2b): motivo em texto (como
+     * antes) e codificado, com o lote em processamento. A saída de {@code SUSPENDED} limpa o motivo codificado.
+     *
+     * @return status anterior
+     */
+    public TitleStatus suspendReportedByCreditor(TitleSuspensionReason code, String reason, UUID importBatchId,
+                                                 Instant at) {
+        Guard.require(code != null && importBatchId != null && at != null, "title.import_batch_required",
+                "Lote de importação obrigatório");
+        TitleStatus previous = manualTransition(TitleStatus.SUSPENDED, requiredReason(reason));
+        this.suspensionReasonCode = code;
+        this.suspensionImportBatchId = importBatchId;
+        this.suspendedAt = at;
+        return previous;
     }
 
     /** Registra a carga que atualizou o título por último. */
@@ -332,6 +384,13 @@ public class DebtTitle extends TenantScopedEntity {
     private void moveTo(TitleStatus target, String reason) {
         this.status = target;
         this.statusReason = reason;
+        // o que a carga fez vale só para a situação em que foi gravado (H07 2b): toda mudança de status o limpa, e o
+        // caminho da carga o grava de novo depois da transição
+        this.settledByImportBatchId = null;
+        this.settledByImportAt = null;
+        this.suspensionReasonCode = null;
+        this.suspensionImportBatchId = null;
+        this.suspendedAt = null;
     }
 
     private static String requiredReason(String reason) {
@@ -455,6 +514,22 @@ public class DebtTitle extends TenantScopedEntity {
 
     public Money getAcknowledgedPrincipal() {
         return acknowledgedPrincipal;
+    }
+
+    public UUID getSettledByImportBatchId() {
+        return settledByImportBatchId;
+    }
+
+    public Instant getSettledByImportAt() {
+        return settledByImportAt;
+    }
+
+    public TitleSuspensionReason getSuspensionReasonCode() {
+        return suspensionReasonCode;
+    }
+
+    public UUID getSuspensionImportBatchId() {
+        return suspensionImportBatchId;
     }
 
     public UUID getImportBatchId() {

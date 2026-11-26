@@ -249,6 +249,23 @@ class ImportBatchService implements ImportBatchUseCases {
 
     @Override
     @Transactional(readOnly = true)
+    public List<BatchLabel> labels(java.util.Collection<UUID> batchIds) {
+        accessScope.requirePermission(br.com.gestorcobranca.shared.security.Permission.IMPORT_VIEW);
+        if (batchIds == null || batchIds.isEmpty()) {
+            return List.of();
+        }
+        Guard.require(batchIds.size() <= MAX_LABELS, "import.labels_limit",
+                "Informe no máximo %d lotes por consulta".formatted(MAX_LABELS));
+        return batches.findAllByIdIn(java.util.Set.copyOf(batchIds)).stream()
+                .filter(b -> accessScope.canAccessCreditor(b.getCreditorId()))
+                .sorted(java.util.Comparator.comparing(ImportBatch::getCreatedAt).thenComparing(ImportBatch::getId))
+                .map(b -> new BatchLabel(b.getId(), b.getCreatedAt(), b.getLayoutCode(), b.getLayoutVersion(),
+                        b.getSource().name()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public ContactReceiptView contactReceipt(UUID batchId) {
         ImportBatch batch = loadVisible(batchId);
         if (batch.getMode() != ImportMode.IMPORT) {

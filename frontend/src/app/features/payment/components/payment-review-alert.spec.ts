@@ -43,6 +43,22 @@ describe('PaymentReviewAlert', () => {
     http.verify();
   });
 
+  it('canal do informe (UX-03): integração e portal do credor não viram "um usuário" nem buscam nome', async () => {
+    const { http } = setup(PaymentReviewAlert, ['AGREEMENT_VIEW']);
+    const fixture = await render(PaymentReviewAlert, http, names, {
+      pending: [
+        reviewItem({ informedBy: 'tok-1', channel: 'INTEGRATION' }),
+        reviewItem({ paymentId: 'pg-2', informedBy: 'pessoa-credor', channel: 'CREDITOR_PORTAL' }),
+      ],
+    });
+    const t = text(fixture).replace(/\s+/g, ' ');
+    expect(t).toContain('pela integração do credor');
+    expect(t).toContain('pelo credor no portal');
+    expect(t).not.toContain('um usuário');
+    expect(t).not.toContain('tok-1');
+    http.verify();
+  });
+
   it('recusado: motivo para quem pode ver, aviso de motivo restrito e o que fazer', async () => {
     const { http } = setup(PaymentReviewAlert, ['AGREEMENT_VIEW', 'CASE_VIEW']);
     const fixture = await render(PaymentReviewAlert, http, names, {

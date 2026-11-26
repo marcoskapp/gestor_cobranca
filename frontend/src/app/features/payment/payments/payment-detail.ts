@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, finalize, forkJoin, map, of } from 'rxjs';
@@ -32,7 +32,8 @@ import { RequestedTarget } from '../components/requested-target';
 import { PaymentsApi } from '../data/payment.api';
 import { METHOD_LABELS, ORIGIN_LABELS, OUTCOME_LABELS, PAYMENT_ERROR_LABELS, REVIEW_MODE_LABELS } from '../data/payment.labels';
 import { AllocationView, LineView, PaymentView } from '../data/payment.models';
-import { informerLabel, sourceLabel, allocationTarget, fromStatementReview, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
+import { IntegrationTokenNote } from '../components/integration-token-note';
+import { integrationTokenInactive, informerLabel, sourceLabel, allocationTarget, fromStatementReview, paymentActions, paymentTimeline, requestedTargetText } from '../data/payment.rules';
 import { breakHoldBadge } from '../data/review-status';
 import { ReallocateDialog, ReallocateDialogData } from '../reallocation/reallocate-dialog';
 import { ReverseDialog, ReverseDialogData } from './reverse-dialog';
@@ -47,7 +48,7 @@ import { RelatedRecord } from '../../../shared/components/related-records/relate
  */
 @Component({
   selector: 'app-payment-detail',
-  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, KpiCard, MoreActions, RelatedRecords, CreditorPortalNote, ConfigLink],
+  imports: [Icon, RouterLink, Amount, AppDatePipe, EmptyState, PageHeader, Skeleton, StatusChip, RequestedTarget, KpiCard, MoreActions, RelatedRecords, CreditorPortalNote, ConfigLink, IntegrationTokenNote],
   templateUrl: './payment-detail.html',
   styleUrls: ['../../negotiation/detail-page.scss', './payment-detail.scss'],
 })
@@ -72,6 +73,20 @@ export class PaymentDetail {
   protected readonly sourceText = sourceLabel;
   /** Atalho para a ficha do token (mesma permissão da rota `/integracoes/tokens/:id`). */
   protected readonly tokenPermissions = [Permission.PUBLIC_API_TOKEN_VIEW] as const;
+  /**
+   * Confirmação explícita para aprovar com a integração do credor inativa (UX-05, SEG-04); zera ao trocar de pagamento
+   * (RC-01).
+   */
+  protected readonly tokenConfirmed = linkedSignal({ source: this.id, computation: () => false });
+  /** O aviso da integração só aparece com o token inativo; o canal e o token já estão no resumo (UX-10). */
+  protected readonly tokenInactive = computed(() => {
+    const p = this.payment();
+    return !!p && integrationTokenInactive(p);
+  });
+  protected readonly approveBlocked = computed(() => {
+    const p = this.payment();
+    return !!p && integrationTokenInactive(p) && !this.tokenConfirmed();
+  });
   protected readonly reviewModes = REVIEW_MODE_LABELS;
   protected readonly outcomes = OUTCOME_LABELS;
   protected readonly target = allocationTarget;
@@ -230,7 +245,8 @@ export class PaymentDetail {
 
   protected approve(): void {
     const p = this.payment();
-    if (!p) {
+    // o botão fica com aria-disabled (continua no foco e anuncia o motivo); o bloqueio de verdade é aqui (UX-12)
+    if (!p || this.busy() || this.approveBlocked()) {
       return;
     }
     this.confirm
@@ -307,7 +323,7 @@ export class PaymentDetail {
   private review(p: PaymentView, action: 'approve' | 'reject', note: string | null, creditorReason: string | null = null): void {
     this.busy.set(true);
     this.reviewError.set(null);
-    const call = action === 'approve' ? this.api.approve(p.id, note) : this.api.reject(p.id, note ?? '', creditorReason);
+    const call = action === 'approve' ? this.api.approve(p.id, note, integrationTokenInactive(p) && this.tokenConfirmed()) : this.api.reject(p.id, note ?? '', creditorReason);
     call.pipe(finalize(() => this.busy.set(false))).subscribe({
       next: (updated) => {
         this.notifications.success(action === 'approve' ? 'Pagamento aprovado e baixado.' : 'Pagamento recusado.');
@@ -316,6 +332,11 @@ export class PaymentDetail {
       error: (err: unknown) => {
         const e = toApiError(err);
         this.reviewError.set((e.code && PAYMENT_ERROR_LABELS[e.code]) || userMessage(e));
+        if (e.code === 'payment.integration_token_inactive') {
+          // o token ficou inativo depois que a tela abriu: recarrega o estado e pede a confirmação
+          this.tokenConfirmed.set(false);
+          this.resource.reload();
+        }
       },
     });
   }

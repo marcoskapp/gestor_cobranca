@@ -145,7 +145,7 @@ class PaymentBreakSuspensionIT extends PaymentTestSupport {
                 agreement.id())).isEqualTo(1);
 
         // aprovação (outra pessoa): encerra a suspensão na mesma transação e a parcela baixa normalmente
-        asFinance1(() -> payments.approve(pending.id(), null));
+        asFinance1(() -> payments.approve(pending.id(), null, false));
         BreakSuspensionView ended = suspension();
         assertThat(ended.status()).isEqualTo("ENDED");
         assertThat(ended.endReason()).isEqualTo("APPROVED");
@@ -224,7 +224,7 @@ class PaymentBreakSuspensionIT extends PaymentTestSupport {
                 });
 
         // a revisão ainda pode acontecer: o acordo quebrado não recebe a baixa (não aplicado, como antes)
-        asFinance1(() -> payments.approve(pending.id(), null));
+        asFinance1(() -> payments.approve(pending.id(), null, false));
         assertThat(suspension().endReason()).isEqualTo("DEADLINE");
     }
 

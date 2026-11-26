@@ -1419,6 +1419,17 @@ export const TOURS: readonly TourDefinition[] = [
     ],
   },
   {
+    id: 'payment.creditor-reported',
+    version: 1,
+    title: 'Baixas informadas pelo credor',
+    summary: 'O que o credor recebeu diretamente e o que a carga do credor zerou ou suspendeu.',
+    steps: [
+      { anchor: 'creditor-reported-tabs', title: 'Duas origens', body: 'Pagamentos informados pela integração, pelo portal ou por operador; e títulos zerados ou suspensos pela carga.' },
+      { anchor: 'filters', title: 'Filtros', body: 'O período é obrigatório (até 366 dias) nas duas abas. Filtre por credor e situação; nos pagamentos, também por canal e valor.' },
+      { anchor: 'data-table', title: 'Conferir', body: 'Abra o pagamento, o título ou a carga. "Comprovante sem verificação de vírus" pede cuidado ao abrir o arquivo.', placement: 'above' },
+    ],
+  },
+  {
     id: 'payment.detail',
     version: 1,
     title: 'Pagamento',

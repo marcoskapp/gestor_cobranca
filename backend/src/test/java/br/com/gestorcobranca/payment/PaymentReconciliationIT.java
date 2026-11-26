@@ -100,10 +100,10 @@ class PaymentReconciliationIT extends PaymentTestSupport {
         assertThat(lineStatus(pendingId)).isEqualTo("PENDING_REVIEW");
         assertThat(count("select count(*) from payment.payment_allocation where payment_id = ?", pendingId)).isZero();
         // quem enviou o extrato não aprova; outra pessoa aprova → instrução paga, pagamento conciliado com a linha
-        assertThatThrownBy(() -> asFinance2(() -> payments.approve(pendingId, null)))
+        assertThatThrownBy(() -> asFinance2(() -> payments.approve(pendingId, null, false)))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("não pode revisá-lo");
         assertThat(asFinance1(() -> payments.reviewAssessment(pendingId)).reason()).isEqualTo("STATEMENT_LINE");
-        PaymentView fromStatement = asFinance1(() -> payments.approve(pendingId, "Conferido no extrato do banco"));
+        PaymentView fromStatement = asFinance1(() -> payments.approve(pendingId, "Conferido no extrato do banco", false));
         assertThat(fromStatement.status()).isEqualTo("RECONCILED");
         assertThat(fromStatement.reconciliationMode()).isEqualTo("STATEMENT");
         assertThat(asOperator(() -> instructions.get(pix.id())).status()).isEqualTo("PAID");
@@ -217,7 +217,7 @@ class PaymentReconciliationIT extends PaymentTestSupport {
         settle();
         assertThat(asOperator(() -> instructions.get(pix.id())).status()).isEqualTo("PAID");
         assertThat(asOperator(() -> instructions.get(pix.id())).paymentId()).isNotEqualTo(pendingId);
-        assertThatThrownBy(() -> asFinance1(() -> payments.approve(pendingId, null)))
+        assertThatThrownBy(() -> asFinance1(() -> payments.approve(pendingId, null, false)))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("já foi paga");
         assertThat(asFinance1(() -> payments.reject(pendingId, "Já confirmado pelo PSP")).status()).isEqualTo("REJECTED");
         assertThat(lineStatus(pendingId)).isEqualTo("REVIEW_REJECTED");
@@ -303,7 +303,7 @@ class PaymentReconciliationIT extends PaymentTestSupport {
         assertThat(asOperator(() -> instructions.get(pix.id())).paymentId()).isNotEqualTo(pendingId);
         assertThat(count("select count(*) from payment.divergence where type = 'DUPLICATE_PAYMENT' and instruction_id = ?",
                 pix.id())).isZero();
-        assertThatThrownBy(() -> asFinance1(() -> payments.approve(pendingId, null)))
+        assertThatThrownBy(() -> asFinance1(() -> payments.approve(pendingId, null, false)))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("já foi paga");
         asFinance1(() -> payments.reject(pendingId, "Já confirmado pelo PSP"));
         assertThat(count("select count(*) from payment.payment where provider_transaction_id = ?", paid.endToEndId()))

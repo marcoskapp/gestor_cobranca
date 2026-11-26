@@ -138,6 +138,22 @@ class PaymentRecorder {
                 .meta("providerTransactionId", p.getProviderTransactionId()));
     }
 
+    /**
+     * Decisão de aprovação (antes da confirmação, que grava {@code payment.confirmed}): canal e, na integração do credor,
+     * o estado do token no momento da decisão e a confirmação explícita de quem aprovou com o token inativo.
+     *
+     * @param tokenState ACTIVE, PAUSED, REVOKED, EXPIRED ou NOT_FOUND; nulo fora do canal integração.
+     *                   {@code tokenRevokedAtDecision} é verdadeiro em todo estado diferente de ACTIVE (decisão 1631)
+     */
+    void approved(Payment p, String tokenState, boolean inactiveTokenConfirmed) {
+        auditTrail.record(AuditEntry.of("payment.approved", AllocationService.RESOURCE, p.getId())
+                .creditor(p.getCreditorId()).meta("decision", "APPROVED")
+                .meta("channel", p.informedChannel())
+                .meta("tokenState", tokenState)
+                .meta("tokenRevokedAtDecision", tokenState == null ? null : !"ACTIVE".equals(tokenState))
+                .meta("inactiveTokenConfirmed", tokenState == null ? null : inactiveTokenConfirmed));
+    }
+
     void rejected(Payment p) {
         metrics.payment(p.getSource().name(), p.getMethod().name(), "REJECTED");
         businessEvents.log(base(BusinessEventTypes.PAYMENT_REJECTED, p, List.of()).amount(p.getAmount())

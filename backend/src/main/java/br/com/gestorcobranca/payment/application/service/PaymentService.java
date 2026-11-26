@@ -207,11 +207,14 @@ class PaymentService implements PaymentUseCases {
                 "Fonte do pagamento");
         Guard.require(command.target() != null, "payment.target_required",
                 "Informe o destino do pagamento (parcelas de acordo ou títulos)");
-        Destination destination = validatedDestination(command.target(), command.creditorId(), command.debtorId());
         // canal pelo tipo do ator, nunca pelo pedido: a integração do credor só informa o que o credor recebeu (H07)
         boolean integration = currentActor.get().type() == Actor.ActorType.INTEGRATION;
         Guard.require(!integration || origin == ExternalOrigin.CREDITOR_DIRECT, "payment.integration_origin_invalid",
                 "A integração do credor só informa pagamento recebido diretamente pelo credor");
+        // travas antes de ler o destino: um registro simultâneo para o mesmo devedor só lê os títulos depois que o
+        // anterior gravou (senão o título lido fica com versão velha no contexto e a baixa falha por concorrência)
+        lockRegistration(command, integration);
+        Destination destination = validatedDestination(command.target(), command.creditorId(), command.debtorId());
         UUID id = idempotency.execute("payment.external", idempotencyKey, hash(command), () -> {
             Payment.Evidence stored = evidenceStore.store(evidence);
             Money amount = Money.of(command.amount());
@@ -244,13 +247,18 @@ class PaymentService implements PaymentUseCases {
      * integração do credor, por credor somando todos os tokens), sob lock para que registros simultâneos não escapem
      * da soma (ordem: credor da integração, quem informa, devedor).
      */
-    private ExternalReviewPolicy.Decision externalReview(ExternalPaymentCommand command, Money amount, Instant now,
-                                                         boolean integration) {
-        UUID informer = currentActor.actorId();
+    private void lockRegistration(ExternalPaymentCommand command, boolean integration) {
         if (integration) {
             externalLocks.lockCreditorIntegration(currentActor.tenantId(), command.creditorId());
         }
-        externalLocks.lockExternalRegistration(currentActor.tenantId(), informer, command.creditorId(), command.debtorId());
+        externalLocks.lockExternalRegistration(currentActor.tenantId(), currentActor.actorId(), command.creditorId(),
+                command.debtorId());
+    }
+
+    /** Decisão da revisão, já sob as travas de {@link #lockRegistration}. */
+    private ExternalReviewPolicy.Decision externalReview(ExternalPaymentCommand command, Money amount, Instant now,
+                                                         boolean integration) {
+        UUID informer = currentActor.actorId();
         PaymentProperties.ExternalReview config = properties.externalReview();
         Money perPayment = settings.current().externalReviewThreshold();
         Instant since = now.minus(config.window());
@@ -316,13 +324,24 @@ class PaymentService implements PaymentUseCases {
     }
 
     @Override
-    public PaymentView approve(UUID paymentId, String note) {
+    public PaymentView approve(UUID paymentId, String note, boolean confirmInactiveToken) {
         accessScope.requirePermission(Permission.PAYMENT_REVIEW);
         // mesma ordem de bloqueio do StatementMatcher e do PixSettlement: instrução, depois pagamento
         PaymentInstruction locked = statementLineReview.lockInstructionOf(paymentId).orElse(null);
         Payment p = lockForCommand(paymentId);
         Instant now = Instant.now(clock);
         p.approve(currentActor.actorId(), note, now);
+        // depois das regras da revisão (segregação, situação): estado do token reconsultado agora, pela porta
+        // (RS-100); revogado, pausado, expirado ou não encontrado exige a confirmação explícita de quem aprova
+        String tokenState = integrationTokenState(p);
+        boolean tokenInactive = tokenState != null && !TOKEN_ACTIVE.equals(tokenState);
+        if (tokenInactive && !confirmInactiveToken) {
+            throw new br.com.gestorcobranca.shared.domain.ConflictException(TOKEN_INACTIVE,
+                    "A integração que informou o pagamento está inativa (acesso revogado, pausado ou expirado, ou "
+                            + "não foi encontrada): confirme que conferiu o pagamento com o credor para aprovar",
+                    Map.<String, Object>of("paymentId", paymentId.toString(), "tokenState", tokenState));
+        }
+        recorder.approved(p, tokenState, tokenInactive && confirmInactiveToken);
         PaymentInstruction instruction = statementLineReview.instructionForApproval(p, locked);
         metrics.review("APPROVED", Duration.between(p.getInformedAt(), now));
         confirmation.confirmed(p, instruction, "review");
@@ -356,6 +375,25 @@ class PaymentService implements PaymentUseCases {
         statementLineReview.rejected(p);
         reviewClosed(p);
         return view(p);
+    }
+
+    static final String TOKEN_INACTIVE = "payment.integration_token_inactive";
+    static final String TOKEN_ACTIVE = "ACTIVE";
+    static final String TOKEN_NOT_FOUND = "NOT_FOUND";
+
+    /**
+     * Estado do token de integração que informou o pagamento: ACTIVE, PAUSED, REVOKED, EXPIRED ou NOT_FOUND (rótulo
+     * ausente — apagado ou de outra assessoria, sem distinguir); nulo fora do canal integração.
+     */
+    private String integrationTokenState(Payment p) {
+        if (!p.isFromIntegration()) {
+            return null;
+        }
+        IntegrationTokenLabels.TokenLabel label = tokenLabels.labels(Set.of(p.getInformedBy())).get(p.getInformedBy());
+        if (label == null) {
+            return TOKEN_NOT_FOUND;
+        }
+        return label.state().name();
     }
 
     /**

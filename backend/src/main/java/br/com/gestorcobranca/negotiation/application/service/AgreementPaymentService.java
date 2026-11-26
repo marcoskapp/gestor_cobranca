@@ -129,7 +129,7 @@ class AgreementPaymentService {
     private void recorded(PaymentConfirmed e, Money applied, Money unapplied, String status, String agreementStatus) {
         events.publishEvent(new AgreementPaymentRecorded(Ids.newId(), e.tenantId(), Instant.now(clock), e.agreementId(),
                 e.paymentId(), e.creditorId(), e.debtorId(), e.amount(), applied.amount(), unapplied.amount(), status,
-                agreementStatus));
+                agreementStatus, e.receivedBy()));
     }
 
     void paymentReversed(PaymentReversed e) {

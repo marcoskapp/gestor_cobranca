@@ -169,10 +169,12 @@ class PaymentReviewStatusService implements PaymentReviewStatusUseCases {
         return list.stream().map(p -> {
             boolean showReason = paymentViewer || Objects.equals(p.getInformedBy(), actor.id());
             String reason = p.getStatus() == PaymentStatus.REJECTED ? p.getReviewNote() : null;
+            // integração do credor: só o canal, nunca o id do token (RS-99)
             return new ReviewItem(p.getId(), p.getStatus().name(), p.getAmount().amount(), p.getPaidAt(),
-                    PaymentEnums.name(p.getMethod()), p.getInformedBy(), p.getInformedAt(),
+                    PaymentEnums.name(p.getMethod()), p.isFromIntegration() ? null : p.getInformedBy(), p.getInformedAt(),
                     PaymentEnums.name(p.getTargetKind()), p.getTargetAgreementId(), PaymentViews.targetItems(p, json),
-                    p.getReviewedBy(), p.getReviewedAt(), showReason ? reason : null, reason != null && !showReason);
+                    p.getReviewedBy(), p.getReviewedAt(), showReason ? reason : null, reason != null && !showReason,
+                    p.informedChannel());
         }).toList();
     }
 

@@ -22,6 +22,7 @@ import { CreditorNames } from '../../organization/data/organization.lookups';
 import { IntegrationTokensApi } from '../data/public-api.api';
 import { PUBLIC_API_ERROR_LABELS, TOKEN_STATE_LABELS } from '../data/public-api.labels';
 import { TokenView } from '../data/public-api.models';
+import { periodSince } from '../../payment/creditor-reported/creditor-reported.rules';
 import { RotateTokenDialog, RotateTokenDialogData } from './rotate-token-dialog';
 import { SCOPE_PERMISSIONS, TokenDialog, TokenDialogData } from './token-dialog';
 
@@ -107,6 +108,9 @@ import { SCOPE_PERMISSIONS, TokenDialog, TokenDialogData } from './token-dialog'
             <dd>{{ t.rotationCount }}{{ t.rotatedAt ? ' · última em ' + (t.rotatedAt | appDate) : '' }}</dd>
           </dl>
           <a class="btn btn-sm btn-link px-0" [routerLink]="['/integracoes/consumo']" [queryParams]="{ token: t.id }">Ver consumo deste token</a>
+          @if (canViewPayments()) {
+            <a class="btn btn-sm btn-link px-0 ms-3" [routerLink]="['/pagamentos/baixas-do-credor']" [queryParams]="paymentsParams(t)">Ver pagamentos informados por este token</a>
+          }
         </section>
         <section class="app-card" aria-labelledby="td-scopes">
           <h2 class="app-card__title" id="td-scopes">Escopos</h2>
@@ -159,6 +163,12 @@ export class TokenDetail {
   private readonly notifications = inject(NotificationService);
   protected readonly stateLabels = TOKEN_STATE_LABELS;
   protected readonly canManage = computed(() => this.auth.hasPermission(Permission.PUBLIC_API_TOKEN_MANAGE));
+  protected readonly canViewPayments = computed(() => this.auth.hasPermission(Permission.PAYMENT_VIEW));
+
+  /** Pagamentos do token desde a criação dele (até 366 dias, o limite da consulta), para a lista não abrir vazia (UX-07). */
+  protected paymentsParams(t: TokenView): Record<string, string> {
+    return { canal: 'INTEGRATION', token: t.id, ...periodSince(t.createdAt) };
+  }
   protected readonly busy = signal(false);
   protected readonly history = inject(NavigationHistory);
   /** Revogar (imediato e definitivo, com motivo) fica no "Mais ações" (ux.md §12.2). */

@@ -41,7 +41,7 @@ import {
             @for (p of open; track p.paymentId) {
               <li>
                 <span>
-                  Pagamento de <strong><app-amount [value]="p.amount" /></strong> informado em {{ p.informedAt | appDate }} por {{ person(p.informedBy) }}@if (open.length === 1) { aguardando aprovação de outra pessoa}.
+                  Pagamento de <strong><app-amount [value]="p.amount" /></strong> informado em {{ p.informedAt | appDate }} {{ informer(p) }}@if (open.length === 1) { aguardando aprovação de outra pessoa}.
                 </span>
                 @if (!compact() && coverageText(p); as target) {
                   <span class="pra__target">Destino previsto: {{ target }}.</span>
@@ -73,7 +73,7 @@ import {
             @for (p of refused; track p.paymentId) {
               <li>
                 <span>
-                  Pagamento de <strong><app-amount [value]="p.amount" /></strong> informado por {{ person(p.informedBy) }} foi recusado em {{ p.reviewedAt | appDate }} por {{ person(p.reviewedBy) }}.
+                  Pagamento de <strong><app-amount [value]="p.amount" /></strong> informado {{ informer(p) }} foi recusado em {{ p.reviewedAt | appDate }} por {{ person(p.reviewedBy) }}.
                 </span>
                 @if (p.rejectionReason) {
                   <span class="pra__reason">Motivo: {{ p.rejectionReason }}</span>
@@ -206,9 +206,23 @@ export class PaymentReviewAlert {
   private readonly me = computed(() => this.auth.user()?.id ?? null);
   private readonly names = nameMap(
     inject(UserNames),
-    () => [...this.pending(), ...this.rejected()].flatMap((p) => [p.informedBy, p.reviewedBy]).filter((id) => id && id !== this.me()),
+    () => [...this.pending(), ...this.rejected()].flatMap((p) => [personInformer(p) ? p.informedBy : null, p.reviewedBy]).filter((id) => id && id !== this.me()),
     { batch: USER_NAMES_BATCH },
   );
+
+  /**
+   * Quem informou, pelo canal (UX-03): a integração e a pessoa do credor não são usuárias da assessoria; o servidor
+   * manda só o canal, nunca o nome ou o prefixo do token.
+   */
+  protected informer(p: ReviewItem): string {
+    if (p.channel === 'INTEGRATION') {
+      return 'pela integração do credor';
+    }
+    if (p.channel === 'CREDITOR_PORTAL') {
+      return 'pelo credor no portal';
+    }
+    return `por ${this.person(p.informedBy)}`;
+  }
 
   protected person(id: string | null): string {
     if (!id) {
@@ -243,6 +257,11 @@ export class PaymentReviewAlert {
     }
     return named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} e ${named[named.length - 1]}`;
   }
+}
+
+/** Informado por usuário da assessoria (canal operador ou item sem canal, de versão anterior do servidor). */
+function personInformer(p: ReviewItem): boolean {
+  return !p.channel || p.channel === 'OPERATOR';
 }
 
 function days(n: number): string {

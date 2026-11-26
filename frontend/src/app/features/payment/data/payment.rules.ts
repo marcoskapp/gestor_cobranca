@@ -2,7 +2,7 @@ import { toAmount } from '../../../shared/components/amount/amount';
 import type { IconName } from '../../../shared/components/icon/icon-names';
 import type { TargetSelection } from '../components/payment-target';
 import { RECONCILIATION_MODE_LABELS, REVERSAL_REASON_LABELS, REVIEW_MODE_LABELS, SOURCE_LABELS, STRATEGY_LABELS } from './payment.labels';
-import { AllocationView, InstructionView, PaymentView, PixAccountView, RequestedTargetView, StatementImportView, TargetRequest } from './payment.models';
+import { AllocationView, InstructionView, IntegrationTokenState, PaymentView, PixAccountView, RequestedTargetView, StatementImportView, TargetRequest } from './payment.models';
 
 // --------------------------------------------------------------------------- arquivos
 
@@ -418,15 +418,46 @@ export function informerLabel(p: Pick<PaymentView, 'informedBy' | 'creditorPorta
   return p.informedBy ? name(p.informedBy) : 'Sistema';
 }
 
+/** Complemento do rótulo do token inativo (o não encontrado tem rótulo próprio). */
+const TOKEN_STATE_SUFFIX: Partial<Record<IntegrationTokenState, string>> = {
+  REVOKED: ', acesso revogado',
+  PAUSED: ', acesso pausado pela plataforma',
+  EXPIRED: ', acesso expirado',
+};
+
 /**
  * Integração (token) do credor: nome e prefixo de exibição, como na tela de tokens ("Nome (prefixo)"); acesso
- * revogado ou integração que não existe mais, dito em texto.
+ * revogado, pausado, expirado ou integração que não existe mais, dito em texto.
  */
 export function integrationTokenText(i: NonNullable<PaymentView['integration']>): string {
-  if (!i.tokenName) {
+  if (!i.tokenName || i.tokenState === 'NOT_FOUND') {
     return 'integração não identificada';
   }
-  return `${i.tokenName}${i.tokenPrefix ? ' (' + i.tokenPrefix + ')' : ''}${i.tokenRevoked ? ', acesso revogado' : ''}`;
+  return `${i.tokenName}${i.tokenPrefix ? ' (' + i.tokenPrefix + ')' : ''}${TOKEN_STATE_SUFFIX[i.tokenState] ?? ''}`;
+}
+
+/**
+ * Integração do credor que não está ativa no momento — revogada, pausada pela plataforma, expirada ou não encontrada
+ * (exige confirmação explícita para aprovar — UX-05, SEG-04).
+ */
+export function integrationTokenInactive(p: Pick<PaymentView, 'integration'>): boolean {
+  return !!p.integration && p.integration.tokenState !== 'ACTIVE';
+}
+
+/** Motivo, para o usuário, de a integração estar inativa (nulo quando ativa). */
+export function integrationTokenInactiveReason(i: NonNullable<PaymentView['integration']>): string | null {
+  switch (i.tokenState) {
+    case 'NOT_FOUND':
+      return 'A integração que registrou este pagamento não foi encontrada.';
+    case 'REVOKED':
+      return 'O acesso desta integração foi revogado.';
+    case 'PAUSED':
+      return 'O acesso desta integração está pausado pela plataforma.';
+    case 'EXPIRED':
+      return 'O acesso desta integração expirou.';
+    default:
+      return null;
+  }
 }
 
 /** Origem do registro para exibição: o canal do informe vale mais que o tipo (externo inclui portal e integração). */

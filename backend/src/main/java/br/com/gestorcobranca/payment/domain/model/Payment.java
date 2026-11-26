@@ -370,6 +370,16 @@ public class Payment extends TenantScopedEntity {
         return CHANNEL_INTEGRATION.equals(informedChannel);
     }
 
+    public static final String CHANNEL_OPERATOR = "OPERATOR";
+
+    /**
+     * Canal de quem informou: {@code INTEGRATION}, {@code CREDITOR_PORTAL} ou {@code OPERATOR} (pessoa da assessoria,
+     * inclusive quem importou o extrato). Sem canal gravado vale operador.
+     */
+    public String informedChannel() {
+        return informedChannel == null ? CHANNEL_OPERATOR : informedChannel;
+    }
+
     /**
      * Recusa do informe do portal do credor: além da nota interna, o motivo codificado que o credor vê (a nota nunca
      * vai ao credor — pode citar o devedor ou observações da assessoria).

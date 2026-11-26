@@ -50,6 +50,19 @@ public interface ImportBatchUseCases {
 
     ImportBatchView get(UUID batchId);
 
+    /** Limite de ids por chamada de {@link #labels}. */
+    int MAX_LABELS = 100;
+
+    /**
+     * Rótulos de vários lotes para listas de outros módulos (H07 2b, "Baixas informadas pelo credor"): data, layout e
+     * origem, nunca o nome do arquivo. Lotes inexistentes, de outra assessoria ou fora do escopo do ator ficam de fora,
+     * sem erro (não revela existência). {@code IMPORT_VIEW}.
+     */
+    List<BatchLabel> labels(java.util.Collection<UUID> batchIds);
+
+    record BatchLabel(UUID id, Instant createdAt, String layoutCode, int layoutVersion, String source) {
+    }
+
     /**
      * Contatos novos que a carga trouxe para devedores que já existiam (relatório da carga; contatos-recebidos.md §4).
      * Zero fora do modo IMPORT.

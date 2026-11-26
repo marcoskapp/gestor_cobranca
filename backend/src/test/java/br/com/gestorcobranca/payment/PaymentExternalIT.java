@@ -163,11 +163,11 @@ class PaymentExternalIT extends PaymentTestSupport {
                 () -> payments.reviewAssessment(big.id()))).isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> asOperator(() -> payments.reviewAssessment(big.id())))
                 .isInstanceOf(ScopeAccessDeniedException.class);
-        assertThatThrownBy(() -> asFinance1(() -> payments.approve(big.id(), null)))
+        assertThatThrownBy(() -> asFinance1(() -> payments.approve(big.id(), null, false)))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("não pode revisá-lo");
-        assertThatThrownBy(() -> asOperator(() -> payments.approve(big.id(), null)))
+        assertThatThrownBy(() -> asOperator(() -> payments.approve(big.id(), null, false)))
                 .isInstanceOf(ScopeAccessDeniedException.class);
-        PaymentView approved = asFinance2(() -> payments.approve(big.id(), "Comprovante conferido no extrato"));
+        PaymentView approved = asFinance2(() -> payments.approve(big.id(), "Comprovante conferido no extrato", false));
         assertThat(approved.status()).isEqualTo("CONFIRMED");
         assertThat(approved.reviewedBy()).isEqualTo(finance2);
         assertThat(system(() -> debtTitles.get(titleB)).status()).isEqualTo("SETTLED");
@@ -281,9 +281,9 @@ class PaymentExternalIT extends PaymentTestSupport {
         assertThat(count("select count(*) from shared.business_event where event_type = 'payment.informed'"
                 + " and attributes->>'reviewReason' = 'DESTINATION_CUMULATIVE'")).isEqualTo(1);
         // a segunda pessoa decide; quem informou não
-        assertThatThrownBy(() -> asOperator(() -> payments.approve(second.id(), null)))
+        assertThatThrownBy(() -> asOperator(() -> payments.approve(second.id(), null, false)))
                 .isInstanceOf(ScopeAccessDeniedException.class);
-        assertThat(asFinance1(() -> payments.approve(second.id(), "Conferido no extrato")).status()).isEqualTo("CONFIRMED");
+        assertThat(asFinance1(() -> payments.approve(second.id(), "Conferido no extrato", false)).status()).isEqualTo("CONFIRMED");
     }
 
     /**
@@ -469,6 +469,79 @@ class PaymentExternalIT extends PaymentTestSupport {
                 statuses.add(r.get(30, TimeUnit.SECONDS).status());
             }
             assertThat(statuses).containsExactlyInAnyOrder("CONFIRMED", "INFORMED");
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /**
+     * RS-101 (SEG-02 d): dois tokens do mesmo credor registrando ao mesmo tempo, cada pagamento abaixo do limite por
+     * pagamento, por token e por devedor, mas a soma passando do teto acumulado por credor (4 × R$ 500,00): a trava por
+     * credor serializa os dois — exatamente um confirma sem revisão e o outro vai para a aprovação com o motivo
+     * {@code CREDITOR_CUMULATIVE}. Registros cruzando devedores e tokens terminam sem deadlock.
+     */
+    @Test
+    void twoTokensOfTheSameCreditorCannotBothEscapeTheCreditorCeiling() throws Exception {
+        provision("teto-credor");
+        UUID[][] debtors = new UUID[7][];
+        for (int i = 0; i < debtors.length; i++) {
+            debtors[i] = debtorWithTitle(creditorB, portfolioB, 40 + i, "Devedor Ficticio " + i, "TC-" + i, "800.00");
+        }
+        java.util.function.BiFunction<Integer, String, ExternalPaymentCommand> toDebtor = (i, amount) ->
+                new ExternalPaymentCommand(creditorB, debtors[i][0], new BigDecimal(amount), paidAt, "PIX",
+                        "CREDITOR_DIRECT", "TC-REF-" + i + "-" + amount, null,
+                        new TargetInput("TITLES", null, List.of(debtors[i][1]), null));
+        // já confirmados na janela por um terceiro token: R$ 1.500,00 (abaixo dos 2.000,00 do credor)
+        UUID preload = Ids.newId();
+        for (int i = 0; i < 3; i++) {
+            int debtorIndex = i;
+            assertThat(asIntegration(preload, () -> payments.registerExternal(toDebtor.apply(debtorIndex, "500.00"),
+                    pdf(), null)).status()).isEqualTo("CONFIRMED");
+        }
+        UUID tokenA = Ids.newId();
+        UUID tokenB = Ids.newId();
+        ExecutorService pool = Executors.newFixedThreadPool(4);
+        try {
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<PaymentView>> results = new ArrayList<>();
+            results.add(pool.submit(() -> {
+                start.await();
+                return asIntegration(tokenA, () -> payments.registerExternal(toDebtor.apply(3, "300.00"), pdf(), null));
+            }));
+            results.add(pool.submit(() -> {
+                start.await();
+                return asIntegration(tokenB, () -> payments.registerExternal(toDebtor.apply(4, "300.00"), pdf(), null));
+            }));
+            start.countDown();
+            List<PaymentView> views = new ArrayList<>();
+            for (Future<PaymentView> r : results) {
+                views.add(r.get(30, TimeUnit.SECONDS));
+            }
+            assertThat(views).extracting(PaymentView::status).containsExactlyInAnyOrder("CONFIRMED", "INFORMED");
+            assertThat(views).filteredOn(v -> "CONFIRMED".equals(v.status())).singleElement()
+                    .satisfies(v -> assertThat(v.reviewMode()).isEqualTo("AUTO_LOW_RISK"));
+            UUID informed = views.stream().filter(v -> "INFORMED".equals(v.status())).findFirst().orElseThrow().id();
+            assertThat(count("select count(*) from payment.payment where id = ? and review_reason = 'CREDITOR_CUMULATIVE'",
+                    informed)).isEqualTo(1);
+
+            // cruzando devedores e tokens (A→5, B→6, A→6, B→5): todos terminam, sem deadlock
+            CountDownLatch cross = new CountDownLatch(1);
+            List<Future<PaymentView>> crossed = new ArrayList<>();
+            int[][] pairs = {{0, 5}, {1, 6}, {0, 6}, {1, 5}};
+            for (int[] pair : pairs) {
+                UUID token = pair[0] == 0 ? tokenA : tokenB;
+                int debtorIndex = pair[1];
+                String amount = "1" + pair[0] + ".00";
+                crossed.add(pool.submit(() -> {
+                    cross.await();
+                    return asIntegration(token, () -> payments.registerExternal(toDebtor.apply(debtorIndex, amount),
+                            pdf(), null));
+                }));
+            }
+            cross.countDown();
+            for (Future<PaymentView> r : crossed) {
+                assertThat(r.get(30, TimeUnit.SECONDS).status()).isIn("CONFIRMED", "INFORMED");
+            }
         } finally {
             pool.shutdownNow();
         }

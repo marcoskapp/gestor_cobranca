@@ -6,8 +6,13 @@ import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.TitleRec
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases.PaymentView;
 import br.com.gestorcobranca.publicapi.application.port.in.IntegrationTokenUseCases;
+import br.com.gestorcobranca.publicapi.application.port.in.PlatformTokenControlUseCases;
 import br.com.gestorcobranca.publicapi.application.port.in.IssueIntegrationToken.IssuedToken;
+import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Ids;
+import br.com.gestorcobranca.shared.security.Actor;
+import br.com.gestorcobranca.shared.security.CreditorScope;
+import br.com.gestorcobranca.shared.security.Permission;
 import br.com.gestorcobranca.support.TestPdfs;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +29,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Pagamento recebido diretamente pelo credor informado pela integração do credor (H07, decisões 1466 e 1515–1518),
@@ -45,6 +52,8 @@ class PublicApiPaymentsIT extends PublicApiTestSupport {
     PaymentUseCases payments;
     @Autowired
     IntegrationTokenUseCases tokens;
+    @Autowired
+    PlatformTokenControlUseCases platformControl;
 
     @Test
     void creditorIntegrationRegistersWithPaymentsWriteOnlyAndTheCreditorTotalSumsAllTokens() throws Exception {
@@ -93,6 +102,58 @@ class PublicApiPaymentsIT extends PublicApiTestSupport {
         assertThat(asManager(() -> payments.get(ids.get(1))).integration().tokenRevoked()).isTrue();
         assertThat(system(() -> jdbc.queryForObject(
                 "select count(*) from payment.payment where informed_channel = 'INTEGRATION'", Long.class))).isEqualTo(5);
+    }
+
+    /**
+     * SEG-04 (decisão 1631): token revogado pela assessoria ou pausado pela plataforma, de verdade no publicapi, também
+     * exige a confirmação explícita para aprovar; a auditoria grava o estado do token no momento da decisão.
+     */
+    @Test
+    void revokedOrPausedTokenNeedsExplicitConfirmationToApprove() throws Exception {
+        UUID titleRevoked = titleOfNewDebtor(11);
+        UUID titlePaused = titleOfNewDebtor(12);
+        IssuedToken toRevoke = issue(creditorA, Set.of("payments:write"), null, List.of());
+        IssuedToken toPause = issue(creditorA, Set.of("payments:write"), null, List.of());
+        // acima do limite por pagamento (R$ 500,00): fica em revisão
+        HttpResponse<String> r1 = register(toRevoke, titleRevoked, "600.00", "SEG04-R");
+        HttpResponse<String> r2 = register(toPause, titlePaused, "600.00", "SEG04-P");
+        assertThat(r1.statusCode()).as(r1.body()).isEqualTo(201);
+        assertThat(r2.statusCode()).as(r2.body()).isEqualTo(201);
+        UUID revokedPayment = UUID.fromString((String) body(r1).get("id"));
+        UUID pausedPayment = UUID.fromString((String) body(r2).get("id"));
+        assertThat(body(r1).get("status")).isEqualTo("INFORMED");
+        assertThat(body(r2).get("status")).isEqualTo("INFORMED");
+        assertThat(asManager(() -> payments.get(pausedPayment)).integration().tokenState()).isEqualTo("ACTIVE");
+
+        asManager(() -> tokens.revoke(toRevoke.details().id(), "Teste de revogação"));
+        UUID platformTenant = tenantExecution.callInTenant(Ids.newId(), "test.setup",
+                () -> tenantAdministration.ensurePlatformTenant("11.444.777/0001-61").tenant().id());
+        tenantExecution.callAs(new Actor(Actor.ActorType.USER, Ids.newId(), platformTenant, Ids.newId(), "plataforma",
+                EnumSet.of(Permission.TENANT_MANAGE, Permission.PLATFORM_API_TOKENS_MANAGE), CreditorScope.ALL),
+                () -> platformControl.pause(tenant, toPause.details().id(), "tráfego anômalo de madrugada", null));
+
+        PaymentView revokedView = asManager(() -> payments.get(revokedPayment));
+        assertThat(revokedView.integration().tokenState()).isEqualTo("REVOKED");
+        assertThat(revokedView.integration().tokenRevoked()).isTrue();
+        PaymentView pausedView = asManager(() -> payments.get(pausedPayment));
+        assertThat(pausedView.integration().tokenState()).isEqualTo("PAUSED");
+        assertThat(pausedView.integration().tokenRevoked()).isFalse();
+
+        for (UUID paymentId : List.of(revokedPayment, pausedPayment)) {
+            assertThatThrownBy(() -> asManager(() -> payments.approve(paymentId, "Conferido", false)))
+                    .isInstanceOf(ConflictException.class)
+                    .hasFieldOrPropertyWithValue("code", "payment.integration_token_inactive");
+            assertThat(asManager(() -> payments.get(paymentId)).status()).isEqualTo("INFORMED");
+            assertThat(asManager(() -> payments.approve(paymentId, "Conferido com o credor", true)).status())
+                    .isEqualTo("CONFIRMED");
+        }
+        assertThat(system(() -> jdbc.queryForObject("""
+                select string_agg(metadata ->> 'tokenState', ',' order by metadata ->> 'tokenState')
+                  from shared.audit_event
+                 where action = 'payment.approved' and entity_id in (?, ?)
+                   and metadata ->> 'tokenRevokedAtDecision' = 'true'
+                   and metadata ->> 'inactiveTokenConfirmed' = 'true'""", String.class, revokedPayment, pausedPayment)))
+                .isEqualTo("PAUSED,REVOKED");
     }
 
     private UUID titleOfNewDebtor(int seed) {

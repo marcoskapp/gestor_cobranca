@@ -10,6 +10,7 @@ import { Permission } from '../../core/auth/permission';
  */
 export const PAYMENT_PERMISSIONS = {
   payments: [Permission.PAYMENT_VIEW],
+  creditorReported: [Permission.PAYMENT_VIEW],
   instructions: [Permission.PAYMENT_VIEW],
   review: [Permission.PAYMENT_REVIEW],
   reallocation: [Permission.RECONCILIATION_MANAGE],
@@ -27,6 +28,22 @@ export const PAYMENT_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: PAYMENT_PERMISSIONS.payments },
     loadComponent: () => import('./payments/payment-list').then((m) => m.PaymentList),
+  },
+  {
+    // baixas informadas pelo credor (H07): pagamentos pela integração/portal/operador e o que a carga zerou ou suspendeu
+    path: 'baixas-do-credor',
+    title: 'Baixas informadas pelo credor',
+    canActivate: [permissionGuard],
+    data: { permissions: PAYMENT_PERMISSIONS.creditorReported },
+    loadComponent: () => import('./creditor-reported/creditor-reported-page').then((m) => m.CreditorReportedPage),
+  },
+  {
+    // link do razão do título: a referência do lançamento é a alocação; resolve o pagamento e troca a URL
+    path: 'alocacao/:allocationId',
+    title: 'Pagamento',
+    canActivate: [permissionGuard],
+    data: { permissions: PAYMENT_PERMISSIONS.payments },
+    loadComponent: () => import('./payments/payment-by-allocation').then((m) => m.PaymentByAllocation),
   },
   {
     path: 'instrucoes',

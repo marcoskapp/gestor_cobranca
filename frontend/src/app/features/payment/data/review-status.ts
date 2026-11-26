@@ -5,6 +5,9 @@ import { API_V1 } from '../../../core/config/api';
 import { silentErrorContext } from '../../../core/http/http-context';
 import { Amount } from './payment.models';
 
+/** Canal de quem informou o pagamento (`ReviewItem.channel`). */
+export type ReviewChannel = 'INTEGRATION' | 'CREDITOR_PORTAL' | 'OPERATOR';
+
 /** `PaymentReviewStatusUseCases.ReviewItem`: externo aguardando aprovação ou recusado (sem evidência nem observação). */
 export interface ReviewItem {
   paymentId: string;
@@ -14,6 +17,8 @@ export interface ReviewItem {
   method: string | null;
   informedBy: string | null;
   informedAt: string | null;
+  /** Canal do informe (UX-03): integração do credor (token), pessoa do credor no portal ou usuário da assessoria. */
+  channel?: ReviewChannel | null;
   targetKind: 'AGREEMENT' | 'TITLES' | null;
   agreementId: string | null;
   /** Parcelas (acordo) ou títulos indicados por quem informou; vazio no acordo = em aberto, por número. */

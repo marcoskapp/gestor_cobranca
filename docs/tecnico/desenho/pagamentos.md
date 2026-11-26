@@ -88,7 +88,21 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
   parcelas e dos títulos cobertos por acordo na alocação (`negotiation :: allocation`) dispensa `AGREEMENT_VIEW` para o
   token de integração com `PAYMENT_REGISTER_EXTERNAL` (pessoa da assessoria continua precisando dela) — antes o token
   sem `agreements:read` tinha o registro recusado. Os pagamentos antigos da
-  integração foram marcados pela auditoria do registro (ator `INTEGRATION`).
+  integração foram marcados pela auditoria do registro (ator `INTEGRATION`). Todas as travas do registro exigem a
+  transação do chamador (`@Transactional(propagation = MANDATORY)` em `PostgresExternalPaymentLocks`, RS-101); teste de
+  concorrência com dois tokens do mesmo credor: `PaymentExternalIT#twoTokensOfTheSameCreditorCannotBothEscapeTheCreditorCeiling`. As travas são pegas antes de ler o destino (decisão 1599).
+- **Aprovação de pagamento da integração com token inativo** (H07 parte 2b; decisão do responsável de 26/11/2026):
+  na aprovação, o estado do token é reconsultado pela porta `IntegrationTokenLabels` (RS-100; `TokenLabel.state` pela
+  `IntegrationToken#stateAt`). Revogado, pausado pela plataforma, expirado (decisão 1631) ou não encontrado (rótulo
+  ausente — apagado ou de outra assessoria, sem distinguir) exige `confirmInactiveToken: true` no
+  `POST /payments/{id}/approve`; sem ele, 409 `payment.integration_token_inactive` e nada muda. A auditoria
+  `payment.approved` grava `channel`, `tokenState` (`ACTIVE`, `PAUSED`, `REVOKED`, `EXPIRED` ou `NOT_FOUND`),
+  `tokenRevokedAtDecision` (verdadeiro em todo estado diferente de `ACTIVE`) e `inactiveTokenConfirmed`. O detalhe do
+  pagamento traz `integration.tokenState`. Recusar não exige
+  confirmação. A tela de aprovação e o detalhe mostram o aviso com "Abrir token" (`PUBLIC_API_TOKEN_VIEW`). Teste:
+  `CreditorReportedIsolationIT#inactiveTokenNeedsExplicitConfirmationAndReviewStatusShowsOnlyTheChannel` (token não
+  encontrado) e `PublicApiPaymentsIT#revokedOrPausedTokenNeedsExplicitConfirmationToApprove` (token real revogado e
+  pausado).
 - **Pago ao credor** (H07, decisões 1521–1526): o pagamento externo com origem `CREDITOR_DIRECT` ou `CREDITOR_REPORT`
   (`ExternalOrigin.receivedByCreditor()`, a mesma regra do `ReceivedBy` da prestação de contas), quem quer que o
   informe, publica `PaymentConfirmed.receivedBy = CREDITOR` e lança no razão do título avulso com
@@ -110,10 +124,43 @@ A notificação **nunca** é prova de pagamento: o `PixSyncJob` consulta `GET /p
   "Aprovar e abrir a próxima"/"Recusar e abrir a próxima" e volta à fila com os filtros; a ficha completa continua em
   `/pagamentos/:id`. Teste: `PaymentExternalIT.evidenceDualControlTitlesLedgerLeftoverRefundAndManualReversal`.
 
+### 5.0 Baixas informadas pelo credor (H07 parte 2b; decisões 1574–1590)
+
+Tela `/pagamentos/baixas-do-credor` (menu Pagamentos, `PAYMENT_VIEW`), em duas abas com o estado na URL; somente
+leitura, sem exportação. Ator `CREDITOR` e `INTEGRATION` recusados nos dois endpoints (`denyActorType`, 403).
+
+- **Pagamentos informados pelo credor** (`CreditorReportedPaymentsUseCases`, `GET /payment/creditor-reported`): pagamentos
+  externos com origem `CREDITOR_DIRECT` ou `CREDITOR_REPORT`, qualquer canal (`INTEGRATION`, `CREDITOR_PORTAL` ou
+  `OPERATOR` — sem canal gravado). Filtros: período do pagamento (obrigatório, até 366 dias), credor
+  (`requireVisible("creditor")` — mesma recusa das outras leituras), canal, token (só com `PUBLIC_API_TOKEN_VIEW`; sem a
+  permissão o filtro é ignorado — decisão 1633), faixa de valor e situação; `size` ≤ 100;
+  `sort` `paidAt`/`amount`. Leitura `JdbcCreditorReportedPaymentsReader` com o escopo `creditor_id in (:creditors)` na SQL,
+  igual para linhas e totais (quantidade, total e total confirmado); índice `ix_payment_creditor_received` (`V0814`).
+- **Minimização no servidor**: nome do devedor só com `DEBTOR_VIEW` (anonimizado = "Titular anonimizado"); títulos só com
+  `DEBTOR_VIEW` ou `CASE_VIEW` (a quantidade sempre); acordo só com `AGREEMENT_VIEW`; token (nome, prefixo, revogado,
+  encontrado, `state`) só com `PUBLIC_API_TOKEN_VIEW`, e o rótulo só dos tokens das linhas da página. Nunca documento,
+  referência informada, observação, nota nem nome do comprovante; sem filtro por nome ou documento.
+- **"Comprovante sem verificação de vírus"** (`evidenceUnverified`, calculado no servidor; decisão 1575): há comprovante
+  guardado e ninguém da assessoria o conferiu nem ele passou limpo pela verificação de vírus — canal integração e portal
+  com veredito diferente de `CLEAN`; o operador registra com o comprovante em mãos. Sem comprovante (titular anonimizado) → `false`. O arquivo
+  só sai por `/payments/{id}/evidence`.
+- **Pela carga do credor**: servida pelo debt (`CreditorReportedTitlesQueries`, [debt.md](debt.md) §14); o rótulo do lote vem
+  de `GET /ingestion/batches/labels` (só `IMPORT_VIEW`; teste `ImportBatchLabelsIT`). A ficha do lote de importação
+  (`/importacao/:id`) leva à aba com o lote e o período do dia do lote até hoje, para quem tem `PAYMENT_VIEW` (decisão
+  1638).
+- Nome do devedor como nas outras listas: sem `SENSITIVE_DATA_VIEWED` (é o nome de exibição, nunca o documento — decisão 1582).
+- Métrica `payment.creditor_reported.queries{tab,channel,outcome}`. Testes: `CreditorReportedIsolationIT`,
+  `ListSortingIT`.
+- **Razão do título → pagamento**: lançamento de pagamento do razão (referência = alocação) com "Ver pagamento" pela
+  rota `/pagamentos/alocacao/:allocationId`, que resolve `GET /payments/by-allocation/{id}` (resolve a pendência da
+  decisão 1526; decisão 1588).
+
 ### 5.1 Situação de revisão no acordo e no caso (decisões 430–438, 540–549)
 
 Quem negocia precisa saber que o pagamento que informou (ou que outro informou) ainda aguarda a aprovação de outra pessoa e que a parcela não baixou, ou que ele foi recusado e é preciso agir. Como o negotiation não depende do payment, o resumo é servido aqui (`PaymentReviewStatusUseCases`, `PaymentReviewStatusService`) e o frontend o compõe nas telas de negociação e cobrança.
 
+- **Canal** (H07 parte 2b, UX-03): cada item traz `channel` (`INTEGRATION`, `CREDITOR_PORTAL` ou `OPERATOR` — inclusive o
+  crédito de extrato); no canal integração `informedBy` vem nulo — nunca nome, prefixo ou id do token (RS-99).
 - **Permissão**: `AGREEMENT_VIEW` (menor privilégio; não exige `PAYMENT_VIEW`). Itens com valor, data do pagamento, meio, quem informou e quando, destino (tipo, acordo, parcelas/títulos indicados), quem recusou e quando. **Sem** evidência, observação nem referência externa. Motivo da recusa (`rejectionReason`) só para quem informou ou tem `PAYMENT_VIEW`; os demais recebem `reasonRestricted = true`.
 - **Acordo** (`GET /review-status/agreements/{id}`): lê o acordo pelo caso de uso do negotiation (permissão e escopo, 404 fora dele); pendentes do mais antigo ao mais recente, recusados recentes e `expectedCoverage` — previsão por parcela com o `AllocationPlanner` sobre o saldo atual (descontadas as alocações em trânsito e os pendentes anteriores), só com acordo em vigor. É previsão: a aprovação recalcula.
 - **Lote para listagens** (`GET /review-status/agreements?ids=`, até 200): um resumo por acordo com pendente ou recusa (contagem, total pendente, último registro, último recusado); filtro pelo escopo de credores, sem ler cada acordo (o credor do pagamento é o do acordo).
@@ -207,10 +254,10 @@ A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra 
 
 | Evento | Produtor → consumidores | Campos usados |
 | --- | --- | --- |
-| `PaymentConfirmed` | payment → negotiation (`agreementId`, `Allocation.agreementInstallmentId`, `paymentId`, `amount`, `paidAt`, `source`, `method`), collection (`agreementId` nulo, `debtorId`, `creditorId`, `portfolioId` ou `Allocation.titleId`, `amount`, `paidAt`), incentive (`agreementId`, alocações a parcelas, `portfolioId`, `paidAt`, `occurredAt`), settlement (títulos avulsos: `Allocation.titleReference`, `daysPastDue`, `honorariumAmount` — novos, 23/10/2026) | todos preenchidos; `portfolioId` = carteira do acordo ou dos títulos (nulo se títulos de carteiras diferentes); nas alocações a títulos, `titleReference` = `externalId/parcela` do título, `daysPastDue` = atraso na data do pagamento e `honorariumAmount` = parte distribuída ao componente `HONORARIUM`; `receivedBy` = `AGENCY` ou `CREDITOR` (H07, decisão 1521; nulo vale `AGENCY`) |
+| `PaymentConfirmed` | payment → negotiation (`agreementId`, `Allocation.agreementInstallmentId`, `paymentId`, `amount`, `paidAt`, `source`, `method`), collection (`agreementId` nulo, `debtorId`, `creditorId`, `portfolioId` ou `Allocation.titleId`, `amount`, `paidAt`), incentive (`agreementId`, alocações a parcelas, `portfolioId`, `paidAt`, `occurredAt`), settlement (títulos avulsos: `Allocation.titleReference`, `daysPastDue`, `honorariumAmount` — novos, 23/10/2026) | todos preenchidos; `portfolioId` = carteira do acordo ou dos títulos (nulo se títulos de carteiras diferentes); nas alocações a títulos, `titleReference` = `externalId/parcela` do título, `daysPastDue` = atraso na data do pagamento e `honorariumAmount` = parte distribuída ao componente `HONORARIUM`; `receivedBy` = `AGENCY` ou `CREDITOR` (H07, decisão 1521); nulo = não informado (evento no formato anterior): quem consome mantém a dedução que fazia antes (ADR-0004, decisão 1630) |
 | `PaymentReversed` | payment → negotiation (`agreementId`, `paymentId`, `reversalId`, `reason`), collection (`debtorId`, `paymentId`), incentive e settlement (`reversalId`, `paymentId`, `agreementId`, `amount`) | `paymentId` = alocação; `reason` = motivo (`REALLOCATED` na liberação) |
 | `PaymentInstructionStatusChanged` (24/10/2026, ADR-0009) | payment → assistant (`instructionId`, `status`, `paidAt`) | publicado em toda mudança de situação da instrução (`ACTIVE` no registro, `FAILED`, `PAID`, `EXPIRED`, `CANCELLED`) com `previous`, `type`, `creditorId`, `debtorId`, `agreementId`, `installmentId`, `amount`; nunca o "copia e cola", txid ou dados do pagador |
-| `AgreementPaymentRecorded` (**novo**) | negotiation → payment | `paymentId` (alocação), `appliedAmount`, `unappliedAmount`, `status`, `agreementStatus` |
+| `AgreementPaymentRecorded` (**novo**) | negotiation → payment, settlement | `paymentId` (alocação), `appliedAmount`, `unappliedAmount`, `status`, `agreementStatus`; `receivedBy` (H07 parte 2b: repetido do `PaymentConfirmed`, inclusive nulo = não informado; decisão 1630) para a prestação de contas |
 | consumidos | `AgreementStatusChanged`, `InstallmentStatusChanged`, `TitleStatusChanged` | cancelamento de instruções abertas |
 
 ## 10. Permissões (catálogo existente, sem migration de identity)
@@ -238,7 +285,8 @@ Escopo por credor em tudo (404 em leitura, 403 em comando). Perfis padrão: oper
 | `/payments` (filtros: credor, devedor, situação, origem, meio, período, saldo, `agreementId`) · `/payments/{id}` · `/payments/by-allocation/{id}` · `/payments/{id}/evidence` | `GET` |
 | `/review-status/agreements/{id}` · `/review-status/agreements?ids=` · `/review-status/debtors/{id}?creditorId=` | `GET` (`AGREEMENT_VIEW`) |
 | `/payments/external` (multipart `payment` + `evidence`, `Idempotency-Key`) | `POST` |
-| `/payments/review-queue` · `/payments/{id}/approve` · `/reject` | `GET` · `POST` |
+| `/payments/review-queue` · `/payments/{id}/approve` (`confirmInactiveToken`) · `/reject` | `GET` · `POST` |
+| `/creditor-reported` (período obrigatório; credor, canal, token, valor, situação) | `GET` (`PAYMENT_VIEW`) |
 | `/payments/{id}/reverse` · `/payments/pending-reallocation` · `/payments/{id}/reallocations` | `POST` · `GET` · `POST` |
 | `/reconciliation/statements` · `/{id}` · `/{id}/retry` · `/{id}/lines` · `/reconciliation/divergences` (filtros: `status`, `type`, `creditorId` no escopo, `openedFrom`/`openedTo` = dia da abertura no fuso de operação) · `/{id}` · `/{id}/resolve` | `POST`/`GET` · `GET` · `POST` · `GET` · `GET` · `GET` · `POST` |
 | `/pix-accounts` · `/{id}` · `/{id}/credentials` · `/{id}/webhook` · `/{id}/activate` · `/deactivate` | CRUD |

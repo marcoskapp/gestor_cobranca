@@ -17,9 +17,11 @@ describe('PaymentApproval (decisão da fila de pagamentos)', () => {
   let http: HttpTestingController;
   let own: boolean;
   const informed = payment({ id: 'pay-1', status: 'INFORMED', source: 'EXTERNAL', amount: 900, informedBy: 'u-2' });
+  let current = informed;
 
   beforeEach(() => {
     own = false;
+    current = informed;
     TestBed.configureTestingModule({
       imports: [PaymentApproval],
       providers: [
@@ -37,7 +39,7 @@ describe('PaymentApproval (decisão da fila de pagamentos)', () => {
 
   function reply(req: TestRequest): void {
     const url = req.request.url;
-    if (url === '/api/v1/payment/payments/pay-1') return req.flush(informed);
+    if (url === '/api/v1/payment/payments/pay-1') return req.flush(current);
     if (url === '/api/v1/payment/payments/pay-1/review-assessment') {
       return req.flush({ paymentId: 'pay-1', reason: 'AMOUNT', limit: 500, consideredAmount: 900, excess: 400, windowHours: 24, currentPerPaymentLimit: 500, ownPayment: own });
     }
@@ -87,5 +89,77 @@ describe('PaymentApproval (decisão da fila de pagamentos)', () => {
     const fixture = await render();
     expect(text(fixture)).toContain('Você informou este pagamento');
     expect(button(fixture, 'Aprovar')).toBeUndefined();
+  });
+
+  it('integração do credor com o acesso revogado: destaque e confirmação explícita para aprovar (UX-05)', async () => {
+    current = payment({
+      id: 'pay-1', status: 'INFORMED', source: 'EXTERNAL', amount: 900, informedBy: 'tok-1', externalOrigin: 'CREDITOR_DIRECT',
+      integration: { tokenId: 'tok-1', tokenName: 'ERP do Banco A', tokenPrefix: 'gc_ab12', tokenRevoked: true, tokenState: 'REVOKED' },
+    });
+    const fixture = await render();
+    const note = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="integration-token-note"]')!;
+    expect(note.classList).toContain('alert-warning');
+    expect(note.textContent).toContain('acesso revogado');
+    // sem a confirmação, aprovar não aparece; recusar continua
+    expect(button(fixture, 'Aprovar')).toBeUndefined();
+    expect(button(fixture, 'Recusar')).toBeDefined();
+    const check = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('[data-testid="integration-token-confirm"]')!;
+    check.click();
+    fixture.detectChanges();
+    vi.spyOn(TestBed.inject(ConfirmService), 'confirm').mockReturnValue(of(''));
+    button(fixture, 'Aprovar')!.click();
+    const approve = http.expectOne('/api/v1/payment/payments/pay-1/approve');
+    expect(approve.request.body).toEqual({ note: null, confirmInactiveToken: true });
+    approve.flush({ ...current, status: 'CONFIRMED' });
+    http.match(() => true).forEach((r) => r.flush({ content: [], page: 0, size: 200, totalElements: 0, totalPages: 0 }));
+  });
+
+  it('a confirmação do token inativo não passa para o próximo pagamento da fila (RC-01)', async () => {
+    const inactive = (id: string, state: 'REVOKED' | 'PAUSED') => payment({
+      id, status: 'INFORMED', source: 'EXTERNAL', amount: 900, informedBy: 'tok-' + id, externalOrigin: 'CREDITOR_DIRECT',
+      integration: { tokenId: 'tok-' + id, tokenName: 'ERP do Banco A', tokenPrefix: 'gc_ab12', tokenRevoked: state === 'REVOKED', tokenState: state },
+    });
+    current = inactive('pay-1', 'REVOKED');
+    const fixture = await render();
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLInputElement>('[data-testid="integration-token-confirm"]')!.click();
+    fixture.detectChanges();
+    vi.spyOn(TestBed.inject(ConfirmService), 'confirm').mockReturnValue(of(''));
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    button(fixture, 'Aprovar')!.click();
+    const approve = http.expectOne('/api/v1/payment/payments/pay-1/approve');
+    expect(approve.request.body).toEqual({ note: null, confirmInactiveToken: true });
+    approve.flush({ ...current, status: 'CONFIRMED' });
+    http.match(() => true).forEach((r) => r.flush({ content: [payment({ id: 'pay-2' })], page: 0, size: 200, totalElements: 1, totalPages: 1 }));
+    // a fila reaproveita o componente: só o id muda
+    const next = inactive('pay-2', 'PAUSED');
+    fixture.componentRef.setInput('id', 'pay-2');
+    for (let i = 0; i < 5; i++) {
+      fixture.detectChanges();
+      await new Promise((r) => setTimeout(r, 0));
+      http.match(() => true).forEach((r) => {
+        const url = r.request.url;
+        if (url === '/api/v1/payment/payments/pay-2') return r.flush(next);
+        if (url === '/api/v1/payment/payments/pay-2/review-assessment') {
+          return r.flush({ paymentId: 'pay-2', reason: 'AMOUNT', limit: 500, consideredAmount: 900, excess: 400, windowHours: 24, currentPerPaymentLimit: 500, ownPayment: false });
+        }
+        return reply(r);
+      });
+    }
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="integration-token-note"]')!.textContent).toContain('pausado pela plataforma');
+    expect(host.querySelector<HTMLInputElement>('[data-testid="integration-token-confirm"]')!.checked).toBe(false);
+    expect(button(fixture, 'Aprovar')).toBeUndefined();
+    expect(text(fixture)).toContain('marque no aviso da integração');
+  });
+
+  it('pagamento comum não pede a confirmação nem envia o campo', async () => {
+    const fixture = await render();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="integration-token-note"]')).toBeNull();
+    vi.spyOn(TestBed.inject(ConfirmService), 'confirm').mockReturnValue(of(''));
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    button(fixture, 'Aprovar')!.click();
+    expect(http.expectOne('/api/v1/payment/payments/pay-1/approve').request.body).toEqual({ note: null });
+    http.match(() => true).forEach((r) => r.flush({}));
   });
 });
