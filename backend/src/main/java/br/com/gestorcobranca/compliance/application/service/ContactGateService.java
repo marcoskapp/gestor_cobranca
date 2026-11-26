@@ -19,6 +19,7 @@ import br.com.gestorcobranca.compliance.domain.service.ContactRules.Decision;
 import br.com.gestorcobranca.compliance.domain.service.ContactRules.Situation;
 import br.com.gestorcobranca.debt.application.port.in.DebtorContactUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
+import br.com.gestorcobranca.debt.application.port.in.ReversalHoldUseCases;
 import br.com.gestorcobranca.organization.application.port.in.CreditorUseCases;
 import br.com.gestorcobranca.organization.application.port.in.TenantAdministration;
 import br.com.gestorcobranca.organization.application.port.in.TenantView;
@@ -75,13 +76,16 @@ class ContactGateService implements ContactGate {
     private final BusinessEventLogger businessEvents;
     private final MeterRegistry meterRegistry;
     private final Clock clock;
+    private final ReversalHoldUseCases reversalHolds;
     private final ContactRules rules = new ContactRules(TimeConfig.BUSINESS_ZONE);
 
     ContactGateService(ContactRestrictionRepository restrictions, ContactPolicyRepository policies,
                        HolidayRepository holidays, ContactAttemptRepository attempts, DebtorContactLock lock,
                        DebtorUseCases debtors, DebtorContactUseCases debtorContacts, CreditorUseCases creditors,
                        TenantAdministration tenants, AccessScope accessScope, CurrentActor currentActor,
-                       BusinessEventLogger businessEvents, MeterRegistry meterRegistry, Clock clock) {
+                       BusinessEventLogger businessEvents, MeterRegistry meterRegistry, Clock clock,
+                       ReversalHoldUseCases reversalHolds) {
+        this.reversalHolds = reversalHolds;
         this.restrictions = restrictions;
         this.policies = policies;
         this.holidays = holidays;
@@ -152,8 +156,12 @@ class ContactGateService implements ContactGate {
             contactHash = debtorContacts.fingerprint(type, request.contactValue()).hash();
         }
         Instant at = request.at() == null ? Instant.now(clock) : request.at();
+        // retenção após estorno de pagamento recebido pelo credor: só a cobrança é barrada (relida a cada decisão,
+        // inclusive no envio de mensagem agendada antes do estorno e na discagem)
+        boolean held = category == ContactCategory.COLLECTION && !anonymized
+                && reversalHolds.isHeld(request.debtorId(), request.creditorId());
         return new Prepared(request.debtorId(), request.creditorId(), channel, origin, contactHash, at, anonymized,
-                category);
+                category, held);
     }
 
     private Decision decide(Prepared p) {
@@ -175,7 +183,7 @@ class ContactGateService implements ContactGate {
 
         return rules.evaluate(new Situation(p.debtorId(), p.creditorId(), p.channel(), p.contactHash(), p.at(),
                 p.anonymized(), restrictions.findActiveForGate(p.debtorId(), p.contactHash()), rule.orElse(null),
-                window, holidayDates, previous, p.category()));
+                window, holidayDates, previous, p.category(), p.reversalHeld()));
     }
 
     private ContactWindow tenantWindow() {
@@ -198,6 +206,7 @@ class ContactGateService implements ContactGate {
     }
 
     private record Prepared(UUID debtorId, UUID creditorId, ContactChannel channel, AttemptOrigin origin,
-                            String contactHash, Instant at, boolean anonymized, ContactCategory category) {
+                            String contactHash, Instant at, boolean anonymized, ContactCategory category,
+                            boolean reversalHeld) {
     }
 }

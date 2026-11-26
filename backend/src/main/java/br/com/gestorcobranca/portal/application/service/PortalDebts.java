@@ -4,6 +4,7 @@ import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases.DebtorView;
+import br.com.gestorcobranca.debt.application.port.in.ReversalHoldUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.ActiveAgreementRef;
 import br.com.gestorcobranca.portal.domain.model.PortalConfiguration;
@@ -34,8 +35,11 @@ class PortalDebts {
     private final DebtorUseCases debtors;
     private final DebtTitleUseCases titles;
     private final AgreementUseCases agreements;
+    private final ReversalHoldUseCases reversalHolds;
 
-    PortalDebts(DebtorUseCases debtors, DebtTitleUseCases titles, AgreementUseCases agreements) {
+    PortalDebts(DebtorUseCases debtors, DebtTitleUseCases titles, AgreementUseCases agreements,
+                ReversalHoldUseCases reversalHolds) {
+        this.reversalHolds = reversalHolds;
         this.debtors = debtors;
         this.titles = titles;
         this.agreements = agreements;
@@ -83,11 +87,16 @@ class PortalDebts {
                 .toList();
     }
 
-    /** Títulos em aberto do devedor nas carteiras habilitadas, por carteira e vencimento. */
+    /**
+     * Títulos em aberto do devedor nas carteiras habilitadas, por carteira e vencimento. Título com estorno de pagamento
+     * recebido pelo credor em conferência não aparece para pagar nem negociar até a liberação (H07 parte 3, decisão
+     * do responsável 4).
+     */
     List<TitleView> titlesInPortal(PortalConfiguration config, UUID debtorId) {
+        Set<UUID> held = reversalHolds.heldTitleIds(config.getCreditorId(), debtorId);
         return titles.listByDebtor(debtorId).stream()
                 .filter(t -> t.creditorId().equals(config.getCreditorId()) && config.coversPortfolio(t.portfolioId())
-                        && IN_PORTAL.contains(t.status()))
+                        && IN_PORTAL.contains(t.status()) && !held.contains(t.id()))
                 .sorted(Comparator.comparing(TitleView::portfolioId).thenComparing(TitleView::dueDate))
                 .toList();
     }

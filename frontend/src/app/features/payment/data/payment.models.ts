@@ -434,7 +434,7 @@ export interface PaymentSettingsRequest {
 export interface ReviewAssessmentView {
   paymentId: string;
   /** Nulo em pagamento registrado antes de o motivo ser gravado (compara com o limite atual por pagamento). */
-  reason: 'AMOUNT' | 'DESTINATION_CUMULATIVE' | 'INFORMER_CUMULATIVE' | 'CREDITOR_CUMULATIVE' | 'STATEMENT_LINE' | 'CREDITOR_PORTAL' | null;
+  reason: 'AMOUNT' | 'DESTINATION_CUMULATIVE' | 'INFORMER_CUMULATIVE' | 'CREDITOR_CUMULATIVE' | 'RECENT_CREDITOR_REVERSAL' | 'STATEMENT_LINE' | 'CREDITOR_PORTAL' | null;
   limit: number | null;
   consideredAmount: number | null;
   excess: number | null;

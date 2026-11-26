@@ -3,6 +3,7 @@ package br.com.gestorcobranca.payment.application.service;
 import br.com.gestorcobranca.shared.paging.ChangePage;
 import br.com.gestorcobranca.shared.paging.ChangeQuery;
 
+import br.com.gestorcobranca.debt.application.port.in.DebtorCreditorLinkQueries;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementBreakSuspensionUseCases;
 import br.com.gestorcobranca.payment.application.PaymentProperties;
 import br.com.gestorcobranca.payment.application.port.in.PaymentUseCases;
@@ -101,6 +102,7 @@ class PaymentService implements PaymentUseCases {
     private final StatementLineReview statementLineReview;
     private final PaymentReferenceDigest referenceDigest;
     private final IntegrationTokenLabels tokenLabels;
+    private final DebtorCreditorLinkQueries debtorLinks;
 
     PaymentService(PaymentRepository payments, PaymentAllocationRepository allocations, PaymentReversalRepository reversals,
                    TargetResolver resolver, AllocationService allocationService, PaymentConfirmation confirmation,
@@ -109,7 +111,9 @@ class PaymentService implements PaymentUseCases {
                    AccessScope accessScope, CurrentActor currentActor, AccessLogger accessLogger, PaymentMetrics metrics,
                    JsonCodec json, Clock clock, ExternalPaymentLocks externalLocks, PaymentProperties properties,
                    AgreementBreakSuspensionUseCases breakSuspensions, StatementLineReview statementLineReview,
-                   PaymentReferenceDigest referenceDigest, IntegrationTokenLabels tokenLabels) {
+                   PaymentReferenceDigest referenceDigest, IntegrationTokenLabels tokenLabels,
+                   DebtorCreditorLinkQueries debtorLinks) {
+        this.debtorLinks = debtorLinks;
         this.referenceDigest = referenceDigest;
         this.tokenLabels = tokenLabels;
         this.payments = payments;
@@ -211,6 +215,12 @@ class PaymentService implements PaymentUseCases {
         boolean integration = currentActor.get().type() == Actor.ActorType.INTEGRATION;
         Guard.require(!integration || origin == ExternalOrigin.CREDITOR_DIRECT, "payment.integration_origin_invalid",
                 "A integração do credor só informa pagamento recebido diretamente pelo credor");
+        // ligação do devedor com o credor por consulta escalar, antes de qualquer trava (RS-124, H07b-07): devedor
+        // inexistente, de outra assessoria ou de outro credor tem a mesma recusa do destino que não pertence ao par
+        if (!debtorLinks.linked(command.creditorId(), command.debtorId())) {
+            throw new BusinessRuleException("allocation.target_mismatch",
+                    "O destino não pertence ao credor e devedor do pagamento");
+        }
         // travas antes de ler o destino: um registro simultâneo para o mesmo devedor só lê os títulos depois que o
         // anterior gravou (senão o título lido fica com versão velha no contexto e a baixa falha por concorrência)
         lockRegistration(command, integration);
@@ -219,7 +229,7 @@ class PaymentService implements PaymentUseCases {
             Payment.Evidence stored = evidenceStore.store(evidence);
             Money amount = Money.of(command.amount());
             Instant now = Instant.now(clock);
-            ExternalReviewPolicy.Decision decision = externalReview(command, amount, now, integration);
+            ExternalReviewPolicy.Decision decision = externalReview(command, origin, amount, now, integration);
             boolean reviewRequired = decision.reviewRequired();
             Payment informed = Payment.informed(method, command.creditorId(), command.debtorId(), amount,
                     command.paidAt(), origin, command.externalReference(), command.note(),
@@ -256,17 +266,21 @@ class PaymentService implements PaymentUseCases {
     }
 
     /** Decisão da revisão, já sob as travas de {@link #lockRegistration}. */
-    private ExternalReviewPolicy.Decision externalReview(ExternalPaymentCommand command, Money amount, Instant now,
-                                                         boolean integration) {
+    private ExternalReviewPolicy.Decision externalReview(ExternalPaymentCommand command, ExternalOrigin origin,
+                                                         Money amount, Instant now, boolean integration) {
         UUID informer = currentActor.actorId();
         PaymentProperties.ExternalReview config = properties.externalReview();
         Money perPayment = settings.current().externalReviewThreshold();
         Instant since = now.minus(config.window());
+        // abuso "informar pago e estornar" (RS-120): informe recebido pelo credor depois de estorno de pagamento
+        // recebido por ele, para o mesmo devedor, vai sempre à revisão durante a janela (sem baixo risco automático)
+        boolean recentReversal = origin.receivedByCreditor() && payments.existsCreditorReceivedReversedSince(
+                command.creditorId(), command.debtorId(), now.minus(config.reversalWindow()));
         return ExternalReviewPolicy.decide(amount,
                 payments.sumExternalInformedForDebtor(command.creditorId(), command.debtorId(), since),
                 payments.sumExternalInformedBy(informer, since),
                 integration ? payments.sumIntegrationInformedForCreditor(command.creditorId(), since) : null,
-                new ExternalReviewPolicy.Limits(perPayment, perPayment.times(config.destinationFactor()),
+                recentReversal, new ExternalReviewPolicy.Limits(perPayment, perPayment.times(config.destinationFactor()),
                         perPayment.times(config.informerFactor()),
                         integration ? perPayment.times(config.creditorFactor()) : null));
     }

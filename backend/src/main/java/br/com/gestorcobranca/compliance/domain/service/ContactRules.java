@@ -71,18 +71,29 @@ public final class ContactRules {
      *                          (transacional ou resposta a quem procurou) não há limites de frequência nem intervalo
      *                          mínimo; só a transacional ignora as restrições {@code CREDITOR_REQUEST} (suspensão de
      *                          cobrança pedida pelo credor). As demais restrições, a janela e os feriados valem sempre
+     * @param reversalHeld      estorno de pagamento recebido pelo credor em conferência para o par (H07 parte 3): nega a
+     *                          cobrança ({@code COLLECTION}) sem fim previsto; as demais categorias seguem as regras
      */
     public record Situation(UUID debtorId, UUID creditorId, ContactChannel channel, String contactValueHash, Instant at,
                             boolean debtorAnonymized, Collection<ContactRestriction> restrictions, ChannelRule rule,
                             ContactWindow window, Set<LocalDate> holidays, Collection<Instant> attempts,
-                            ContactCategory category) {
+                            ContactCategory category, boolean reversalHeld) {
+
+        /** Sem retenção por estorno. */
+        public Situation(UUID debtorId, UUID creditorId, ContactChannel channel, String contactValueHash, Instant at,
+                         boolean debtorAnonymized, Collection<ContactRestriction> restrictions, ChannelRule rule,
+                         ContactWindow window, Set<LocalDate> holidays, Collection<Instant> attempts,
+                         ContactCategory category) {
+            this(debtorId, creditorId, channel, contactValueHash, at, debtorAnonymized, restrictions, rule, window,
+                    holidays, attempts, category, false);
+        }
 
         /** Contato de cobrança. */
         public Situation(UUID debtorId, UUID creditorId, ContactChannel channel, String contactValueHash, Instant at,
                          boolean debtorAnonymized, Collection<ContactRestriction> restrictions, ChannelRule rule,
                          ContactWindow window, Set<LocalDate> holidays, Collection<Instant> attempts) {
             this(debtorId, creditorId, channel, contactValueHash, at, debtorAnonymized, restrictions, rule, window,
-                    holidays, attempts, ContactCategory.COLLECTION);
+                    holidays, attempts, ContactCategory.COLLECTION, false);
         }
 
         public Situation {
@@ -145,6 +156,10 @@ public final class ContactRules {
     public Decision evaluate(Situation s) {
         if (s.debtorAnonymized()) {
             return new Decision(false, List.of(DenialReason.DEBTOR_ANONYMIZED), null);
+        }
+        if (s.reversalHeld() && s.category() == ContactCategory.COLLECTION) {
+            // só uma pessoa libera: não há instante previsto em que o contato volte a ser permitido
+            return new Decision(false, List.of(DenialReason.PAYMENT_REVERSAL_HOLD), null);
         }
         Set<DenialReason> reasons = reasonsAt(s, s.at());
         if (reasons.isEmpty()) {

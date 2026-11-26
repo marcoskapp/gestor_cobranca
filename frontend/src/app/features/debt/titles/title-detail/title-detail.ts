@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, viewChild } from '@angular/core';
+import { HELD_TITLE_BADGE, HELD_TITLE_HINT, heldTitles } from '../../../payment/data/held-titles';
 import { NavigationHistory } from '../../../../core/layout/breadcrumbs/navigation-history';
 import { urlTab } from '../../../../shared/data/url-state';
 import { rxResource } from '@angular/core/rxjs-interop';
@@ -74,6 +75,11 @@ export class TitleDetail {
 
   protected readonly title = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly current = valueOr(this.title, undefined);
+  /** Aviso "Estorno em conferência" (H07 parte 3). */
+  protected readonly held = heldTitles(() => this.current()?.debtorId);
+  protected readonly heldBadge = HELD_TITLE_BADGE;
+  protected readonly heldHint = HELD_TITLE_HINT;
+  protected readonly canViewPayments = computed(() => this.auth.hasPermission(Permission.PAYMENT_VIEW));
 
   private readonly contractsApi = inject(OriginContractsApi);
   /** Contrato de origem (produto e instrumento); indisponível não impede a tela. */

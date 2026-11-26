@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -136,11 +137,15 @@ final class PublicApiModels {
                    BigDecimal openBalance, int openTitles, int suspendedTitles, int disputedTitles, long daysOverdue,
                    boolean eligible, List<String> eligibilityReasons, Instant lastInteractionAt,
                    Instant lastEffectiveContactAt, int interactionCount, long version) {
+        /** Motivos internos da assessoria que o credor não vê (H07 parte 3, RS-119: a retenção após estorno). */
+        static final Set<String> INTERNAL_REASONS = Set.of("PAYMENT_REVERSAL_HOLD");
+
         static CaseDto of(CaseView v) {
             return new CaseDto(v.id(), v.debtorId(), v.portfolioId(), v.status(), v.openedAt(), v.closedAt(),
                     v.openBalance(), v.openTitles(), v.suspendedTitles(), v.disputedTitles(), v.daysOverdue(),
-                    v.eligible(), v.eligibilityReasons(), v.lastInteractionAt(), v.lastEffectiveContactAt(),
-                    v.interactionCount(), v.version());
+                    v.eligible(), v.eligibilityReasons() == null ? null : v.eligibilityReasons().stream()
+                            .filter(r -> !INTERNAL_REASONS.contains(r)).toList(),
+                    v.lastInteractionAt(), v.lastEffectiveContactAt(), v.interactionCount(), v.version());
         }
     }
 

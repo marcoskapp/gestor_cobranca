@@ -33,10 +33,21 @@
   </div>
 </header>
 
-@if (!cs.eligible && cs.eligibilityReasons.length) {
+@if (!cs.eligible && otherReasons().length) {
   <div class="alert alert-warning d-flex gap-2 align-items-start sp-alert" role="note">
     <app-icon name="info-circle" />
-    <span>{{ cs.eligibilityReasons.map(eligibilityText).join(' · ') }}</span>
+    <span>{{ otherReasons().map(eligibilityText).join(' · ') }}</span>
+  </div>
+}
+@if (reversalHold()) {
+  <!-- estorno de pagamento recebido pelo credor em conferência (H07 parte 3) -->
+  <div class="alert alert-warning d-flex gap-2 align-items-start sp-alert" role="note" data-testid="reversal-hold-notice">
+    <app-icon name="exclamation-triangle" />
+    <span>Cobrança em conferência: um pagamento ao credor foi estornado. Não cobre este caso até o financeiro conferir com o credor e liberar.
+      @if (canViewPayments() && heldPaymentId(); as paymentId) {
+        <a [routerLink]="['/pagamentos', paymentId]">Ver pagamento</a>
+      }
+    </span>
   </div>
 }
 <!-- empresa em recuperação judicial ou falência: desde quando, processo e atalho ao jurídico (cobrança B2B §7) -->
@@ -123,6 +134,9 @@
                   <a [routerLink]="['/titulos', t.titleId]">{{ t.externalId }}{{ t.installmentNumber ? '/' + t.installmentNumber : '' }}</a>
                   @if (t.disputeBlocked) {
                     <span class="sp-flag"><app-icon name="hammer" />Contestação</span>
+                  }
+                  @if (held().has(t.titleId)) {
+                    <span class="sp-flag"><app-icon name="exclamation-triangle" />{{ heldBadge }}<span class="visually-hidden">: {{ heldHint }}</span></span>
                   }
                   @if (t.creditorPaidTotal > 0) {
                     <span class="sp-flag sp-flag--info"><app-icon name="cash-coin" />Pago ao credor<span class="visually-hidden">: pago diretamente ao credor, sem passar pela assessoria</span></span>

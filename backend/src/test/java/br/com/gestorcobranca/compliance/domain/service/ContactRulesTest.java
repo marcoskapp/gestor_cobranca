@@ -332,4 +332,51 @@ class ContactRulesTest {
         assertThat(d.allowed()).isFalse();
         assertThat(d.nextAllowedAt()).isEqualTo(ends);
     }
+
+    // ------------------------------------------------------------ H07 parte 3: retenção após estorno (RS-110)
+
+    private static Situation held(ContactCategory category, Instant at) {
+        return new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, at, false, List.of(), null, BUSINESS,
+                Set.of(), List.of(), category, true);
+    }
+
+    @Test
+    void reversalHoldDeniesCollectionInEveryChannelWithoutEnd() {
+        for (ContactChannel channel : ContactChannel.values()) {
+            Situation s = new Situation(DEBTOR, CREDITOR, channel, null, local(WEDNESDAY, 10, 0), false, List.of(), null,
+                    BUSINESS, Set.of(), List.of(), ContactCategory.COLLECTION, true);
+            Decision d = RULES.evaluate(s);
+            assertThat(d.allowed()).as(channel.name()).isFalse();
+            assertThat(d.reasons()).containsExactly(DenialReason.PAYMENT_REVERSAL_HOLD);
+            assertThat(d.nextAllowedAt()).as("só uma pessoa libera: sem fim previsto").isNull();
+        }
+    }
+
+    @Test
+    void reversalHoldMatrixByCategory() {
+        Instant open = local(WEDNESDAY, 10, 0);
+        assertThat(RULES.evaluate(held(ContactCategory.COLLECTION, open)).allowed()).isFalse();
+        assertThat(RULES.evaluate(held(ContactCategory.TRANSACTIONAL, open)).allowed()).isTrue();
+        assertThat(RULES.evaluate(held(ContactCategory.RESPONSE, open)).allowed()).isTrue();
+        assertThat(RULES.evaluate(held(ContactCategory.AUTHENTICATION, open)).allowed()).isTrue();
+        // fora da janela: a autenticação continua (dispensa janela); a transacional segue a janela, não a retenção
+        Instant night = local(WEDNESDAY, 23, 0);
+        assertThat(RULES.evaluate(held(ContactCategory.AUTHENTICATION, night)).allowed()).isTrue();
+        assertThat(RULES.evaluate(held(ContactCategory.TRANSACTIONAL, night)).reasons())
+                .containsExactly(DenialReason.OUTSIDE_WINDOW);
+    }
+
+    @Test
+    void withoutHoldCollectionFollowsTheUsualRules() {
+        Situation s = new Situation(DEBTOR, CREDITOR, ContactChannel.WHATSAPP, null, local(WEDNESDAY, 10, 0), false,
+                List.of(), null, BUSINESS, Set.of(), List.of(), ContactCategory.COLLECTION, false);
+        assertThat(RULES.evaluate(s).allowed()).isTrue();
+    }
+
+    @Test
+    void anonymizationPrevailsOverReversalHold() {
+        Situation s = new Situation(DEBTOR, CREDITOR, ContactChannel.EMAIL, null, local(WEDNESDAY, 10, 0), true,
+                List.of(), null, BUSINESS, Set.of(), List.of(), ContactCategory.COLLECTION, true);
+        assertThat(RULES.evaluate(s).reasons()).containsExactly(DenialReason.DEBTOR_ANONYMIZED);
+    }
 }

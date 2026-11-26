@@ -341,6 +341,18 @@ Ids, enums e valores apenas — nunca documento, nome, observação, descrição
 
 Auditoria (H07 parte 2b): `payment.approved` na decisão de aprovação, antes do `payment.confirmed` (`decision`, `channel` e, no canal `INTEGRATION`, `tokenState` — `ACTIVE`, `PAUSED`, `REVOKED`, `EXPIRED` ou `NOT_FOUND`, estado do token reconsultado no momento —, `tokenRevokedAtDecision` (verdadeiro em todo estado diferente de `ACTIVE`; decisão 1631) e `inactiveTokenConfirmed`, a confirmação explícita de quem aprovou); nunca o nome nem o prefixo do token. A lista "Baixas informadas pelo credor" é somente leitura: sem evento de negócio nem auditoria (como as demais listas), só a métrica `payment.creditor_reported.queries`/`debt.creditor_reported.queries` (§5).
 
+### 3.7a Retenção da cobrança após estorno (debt, H07 parte 3)
+
+| Evento | Atributos (sem dado pessoal) |
+| --- | --- |
+| `reversal_hold.placed` | credor, devedor (id), referência `reversal_hold`, `reversalReason`, `placedByType` (`USER`/`SYSTEM`), `titles`, `withAgreement` |
+| `reversal_hold.released` | credor, devedor (id), referência, `releaseReason`, `ageHours`, `reversalReason` (nunca a justificativa) |
+| `reversal_hold.ended` | credor, referência, `reason` (`DEBTOR_ANONYMIZED`) |
+
+Auditoria: `reversal_hold.placed`, `reversal_hold.released` (estado anterior/novo, pagamento, estorno, tamanho da
+justificativa) e `reversal_hold.ended`. Porteiro: o motivo `PAYMENT_REVERSAL_HOLD` entra em `contact.denied` e em
+`compliance.contact_gate.denials`.
+
 ### 3.7 Atributos dos eventos da telefonia
 
 Referência `call` (ou `dialer_campaign`/`telephony_agent`), canal `PHONE`, `creditorId`, `portfolioId`, `debtorId` e
@@ -943,6 +955,20 @@ fields @timestamp, tenantId, callId, instance, process
 | `sandbox.seed.step{step}`, `sandbox.seed.duration{outcome}` | somente no sandbox de demonstração: duração de cada etapa da carga de dados fictícios e da carga inteira (`completed`/`failed`); avisos e falha também em `/actuator/health/readiness` (`sandboxSeed`) e no log técnico (`docs/tecnico/operacao/sandbox.md`) |
 | `ui.onboarding.tours{outcome}` | adoção do onboarding (tours concluídos × dispensados); o id do tour fica só no log técnico `ui.onboarding.tour_recorded` |
 | `errors.unexpected{type}`, `errors.optimistic_lock`, `errors.data_integrity` | qualidade |
+
+### 5.x Retenção da cobrança após estorno (H07 parte 3)
+
+| Métrica | Tipo | Tags | Uso |
+| --- | --- | --- | --- |
+| `debt.reversal_hold.operations` | contador | `operation` (place, release, end), `outcome` (placed, skipped_anonymized, released, ended; recusas da liberação: refused_self — quem estornou ou informou, refused_state — já liberada ou encerrada, refused_version — mudou desde a leitura, refused_reason — motivo ausente ou inválido, refused_note — justificativa ausente ou longa, refused_confirmation — sem a confirmação, refused_other) | volume e recusas da liberação |
+| `debt.reversal_hold.release_age` | timer | — | idade da retenção ao ser liberada |
+| `payment.reversal_hold.placements` | contador | `outcome` (placed, skipped) | estornos de pagamento recebido pelo credor |
+| `payment.reversal_hold.requests` | contador | `operation` (list, release), `outcome` (ok, empty) | uso da aba |
+| `collection.eligibility.unknown_reason` | contador | — | valor desconhecido de motivo/canal lido no caso (troca de instâncias), registrado pelo `CaseRecorder` |
+
+Pendência vencida: o item `debt.reversal_holds` de "Minhas pendências" conta como vencida a retenção com mais de
+`app.debt.reversal-hold.overdue-after` (padrão 5 dias), exportada pelas métricas de envelhecimento do pendingwork
+(§3.11); sem alarme novo na AWS (dependeria de aprovação).
 
 ## 6. Alarmes com procedimento de resposta
 

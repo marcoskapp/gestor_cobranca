@@ -120,6 +120,19 @@ class PaymentMetrics {
         registry.counter("payment.ledger.postings", "operation", operation, "outcome", outcome).increment();
     }
 
+    /**
+     * Estorno de pagamento recebido pelo credor (H07 parte 3): retenção criada ({@code placed}) ou não (titular
+     * eliminado, {@code skipped}).
+     */
+    void reversalHold(String outcome) {
+        registry.counter("payment.reversal_hold.placements", "outcome", outcome).increment();
+    }
+
+    /** Aba "Estornos em conferência": consulta e liberação ({@code operation} list|release; outcome ok|empty). */
+    void reversalHoldQuery(String operation, String outcome) {
+        registry.counter("payment.reversal_hold.requests", "operation", operation, "outcome", outcome).increment();
+    }
+
     void jobFailure(String job) {
         registry.counter("payment.jobs.failures", "job", job).increment();
     }

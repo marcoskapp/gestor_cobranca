@@ -22,6 +22,8 @@ import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
 import br.com.gestorcobranca.shared.security.CurrentActor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
@@ -77,6 +79,17 @@ class CaseRecorder {
     /** Estado relevante do caso antes de uma alteração. */
     record Snapshot(CaseStatus status, boolean eligible, Set<EligibilityReason> reasons, OwnerType ownerType,
                     UUID userId, UUID teamId, UUID queueId, Money assignableBalance) {
+    }
+
+    private static final Logger UNKNOWN_LOG = LoggerFactory.getLogger(CaseRecorder.class);
+
+    /** Valor de elegibilidade gravado que esta versão não conhece (troca de instâncias; AQ-03): log técnico + métrica. */
+    void unknownEligibilityValues(CollectionCase c) {
+        for (String value : c.unknownEligibilityValues()) {
+            UNKNOWN_LOG.atWarn().addKeyValue("caseId", c.getId())
+                    .addKeyValue("value", value).log("Valor desconhecido na elegibilidade do caso; ignorado");
+            metrics.unknownEligibilityValue();
+        }
     }
 
     static Snapshot snapshot(CollectionCase c) {

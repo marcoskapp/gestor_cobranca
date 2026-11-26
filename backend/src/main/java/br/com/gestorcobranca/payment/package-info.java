@@ -19,7 +19,7 @@
  * {@code AgreementBreakSuspensionUseCases#reconcile} na mesma transação.
  */
 @ApplicationModule(displayName = "Payment",
-        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "negotiation :: usecases",
+        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "debt :: reversal-hold", "negotiation :: usecases",
                 "negotiation :: spi", "negotiation :: allocation"})
 package br.com.gestorcobranca.payment;
 

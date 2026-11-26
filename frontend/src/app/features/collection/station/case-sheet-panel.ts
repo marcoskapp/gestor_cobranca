@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, input, model, output, signal } from '@angular/core';
+import { HELD_TITLE_BADGE, HELD_TITLE_HINT, heldTitles } from '../../payment/data/held-titles';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
 import { NgbDropdownModule, NgbNavModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
@@ -196,6 +197,15 @@ export class CaseSheetPanel {
   protected readonly userId = computed(() => this.auth.user()?.id ?? null);
 
   protected readonly c = computed(() => this.sheet().collectionCase);
+  /** Selo "Estorno em conferência" nos títulos e aviso no caso (H07 parte 3). */
+  protected readonly held = heldTitles(() => this.c().debtorId);
+  protected readonly heldBadge = HELD_TITLE_BADGE;
+  protected readonly heldHint = HELD_TITLE_HINT;
+  protected readonly reversalHold = computed(() => this.c().eligibilityReasons.includes('PAYMENT_REVERSAL_HOLD'));
+  /** Motivos de inelegibilidade além da retenção (ela tem o aviso próprio, sem repetir; UX-03). */
+  protected readonly otherReasons = computed(() => this.c().eligibilityReasons.filter((r) => r !== 'PAYMENT_REVERSAL_HOLD'));
+  protected readonly canViewPayments = computed(() => this.auth.hasPermission(Permission.PAYMENT_VIEW));
+  protected readonly heldPaymentId = computed(() => [...this.held().values()].find((h) => h.paymentId)?.paymentId ?? null);
   protected readonly debtor = computed(() => this.sheet().debtor);
   protected readonly active = computed(() => this.debtor().status === 'ACTIVE');
   private readonly caseId = computed(() => this.c().id);

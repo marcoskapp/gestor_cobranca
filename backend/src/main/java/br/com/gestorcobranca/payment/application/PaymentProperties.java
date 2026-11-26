@@ -34,7 +34,7 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
         statement = statement == null ? new Statement(null, null, null) : statement;
         expirationCheckInterval = expirationCheckInterval == null ? Duration.ofMinutes(15) : expirationCheckInterval;
         sandbox = sandbox == null ? new Sandbox(false) : sandbox;
-        externalReview = externalReview == null ? new ExternalReview(null, null, null, null) : externalReview;
+        externalReview = externalReview == null ? new ExternalReview(null, null, null, null, null) : externalReview;
         reviewStatus = reviewStatus == null ? new ReviewStatus(null, null) : reviewStatus;
     }
 
@@ -72,11 +72,17 @@ public record PaymentProperties(Defaults defaults, Webhook webhook, Pix pix, Evi
      * @param informerFactor    múltiplo do limite por pagamento para a soma por usuário que informa (padrão 4)
      * @param creditorFactor    múltiplo do limite por pagamento para a soma da integração de um credor, todos os
      *                          tokens juntos (padrão 4, igual ao de quem informa; H07)
+     * @param reversalWindow    depois do estorno de pagamento recebido pelo credor, os informes do mesmo credor para o
+     *                          mesmo devedor vão sempre à revisão por este período (padrão 90 dias; H07 parte 3, RS-120)
      */
     public record ExternalReview(Duration window, BigDecimal destinationFactor, BigDecimal informerFactor,
-                                 BigDecimal creditorFactor) {
+                                 BigDecimal creditorFactor, Duration reversalWindow) {
 
         public ExternalReview {
+            reversalWindow = reversalWindow == null ? Duration.ofDays(90) : reversalWindow;
+            if (reversalWindow.isNegative() || reversalWindow.isZero()) {
+                throw new IllegalArgumentException("app.payment.external-review.reversal-window deve ser positiva");
+            }
             window = window == null ? Duration.ofHours(24) : window;
             destinationFactor = destinationFactor == null ? BigDecimal.ONE : destinationFactor;
             informerFactor = informerFactor == null ? new BigDecimal("4") : informerFactor;

@@ -52,6 +52,13 @@ class AgreementAllocationService implements AgreementAllocationQueries {
     }
 
     @Override
+    public List<UUID> titleIdsForReversalHold(UUID agreementId) {
+        Agreement a = agreements.findById(agreementId).orElseThrow(() -> new ResourceNotFoundException(RESOURCE, agreementId));
+        accessScope.requireVisible(RESOURCE, agreementId, a.getCreditorId());
+        return List.copyOf(a.titleIds());
+    }
+
+    @Override
     public List<AllocationAgreement> active(UUID creditorId, UUID debtorId) {
         requireReader();
         Guard.require(creditorId != null && debtorId != null, "agreement.creditor_required", "Credor e devedor obrigatórios");

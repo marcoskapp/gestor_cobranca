@@ -96,6 +96,7 @@ export const DENIAL_REASON_LABELS: Record<string, string> = {
   WEEKLY_LIMIT: 'o limite de contatos da semana já foi atingido',
   MIN_INTERVAL: 'o intervalo mínimo desde o último contato ainda não passou',
   DEBTOR_ANONYMIZED: 'os dados do devedor foram anonimizados',
+  PAYMENT_REVERSAL_HOLD: 'um pagamento ao credor foi estornado e a cobrança aguarda a conferência do financeiro',
 };
 
 /** Falhas de envio além do porteiro (`Message.failureCode`). */

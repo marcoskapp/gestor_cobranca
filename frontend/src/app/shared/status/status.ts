@@ -16,6 +16,7 @@ export interface StatusDescriptor {
 
 export type StatusDomain =
   | 'user'
+  | 'reversalHold'
   | 'creditor'
   | 'creditorPortalUser'
   | 'creditorStatement'
@@ -559,6 +560,12 @@ const STATUS: Record<StatusDomain, Record<string, StatusDescriptor>> = {
     RECONCILED: { label: 'Conciliado', tone: 'success' },
     REJECTED: { label: 'Recusado', tone: 'neutral' },
     REVERSED: { label: 'Estornado', tone: 'danger' },
+  },
+  /** Retenção da cobrança após estorno de pagamento ao credor (`ReversalHoldState`, H07 parte 3). */
+  reversalHold: {
+    PENDING: { label: 'Aguardando conferência', tone: 'warning' },
+    RELEASED: { label: 'Cobrança liberada', tone: 'success' },
+    ENDED: { label: 'Encerrada (titular eliminado)', tone: 'neutral' },
   },
   /** Importação de extrato (`StatementImportStatus`). */
   statementImport: {

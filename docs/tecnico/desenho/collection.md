@@ -732,3 +732,12 @@ descrições só no banco, criptografadas).
 | 15 | "Posso contatar agora?" no collection, por caso | endpoint no compliance por devedor + credor | o caso define devedor/credor no escopo do ator e traz a elegibilidade (contestação, suspensão); grafo collection → compliance |
 | 16 | Nome do devedor na agenda só com `CASE_VIEW`/`DEBTOR_VIEW`, sem documento | sempre; nunca | mesma regra da ficha; minimização |
 | 17 | Títulos da contestação lidos do debt na consulta | cópia dos dados na contestação | sem duplicar dados nem migration; escopo do ator aplicado pelo debt |
+
+## Estorno em conferência (H07 parte 3)
+
+Elegibilidade: motivo novo `PAYMENT_REVERSAL_HOLD` (relido do debt, `ReversalHoldUseCases#isHeld`, a cada avaliação;
+com ele os canais não são avaliados e o caso fica fora da fila, da régua e do portal). Colocação e liberação da
+retenção publicam `TitleStatusChanged` dos títulos retidos e o `CaseSynchronizer` reavalia. `CollectionCase` ignora
+valor desconhecido de motivo/canal (log + `collection.eligibility.unknown_reason`, AQ-03). Promessa: o estorno de
+pagamento ao credor não cumpre nem quebra promessa por si (a cobrança fica parada até a liberação). Ver
+[debt.md](debt.md) §15 e decisões 1644–1670.

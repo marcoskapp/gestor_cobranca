@@ -113,6 +113,12 @@ class TargetResolver {
                 installments);
     }
 
+    /** Títulos do acordo (retenção após estorno de pagamento recebido pelo credor ao acordo; H07 parte 3). */
+    List<UUID> agreementTitleIds(UUID agreementId) {
+        List<UUID> ids = agreements.titleIdsForReversalHold(agreementId);
+        return ids == null ? List.of() : ids;
+    }
+
     /** Títulos na ordem informada (sem repetição), com a posição atual. */
     List<TitleInfo> titles(List<UUID> titleIds) {
         Set<UUID> ids = new LinkedHashSet<>(titleIds);

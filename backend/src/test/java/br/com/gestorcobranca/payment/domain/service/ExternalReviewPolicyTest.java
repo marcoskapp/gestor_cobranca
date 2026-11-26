@@ -70,4 +70,16 @@ class ExternalReviewPolicyTest {
         assertThat(ExternalReviewPolicy.decide(Money.of("600.00"), Money.ZERO, Money.ZERO, Money.of("1800.00"),
                 integration).reason()).isEqualTo(Reason.AMOUNT);
     }
+
+    @Test
+    void recentCreditorReversalAlwaysGoesToReviewWhateverTheAmount() {
+        // RS-120: "informar pago e estornar" — depois do estorno, qualquer informe do mesmo credor/devedor vai à revisão
+        var d = ExternalReviewPolicy.decide(Money.of("1.00"), Money.ZERO, Money.ZERO, null, true, limits);
+        assertThat(d.reviewRequired()).isTrue();
+        assertThat(d.reason()).isEqualTo(Reason.RECENT_CREDITOR_REVERSAL);
+        assertThat(d.limit()).isEqualTo(Money.ZERO);
+        assertThat(d.considered()).isEqualTo(Money.of("1.00"));
+        assertThat(ExternalReviewPolicy.decide(Money.of("1.00"), Money.ZERO, Money.ZERO, null, false, limits)
+                .reviewRequired()).isFalse();
+    }
 }

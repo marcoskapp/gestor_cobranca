@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
+import { HELD_TITLE_BADGE, HELD_TITLE_HINT, heldTitles } from '../../../payment/data/held-titles';
 import { NavigationHistory } from '../../../../core/layout/breadcrumbs/navigation-history';
 import { URL_STATE_EMBEDDED, urlTab } from '../../../../shared/data/url-state';
 import { rxResource } from '@angular/core/rxjs-interop';
@@ -155,6 +156,10 @@ export class DebtorDetail {
   protected readonly summary = rxResource({ params: () => this.id(), stream: ({ params }) => this.debtorsApi.summary(params) });
   protected readonly position = valueOr(this.summary, undefined);
   protected readonly titles = rxResource({ params: () => this.id(), stream: ({ params }) => this.titlesApi.listByDebtor(params) });
+  /** Selo "Estorno em conferência" (H07 parte 3). */
+  protected readonly held = heldTitles(() => this.id());
+  protected readonly heldBadge = HELD_TITLE_BADGE;
+  protected readonly heldHint = HELD_TITLE_HINT;
   protected readonly titleRows = valueOr(this.titles, []);
   protected readonly contacts = rxResource({ params: () => this.id(), stream: ({ params }) => this.contactsApi.list(params) });
   protected readonly contactRows = valueOr(this.contacts, []);

@@ -19,6 +19,7 @@ import java.util.Set;
  *   <li>há título em aberto não bloqueado por contestação;</li>
  *   <li>o devedor não foi anonimizado;</li>
  *   <li>a empresa devedora não está em recuperação judicial, extrajudicial ou falência (cobrança B2B §7);</li>
+ *   <li>não há estorno de pagamento recebido pelo credor em conferência para o par devedor–credor (H07 parte 3);</li>
  *   <li>ao menos um canal de contato não está restrito (opt-out, bloqueio) para o devedor e o
  *       credor.</li>
  * </ol>
@@ -37,13 +38,24 @@ public final class EligibilityPolicy {
      * @param channels resultado das restrições por canal; vazio quando não avaliado (caso
      *                 encerrado ou já inelegível por outro motivo estrutural)
      */
-    /** @param debtorInsolvent processo de insolvência ativo para o devedor (debt) */
+    /**
+     * @param debtorInsolvent processo de insolvência ativo para o devedor (debt)
+     * @param reversalHeld    estorno de pagamento recebido pelo credor em conferência para o par (debt, H07 parte 3)
+     */
     public record Input(CaseStatus status, boolean portfolioOperable, CaseBalance balance, boolean blockingDisputeOpen,
                         boolean debtorAnonymized, boolean debtorInsolvent,
-                        Map<InteractionChannel, ChannelAvailability> channels) {
+                        Map<InteractionChannel, ChannelAvailability> channels, boolean reversalHeld) {
 
         public Input {
             channels = channels == null ? Map.of() : Map.copyOf(channels);
+        }
+
+        /** Sem retenção por estorno. */
+        public Input(CaseStatus status, boolean portfolioOperable, CaseBalance balance, boolean blockingDisputeOpen,
+                     boolean debtorAnonymized, boolean debtorInsolvent,
+                     Map<InteractionChannel, ChannelAvailability> channels) {
+            this(status, portfolioOperable, balance, blockingDisputeOpen, debtorAnonymized, debtorInsolvent, channels,
+                    false);
         }
     }
 
@@ -75,6 +87,9 @@ public final class EligibilityPolicy {
         }
         if (in.debtorInsolvent()) {
             reasons.add(EligibilityReason.DEBTOR_INSOLVENCY);
+        }
+        if (in.reversalHeld()) {
+            reasons.add(EligibilityReason.PAYMENT_REVERSAL_HOLD);
         }
         EnumSet<InteractionChannel> contactable = EnumSet.noneOf(InteractionChannel.class);
         in.channels().forEach((channel, availability) -> {

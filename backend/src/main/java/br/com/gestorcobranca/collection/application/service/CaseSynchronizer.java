@@ -260,6 +260,7 @@ class CaseSynchronizer {
     /** Recalcula elegibilidade e fila no caso em memória (sem persistir; o chamador faz o commit). */
     void applyEligibilityAndRoute(CollectionCase c, Context ctx) {
         Instant now = Instant.now(clock);
+        recorder.unknownEligibilityValues(c);
         c.applyEligibility(ctx.eligibility().evaluate(c), now);
         UUID queueId = QueueRouter.route(c, ctx.queues(), CollectionViews.today(clock), now).map(CollectionQueue::getId)
                 .orElse(null);

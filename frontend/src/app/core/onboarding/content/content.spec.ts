@@ -288,10 +288,12 @@ describe('conteúdo do onboarding', () => {
     // v14: empresa em recuperação judicial ou falência (cobrança B2B §7); v15: cartão "Melhor forma de contato"; v16: selo "Novo" no contato recebido numa nova carga
     // v17: aba "Acordos"; v18: prévia do template com o nome e o credor preenchidos, acompanhando a digitação
     // v19: selo "Pago ao credor"; v20: canal no aviso de pagamento em aprovação (H07, UX-09)
-    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(20);
-    expect(findScreen('/cobranca/casos/k-1')?.version).toBe(18);
+    // v21: aviso "Cobrança em conferência" e selo "Estorno em conferência" (H07 parte 3)
+    expect(findScreen('/cobranca/fila')?.changes?.at(-1)?.version).toBe(21);
+    // ficha do caso v19 e fila de aprovação v8: estorno em conferência (H07 parte 3, UX-07)
+    expect(findScreen('/cobranca/casos/k-1')?.version).toBe(19);
     expect(findTour('collection.station')?.version).toBe(4);
-    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(7);
+    expect(findScreen('/pagamentos/aprovacoes')?.version).toBe(8);
     // aprovações no padrão único (revisão 11/2026, 3.1): decisão da fila antes do detalhe (":id" casaria o caminho)
     expect(findScreen('/pagamentos/aprovacoes/pay-1')?.key).toBe('payment.approval');
     expect(findScreen('/titulos/correcoes-de-valor/aj-1')?.key).toBe('debt.title-amount-approval');

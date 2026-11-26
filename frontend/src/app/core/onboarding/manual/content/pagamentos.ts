@@ -48,13 +48,13 @@ export const MANUAL: ModuleManual = {
       title: 'Baixas informadas pelo credor',
       objective: 'O que o credor recebeu diretamente e avisou à assessoria, e o que a carga do credor zerou ou suspendeu.',
       purpose: [
-        'Aba "Pagamentos informados pelo credor": pagamentos feitos diretamente ao credor, informados pela integração do credor (com o nome da integração), pela pessoa do credor no portal ou por um operador da assessoria. Mostra a situação (confirmado, aguardando aprovação, recusado, estornado), os títulos ou o acordo, os totais do período (o "i" ao lado do confirmado explica o que entra) e o aviso "Comprovante sem verificação de vírus" quando o arquivo não passou pela verificação de vírus: abra com cuidado.',
-        'Aba "Pela carga do credor": títulos que a carga do credor quitou ao reduzir o principal ("Saldo zerado pela carga do credor") e títulos suspensos porque o credor informou pagamento ou cancelamento na carga, com a data, o valor do título e a carga de origem. O título de titular anonimizado aparece sem a referência, com o link "Abrir título".',
-        'O período é obrigatório e vai até 366 dias. O devedor, os títulos, o acordo, a carga e o token só aparecem para quem pode abri-los. A ficha do token e a ficha da carga levam a esta lista já filtrada, e o aviso do filtro diz qual token ou carga está aplicado.',
+        'Aba "Pagamentos informados pelo credor": pagamentos feitos diretamente ao credor, informados pela integração do credor (com o nome da integração), pela pessoa do credor no portal ou por um operador da assessoria, com a situação, os títulos ou o acordo, os totais do período e o aviso "Comprovante sem verificação de vírus" (abra com cuidado). Período obrigatório de até 366 dias; a ficha do token leva à lista já filtrada.',
+        'Aba "Pela carga do credor": títulos que a carga do credor quitou ao reduzir o principal ("Saldo zerado pela carga do credor") e títulos suspensos porque o credor informou pagamento ou cancelamento na carga, com a data, o valor e a carga de origem (a ficha da carga leva à lista filtrada). Título de titular anonimizado aparece sem a referência, com o link "Abrir título".',
+        'Aba "Estornos em conferência": pagamento recebido pelo credor e estornado para a cobrança desse credor com o devedor — sem contato de cobrança, oferta, acordo ou Pix dos títulos retidos, que também saem do portal do devedor (código de acesso, mensagens devidas e respostas continuam). Os que aguardam conferência aparecem todos, com há quanto tempo e quantos estornos o credor teve em 90 dias. "Liberar a cobrança" (financeiro ou administrador, nunca quem estornou ou informou) pede motivo, justificativa sem dados pessoais e a confirmação de que conferiu com o credor; a parcela do acordo ganha a carência normal antes de contar para a quebra.',
       ],
       profiles: ['FINANCEIRO', 'SUPERVISOR', 'GESTOR', 'AUDITOR'],
       inputs: ['Pagamentos externos recebidos diretamente pelo credor (origem "Pago direto ao credor" ou "Relatório do credor").', 'Cargas do credor que zeraram o saldo ou informaram título pago ou cancelado.'],
-      outputs: ['Conferência das baixas feitas fora da assessoria; nada é alterado nesta tela.'],
+      outputs: ['Conferência das baixas feitas fora da assessoria e liberação da cobrança retida após estorno de pagamento ao credor.'],
       related: [
         { screen: 'payment.list', why: 'Todos os pagamentos.' },
         { screen: 'payment.review', why: 'Pagamentos que aguardam aprovação.' },

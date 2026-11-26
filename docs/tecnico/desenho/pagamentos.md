@@ -155,6 +155,19 @@ leitura, sem exportação. Ator `CREDITOR` e `INTEGRATION` recusados nos dois en
   rota `/pagamentos/alocacao/:allocationId`, que resolve `GET /payments/by-allocation/{id}` (resolve a pendência da
   decisão 1526; decisão 1588).
 
+**Aba "Estornos em conferência" (H07 parte 3, decisões 1644–1670).** `GET /api/v1/payment/reversal-holds`
+(`PAYMENT_VIEW`; período obrigatório ≤ 366 dias; situação `PENDING` padrão), `GET /{holdId}`, `GET /by-payment/{paymentId}`
+e `POST /{holdId}/release` (`PAYMENT_REVIEW`; corpo `version`, `reasonCode`, `note`, `confirmedWithCreditor`).
+`PaymentReversalHoldsUseCases` lê a retenção pelo caso de uso do debt ([debt.md](debt.md) §15) e acrescenta valor, data
+e canal do pagamento, token (só com `PUBLIC_API_TOKEN_VIEW`) e o estorno. Só `USER`; integração, pessoa do credor,
+assistente e devedor recebem 403. Nunca a justificativa do estorno, documento, contato ou comprovante.
+
+**Informe depois de estorno (RS-120).** Informe `CREDITOR_*` para devedor no credor com estorno de pagamento recebido
+pelo credor nos últimos `app.payment.external-review.reversal-window` (padrão 90 dias) vai sempre à revisão por outra
+pessoa: motivo `RECENT_CREDITOR_REVERSAL` (V0815), sem `AUTO_LOW_RISK`. **Ligação do devedor (RS-124):** o registro
+externo confere `ReversalHoldUseCases#linked` antes das travas (`allocation.target_mismatch` igual para devedor
+inexistente, de outra assessoria ou de outro credor).
+
 ### 5.1 Situação de revisão no acordo e no caso (decisões 430–438, 540–549)
 
 Quem negocia precisa saber que o pagamento que informou (ou que outro informou) ainda aguarda a aprovação de outra pessoa e que a parcela não baixou, ou que ele foi recusado e é preciso agir. Como o negotiation não depende do payment, o resumo é servido aqui (`PaymentReviewStatusUseCases`, `PaymentReviewStatusService`) e o frontend o compõe nas telas de negociação e cobrança.
@@ -192,6 +205,13 @@ A regra é do negotiation (`negociacao-e-alcadas.md` §10.6.1); o payment entra 
 
 `REVERSED` por evento compensatório (`PaymentReversal` append-only), nunca exclusão: manual (`PAYMENT_REVERSE`, motivo e justificativa) ou devolução do PSP. Cada alocação ativa é revertida: títulos avulsos recebem `DebtLedgerPort.reversePayment` (espelho); para cada alocação publicada sai um `PaymentReversed` com o valor ainda não compensado (`reversalId` novo, `paymentId` = alocação, `agreementId`, `portfolioId`, motivo).
 
+
+**Estorno de pagamento recebido pelo credor (H07 parte 3).** `PaymentReversals` toma a trava advisory do par no credor
+(a mesma do registro externo) e `AllocationService.reverseAll` cria a retenção da cobrança (`ReversalHoldUseCases#place`)
+**antes** de publicar os `PaymentReversed`, na mesma transação: títulos das alocações a títulos e, nas alocações a
+acordo, o acordo, as parcelas e os títulos do acordo. Falha na retenção desfaz o estorno (RS-108). Realocação
+(`REALLOCATED`) e devolução parcial não criam retenção; titular eliminado também não. A cobrança só volta quando uma
+pessoa libera na aba "Estornos em conferência".
 ## 8. Conciliação (F15)
 
 - Importação (`POST /payment/reconciliation/statements`, multipart): arquivo no `FileStorage` (`PAYMENT_RETURN`) com SHA-256; o mesmo arquivo de novo → 409; processamento assíncrono (`payment.statement_import`), restrito opcionalmente a um credor. Formatos: `CSV_GENERIC`; `CNAB_240`/`CNAB_400` aceitos na API como porta futura (sem leitor → 422).

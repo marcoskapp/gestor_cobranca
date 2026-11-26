@@ -54,6 +54,22 @@ class DebtMetrics {
                 outcome).increment();
     }
 
+    /**
+     * Retenção da cobrança após estorno de pagamento recebido pelo credor (H07 parte 3), sem ids nas tags (RS-121).
+     *
+     * @param operation place, release, end
+     * @param outcome   placed, skipped_anonymized, released, refused_self, refused_state, refused_confirmation,
+     *                  refused_note, ended
+     */
+    void reversalHold(String operation, String outcome) {
+        registry.counter("debt.reversal_hold.operations", "operation", operation, "outcome", outcome).increment();
+    }
+
+    /** Idade da retenção ao ser liberada (horas). */
+    void reversalHoldReleasedAge(java.time.Duration age) {
+        registry.timer("debt.reversal_hold.release_age").record(age);
+    }
+
     void collateralRegistered(Object type, String source) {
         registry.counter("debt.collateral.registered", "type", String.valueOf(type), "source", source).increment();
     }

@@ -1,3 +1,5 @@
+import { of as rxOf } from 'rxjs';
+import { ReversalHoldsApi } from '../../../payment/creditor-reported/reversal-holds.api';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
@@ -47,6 +49,7 @@ describe('TitleDetail', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: ReversalHoldsApi, useValue: { heldTitles: () => rxOf([]) } },
         {
           provide: AuthService,
           useValue: {

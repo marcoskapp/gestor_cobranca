@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.negotiation.application.service;
 
+import br.com.gestorcobranca.debt.application.port.in.ReversalHoldUseCases;
 import br.com.gestorcobranca.negotiation.domain.model.agreement.Agreement;
 import br.com.gestorcobranca.negotiation.domain.model.proposal.Proposal;
 import br.com.gestorcobranca.negotiation.domain.repository.AgreementRepository;
@@ -16,6 +17,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -36,10 +38,13 @@ class NegotiationMaintenance {
     private final NegotiationMetrics metrics;
     private final BreakSuspensionService breakSuspensions;
     private final Clock clock;
+    private final ReversalHoldUseCases reversalHolds;
 
     NegotiationMaintenance(ProposalRepository proposals, AgreementRepository agreements, AgreementRecorder recorder,
                            AuditTrail auditTrail, BusinessEventLogger businessEvents, NegotiationMetrics metrics,
-                           BreakSuspensionService breakSuspensions, Clock clock) {
+                           BreakSuspensionService breakSuspensions, Clock clock,
+                           ReversalHoldUseCases reversalHolds) {
+        this.reversalHolds = reversalHolds;
         this.proposals = proposals;
         this.agreements = agreements;
         this.recorder = recorder;
@@ -117,9 +122,14 @@ class NegotiationMaintenance {
             }
             List<Agreement.InstallmentChange> overdue = a.refreshInstallments(today);
             Agreement.Ending ending = null;
-            if (a.breakRuleMet(today) && breakSuspensions.evaluate(a, today, now).allowsBreak()) {
-                ending = a.breakAgreement("Regra de quebra: " + a.overdueBeyondTolerance(today) + " parcela(s) em atraso há"
-                        + " mais de " + a.getBreakToleranceDays() + " dia(s)", today, now);
+            // parcela reaberta por estorno de pagamento recebido pelo credor não conta para a quebra enquanto retida e,
+            // depois da liberação, durante a carência normal (decisão do responsável 3, H07 parte 3)
+            // a isenção só é consultada quando a regra já seria atingida sem ela (RC-05)
+            Set<UUID> exempt = a.breakRuleMet(today) ? reversalHolds.breakExemptInstallmentIds(a.getId(), today,
+                    breakSuspensions.settings().graceDays()) : Set.of();
+            if (a.breakRuleMet(today, exempt) && breakSuspensions.evaluate(a, today, now).allowsBreak()) {
+                ending = a.breakAgreement("Regra de quebra: " + a.overdueBeyondTolerance(today, exempt)
+                        + " parcela(s) em atraso há mais de " + a.getBreakToleranceDays() + " dia(s)", today, now);
             }
             agreements.save(a);
             overdue.forEach(c -> recorder.installmentChanged(a, c, now));

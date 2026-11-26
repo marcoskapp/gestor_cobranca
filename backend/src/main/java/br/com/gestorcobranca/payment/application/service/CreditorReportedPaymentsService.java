@@ -173,7 +173,7 @@ class CreditorReportedPaymentsService implements CreditorReportedPaymentsUseCase
                 .collect(Collectors.toMap(DebtorUseCases.DebtorName::id, Function.identity(), (a, b) -> a));
     }
 
-    private static CreditorReportedPaymentsUseCases.TokenRef token(UUID tokenId,
+    static CreditorReportedPaymentsUseCases.TokenRef token(UUID tokenId,
                                                              Map<UUID, IntegrationTokenLabels.TokenLabel> labels) {
         IntegrationTokenLabels.TokenLabel label = labels.get(tokenId);
         return label == null

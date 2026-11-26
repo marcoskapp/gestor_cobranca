@@ -13,16 +13,37 @@ import java.time.Duration;
  * @param evidence         anexos de evidência das interrupções e das correções de valor
  * @param amountAdjustment limite acumulado e proposta de aumento do limite da correção de valor
  * @param contactNovelty   janela de novidade dos contatos recebidos na carga e varredura diária
+ * @param reversalHold     retenção da cobrança após estorno de pagamento recebido pelo credor (H07 parte 3)
  */
 @ConfigurationProperties(prefix = "app.debt")
 public record DebtProperties(Prescription prescription, Evidence evidence, AmountAdjustment amountAdjustment,
-                             ContactNovelty contactNovelty) {
+                             ContactNovelty contactNovelty, ReversalHold reversalHold) {
 
     public DebtProperties {
         prescription = prescription == null ? new Prescription(null, null, null) : prescription;
         evidence = evidence == null ? new Evidence(null) : evidence;
         amountAdjustment = amountAdjustment == null ? new AmountAdjustment(null, null, null) : amountAdjustment;
         contactNovelty = contactNovelty == null ? new ContactNovelty(null, null, null) : contactNovelty;
+        reversalHold = reversalHold == null ? new ReversalHold(null, null) : reversalHold;
+    }
+
+    /**
+     * Retenção da cobrança após estorno de pagamento recebido pelo credor. Nunca há liberação automática por prazo: a
+     * pendência só envelhece (RS-113).
+     *
+     * @param overdueAfter pendência "vencida" em "Minhas pendências" e na métrica depois deste prazo
+     *                     ({@code app.debt.reversal-hold.overdue-after}, padrão 5 dias)
+     * @param window       janela da contagem de estornos do mesmo credor mostrada na aba (padrão 90 dias)
+     */
+    public record ReversalHold(Duration overdueAfter, Duration window) {
+
+        public ReversalHold {
+            overdueAfter = overdueAfter == null ? Duration.ofDays(5) : overdueAfter;
+            window = window == null ? Duration.ofDays(90) : window;
+            if (overdueAfter.isNegative() || overdueAfter.isZero() || window.isNegative() || window.isZero()) {
+                throw new IllegalArgumentException("app.debt.reversal-hold: prazos devem ser positivos");
+            }
+        }
     }
 
     /**

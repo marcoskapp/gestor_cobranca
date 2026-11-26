@@ -19,5 +19,10 @@ public enum DenialReason {
     /** Intervalo mínimo desde a última tentativa no canal não decorrido. */
     MIN_INTERVAL,
     /** Dados pessoais do devedor eliminados (LGPD): não há mais com quem falar. */
-    DEBTOR_ANONYMIZED
+    DEBTOR_ANONYMIZED,
+    /**
+     * Estorno de pagamento recebido pelo credor em conferência (H07 parte 3): nenhum contato de cobrança desse credor
+     * com o devedor até uma pessoa liberar; autenticação, transacional e resposta a quem procurou continuam.
+     */
+    PAYMENT_REVERSAL_HOLD
 }

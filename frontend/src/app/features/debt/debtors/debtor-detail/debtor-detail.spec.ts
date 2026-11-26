@@ -1,3 +1,5 @@
+import { of as rxOf } from 'rxjs';
+import { ReversalHoldsApi } from '../../../payment/creditor-reported/reversal-holds.api';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
@@ -93,6 +95,7 @@ describe('DebtorDetail', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: ReversalHoldsApi, useValue: { heldTitles: () => rxOf([]) } },
         {
           provide: AuthService,
           useValue: {
@@ -268,6 +271,7 @@ describe('DebtorDetail embutida no painel da estação', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: ReversalHoldsApi, useValue: { heldTitles: () => rxOf([]) } },
         { provide: URL_STATE_EMBEDDED, useValue: true },
         {
           provide: AuthService,

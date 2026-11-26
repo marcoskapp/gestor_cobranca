@@ -385,3 +385,12 @@ servidor (`AgreementUseCases#summary`, consulta agrupada por situação sob RLS 
 todos os acordos; cada acordo abre numa aba nova. A aba Negociação passa a mostrar só os acordos em vigor. Desenho em
 [acordos-ficha-lateral-e-atencao-especial.md](acordos-ficha-lateral-e-atencao-especial.md) §A1; teste em
 `NegotiationAgreementIT.installmentsReversalBreakAndRenegotiationWithoutRecountingRecovery` e `AgreementSummaryTest`.
+
+## Estorno em conferência (H07 parte 3)
+
+`CollectionCaseEligibilityAdapter` marca `title.reversal_hold` só nos títulos retidos (inclusive os do acordo retido):
+a simulação os deixa de fora e a proposta ou formalização que os inclua é recusada (inclusive de simulação anterior ao
+estorno). Os demais títulos do par seguem negociáveis; o contato de cobrança do par continua barrado pelo porteiro.
+Quebra: `NegotiationMaintenance` passa a `Agreement.breakRuleMet(today, exempt)` as parcelas retidas e as liberadas há
+menos de `grace-days` (`ReversalHoldUseCases#breakExemptInstallmentIds`); as demais parcelas seguem a regra normal
+(decisões 1655–1656).

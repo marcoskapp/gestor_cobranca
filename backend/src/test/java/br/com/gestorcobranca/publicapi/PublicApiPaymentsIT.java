@@ -156,6 +156,59 @@ class PublicApiPaymentsIT extends PublicApiTestSupport {
                 .isEqualTo("PAUSED,REVOKED");
     }
 
+    /**
+     * H07 parte 3: depois do estorno de um pagamento recebido pelo credor, o próximo informe da integração do mesmo credor
+     * para o mesmo devedor vai à revisão, mesmo abaixo do limite (RS-120). H07b-07 (RS-124): devedor inexistente, de
+     * outra assessoria ou de outro credor têm a mesma recusa, conferida antes de qualquer trava.
+     */
+    @Test
+    void reversalSendsTheNextCreditorReportToReviewAndUnlinkedDebtorsGetTheSameRefusal() throws Exception {
+        UUID title = titleOfNewDebtor(21);
+        IssuedToken token = issue(creditorA, Set.of("payments:write"), null, List.of());
+        HttpResponse<String> first = register(token, title, "100.00", "REV-1");
+        assertThat(first.statusCode()).as(first.body()).isEqualTo(201);
+        assertThat(body(first).get("status")).isEqualTo("CONFIRMED");
+        UUID firstId = UUID.fromString((String) body(first).get("id"));
+        asManager(() -> payments.reverse(firstId, new PaymentUseCases.ReverseCommand("OTHER",
+                "Credor informou por engano")));
+        assertThat(system(() -> jdbc.queryForObject("select count(*) from debt.reversal_hold where payment_id = ? "
+                + "and state = 'PENDING'", Long.class, firstId))).isEqualTo(1);
+
+        HttpResponse<String> next = register(token, title, "10.00", "REV-2");
+        assertThat(next.statusCode()).as(next.body()).isEqualTo(201);
+        assertThat(body(next).get("status")).isEqualTo("INFORMED");
+        UUID nextId = UUID.fromString((String) body(next).get("id"));
+        assertThat(system(() -> jdbc.queryForObject("select count(*) from payment.payment where id = ? "
+                + "and review_reason = 'RECENT_CREDITOR_REVERSAL'", Long.class, nextId))).isEqualTo(1);
+        // a resposta da API não revela a retenção (contrato 1.0 inalterado)
+        assertThat(next.body()).doesNotContain("REVERSAL_HOLD").doesNotContain("reversal_hold");
+
+        // RS-124: mesma recusa para devedor inexistente, de outro credor e de outra assessoria
+        UUID otherCreditorTitle = system(() -> {
+            UUID debtor = ingestion.upsertDebtor(new DebtorRecord(cpf(22), "Devedora Fictícia B", LocalDate.of(1980, 1, 1),
+                    List.of(), null)).id();
+            return ingestion.upsertTitle(new TitleRecord(creditorB, portfolioB, debtor, "T-B-22", null, 1,
+                    LocalDate.of(2026, 3, 10), new BigDecimal("1000.00"), null, null), Ids.newId()).id();
+        });
+        UUID otherCreditorDebtor = system(() -> jdbc.queryForObject("select debtor_id from debt.debt_title where id = ?",
+                UUID.class, otherCreditorTitle));
+        String slug = "pa2-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID otherTenant = tenantExecution.callInTenant(Ids.newId(), "test.setup", () -> tenantAdministration
+                .createTenant(new br.com.gestorcobranca.organization.application.port.in.TenantAdministration
+                        .CreateTenantCommand(slug, "Outra Assessoria Ltda", "Outra", "11.444.777/0001-61")).id());
+        UUID otherTenantDebtor = tenantExecution.callInTenant(otherTenant, "test", () -> ingestion.upsertDebtor(
+                new DebtorRecord(cpf(23), "Devedora Fictícia T2", LocalDate.of(1980, 1, 1), List.of(), null)).id());
+        List<String> refusals = new ArrayList<>();
+        for (UUID debtorId : List.of(UUID.randomUUID(), otherCreditorDebtor, otherTenantDebtor)) {
+            HttpResponse<String> r = registerFor(token, debtorId, title, "10.00", "RS124-" + refusals.size());
+            assertThat(r.statusCode()).as(r.body()).isEqualTo(422);
+            Map<String, Object> problem = body(r);
+            refusals.add(problem.get("code") + "|" + problem.get("detail") + "|" + problem.get("title"));
+        }
+        assertThat(refusals).containsOnly(refusals.getFirst());
+        assertThat(refusals.getFirst()).startsWith("allocation.target_mismatch|");
+    }
+
     private UUID titleOfNewDebtor(int seed) {
         return system(() -> {
             UUID debtor = ingestion.upsertDebtor(new DebtorRecord(cpf(seed), "Devedora Fictícia " + seed,
@@ -169,6 +222,11 @@ class PublicApiPaymentsIT extends PublicApiTestSupport {
             throws IOException, InterruptedException {
         UUID debtorId = system(() -> jdbc.queryForObject("select debtor_id from debt.debt_title where id = ?", UUID.class,
                 titleId));
+        return registerFor(token, debtorId, titleId, amount, reference);
+    }
+
+    private HttpResponse<String> registerFor(IssuedToken token, UUID debtorId, UUID titleId, String amount,
+                                             String reference) throws IOException, InterruptedException {
         String query = Map.of("debtorId", debtorId.toString(), "amount", amount,
                         "paidAt", Instant.now().minus(1, ChronoUnit.HOURS).toString(), "method", "PIX",
                         "targetKind", "TITLES", "itemIds", titleId.toString(), "externalReference", reference)

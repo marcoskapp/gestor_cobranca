@@ -21,5 +21,10 @@ public enum EligibilityReason {
      * Empresa devedora em recuperação judicial, recuperação extrajudicial ou falência (Lei 11.101/2005; cobrança B2B
      * §7): a cobrança fica suspensa e o caminho é o jurídico.
      */
-    DEBTOR_INSOLVENCY
+    DEBTOR_INSOLVENCY,
+    /**
+     * Estorno de pagamento recebido pelo credor em conferência (H07 parte 3): sem contato de cobrança, régua nem oferta
+     * até uma pessoa do financeiro liberar.
+     */
+    PAYMENT_REVERSAL_HOLD
 }

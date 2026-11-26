@@ -4,6 +4,7 @@ import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ConflictException;
 import br.com.gestorcobranca.shared.domain.Money;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -144,5 +145,16 @@ class CollectionCaseTest {
         assertThat(c.applyScore(350, T0.plusSeconds(120))).isTrue();
         assertThat(c.getScore()).isEqualTo(350);
         assertThatThrownBy(() -> c.applyScore(1001, T0.plusSeconds(180))).isInstanceOf(BusinessRuleException.class);
+    }
+
+    /** AQ-03: motivo gravado por outra versão é ignorado na leitura e devolvido para a aplicação registrar. */
+    @Test
+    void unknownEligibilityValueIsIgnoredAndReported() {
+        CollectionCase c = newCase();
+        ReflectionTestUtils.setField(c, "eligibilityReasons", "FOO,NO_OPEN_TITLES");
+        ReflectionTestUtils.setField(c, "contactableChannels", "PHONE,FAX");
+        assertThat(c.eligibility().reasons()).containsExactly(EligibilityReason.NO_OPEN_TITLES);
+        assertThat(c.eligibility().contactableChannels()).containsExactly(InteractionChannel.PHONE);
+        assertThat(c.unknownEligibilityValues()).containsExactly("FOO", "FAX");
     }
 }

@@ -346,3 +346,8 @@ inscrição × tipo × referência; estorno (`PaymentReversed`) gera valor negat
 * Lembrete de parcela com o link do portal: o devedor com todos os títulos fora de cobrança aberta não entra no portal
   (a etapa é pulada `PORTAL_UNAVAILABLE`).
 * Envio por SMS depende do adaptador do communication (issue #12).
+
+## Estorno em conferência (H07 parte 3)
+
+Com retenção pendente, o caso fica inelegível (`PAYMENT_REVERSAL_HOLD`) e o porteiro nega a etapa; as variáveis de saldo
+não foram alteradas porque nenhum aviso de cobrança chega ao par retido (decisão 1658).

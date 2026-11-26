@@ -3,6 +3,8 @@ package br.com.gestorcobranca.payment.application.service;
 import br.com.gestorcobranca.debt.application.port.in.DebtLedgerPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtLedgerPort.ComponentAmounts;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
+import br.com.gestorcobranca.debt.application.port.in.reversalhold.ReversalHoldPlacement;
+import br.com.gestorcobranca.payment.domain.model.PaymentReversal;
 import br.com.gestorcobranca.payment.application.service.TargetResolver.AgreementTarget;
 import br.com.gestorcobranca.payment.application.service.TargetResolver.TitleInfo;
 import br.com.gestorcobranca.payment.domain.model.AllocationOrigin;
@@ -24,6 +26,8 @@ import br.com.gestorcobranca.shared.domain.Money;
 import br.com.gestorcobranca.shared.events.payment.PaymentConfirmed;
 import br.com.gestorcobranca.shared.events.payment.PaymentReversed;
 import br.com.gestorcobranca.shared.security.CurrentActor;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -67,10 +72,12 @@ class AllocationService {
     private final AuditTrail auditTrail;
     private final PaymentMetrics metrics;
     private final Clock clock;
+    private final ReversalHoldPlacement reversalHolds;
 
     AllocationService(PaymentAllocationRepository allocations, TargetResolver resolver, DebtTitleUseCases titles,
                       DebtLedgerPort ledger, ApplicationEventPublisher events, CurrentActor currentActor,
-                      AuditTrail auditTrail, PaymentMetrics metrics, Clock clock) {
+                      AuditTrail auditTrail, PaymentMetrics metrics, Clock clock, ReversalHoldPlacement reversalHolds) {
+        this.reversalHolds = reversalHolds;
         this.allocations = allocations;
         this.resolver = resolver;
         this.titles = titles;
@@ -168,7 +175,7 @@ class AllocationService {
                 lines, sourceAllocationId));
         Map<UUID, TitleInfo> byId = infos.stream().collect(Collectors.toMap(TitleInfo::id, t -> t, (a, b) -> a));
         LocalDate paidOn = payment.getPaidAt().atZone(TimeConfig.BUSINESS_ZONE).toLocalDate();
-        List<PaymentConfirmed.Allocation> published = new java.util.ArrayList<>();
+        List<PaymentConfirmed.Allocation> published = new ArrayList<>();
         for (PaymentAllocation.Line line : lines) {
             Map<Component, Money> parts = postToLedger(allocation, line, payment);
             TitleInfo info = byId.get(line.titleId());
@@ -223,9 +230,19 @@ class AllocationService {
         metrics.allocation(source.getKind().name(), source.getOrigin().name(), "released");
     }
 
-    /** Reverte as alocações do pagamento estornado e publica as compensações. */
-    void reverseAll(Payment payment, String reason) {
+    /**
+     * Reverte as alocações do pagamento estornado e publica as compensações. Pagamento recebido pelo credor (H07 parte
+     * 3): a retenção da cobrança é criada <b>antes</b> de publicar os {@code PaymentReversed}, na mesma transação (falha
+     * fechada, RS-108), com os títulos das alocações a títulos e o acordo, as parcelas e os títulos das alocações a
+     * acordo. Realocação ({@code REALLOCATED}, em {@link #release}) e devolução parcial não passam por aqui.
+     */
+    void reverseAll(Payment payment, String reason, PaymentReversal reversal) {
         Instant now = Instant.now(clock);
+        List<PaymentReversed> published = new ArrayList<>();
+        Set<UUID> titleIds = new LinkedHashSet<>();
+        Set<UUID> installmentIds = new LinkedHashSet<>();
+        Set<UUID> allocationIds = new LinkedHashSet<>();
+        Set<UUID> agreementIds = new LinkedHashSet<>();
         for (PaymentAllocation allocation : allocations.findByPaymentIdOrderByCreatedAtAsc(payment.getId())) {
             if (!allocation.isActive()) {
                 continue;
@@ -236,18 +253,39 @@ class AllocationService {
                     DebtLedgerPort.LedgerResult result = ledger.reversePayment(new DebtLedgerPort.PaymentReversal(
                             line.titleId(), allocation.getId(), now, reason));
                     metrics.ledgerPosting("reversal", result.applied() ? "applied" : "duplicate");
+                    titleIds.add(line.titleId());
                 }
+                allocationIds.add(allocation.getId());
+            } else if (allocation.getKind() == TargetKind.AGREEMENT) {
+                // sobra realocada para outro acordo: o pagamento pode ter alocações em mais de um acordo (RC2-01)
+                agreementIds.add(allocation.getAgreementId());
+                allocation.getLines().stream().map(PaymentAllocation.Line::installmentId).filter(Objects::nonNull)
+                        .forEach(installmentIds::add);
+                allocationIds.add(allocation.getId());
             }
             if (allocation.publishesEvents() && pending.isPositive()) {
-                UUID reversalId = Ids.newId();
-                allocation.compensate(pending, reversalId);
-                events.publishEvent(new PaymentReversed(Ids.newId(), currentActor.tenantId(), now, reversalId,
+                UUID compensationId = Ids.newId();
+                allocation.compensate(pending, compensationId);
+                published.add(new PaymentReversed(Ids.newId(), currentActor.tenantId(), now, compensationId,
                         allocation.getId(), payment.getDebtorId(), payment.getCreditorId(), allocation.getPortfolioId(),
                         allocation.getAgreementId(), pending.amount(), reason));
             }
             allocations.save(allocation);
             metrics.allocation(allocation.getKind().name(), allocation.getOrigin().name(), "reversed");
         }
+        if (payment.receivedByCreditor() && reversal != null && !allocationIds.isEmpty()) {
+            agreementIds.forEach(id -> titleIds.addAll(resolver.agreementTitleIds(id)));
+            Optional<UUID> hold = reversalHolds.place(new ReversalHoldPlacement.PlaceCommand(payment.getId(),
+                    reversal.getId(), payment.getCreditorId(), payment.getDebtorId(), agreementIds, titleIds,
+                    installmentIds, allocationIds, internalInformer(payment), reason));
+            metrics.reversalHold(hold.isPresent() ? "placed" : "skipped");
+        }
+        published.forEach(events::publishEvent);
+    }
+
+    /** Quem informou o pagamento original, só quando foi um usuário da assessoria (sem canal do credor). */
+    private static UUID internalInformer(Payment payment) {
+        return payment.getInformedChannel() == null ? payment.getInformedBy() : null;
     }
 
     /** Lança a linha no razão do título; devolve a distribuição por componente. */

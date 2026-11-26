@@ -2,6 +2,7 @@ package br.com.gestorcobranca.scoring.application.service;
 
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
+import br.com.gestorcobranca.debt.application.port.in.ReversalHoldUseCases;
 import br.com.gestorcobranca.scoring.application.ScoringProperties;
 import br.com.gestorcobranca.scoring.application.port.out.FactStore;
 import br.com.gestorcobranca.scoring.application.port.out.SnapshotStore;
@@ -50,10 +51,13 @@ class FactRecorder {
     private final ScoringMetrics metrics;
     private final ScoringProperties properties;
     private final Clock clock;
+    private final ReversalHoldUseCases reversalHolds;
 
     FactRecorder(FactStore facts, SnapshotStore snapshots, CaseScoreRepository scores, ScoringSettingsProvider settings,
                  CaseUseCases cases, DebtTitleUseCases titles, JobQueue jobQueue, ScoringMetrics metrics,
-                 ScoringProperties properties, Clock clock) {
+                 ScoringProperties properties, Clock clock,
+                 ReversalHoldUseCases reversalHolds) {
+        this.reversalHolds = reversalHolds;
         this.facts = facts;
         this.snapshots = snapshots;
         this.scores = scores;
@@ -150,6 +154,12 @@ class FactRecorder {
 
     void reversal(PaymentReversed e) {
         if (!enabled("payment_reversal")) {
+            return;
+        }
+        // estorno de pagamento recebido pelo credor (H07 parte 3): é o credor que desfez o informe, não comportamento
+        // do devedor — não vira PAYMENT_REVERSAL no score
+        if (reversalHolds.createdForAllocation(e.paymentId())) {
+            metrics.factIgnored("payment_reversal", "creditor_received");
             return;
         }
         CaseFact f = new CaseFact(FactKind.PAYMENT_REVERSAL, e.reason(), null, e.debtorId(), e.creditorId(),

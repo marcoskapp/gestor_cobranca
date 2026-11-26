@@ -21,6 +21,8 @@ import br.com.gestorcobranca.shared.jobs.JobDrain;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
 import br.com.gestorcobranca.shared.security.CreditorScope;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionTemplate;
+import br.com.gestorcobranca.debt.application.port.in.reversalhold.ReversalHoldPlacement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 
@@ -44,6 +46,10 @@ class AssistantPixIT extends AssistantTestSupport {
 
     static final String WEBHOOK_SECRET = "segredo-hmac-de-teste-com-32-caracteres-ou-mais";
 
+    @Autowired
+    ReversalHoldPlacement placement;
+    @Autowired
+    TransactionTemplate transactions;
     @Autowired
     PixAccountUseCases pixAccounts;
     @Autowired
@@ -243,6 +249,27 @@ class AssistantPixIT extends AssistantTestSupport {
         assertThat(count("select count(*) from payment.payment_instruction where debtor_id = ?", debtor)).isZero();
         assertThat(count("select count(*) from shared.business_event where event_type = 'assistant.pix_denied' "
                 + "and attributes ->> 'reason' = 'CONVERSATION_RISK'")).isEqualTo(1);
+    }
+
+    /** RS-112: parcela com estorno de pagamento ao credor em conferência não gera Pix pelo assistente. */
+    @Test
+    void heldInstallmentIsNotIssued() {
+        scenario("pix-retido", "800.00");
+        pixAccount();
+        publishPixPolicy("pix", AssistantMode.AUTONOMOUS, assistantProfile(true), null);
+        handToAssistant();
+        agreeInCash();
+        UUID agreementId = UUID.fromString(lastTurnColumn("agreement_id::text"));
+        UUID installment = system(() -> jdbcTemplate.queryForObject("select id from negotiation.agreement_installment "
+                + "where agreement_id = ? order by number limit 1", UUID.class, agreementId));
+        system(() -> transactions.execute(tx -> placement.place(new ReversalHoldPlacement.PlaceCommand(
+                UUID.randomUUID(), UUID.randomUUID(), creditorA, debtor, List.of(agreementId), List.of(), List.of(installment),
+                List.of(), null, "OTHER"))));
+        inbound("pode mandar o pix");
+        Map<String, Object> request = lastPixRequest();
+        assertThat(request.get("decision")).isNotEqualTo("ISSUED");
+        assertThat(request.get("denial_code")).isEqualTo("PAYMENT_UNAVAILABLE");
+        assertThat(count("select count(*) from payment.payment_instruction where debtor_id = ?", debtor)).isZero();
     }
 
     @Test

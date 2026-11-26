@@ -65,6 +65,18 @@ interface PaymentJpaRepository extends JpaRepository<Payment, UUID>, JpaSpecific
     BigDecimal sumExternalByInformer(@Param("informedBy") UUID informedBy, @Param("since") Instant since);
 
     @Override
+    @Query("""
+            select count(p) > 0 from Payment p
+             where p.creditorId = :creditorId and p.debtorId = :debtorId
+               and p.status = br.com.gestorcobranca.payment.domain.model.PaymentStatus.REVERSED
+               and p.externalOrigin in (br.com.gestorcobranca.payment.domain.model.ExternalOrigin.CREDITOR_DIRECT,
+                                        br.com.gestorcobranca.payment.domain.model.ExternalOrigin.CREDITOR_REPORT)
+               and p.reversedAt >= :since
+            """)
+    boolean existsCreditorReceivedReversedSince(@Param("creditorId") UUID creditorId, @Param("debtorId") UUID debtorId,
+                                                @Param("since") Instant since);
+
+    @Override
     default Money sumExternalInformedForDebtor(UUID creditorId, UUID debtorId, Instant since) {
         return Money.ofNullable(sumExternalForDebtor(creditorId, debtorId, since));
     }

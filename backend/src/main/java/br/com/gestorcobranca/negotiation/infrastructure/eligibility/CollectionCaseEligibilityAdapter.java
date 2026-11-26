@@ -6,6 +6,7 @@ import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases;
 import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.DisputeView;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
+import br.com.gestorcobranca.debt.application.port.in.ReversalHoldUseCases;
 import br.com.gestorcobranca.negotiation.application.port.out.CaseEligibilityPort;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases.PortfolioView;
@@ -36,7 +37,13 @@ import java.util.stream.Collectors;
  *       título, no caso de cobrança ou vinculada no razão;</li>
  *   <li>{@code portfolio.not_operable} — carteira inativa ou fora de vigência (RB02);</li>
  *   <li>{@code case.not_eligible} — sem caso de cobrança ativo na carteira, caso suspenso, no jurídico
- *       ou com devedor anonimizado.</li>
+ *       ou com devedor anonimizado;</li>
+ *   <li>{@code title.reversal_hold} — título com estorno de pagamento recebido pelo credor em conferência (H07
+ *       parte 3, decisão 1655): o título retido (inclusive os títulos do acordo retido) não é ofertado, simulado,
+ *       formalizado nem proposto até a liberação; relido do debt a cada chamada, inclusive na formalização de
+ *       simulação anterior ao estorno. Os demais títulos do par ficam fora deste motivo — o contato de cobrança do
+ *       par continua barrado pelo porteiro. O coobrigado negocia os títulos dele: os retidos são do devedor
+ *       principal.</li>
  * </ul>
  * Um caso em {@code DISPUTED} não bloqueia os títulos que a contestação não cobre (o devedor pode
  * pagar a parte incontroversa). Restrições de contato (opt-out, canais) não impedem negociar quando
@@ -57,9 +64,12 @@ class CollectionCaseEligibilityAdapter implements CaseEligibilityPort {
     private final PortfolioUseCases portfolios;
     private final CaseUseCases cases;
     private final DisputeUseCases disputes;
+    private final ReversalHoldUseCases reversalHolds;
 
     CollectionCaseEligibilityAdapter(DebtTitleUseCases titles, PortfolioUseCases portfolios, CaseUseCases cases,
-                                     DisputeUseCases disputes) {
+                                     DisputeUseCases disputes,
+                                     ReversalHoldUseCases reversalHolds) {
+        this.reversalHolds = reversalHolds;
         this.titles = titles;
         this.portfolios = portfolios;
         this.cases = cases;
@@ -84,6 +94,7 @@ class CollectionCaseEligibilityAdapter implements CaseEligibilityPort {
                     .filter(d -> OPEN_DISPUTE.contains(d.status()) && d.blocksCollection())
                     .map(DisputeView::titleIds).forEach(disputed::addAll));
         }
+        Set<UUID> held = reversalHolds.heldTitleIds(creditorId, debtorId);
         List<UUID> eligible = new ArrayList<>();
         Map<UUID, List<String>> ineligible = new LinkedHashMap<>();
         for (UUID id : titleIds) {
@@ -109,6 +120,9 @@ class CollectionCaseEligibilityAdapter implements CaseEligibilityPort {
                 if (c.isEmpty() || NOT_OPERABLE_CASE.contains(c.get().status())
                         || c.get().eligibilityReasons().stream().anyMatch(NEGOTIATION_BLOCKING_REASONS::contains)) {
                     reasons.add("case.not_eligible");
+                }
+                if (held.contains(id)) {
+                    reasons.add("title.reversal_hold");
                 }
             }
             if (reasons.isEmpty()) {

@@ -60,13 +60,13 @@ shared ◄── organization ◄── identity
               ▲   ▲
               │   └─ debt ◄── ingestion (→ debt, organization, compliance [retenção, aviso ao credor da anonimização])
               │       ▲  ▲
-              │       │  └── compliance  (→ debt [usecases e spi: titular eliminado não volta, decisão 1600], organization, identity [responsável por solicitação de titular])
+              │       │  └── compliance  (→ debt [usecases e spi: titular eliminado não volta, decisão 1600; usecases: retenção após estorno, H07 parte 3], organization, identity [responsável por solicitação de titular])
               │       │        ▲
               ├── collection ──┘  (collection → debt, organization, identity, compliance)
               │       ▲
               ├── negotiation        (→ collection, compliance [salvaguarda de oferta], debt, organization, identity)
               │       ▲
-              ├── payment            (→ negotiation [usecases e spi, ADR-0010], debt, organization)
+              ├── payment            (→ negotiation [usecases e spi, ADR-0010], debt [usecases e reversal-hold: criação da retenção no estorno, só o payment], organization)
               │       ▲
               ├── settlement         (→ payment, negotiation, organization)
               ├── communication      (→ collection [usecases e spi, ADR-0010], debt, compliance, identity [atribuíveis], organization)

@@ -29,7 +29,9 @@ import java.time.Instant;
 class TitleChangeNotifier {
 
     /** O que provocou a mudança (atributo {@code trigger} do evento de negócio). */
-    enum Trigger { PAYMENT, REVERSAL, CHARGE, DISCOUNT, IMPORT, MANUAL, RETURN, TRANSFER, DISPUTE, AMOUNT_ADJUSTMENT }
+    enum Trigger { PAYMENT, REVERSAL, CHARGE, DISCOUNT, IMPORT, MANUAL, RETURN, TRANSFER, DISPUTE, AMOUNT_ADJUSTMENT,
+        /** Retenção após estorno de pagamento recebido pelo credor colocada ou liberada (H07 parte 3). */
+        REVERSAL_HOLD }
 
     private final ApplicationEventPublisher events;
     private final BusinessEventLogger businessEvents;

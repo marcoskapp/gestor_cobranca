@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.payment.application.service;
 
+import br.com.gestorcobranca.debt.application.port.in.ReversalHoldUseCases;
 import br.com.gestorcobranca.payment.application.port.in.PaymentInstructionUseCases;
 import br.com.gestorcobranca.payment.application.port.out.BoletoProvider;
 import br.com.gestorcobranca.payment.application.port.out.PaymentLinkProvider;
@@ -71,13 +72,16 @@ class InstructionService implements PaymentInstructionUseCases {
     private final CurrentActor currentActor;
     private final AccessLogger accessLogger;
     private final Clock clock;
+    private final ReversalHoldUseCases reversalHolds;
 
     InstructionService(PaymentInstructionRepository instructions, PixAccountRepository accounts, TargetResolver resolver,
                        PixGateway pixGateway, ObjectProvider<BoletoProvider> boletoProvider,
                        ObjectProvider<PaymentLinkProvider> linkProvider, PaymentSettingsProvider settings,
                        IdempotencyService idempotency, JobQueue jobs, PaymentRecorder recorder, AccessScope accessScope,
                        AuditTrail auditTrail, PaymentMetrics metrics, CurrentActor currentActor,
-                       AccessLogger accessLogger, Clock clock) {
+                       AccessLogger accessLogger, Clock clock,
+                       ReversalHoldUseCases reversalHolds) {
+        this.reversalHolds = reversalHolds;
         this.currentActor = currentActor;
         this.accessLogger = accessLogger;
         this.instructions = instructions;
@@ -126,6 +130,11 @@ class InstructionService implements PaymentInstructionUseCases {
                     "Acordo encerrado não recebe instrução de pagamento");
         }
         InstallmentInfo info = agreement.installment(c.installmentId());
+        // estorno de pagamento recebido pelo credor em conferência (H07 parte 3, RS-112): sem nova cobrança da parcela
+        // (antes do saldo: a parcela é reaberta pelo negotiation depois do estorno)
+        if (reversalHolds.pendingInstallmentIds(agreement.agreementId()).contains(info.id())) {
+            throw reversalHeld();
+        }
         Guard.require(info.remaining().isPositive(), "payment_instruction.installment_paid",
                 "Parcela sem saldo em aberto");
         Money amount = amount(c, info.remaining());
@@ -146,6 +155,12 @@ class InstructionService implements PaymentInstructionUseCases {
         return register(instruction);
     }
 
+    /** Texto sem código interno: serve ao operador, ao portal e ao assistente. */
+    private static BusinessRuleException reversalHeld() {
+        return new BusinessRuleException("payment_instruction.reversal_hold",
+                "Este valor está em conferência com o credor e não pode ser cobrado agora. Fale com a assessoria.");
+    }
+
     private UUID forTitle(InstructionType type, CreateInstructionCommand c) {
         TitleInfo title = resolver.titles(List.of(c.titleId())).getFirst();
         accessScope.requireCreditor(title.creditorId());
@@ -154,6 +169,9 @@ class InstructionService implements PaymentInstructionUseCases {
             throw new BusinessRuleException("payment_instruction.title_unavailable", title.underAgreement()
                     ? "Título coberto por acordo em vigor: gere a instrução pela parcela do acordo"
                     : "Título sem saldo em aberto em cobrança");
+        }
+        if (!reversalHolds.heldAmong(List.of(title.id())).isEmpty()) {
+            throw reversalHeld();
         }
         Money amount = amount(c, title.openBalance());
         Optional<PaymentInstruction> reusable = instructions.findByTitleIdAndStatusIn(c.titleId(), OPEN).stream()

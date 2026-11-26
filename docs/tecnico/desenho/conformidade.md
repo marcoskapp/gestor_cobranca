@@ -612,3 +612,10 @@ credor do coobrigado, corrida com a eliminação em duas transações, revisão 
 `ErasedSubjectReturnTest`, `CreditorErasureNoticeTest`, `CreditorErasureNoticeTextTest`, `DebtTitleTest`;
 `ArchitectureTest#erasedSubjectsAreCheckedOnlyByTheirOwners`. Front: `erased-subject-returns-card.spec`,
 `compliance.rules.spec`.
+
+## Porteiro: estorno em conferência (H07 parte 3)
+
+Com retenção pendente do par devedor–credor (inclusive coobrigado ativo de título retido), o `ContactGate` nega
+`COLLECTION` em todos os canais e origens com `PAYMENT_REVERSAL_HOLD`, sem fim previsto; `AUTHENTICATION`,
+`TRANSACTIONAL` e `RESPONSE` seguem as regras normais. Relido a cada decisão — mensagem agendada antes do estorno é
+barrada no envio (`SendMessageJob`) e a discagem também (decisões 1644 e 1652).

@@ -63,6 +63,22 @@
   } @else if (p.status === 'REVERSED' && p.reversal) {
     <div class="alert alert-danger d-flex gap-2 align-items-start" role="note"><app-icon name="arrow-counterclockwise" /><span>Estornado em {{ p.reversal.reversedAt | appDate }}. Os destinos voltaram a ter saldo em aberto.</span></div>
   }
+  @for (h of reversalHolds(); track h.hold.id) {
+    <!-- retenção da cobrança após estorno de pagamento recebido pelo credor (H07 parte 3) -->
+    <div class="alert d-flex gap-2 align-items-start" [class.alert-warning]="h.hold.state === 'PENDING'" [class.alert-secondary]="h.hold.state !== 'PENDING'" role="note" data-testid="reversal-hold">
+      <app-icon name="shield-check" />
+      <span>
+        @if (h.hold.state === 'PENDING') {
+          Cobrança em conferência: a cobrança deste credor com o devedor está parada até o financeiro conferir com o credor e liberar.
+        } @else if (h.hold.state === 'RELEASED') {
+          Cobrança liberada em {{ h.hold.releasedAt | appDate }} ({{ holdReasonLabel(h) }}).
+        } @else {
+          Conferência encerrada: dados do titular eliminados.
+        }
+        <a routerLink="/pagamentos/baixas-do-credor" [queryParams]="holdLinkParams(h)">Ver na lista de estornos em conferência</a>
+      </span>
+    </div>
+  }
   <app-creditor-portal-note [payment]="p" />
   @if (p.status === 'INFORMED' && holdBadge(p); as badge) {
     <div class="alert d-flex gap-2 align-items-start" [class.alert-warning]="badge.tone === 'warning'" [class.alert-danger]="badge.tone === 'danger'" role="note" data-testid="break-hold">

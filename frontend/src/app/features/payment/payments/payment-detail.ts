@@ -1,4 +1,7 @@
 import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
+import { HeldReversalItem, ReversalHoldsApi } from '../creditor-reported/reversal-holds.api';
+import { toLocalDate } from '../../../shared/models/dates';
+import { HOLD_RELEASE_REASON_LABELS } from '../creditor-reported/reversal-holds.rules';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, finalize, forkJoin, map, of } from 'rxjs';
@@ -93,6 +96,27 @@ export class PaymentDetail {
 
   protected readonly resource = rxResource({ params: () => this.id(), stream: ({ params }) => this.api.get(params) });
   protected readonly payment = valueOr<PaymentView | undefined>(this.resource, undefined);
+  private readonly holdsApi = inject(ReversalHoldsApi);
+  /** Retenção da cobrança criada pelo estorno (H07 parte 3); só no pagamento estornado recebido pelo credor. */
+  private readonly holdsResource = rxResource({
+    params: () => (this.payment()?.status === 'REVERSED' ? this.payment()!.id : undefined),
+    stream: ({ params }) => this.holdsApi.forPayment(params).pipe(catchError(() => of([] as HeldReversalItem[]))),
+  });
+  protected readonly reversalHolds = valueOr(this.holdsResource, [] as HeldReversalItem[]);
+
+  /** Atalho para a aba já filtrada: o pagamento, a situação real e o dia do estorno (UX-01). */
+  protected holdLinkParams(h: HeldReversalItem): Record<string, string> {
+    const day = toLocalDate(new Date(h.hold.placedAt)) ?? '';
+    const params: Record<string, string> = { aba: 'estornos', pagamento: h.hold.paymentId };
+    if (h.hold.state !== 'PENDING') {
+      Object.assign(params, { situacao: h.hold.state, de: day, ate: day });
+    }
+    return params;
+  }
+
+  protected holdReasonLabel(h: HeldReversalItem): string {
+    return h.hold.releaseReason ? HOLD_RELEASE_REASON_LABELS[h.hold.releaseReason].toLowerCase() : '';
+  }
   protected readonly busy = signal(false);
   /** O estorno (destrutivo) fica no menu "Mais ações" (padrão de ação da ficha, ux.md §12.2). */
   protected readonly moreActions = computed<MoreAction[]>(() =>

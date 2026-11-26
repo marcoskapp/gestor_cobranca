@@ -44,6 +44,7 @@ export const CONTACT_DENIAL_LABELS: Record<ContactDenialReason, string> = {
   WEEKLY_LIMIT: 'Limite semanal de tentativas',
   MIN_INTERVAL: 'Intervalo mínimo entre tentativas',
   DEBTOR_ANONYMIZED: 'Devedor anonimizado (LGPD)',
+  PAYMENT_REVERSAL_HOLD: 'Cobrança em conferência após estorno',
 };
 
 export type AvailabilityKind = 'allowed' | 'wait' | 'blocked' | 'suspended';

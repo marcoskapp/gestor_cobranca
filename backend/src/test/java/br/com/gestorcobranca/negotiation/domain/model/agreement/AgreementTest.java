@@ -13,6 +13,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -186,6 +187,22 @@ class AgreementTest {
         LocalDate thirdDue = D0.plusMonths(2);
         assertThat(a.breakRuleMet(thirdDue.plusDays(5))).isFalse();
         assertThat(a.breakRuleMet(thirdDue.plusDays(6))).isTrue();
+    }
+
+    /** H07 parte 3 (decisão 1656): parcela reaberta por estorno de pagamento ao credor não conta para a quebra. */
+    @Test
+    void exemptInstallmentsDoNotCountForTheBreakRule() {
+        Agreement a = agreement(1, 0);
+        LocalDate late = D0.plusDays(1);
+        assertThat(a.breakRuleMet(late)).isTrue();
+        assertThat(a.overdueBeyondTolerance(late)).isEqualTo(1);
+        Set<UUID> exempt = Set.of(installmentId(a, 1));
+        assertThat(a.breakRuleMet(late, exempt)).isFalse();
+        assertThat(a.overdueBeyondTolerance(late, exempt)).isZero();
+        // a próxima parcela em atraso (não isenta) volta a contar
+        LocalDate secondLate = D0.plusMonths(1).plusDays(1);
+        assertThat(a.overdueBeyondTolerance(secondLate, exempt)).isEqualTo(1);
+        assertThat(a.breakRuleMet(secondLate, exempt)).isTrue();
     }
 
     @Test

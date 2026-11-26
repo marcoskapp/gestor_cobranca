@@ -308,6 +308,15 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    /** A criação da retenção após estorno (sem permissão própria, na transação do estorno) é só do payment (AQ-02). */
+    @Test
+    void onlyPaymentPlacesReversalHolds() {
+        noClasses().that().resideOutsideOfPackages(ROOT + ".payment..", ROOT + ".debt..")
+                .should().dependOnClassesThat().resideInAPackage(ROOT + ".debt.application.port.in.reversalhold..")
+                .because("a retenção só nasce na transação do estorno de pagamento recebido pelo credor (H07 parte 3)")
+                .check(classes);
+    }
+
     @Test
     void springDataRepositoriesLiveInPersistence() {
         classes().that().areAssignableTo(org.springframework.data.repository.Repository.class)

@@ -19,11 +19,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -396,15 +398,27 @@ public class Agreement extends TenantScopedEntity {
 
     /** Regra de quebra (fixada na formalização): N parcelas em atraso além da tolerância. */
     public boolean breakRuleMet(LocalDate today) {
+        return breakRuleMet(today, Set.of());
+    }
+
+    /**
+     * @param exempt parcelas que não contam para a quebra (reabertas por estorno de pagamento recebido pelo credor,
+     *               em conferência ou na carência após a liberação — H07 parte 3)
+     */
+    public boolean breakRuleMet(LocalDate today, Collection<UUID> exempt) {
         if (!status.isActive()) {
             return false;
         }
-        long overdue = installments.stream().filter(i -> i.overdueBeyond(today, breakToleranceDays)).count();
-        return overdue >= breakOverdueInstallments;
+        return overdueBeyondTolerance(today, exempt) >= breakOverdueInstallments;
     }
 
     public long overdueBeyondTolerance(LocalDate today) {
-        return installments.stream().filter(i -> i.overdueBeyond(today, breakToleranceDays)).count();
+        return overdueBeyondTolerance(today, Set.of());
+    }
+
+    public long overdueBeyondTolerance(LocalDate today, Collection<UUID> exempt) {
+        return installments.stream().filter(i -> !exempt.contains(i.getId()))
+                .filter(i -> i.overdueBeyond(today, breakToleranceDays)).count();
     }
 
     /**

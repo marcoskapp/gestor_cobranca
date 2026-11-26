@@ -62,6 +62,18 @@
         <span>Título em contestação: a cobrança fica bloqueada até a análise ser concluída.</span>
       </div>
     }
+    @if (held().get(t.id); as h) {
+      <!-- estorno de pagamento recebido pelo credor em conferência (H07 parte 3) -->
+      <div class="alert alert-warning d-flex gap-2 align-items-start" role="note" data-testid="reversal-hold-notice">
+        <app-icon name="exclamation-triangle" />
+        <span>
+          <strong>{{ heldBadge }}.</strong> {{ heldHint }}
+          @if (h.paymentId && canViewPayments()) {
+            <a [routerLink]="['/pagamentos', h.paymentId]">Ver pagamento</a>
+          }
+        </span>
+      </div>
+    }
     @if (t.creditorPaidTotal > 0) {
       <div class="alert alert-info d-flex gap-2 align-items-start" role="note">
         <app-icon name="cash-coin" />

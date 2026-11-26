@@ -67,6 +67,24 @@ class JdbcDebtPendingWorkQueries implements DebtPendingWorkQueries {
         return jdbc.queryForObject(sql, params, PendingWorkRows.COUNT);
     }
 
+    @Override
+    public PendingWorkCount reversalHolds(Set<UUID> creditorScope, UUID reviewerId, Instant overdueBefore) {
+        if (creditorScope != null && creditorScope.isEmpty()) {
+            return PendingWorkCount.NONE;
+        }
+        // quem estornou ou informou o pagamento não vê a própria retenção (não pode liberar)
+        MapSqlParameterSource params = new MapSqlParameterSource("me", reviewerId)
+                .addValue("overdue", Timestamp.from(overdueBefore));
+        String sql = """
+                select count(*) as total, count(*) filter (where placed_at < :overdue) as overdue, 0 as due_today,
+                       min(placed_at) as oldest_at, null::date as next_due, null::uuid as single_id
+                  from debt.reversal_hold
+                 where state = 'PENDING' and not (placed_by_type = 'USER' and placed_by = :me)
+                   and informed_by is distinct from :me
+                """ + scope(creditorScope, params);
+        return jdbc.queryForObject(sql, params, PendingWorkRows.COUNT);
+    }
+
     private static String scope(Set<UUID> creditorScope, MapSqlParameterSource params) {
         if (creditorScope == null) {
             return "";

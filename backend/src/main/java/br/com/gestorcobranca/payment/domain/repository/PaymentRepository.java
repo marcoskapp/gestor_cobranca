@@ -66,6 +66,12 @@ public interface PaymentRepository {
     /** Soma dos pagamentos externos confirmados sem revisão, do devedor no credor, informados a partir de {@code since}. */
     Money sumExternalInformedForDebtor(UUID creditorId, UUID debtorId, Instant since);
 
+    /**
+     * Houve estorno, a partir de {@code since}, de pagamento recebido pelo credor (origem {@code CREDITOR_DIRECT} ou
+     * {@code CREDITOR_REPORT}) do devedor no credor (RS-120).
+     */
+    boolean existsCreditorReceivedReversedSince(UUID creditorId, UUID debtorId, Instant since);
+
     /** Soma dos pagamentos externos confirmados sem revisão, informados pelo usuário a partir de {@code since}. */
     Money sumExternalInformedBy(UUID informedBy, Instant since);
 

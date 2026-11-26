@@ -179,6 +179,9 @@
                 @if (t.disputeBlocked) {
                   <span class="debt-flag" ngbTooltip="Em contestação: cobrança bloqueada"><app-icon name="hammer" />Contestação</span>
                 }
+                @if (held().has(t.id)) {
+                  <span class="debt-flag" [ngbTooltip]="heldHint"><app-icon name="exclamation-triangle" />{{ heldBadge }}<span class="visually-hidden">: {{ heldHint }}</span></span>
+                }
                 @if (t.creditorPaidTotal > 0) {
                   <span class="debt-flag debt-flag--info" ngbTooltip="Pago diretamente ao credor, sem passar pela assessoria (informado pelo credor ou registrado a partir do aviso dele)"><app-icon name="cash-coin" />Pago ao credor<span class="visually-hidden">: pago diretamente ao credor, sem passar pela assessoria</span></span>
                 }

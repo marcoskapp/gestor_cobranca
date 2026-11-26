@@ -20,6 +20,11 @@ class CollectionMetrics {
         this.registry = registry;
     }
 
+    /** Motivo de inelegibilidade ou canal gravado que esta versão não conhece (AQ-03; sem o valor na tag). */
+    void unknownEligibilityValue() {
+        registry.counter("collection.eligibility.unknown_reason").increment();
+    }
+
     void caseOpened(String trigger) {
         registry.counter("collection.cases.opened", "trigger", trigger).increment();
     }

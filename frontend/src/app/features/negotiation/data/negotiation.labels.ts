@@ -91,6 +91,7 @@ export const EXCLUDED_REASON_LABELS: Record<string, string> = {
   'title.not_open': 'Título fora de cobrança',
   'title.no_balance': 'Sem saldo',
   'title.dispute_blocked': 'Em contestação',
+  'title.reversal_hold': 'Estorno em conferência',
   'portfolio.not_operable': 'Carteira fora de operação',
 };
 

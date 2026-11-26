@@ -11,7 +11,10 @@ import java.util.UUID;
  * da assessoria (janela de horário e dias no fuso de operação, feriados cadastrados, limites
  * diário e semanal, intervalo mínimo) e a anonimização do devedor.
  * <p>
- * Limites e intervalo contam as tentativas do devedor no canal em todos os credores.
+ * Limites e intervalo contam as tentativas do devedor no canal em todos os credores. Com estorno de pagamento recebido
+ * pelo credor em conferência (H07 parte 3), o contato de cobrança ({@code COLLECTION}) desse credor com o devedor — ou
+ * com coobrigado ativo do título retido — é negado em todos os canais e origens ({@code PAYMENT_REVERSAL_HOLD}, sem fim
+ * previsto) até uma pessoa liberar.
  * Exige que o devedor e o credor estejam no escopo do ator (consumidores e jobs executam como
  * sistema, com escopo total).
  */
@@ -81,6 +84,8 @@ public interface ContactGate {
         DAILY_LIMIT,
         WEEKLY_LIMIT,
         MIN_INTERVAL,
-        DEBTOR_ANONYMIZED
+        DEBTOR_ANONYMIZED,
+        /** Estorno de pagamento recebido pelo credor em conferência: sem contato de cobrança do credor (H07 parte 3). */
+        PAYMENT_REVERSAL_HOLD
     }
 }

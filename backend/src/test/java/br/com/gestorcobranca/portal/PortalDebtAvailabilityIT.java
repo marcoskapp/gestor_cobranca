@@ -5,6 +5,8 @@ import br.com.gestorcobranca.compliance.application.port.in.VulnerabilityUseCase
 import br.com.gestorcobranca.compliance.application.port.in.VulnerabilityUseCases.RegisterMarkerCommand;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases.TitleView;
+import br.com.gestorcobranca.debt.application.port.in.ReversalHoldUseCases;
+import br.com.gestorcobranca.debt.application.port.in.reversalhold.ReversalHoldPlacement;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.PlanInput;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.SimulateCommand;
@@ -40,6 +42,12 @@ class PortalDebtAvailabilityIT extends PortalTestSupport {
     NegotiationSimulationUseCases simulations;
     @Autowired
     ProposalUseCases proposals;
+    @Autowired
+    ReversalHoldPlacement placement;
+    @Autowired
+    ReversalHoldUseCases reversalHolds;
+    @Autowired
+    org.springframework.transaction.support.TransactionTemplate transactions;
 
     @BeforeEach
     void setUp() {
@@ -122,6 +130,25 @@ class PortalDebtAvailabilityIT extends PortalTestSupport {
         asManager(() -> vulnerability.register(new RegisterMarkerCommand(maria, "SUPER_INDEBTED", "LEGAL_OBLIGATION",
                 "DEBTOR_DECLARATION", null)));
         assertThat(onlyPortfolio(token).get("unavailableReason").asString()).isEqualTo("NOT_ELIGIBLE");
+    }
+
+    /** H07 parte 3, decisão do responsável 4 (RS-112): título com estorno em conferência não aparece nem soma. */
+    @Test
+    void titleWithReversalInReviewIsNotShownNorSummed() {
+        TitleView held = system(() -> titles.listByDebtor(maria)).stream()
+                .filter(t -> "CT-0002-5432".equals(t.externalId())).findFirst().orElseThrow();
+        system(() -> transactions.execute(tx -> placement.place(new ReversalHoldPlacement.PlaceCommand(
+                UUID.randomUUID(), UUID.randomUUID(), creditorA, maria, null, List.of(held.id()), List.of(), List.of(),
+                null, "OTHER"))));
+        drainJobs("collection.");
+        String token = loginReady(CPF_MARIA);
+
+        JsonNode debt = onlyPortfolio(token);
+        assertThat(debt.get("titles").size()).isEqualTo(1);
+        assertThat(debt.get("titles").get(0).get("titleId").asString()).isNotEqualTo(held.id().toString());
+        assertThat(new BigDecimal(debt.get("openBalance").asString())).isEqualByComparingTo("1000.00");
+        // decisão 1655: só o título retido sai da negociação; o outro título continua negociável no portal
+        assertThat(debt.get("negotiable").asBoolean()).isTrue();
     }
 
     private JsonNode onlyPortfolio(String token) {

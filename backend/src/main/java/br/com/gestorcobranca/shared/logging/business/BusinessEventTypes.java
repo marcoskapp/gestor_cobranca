@@ -55,6 +55,12 @@ public final class BusinessEventTypes {
     /** Primeira tentativa por um contato (novo × antigo, efetivo ou não). */
     public static final String CONTACT_FIRST_ATTEMPT = "contact.first_attempt";
     public static final String TITLE_STATUS_CHANGED = "title.status_changed";
+    /** Estorno de pagamento recebido pelo credor reteve a cobrança do par devedor–credor (H07 parte 3). */
+    public static final String REVERSAL_HOLD_PLACED = "reversal_hold.placed";
+    /** Retenção liberada por uma pessoa (motivo codificado, idade em horas; nunca a justificativa). */
+    public static final String REVERSAL_HOLD_RELEASED = "reversal_hold.released";
+    /** Retenção encerrada sem liberação (titular anonimizado ou eliminado). */
+    public static final String REVERSAL_HOLD_ENDED = "reversal_hold.ended";
     public static final String COLLATERAL_REGISTERED = "collateral.registered";
     public static final String COLLATERAL_STATUS_CHANGED = "collateral.status_changed";
     public static final String COLLATERAL_APPRAISED = "collateral.appraised";

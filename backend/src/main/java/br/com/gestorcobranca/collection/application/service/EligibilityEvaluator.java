@@ -12,6 +12,7 @@ import br.com.gestorcobranca.compliance.application.port.in.ContactGate.ContactR
 import br.com.gestorcobranca.compliance.application.port.in.ContactGate.DenialReason;
 import br.com.gestorcobranca.debt.application.port.in.DebtorUseCases;
 import br.com.gestorcobranca.debt.application.port.in.InsolvencyUseCases;
+import br.com.gestorcobranca.debt.application.port.in.ReversalHoldUseCases;
 import br.com.gestorcobranca.organization.application.port.in.PortfolioUseCases;
 import org.springframework.stereotype.Component;
 
@@ -53,9 +54,12 @@ class EligibilityEvaluator {
     private final ContactGate contactGate;
     private final DisputeRepository disputes;
     private final Clock clock;
+    private final ReversalHoldUseCases reversalHolds;
 
     EligibilityEvaluator(PortfolioUseCases portfolios, DebtorUseCases debtors, InsolvencyUseCases insolvency,
-                         ContactGate contactGate, DisputeRepository disputes, Clock clock) {
+                         ContactGate contactGate, DisputeRepository disputes, Clock clock,
+                         ReversalHoldUseCases reversalHolds) {
+        this.reversalHolds = reversalHolds;
         this.portfolios = portfolios;
         this.debtors = debtors;
         this.insolvency = insolvency;
@@ -86,6 +90,8 @@ class EligibilityEvaluator {
 
         private final Map<UUID, Boolean> operablePortfolios = new HashMap<>();
         private final Map<UUID, Boolean> insolventDebtors = new HashMap<>();
+        /** Retenção após estorno por par devedor–credor, relida do debt uma vez por avaliação em lote (RC-03). */
+        private final Map<String, Boolean> heldPairs = new HashMap<>();
 
         Eligibility evaluate(CollectionCase c) {
             return evaluate(c, true);
@@ -100,9 +106,14 @@ class EligibilityEvaluator {
             boolean anonymized = ANONYMIZED.equals(debtors.get(c.getDebtorId()).status());
             boolean insolvent = insolventDebtors.computeIfAbsent(c.getDebtorId(), insolvency::isUnderInsolvency);
             boolean blockingDispute = c.getId() != null && disputes.existsBlockingByCaseId(c.getId());
-            Map<InteractionChannel, ChannelAvailability> channels = anonymized || !withContact ? Map.of() : channels(c);
+            // retenção após estorno relida do debt a cada avaliação (nunca do cache do caso): com ela, os canais não
+            // são avaliados — o porteiro negaria todos e o motivo seria só a retenção
+            boolean held = !anonymized && heldPairs.computeIfAbsent(c.getDebtorId() + "|" + c.getCreditorId(),
+                    k -> reversalHolds.isHeld(c.getDebtorId(), c.getCreditorId()));
+            Map<InteractionChannel, ChannelAvailability> channels = anonymized || held || !withContact ? Map.of()
+                    : channels(c);
             return EligibilityPolicy.evaluate(new EligibilityPolicy.Input(c.getStatus(), operable, c.balance(),
-                    blockingDispute, anonymized, insolvent, channels));
+                    blockingDispute, anonymized, insolvent, channels, held));
         }
 
         private Map<InteractionChannel, ChannelAvailability> channels(CollectionCase c) {

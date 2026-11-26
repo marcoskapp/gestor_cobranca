@@ -17,4 +17,11 @@ public interface ExternalPaymentLocks {
 
     /** Informes do portal do credor: a contagem do limite em análise por credor (RS-36) sob a mesma trava. */
     void lockCreditorPortalReports(UUID tenantId, UUID creditorId);
+
+    /**
+     * Só a trava do devedor no credor (a mesma de {@link #lockExternalRegistration}): o estorno de pagamento recebido
+     * pelo credor a toma para que um registro externo simultâneo do mesmo par veja o estorno ao decidir a revisão
+     * (RS-118, RS-120).
+     */
+    void lockCreditorDebtor(UUID tenantId, UUID creditorId, UUID debtorId);
 }

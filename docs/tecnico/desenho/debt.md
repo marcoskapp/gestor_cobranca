@@ -402,3 +402,46 @@ Decisões 1576–1581 e 1632–1633. Resposta 2 do responsável (25/11/2026): a 
 - **Testes**: `DebtTitleTest` (domínio), `CreditorReportedIsolationIT#importSettlementIsRecordedOnlyBySettlingImportAndClearedWhenTheTitleReopens`,
   `IngestionModuleIT` (suspensão com motivo codificado e lote).
 
+## 15. Estorno em conferência: retenção da cobrança após estorno de pagamento recebido pelo credor (`V0315`, H07 parte 3)
+
+Decisões do responsável de 25/11 e 26/11/2026 (decisão 1644) e decisões 1645–1670. O estorno de um pagamento recebido
+pelo credor (origem `CREDITOR_DIRECT`/`CREDITOR_REPORT`) **não retoma a cobrança sozinho**: o payment cria, na mesma
+transação do estorno e antes de publicar os `PaymentReversed`, uma retenção `debt.reversal_hold` (porta
+`ReversalHoldPlacement#place` na interface `debt :: reversal-hold`, só do payment — regra ArchUnit
+`onlyPaymentPlacesReversalHolds`; `MANDATORY`; erro desfaz o estorno inteiro — RS-108).
+
+- **Registro** (um por estorno, empilha): credor, devedor, pagamento, estorno (único por tenant), motivo do
+  estorno, quem estornou (`USER`/`SYSTEM`), quem informou (só usuário interno), situação `PENDING | RELEASED | ENDED`,
+  liberação (quem, quando, motivo codificado, justificativa ≤ 500) e encerramento. Itens em `debt.reversal_hold_item`
+  (`TITLE`, `AGREEMENT` — um ou mais acordos, decisão 1678 —, `INSTALLMENT`, `ALLOCATION`). RLS (a tabela filha pela linha-mãe), sem `DELETE` para `app_runtime`, itens
+  append-only e gatilho `reversal_hold_guard` (campos da criação imutáveis; retenção encerrada não muda de situação; a
+  justificativa só pode ser limpa) — RS-123. Check de segregação no banco.
+- **Independente do status do título** (RS-109): nada no título a encerra; só a liberação humana e a anonimização do
+  titular (`ReversalHoldAnonymizationListener`, consumidor de `DebtorAnonymized`: pendente → `ENDED`, justificativa
+  limpa). Titular eliminado (decisão 1603) não recebe retenção.
+- **Onde vale**: porteiro do compliance (`isHeld`: devedor principal ou coobrigado ativo de título retido; nega
+  `COLLECTION` com `PAYMENT_REVERSAL_HOLD`), elegibilidade do collection (`PAYMENT_REVERSAL_HOLD`), negociação
+  (`title.reversal_hold` em todos os títulos do par), quebra do acordo (`breakExemptInstallmentIds`: retida ou liberada
+  há menos de `grace-days`), instrução de pagamento (`heldAmong`, `pendingInstallmentIds`), portal do devedor
+  (`PortalDebts.titlesInPortal` sem os `heldTitleIds`), score (`createdForAllocation`). A ligação devedor–credor do
+  registro externo (RS-124) é outra porta, `DebtorCreditorLinkQueries#linked` (consulta escalar antes das travas).
+  Colocação, liberação e encerramento notificam os títulos retidos e os títulos próprios, no mesmo credor, dos
+  coobrigados ativos (decisão 1673).
+- **Liberação** (`release`, via `/api/v1/payment/reversal-holds/{id}/release`): só `USER` com `PAYMENT_REVIEW`; 404 igual
+  fora do escopo, de outra assessoria ou inexistente antes de qualquer regra (consulta escalar de credor/devedor);
+  trava compartilhada do devedor → `FOR UPDATE` da retenção; versão (409), situação (409), segregação (422
+  `reversal_hold.self_release`, Admin incluído), motivo e justificativa (422), confirmação (409). `AuditEntry`
+  `reversal_hold.released` com o estado anterior/novo, pagamento, estorno, credor e o tamanho da justificativa (nunca
+  o texto). Colocação e liberação publicam `TitleStatusChanged` dos títulos retidos (gatilho interno `REVERSAL_HOLD`)
+  para o collection reavaliar.
+- **Telas**: aba "Estornos em conferência" (payment), selo "Estorno em conferência" (`GET /api/v1/titles/reversal-holds
+  ?debtorId=`, `DEBTOR_VIEW` ou `CASE_VIEW`; pagamento só com `PAYMENT_VIEW`) e pendência "Estornos de pagamento ao
+  credor para conferir" (`DebtPendingWork`, sem as do próprio autor/informante; vencida depois de
+  `app.debt.reversal-hold.overdue-after`, padrão 5 dias). Nunca liberação automática por prazo (RS-113).
+- **Credor**: não estorna, não libera nem vê a retenção (RS-119); a API pública omite o motivo `PAYMENT_REVERSAL_HOLD`.
+- **Roteiro de rollback** (decisão 1654, [revisar]): voltar para uma versão sem a parte 3 **não** desfaz a V0315 nem a
+  V0815 (expand); a versão anterior ignora as retenções pendentes — o contato de cobrança e as ofertas voltam para os
+  pares retidos — e não lê casos com o motivo `PAYMENT_REVERSAL_HOLD` (a tolerância a valor desconhecido só existe a
+  partir desta versão). Antes de um rollback: listar as retenções `PENDING` na aba "Estornos em conferência", avisar o
+  financeiro e, se o rollback for inevitável, suspender manualmente o contato desses pares (restrição de contato do
+  credor). Antes da produção, reavaliar um deploy anterior só com a tolerância.

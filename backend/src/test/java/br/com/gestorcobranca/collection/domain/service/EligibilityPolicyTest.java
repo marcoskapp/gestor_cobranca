@@ -69,4 +69,16 @@ class EligibilityPolicyTest {
         assertThat(EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, OPEN, false, false, false, ALL)).eligible())
                 .isTrue();
     }
+
+    @Test
+    void reversalHoldMakesTheCaseIneligibleWithItsOwnReason() {
+        // retenção: os canais não são avaliados (o porteiro negaria todos) e o motivo é só a retenção (RS-111)
+        Eligibility e = EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, OPEN, false, false, false, Map.of(),
+                true));
+        assertThat(e.eligible()).isFalse();
+        assertThat(e.reasons()).containsExactly(EligibilityReason.PAYMENT_REVERSAL_HOLD);
+        assertThat(e.contactableChannels()).isEmpty();
+        assertThat(EligibilityPolicy.evaluate(new Input(CaseStatus.OPEN, true, OPEN, false, false, false, ALL, false))
+                .eligible()).isTrue();
+    }
 }

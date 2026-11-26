@@ -60,6 +60,7 @@ export const ELIGIBILITY_LABELS: Record<EligibilityReason, string> = {
   DEBTOR_ANONYMIZED: 'Devedor anonimizado (LGPD)',
   DEBTOR_INSOLVENCY: 'Empresa em recuperação judicial ou falência (cobrança suspensa)',
   CONTACT_RESTRICTED: 'Todos os canais com restrição de contato',
+  PAYMENT_REVERSAL_HOLD: 'Cobrança em conferência: pagamento ao credor estornado (aguarda liberação do financeiro)',
 };
 
 export function eligibilityText(reason: string): string {
@@ -217,6 +218,7 @@ export const NOTICE_REASON_LABELS: Record<string, string> = {
   OUTSIDE_WINDOW: 'fora do horário permitido',
   HOLIDAY: 'feriado',
   DEBTOR_ANONYMIZED: 'dados do devedor eliminados',
+  PAYMENT_REVERSAL_HOLD: 'cobrança em conferência após estorno (sem oferta)',
   CHANNEL_NOT_CONFIGURED: 'canal não configurado',
   NO_CONTACT: 'sem contato no canal',
   WHATSAPP_WINDOW_CLOSED: 'fora da janela de 24 h do WhatsApp',

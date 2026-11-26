@@ -41,6 +41,12 @@ class PostgresExternalPaymentLocks implements ExternalPaymentLocks {
         lock("payment.creditor_portal:" + tenantId + ":" + creditorId);
     }
 
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lockCreditorDebtor(UUID tenantId, UUID creditorId, UUID debtorId) {
+        lock("payment.external.debtor:" + tenantId + ":" + creditorId + ":" + debtorId);
+    }
+
     private void lock(String key) {
         jdbc.query("select pg_advisory_xact_lock(hashtextextended(?, 0))", rs -> null, key);
     }

@@ -20,4 +20,10 @@ public interface DebtPendingWorkQueries {
 
     /** Divergências abertas entre o valor corrigido e a carga do credor. */
     PendingWorkCount amountDivergences(Set<UUID> creditorScope);
+
+    /**
+     * Retenções da cobrança após estorno de pagamento recebido pelo credor aguardando conferência, sem as que o próprio
+     * revisor estornou ou informou; {@code overdue} = colocadas antes de {@code overdueBefore}.
+     */
+    PendingWorkCount reversalHolds(Set<UUID> creditorScope, UUID reviewerId, Instant overdueBefore);
 }

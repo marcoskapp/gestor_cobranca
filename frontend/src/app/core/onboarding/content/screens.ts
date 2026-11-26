@@ -196,7 +196,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'debt.debtor-detail',
-    version: 12,
+    version: 13,
     path: '/devedores/:id',
     tourId: 'debt.debtor-detail',
     changes: [
@@ -232,6 +232,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 10, items: ['Contatos: o telefone, e-mail ou endereço recebido numa nova carga para um devedor que já existia mostra o selo "Novo" até a primeira tentativa (depois, "Novo · atendeu" ou "Novo · sem resposta" até o fim do prazo). A dica diz a data da carga e quando o credor confirmou o contato.'] },
       { version: 11, items: ['Aba "Acordos": resumo de todos os acordos do devedor (acordos, em vigor, cumprimento e total pago) e cada acordo com o credor, a situação e as parcelas; o link abre o acordo numa aba nova.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial, e "Marcar atenção especial" oferece essas situações a quem pode registrar o processo.', 'Aberta pela estação, as listas que não cabem no painel viram linhas com o resumo e "Mais detalhes", sem rolagem lateral.'] },
       { version: 12, items: ['Títulos com parte paga diretamente ao credor mostram o selo "Pago ao credor".'] },
+      { version: 13, items: ['Selo "Estorno em conferência" na aba Títulos: um pagamento informado como recebido pelo credor foi estornado e a cobrança desse credor fica parada até o financeiro conferir com o credor.'] },
     ],
   },
   {
@@ -278,7 +279,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'debt.title-amount-approval', version: 1, path: '/titulos/correcoes-de-valor/:id', tourId: 'approval.decision' },
   {
     key: 'debt.title-detail',
-    version: 8,
+    version: 9,
     path: '/titulos/:id',
     tourId: 'debt.title-detail',
     changes: [
@@ -304,11 +305,12 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 6, items: ['Cartão "Relacionados" com os registros ligados a este que o seu perfil pode abrir: devedor, caso da carteira, acordos que incluem o título, contestação, caso jurídico e o lote que trouxe o título.'] },
       { version: 7, items: ['Título com parte paga diretamente ao credor: aviso com o valor, "ao credor" abaixo do total pago e, no razão, o lançamento marcado "pago ao credor". O estorno desse pagamento tira o aviso.'] },
       { version: 8, items: ['No razão, o lançamento de pagamento tem "Ver pagamento", que abre a ficha do pagamento (para quem consulta pagamentos).'] },
+      { version: 9, items: ['Aviso "Estorno em conferência" no título com pagamento ao credor estornado, com "Ver pagamento" para quem vê pagamentos: não cobre este valor até a liberação.'] },
     ],
   },
   {
     key: 'collection.queue',
-    version: 20,
+    version: 21,
     path: '/cobranca/fila',
     tourId: 'collection.station',
     changes: [
@@ -349,11 +351,12 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 18, items: ['Mensagem (Alt + W): ao escolher o template, o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores (o que ainda falta aparece entre colchetes, como [saldo]); se um valor não for aceito, o motivo aparece abaixo da prévia.'] },
       { version: 19, items: ['Aba Títulos: o título com parte paga diretamente ao credor mostra o selo "Pago ao credor" ao lado do número.'] },
       { version: 20, items: ['O aviso de pagamento em aprovação diz por onde ele foi informado: pela integração do credor, pelo credor no portal ou por um usuário.'] },
+      { version: 21, items: ['Aviso "Cobrança em conferência" no caso quando um pagamento ao credor foi estornado: não cobre este valor até a liberação; os títulos retidos têm o selo "Estorno em conferência".'] },
     ],
   },
   {
     key: 'collection.case',
-    version: 18,
+    version: 19,
     path: '/cobranca/casos/:id',
     tourId: 'collection.station',
     changes: [
@@ -396,6 +399,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 16, items: ['Aba "Acordos" (Alt + 8, em "Mais"): histórico de acordos do caso com resumo, situação e parcelas; cada acordo abre numa aba nova. A aba Negociação mostra só os acordos em vigor.', 'Empresa: a recuperação judicial, extrajudicial ou falência aparece no selo de atenção especial do cabeçalho.'] },
       { version: 17, items: ['Mensagem (Alt + W): ao escolher o template, o primeiro nome do devedor e o nome do credor já vêm preenchidos, e a prévia acompanha o que você digita nos valores (o que ainda falta aparece entre colchetes, como [saldo]); se um valor não for aceito, o motivo aparece abaixo da prévia.'] },
       { version: 18, items: ['O aviso de pagamento em aprovação diz por onde ele foi informado: pela integração do credor, pelo credor no portal ou por um usuário.'] },
+      { version: 19, items: ['Aviso "Cobrança em conferência" no caso quando um pagamento ao credor foi estornado: não cobre até o financeiro liberar; os títulos retidos têm o selo "Estorno em conferência".'] },
     ],
   },
   {
@@ -585,12 +589,20 @@ export const SCREENS: readonly ScreenGuide[] = [
     tourId: 'payment.list',
     changes: [{ version: 2, items: ['Ao informar pagamento, o aviso de que o valor vai para a aprovação de outra pessoa aparece para todos que informam, mesmo sem acesso aos parâmetros de pagamentos.'] }],
   },
-  { key: 'payment.creditor-reported', version: 1, path: '/pagamentos/baixas-do-credor', tourId: 'payment.creditor-reported' },
+  {
+    key: 'payment.creditor-reported',
+    version: 2,
+    path: '/pagamentos/baixas-do-credor',
+    tourId: 'payment.creditor-reported',
+    changes: [
+      { version: 2, items: ['Aba "Estornos em conferência": pagamentos ao credor estornados que pararam a cobrança até alguém do financeiro conferir com o credor; "Liberar a cobrança" pede o motivo, a justificativa e a confirmação, e quem estornou ou informou não libera.'] },
+    ],
+  },
   { key: 'payment.instructions', version: 1, path: '/pagamentos/instrucoes', tourId: 'payment.instructions' },
   { key: 'payment.instruction', version: 1, path: '/pagamentos/instrucoes/:id', tourId: 'payment.instruction' },
   {
     key: 'payment.review',
-    version: 7,
+    version: 8,
     path: '/pagamentos/aprovacoes',
     tourId: 'payment.review',
     changes: [
@@ -600,12 +612,13 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 5, items: ['Crédito de extrato importado que cita uma cobrança do sistema entra aqui para outra pessoa aprovar ("Extrato importado"); quem importou o extrato não aprova.'] },
       { version: 6, items: ['Pagamento informado pelo próprio credor no portal: aparece como "Pessoa do credor (portal do credor)", com os títulos informados e o resultado da verificação de vírus do comprovante; na recusa, escolha o motivo que o credor vê.'] },
       { version: 7, items: ['Pagamento informado pela integração do credor aparece em "Informado por" como "Integração do credor", com o nome da integração.'] },
+      { version: 8, items: ['Motivo "Estorno recente de pagamento ao credor": o credor teve um pagamento ao credor estornado para este devedor nos últimos 90 dias; confira com o credor antes de aprovar.'] },
     ],
   },
   // decisão da fila antes do detalhe do pagamento (":id" casaria o caminho)
   {
     key: 'payment.approval',
-    version: 5,
+    version: 6,
     path: '/pagamentos/aprovacoes/:id',
     tourId: 'approval.decision',
     changes: [
@@ -613,6 +626,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Pagamento informado pelo próprio credor no portal mostra os títulos informados e se o comprovante passou pela verificação de segurança; na recusa, escolha o motivo que o credor vê.'] },
       { version: 4, items: ['Pagamento informado pela integração do credor mostra a integração (token) que informou; novo motivo "Soma da integração do credor": todas as integrações do credor juntas passaram do limite.'] },
       { version: 5, items: ['Pagamento da integração do credor com o acesso revogado, pausado pela plataforma ou expirado, ou com a integração não encontrada, aparece em destaque com o motivo e o atalho "Abrir token"; para aprovar, marque que conferiu com o credor (recusar não exige). A confirmação vale só para o pagamento aberto.'] },
+      { version: 6, items: ['Pagamento informado pelo credor depois de um estorno de pagamento ao credor do mesmo devedor vai sempre para aprovação, com o motivo "Estorno recente de pagamento ao credor".'] },
     ],
   },
   { key: 'payment.reallocation', version: 1, path: '/pagamentos/sobras', tourId: 'payment.reallocation' },
@@ -692,7 +706,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'payment.detail',
-    version: 7,
+    version: 8,
     path: '/pagamentos/:id',
     tourId: 'payment.detail',
     changes: [
@@ -702,6 +716,7 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 5, items: ['Pagamento informado pelo próprio credor no portal: aparece como "Pessoa do credor (portal do credor)", com os títulos informados e o resultado da verificação de vírus do comprovante; na recusa, escolha o motivo que o credor vê.'] },
       { version: 6, items: ['Pagamento informado pela integração do credor aparece como "Integração do credor", com o nome da integração e o atalho para a ficha do token (para quem administra integrações).'] },
       { version: 7, items: ['Aviso da integração do credor na ficha quando o acesso foi revogado, pausado pela plataforma ou expirou, ou quando a integração não foi encontrada, com o motivo; para aprovar nesse caso, marque no aviso que conferiu com o credor.'] },
+      { version: 8, items: ['Pagamento ao credor estornado mostra se a cobrança está em conferência ou já foi liberada, com o atalho para "Estornos em conferência".'] },
     ],
   },
   { key: 'settlement.rules', version: 1, path: '/prestacao-de-contas/regras', tourId: 'settlement.rules' },

@@ -20,7 +20,11 @@ import java.util.Objects;
  */
 public final class ExternalReviewPolicy {
 
-    public enum Reason { AMOUNT, DESTINATION_CUMULATIVE, INFORMER_CUMULATIVE, CREDITOR_CUMULATIVE }
+    /**
+     * {@code RECENT_CREDITOR_REVERSAL}: depois do estorno de um pagamento recebido pelo credor, todo informe do mesmo
+     * credor para o mesmo devedor vai à revisão durante a janela, qualquer que seja o valor (H07 parte 3, RS-120).
+     */
+    public enum Reason { AMOUNT, DESTINATION_CUMULATIVE, INFORMER_CUMULATIVE, CREDITOR_CUMULATIVE, RECENT_CREDITOR_REVERSAL }
 
     /**
      * @param perPayment     acima deste valor o pagamento sozinho já exige revisão
@@ -75,6 +79,20 @@ public final class ExternalReviewPolicy {
      */
     public static Decision decide(Money amount, Money destinationSoFar, Money informerSoFar, Money creditorSoFar,
                                   Limits limits) {
+        return decide(amount, destinationSoFar, informerSoFar, creditorSoFar, false, limits);
+    }
+
+    /**
+     * @param recentCreditorReversal informe recebido pelo credor ({@code CREDITOR_*}) para devedor no credor que teve
+     *                               estorno de pagamento recebido pelo credor na janela: revisão sempre, antes dos
+     *                               limites ({@link Reason#RECENT_CREDITOR_REVERSAL}; limite zero, valor considerado =
+     *                               o pagamento)
+     */
+    public static Decision decide(Money amount, Money destinationSoFar, Money informerSoFar, Money creditorSoFar,
+                                  boolean recentCreditorReversal, Limits limits) {
+        if (recentCreditorReversal) {
+            return new Decision(true, Reason.RECENT_CREDITOR_REVERSAL, Money.ZERO, amount);
+        }
         if (amount.isGreaterThan(limits.perPayment())) {
             return new Decision(true, Reason.AMOUNT, limits.perPayment(), amount);
         }

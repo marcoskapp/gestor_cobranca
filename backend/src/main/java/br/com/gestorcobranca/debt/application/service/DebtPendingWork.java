@@ -28,6 +28,7 @@ class DebtPendingWork implements PendingWorkSource {
     static final String AMOUNT_APPROVALS = "debt.amount_adjustment_approvals";
     static final String AMOUNT_DIVERGENCES = "debt.amount_divergences";
     static final String THRESHOLD_PROPOSAL = "debt.amount_threshold_proposal";
+    static final String REVERSAL_HOLDS = "debt.reversal_holds";
 
     private final DebtPendingWorkQueries queries;
     private final AccessScope accessScope;
@@ -53,7 +54,8 @@ class DebtPendingWork implements PendingWorkSource {
 
     @Override
     public boolean appliesTo(Actor actor) {
-        return actor.has(Permission.TITLE_AMOUNT_APPROVE) || actor.has(Permission.TITLE_AMOUNT_ADJUST);
+        return actor.has(Permission.TITLE_AMOUNT_APPROVE) || actor.has(Permission.TITLE_AMOUNT_ADJUST)
+                || (actor.has(Permission.PAYMENT_REVIEW) && actor.type() == Actor.ActorType.USER);
     }
 
     @Override
@@ -84,6 +86,16 @@ class DebtPendingWork implements PendingWorkSource {
                     .hint("Mantenha a correção ou aceite o valor do credor, com o motivo.")
                     .route("/titulos/correcoes-de-valor").param("aba", "divergencias")
                     .singleRoute(id -> "/titulos/" + id)
+                    .build());
+        }
+        // estornos de pagamento recebido pelo credor (H07 parte 3): quem estornou ou informou não vê (não pode liberar);
+        // nunca vence sozinha — "vencida" depois de app.debt.reversal-hold.overdue-after, para o alerta
+        if (actor.has(Permission.PAYMENT_REVIEW) && actor.type() == Actor.ActorType.USER) {
+            items.add(PendingWorkItem.of(REVERSAL_HOLDS, "Estornos de pagamento ao credor para conferir",
+                            queries.reversalHolds(scope, actor.id(),
+                                    Instant.now(clock).minus(properties.reversalHold().overdueAfter())))
+                    .hint("Confira com o credor se o valor está em aberto antes de liberar a cobrança.")
+                    .route("/pagamentos/baixas-do-credor").param("aba", "estornos")
                     .build());
         }
         return items;

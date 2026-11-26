@@ -18,6 +18,8 @@ import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionTemplate;
+import br.com.gestorcobranca.debt.application.port.in.reversalhold.ReversalHoldPlacement;
 import org.springframework.beans.factory.annotation.Autowired;
 import tools.jackson.databind.JsonNode;
 
@@ -39,6 +41,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * e pedido de atendimento humano.
  */
 class PortalNegotiationIT extends PortalTestSupport {
+
+    @Autowired
+    ReversalHoldPlacement placement;
+    @Autowired
+    TransactionTemplate transactions;
 
     @Autowired
     NegotiationSimulationUseCases simulations;
@@ -182,6 +189,23 @@ class PortalNegotiationIT extends PortalTestSupport {
 
         Response mine = get("/api/portal/v1/me/agreements", token);
         assertThat(mine.json().get(0).get("closedInPortal").asBoolean()).isTrue();
+    }
+
+    /** RS-112: simulação feita antes do estorno de pagamento ao credor não formaliza depois que o título fica retido. */
+    @Test
+    void simulationBeforeTheReversalIsRefusedAtFormalization() {
+        String token = loginReady(CPF_MARIA);
+        Response offers = get("/api/portal/v1/me/portfolios/" + portfolioA + "/offers", token);
+        assertThat(offers.status()).isEqualTo(200);
+        JsonNode cash = offers.json().get("offers").get(0);
+        UUID simulationId = UUID.fromString(offers.json().get("simulationId").asString());
+        UUID title = system(() -> jdbcTemplate.queryForObject("select id from debt.debt_title where debtor_id = ? "
+                + "and portfolio_id = ? order by due_date limit 1", UUID.class, maria, portfolioA));
+        system(() -> transactions.execute(tx -> placement.place(new ReversalHoldPlacement.PlaceCommand(UUID.randomUUID(),
+                UUID.randomUUID(), creditorA, maria, null, List.of(title), List.of(), List.of(), null, "OTHER"))));
+        Response refused = post("/api/portal/v1/me/agreements", accept(simulationId, cash.get("level").asInt(), 1), token);
+        assertThat(refused.status()).isBetween(400, 499);
+        assertThat(count("select count(*) from negotiation.agreement where debtor_id = ?", maria)).isZero();
     }
 
     @Test

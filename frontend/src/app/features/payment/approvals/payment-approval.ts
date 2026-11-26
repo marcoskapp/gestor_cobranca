@@ -61,6 +61,8 @@ export function paymentReviewReasons(p: Pick<PaymentView, 'amount'>, a: ReviewAs
       return [{ label: 'Soma de quem informou', hint: `pagamentos ${window}`, requested: formatAmount(a.consideredAmount ?? 0), limit: formatAmount(a.limit ?? 0), excess: excessText(a.excess, a.limit) }];
     case 'CREDITOR_CUMULATIVE':
       return [{ label: 'Soma da integração do credor', hint: `pagamentos de todas as integrações (tokens) do credor ${window}`, requested: formatAmount(a.consideredAmount ?? 0), limit: formatAmount(a.limit ?? 0), excess: excessText(a.excess, a.limit) }];
+    case 'RECENT_CREDITOR_REVERSAL':
+      return [{ label: 'Estorno recente de pagamento ao credor', hint: 'este credor teve um pagamento ao credor estornado para este devedor: confira com o credor antes de aprovar', requested: formatAmount(p.amount), limit: 'sempre revisado', excess: null }];
     case 'CREDITOR_PORTAL':
       return [{ label: 'Informado pelo próprio credor no portal', hint: 'pagamento feito diretamente ao credor: confira o comprovante', requested: formatAmount(p.amount), limit: 'sempre revisado', excess: null }];
     case 'STATEMENT_LINE':

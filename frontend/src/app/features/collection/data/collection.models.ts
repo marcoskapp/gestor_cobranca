@@ -19,7 +19,8 @@ export type EligibilityReason =
   | 'TITLES_DISPUTED'
   | 'DEBTOR_ANONYMIZED'
   | 'DEBTOR_INSOLVENCY'
-  | 'CONTACT_RESTRICTED';
+  | 'CONTACT_RESTRICTED'
+  | 'PAYMENT_REVERSAL_HOLD';
 
 /** `CaseUseCases.CaseView` */
 export interface CaseView {
@@ -852,7 +853,8 @@ export type ContactDenialReason =
   | 'DAILY_LIMIT'
   | 'WEEKLY_LIMIT'
   | 'MIN_INTERVAL'
-  | 'DEBTOR_ANONYMIZED';
+  | 'DEBTOR_ANONYMIZED'
+  | 'PAYMENT_REVERSAL_HOLD';
 
 /** `ContactAvailabilityQueries.ChannelAvailability` */
 export interface ChannelAvailability {

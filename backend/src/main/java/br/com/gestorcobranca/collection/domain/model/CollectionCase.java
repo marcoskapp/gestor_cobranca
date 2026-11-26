@@ -11,12 +11,15 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Caso de cobrança (F06): agrega os títulos em cobrança de um devedor numa carteira (e,
@@ -468,12 +471,46 @@ public class CollectionCase extends TenantScopedEntity {
         return values.stream().map(Enum::name).sorted().collect(Collectors.joining(","));
     }
 
+    /**
+     * Valores gravados de motivo de inelegibilidade e de canal que esta versão não conhece (AQ-03, AQ-06): a leitura os
+     * ignora; a aplicação registra o log técnico e a métrica {@code collection.eligibility.unknown_reason}.
+     */
+    public List<String> unknownEligibilityValues() {
+        List<String> unknown = new ArrayList<>(unknown(eligibilityReasons, EligibilityReason.class));
+        unknown.addAll(unknown(contactableChannels, InteractionChannel.class));
+        return unknown;
+    }
+
+    /**
+     * Tolerante a valor desconhecido: durante a troca de instâncias, uma versão anterior pode ler um valor gravado pela
+     * nova (ex.: {@code PAYMENT_REVERSAL_HOLD}); o valor é ignorado sem derrubar a leitura do caso
+     * ({@link #unknownEligibilityValues()}).
+     */
     private static <E extends Enum<E>> Set<E> split(String text, Class<E> type) {
         EnumSet<E> result = EnumSet.noneOf(type);
-        if (text != null && !text.isBlank()) {
-            Arrays.stream(text.split(",")).map(s -> Enum.valueOf(type, s.trim())).forEach(result::add);
+        for (String value : values(text)) {
+            known(value, type).ifPresent(result::add);
         }
         return result;
+    }
+
+    private static <E extends Enum<E>> List<String> unknown(String text, Class<E> type) {
+        return values(text).stream().filter(v -> known(v, type).isEmpty()).toList();
+    }
+
+    private static List<String> values(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        return Stream.of(text.split(",")).map(String::trim).filter(v -> !v.isEmpty()).toList();
+    }
+
+    private static <E extends Enum<E>> Optional<E> known(String value, Class<E> type) {
+        try {
+            return Optional.of(Enum.valueOf(type, value));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     public UUID getDebtorId() {

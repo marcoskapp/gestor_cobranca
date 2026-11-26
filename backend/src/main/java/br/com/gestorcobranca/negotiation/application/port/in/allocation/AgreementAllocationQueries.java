@@ -15,6 +15,13 @@ public interface AgreementAllocationQueries {
 
     AllocationAgreement agreement(UUID agreementId);
 
+    /**
+     * Títulos cobertos pelo acordo, para a retenção da cobrança criada no estorno de pagamento recebido pelo credor (H07
+     * parte 3, decisão 1649): consulta interna da transação do estorno, <b>sem</b> {@code AGREEMENT_VIEW} — a retenção
+     * não pode depender da permissão de leitura de quem estorna. O escopo por credor é conferido; nunca vai para a tela.
+     */
+    List<UUID> titleIdsForReversalHold(UUID agreementId);
+
     /** Acordos ativos (FORMALIZED ou IN_PAYMENT) do credor e devedor. */
     List<AllocationAgreement> active(UUID creditorId, UUID debtorId);
 
