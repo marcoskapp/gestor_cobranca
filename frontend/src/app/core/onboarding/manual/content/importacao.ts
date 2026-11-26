@@ -30,7 +30,7 @@ export const MANUAL: ModuleManual = {
       objective: 'Acompanhe os arquivos recebidos dos credores e comece uma nova importação, que só grava depois da sua conferência.',
       purpose: [
         'Lista os lotes recebidos, com progresso e resultado, e as conferências em andamento ou aguardando aprovação.',
-        'Daqui você baixa o modelo do layout padrão para enviar ao credor e inicia uma nova importação.',
+        'Daqui você baixa o modelo do layout padrão para enviar ao credor e inicia uma nova importação. O filtro "Linhas recusadas (LGPD)" mostra os lotes cujo arquivo traz um titular com dados eliminados, com ou sem o pedido de novo arquivo ao credor.',
       ],
       profiles: ['ANALISTA_CARTEIRA', 'GESTOR', 'INTEGRACAO', 'AUDITOR'],
       inputs: ['Arquivos enviados pela equipe e registros recebidos por integração.', 'Credores e carteiras cadastrados.'],
@@ -116,7 +116,7 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'Mostra quantas linhas foram lidas, aceitas e recusadas, quantos devedores e títulos foram criados ou atualizados e quantos devedores que já existiam receberam contato novo (com link para a lista desses devedores).',
         'Baixe o relatório de ocorrências para devolver ao credor as linhas que precisam de correção. "Títulos importados" abre a lista de títulos da carga (os que ela criou ou atualizou por último).',
-        'Com a retenção de arquivos de importação ligada (Compliance → Retenção), o arquivo original é descartado no prazo: o lote, os contadores e as ocorrências ficam, sem download nem reprocessamento.',
+        'Com a retenção de arquivos de importação ligada (Compliance → Retenção), o arquivo original é descartado no prazo: o lote, os contadores e as ocorrências ficam, sem download nem reprocessamento. Arquivo com titular cujos dados foram eliminados (LGPD) é recusado e apagado: o lote mostra as linhas dele e o pedido pronto de novo arquivo ao credor; copie, envie e registre o envio.',
       ],
       profiles: ['ANALISTA_CARTEIRA', 'GESTOR', 'INTEGRACAO', 'AUDITOR'],
       inputs: ['Processamento do arquivo conferido ou do envio por integração.'],
@@ -124,8 +124,9 @@ export const MANUAL: ModuleManual = {
       related: [
         { screen: 'ingestion.batches', why: 'Todos os lotes.' },
         { screen: 'debt.titles', why: 'Ver os títulos gravados.' },
+        { screen: 'compliance.erasure-notices', why: 'Aviso ao credor da eliminação do titular.' },
       ],
-      terms: ['lote-de-importacao', 'titulo', 'devedor', 'contato-novo'],
+      terms: ['lote-de-importacao', 'titulo', 'devedor', 'contato-novo', 'anonimizacao'],
     },
     {
       id: 'ingestion.layouts',

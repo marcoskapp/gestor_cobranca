@@ -80,11 +80,21 @@ public interface ImportFileRetentionStore {
     List<UUID> pdfImportsOfBatches(Collection<UUID> batchIds);
 
     /** Remoção pendente (lote ainda aberto): exatamente um de {@code fileKey} ou {@code pdfImportId}. */
-    record PendingErasure(UUID id, String fileKey, UUID pdfImportId, UUID sourceEventId) {
+    /**
+     * @param sourceEventId  evento de anonimização (nulo quando a origem é a própria carga)
+     * @param originBatchId  lote que recusou a linha do titular na carga (nulo quando a origem é a anonimização)
+     */
+    record PendingErasure(UUID id, String fileKey, UUID pdfImportId, UUID sourceEventId, UUID originBatchId) {
     }
 
     /** Registra a remoção pendente (idempotente pela chave ou pelo PDF). @return falso se já estava pendente */
     boolean addPendingErasure(String fileKey, UUID pdfImportId, UUID sourceEventId, Instant at);
+
+    /**
+     * Remoção pendente do arquivo ({@code fileKey}) ou do PDF de origem ({@code pdfImportId}) — exatamente um — do lote
+     * que recusou, na carga, linha de titular anonimizado (decisão 1496).
+     */
+    boolean addPendingErasureOfBatch(String fileKey, UUID pdfImportId, UUID originBatchId, Instant at);
 
     /** Só as pendências que já podem ser concluídas (lotes encerrados, sem conferência aberta, PDF fechado). */
     List<PendingErasure> pendingErasures(int limit);

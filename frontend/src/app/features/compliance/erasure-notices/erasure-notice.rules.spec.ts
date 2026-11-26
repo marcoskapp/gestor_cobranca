@@ -18,6 +18,15 @@ describe('erasure-notice.rules', () => {
     expect(sentAtInstant(new Date('2026-11-26T15:25:00Z').toISOString(), '2026-11-26T15:20:35Z')).toBe('2026-11-26T15:25:00.000Z');
   });
 
+  it('usa os textos do pedido de novo arquivo quando informados', () => {
+    const texts = { what: 'o pedido', missing: 'Informe quando o pedido foi enviado.', floor: 'ao bloqueio do arquivo' };
+    expect(sentAtProblem('', null, now, texts)).toBe('Informe quando o pedido foi enviado.');
+    expect(sentAtProblem(new Date('2026-11-26T15:00:00Z').toISOString(), '2026-11-26T15:20:00Z', now, texts)).toBe(
+      'O pedido não pode ser anterior ao bloqueio do arquivo.',
+    );
+    expect(sentAtProblem(new Date('2026-11-26T15:40:00Z').toISOString(), null, now, texts)).toBe('A data do pedido não pode ser futura.');
+  });
+
   it('pega a eliminação mais recente e formata agora para o campo', () => {
     expect(latestErasure(['2026-11-20T10:00:00Z', '2026-11-25T10:00:00Z', '2026-11-21T10:00:00Z'])).toBe('2026-11-25T10:00:00Z');
     expect(latestErasure([])).toBeNull();

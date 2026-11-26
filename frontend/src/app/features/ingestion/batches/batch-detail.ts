@@ -29,6 +29,7 @@ import { POLL_MS } from './batch-list';
 import { Icon } from '../../../shared/components/icon/icon';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { KpiCard } from '../../../shared/components/kpi-card/kpi-card';
+import { SubjectBlockCard } from './subject-block-card';
 
 /** "312 devedores receberam contato novo (340 contatos)"; nulo quando a carga não trouxe contato novo. */
 export function contactReceiptText(r: BatchContactReceipt | null | undefined): string | null {
@@ -47,8 +48,17 @@ export function contactReceiptText(r: BatchContactReceipt | null | undefined): s
  * pela retenção: não há o que importar nem reprocessar (só abrir a conferência que já existe).
  */
 export function batchActions(
-  b: Pick<ImportBatchView, 'status' | 'mode' | 'source' | 'cancelRequestedAt' | 'reviewId'> & Partial<Pick<ImportBatchView, 'fileDeletedAt'>>,
+  b: Pick<ImportBatchView, 'status' | 'mode' | 'source' | 'cancelRequestedAt' | 'reviewId'> &
+    Partial<Pick<ImportBatchView, 'fileDeletedAt' | 'blockedReason'>>,
 ): ('cancel' | 'review' | 'import' | 'reprocess')[] {
+  // titular com dados eliminados: o arquivo não pode ser usado de novo (só consultar a conferência que existe)
+  if (b.blockedReason) {
+    // em andamento continua cancelável (as demais linhas seguem sendo gravadas até o fim)
+    if (!isTerminal(b.status)) {
+      return b.cancelRequestedAt || b.status === 'AWAITING_FORMAT' ? [] : ['cancel'];
+    }
+    return b.reviewId ? ['review'] : [];
+  }
   if (b.reviewId && b.mode === 'VALIDATE_ONLY') {
     return ['review'];
   }
@@ -83,6 +93,7 @@ export function batchActions(
     StatusChip,
     AppDatePipe,
     KpiCard,
+    SubjectBlockCard,
   ],
   template: `
     @if (batch.isLoading() && !current()) {
@@ -108,7 +119,7 @@ export function batchActions(
             Relatório de ocorrências
           </button>
         }
-        @if (canOriginal() && b.fileName && !b.fileDeletedAt) {
+        @if (canOriginal() && b.fileName && !b.fileDeletedAt && !b.blockedReason) {
           <button class="btn btn-outline-secondary" type="button" (click)="original(b)">
             <app-icon name="unlock" />
             Arquivo original
@@ -121,7 +132,9 @@ export function batchActions(
                 <button class="btn btn-outline-secondary" type="button" (click)="cancel(b)"><app-icon name="x-circle" /> Cancelar</button>
               }
               @case ('review') {
-                <a class="btn btn-primary" [routerLink]="['/importacao/conferencias', b.reviewId]"><app-icon name="card-checklist" /> Abrir a conferência</a>
+                <a class="btn" [class.btn-primary]="!b.blockedReason" [class.btn-outline-secondary]="!!b.blockedReason" [routerLink]="['/importacao/conferencias', b.reviewId]"
+                  ><app-icon name="card-checklist" /> {{ b.blockedReason ? 'Ver a conferência' : 'Abrir a conferência' }}</a
+                >
               }
               @case ('import') {
                 <button class="btn btn-primary" type="button" (click)="review(b)"><app-icon name="card-checklist" /> Conferir e importar</button>
@@ -152,6 +165,10 @@ export function batchActions(
         }
       </section>
 
+      @if (b.blockedReason) {
+        <app-subject-block-card [batch]="b" />
+      }
+
       <section class="app-kpi-grid" aria-label="Contadores do lote" data-tour="batch-counters">
         @for (k of kpis(); track k.label) {
           <app-kpi-card [label]="k.label" record [tone]="k.alert ? 'danger' : null">{{ k.value }}</app-kpi-card>
@@ -181,7 +198,11 @@ export function batchActions(
           }
           @if (b.fileDeletedAt) {
             <dt>Arquivo original</dt>
-            <dd>Descartado em {{ b.fileDeletedAt | appDate }} pela política de retenção (os contadores e as ocorrências ficam)</dd>
+            <dd>
+              Descartado em {{ b.fileDeletedAt | appDate }}
+              {{ b.blockedReason ? 'porque traz um titular com dados eliminados (LGPD)' : 'pela política de retenção' }}
+              (os contadores e as ocorrências ficam)
+            </dd>
           }
           @if (b.fileSha256) {
             <dt>SHA-256</dt>

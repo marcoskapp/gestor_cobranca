@@ -47,6 +47,9 @@ public interface ImportBatchRepository {
 
     /** Filtros opcionais da listagem de lotes. */
     record Criteria(UUID creditorId, UUID portfolioId, ImportBatchStatus status, ImportSource source,
-                    Instant createdFrom, Instant createdTo) {
+                    Instant createdFrom, Instant createdTo, BlockedFilter blocked) {
     }
+
+    /** Filtro dos lotes bloqueados por titular anonimizado (nulo = sem filtro). */
+    enum BlockedFilter { ALL, PENDING_REQUEST, REQUESTED }
 }

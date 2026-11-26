@@ -17,13 +17,15 @@ import java.util.UUID;
 /**
  * Pendências da conferência da importação: aprovação de segunda pessoa (mesma segregação de
  * {@code ImportReviewService#canApprove}: nem quem criou nem quem pediu a efetivação) e alertas de
- * valor a decidir nas conferências do próprio usuário.
+ * valor a decidir nas conferências do próprio usuário; lotes bloqueados por titular anonimizado sem o pedido de novo
+ * arquivo ao credor registrado (quem importa, no escopo de credores).
  */
 @Component
 class IngestionPendingWork implements PendingWorkSource {
 
     static final String REVIEW_APPROVAL = "ingestion.review_approval";
     static final String REVIEW_ALERTS = "ingestion.review_alerts";
+    static final String BLOCKED_BATCHES = "ingestion.blocked_batches";
 
     private final IngestionPendingWorkQueries queries;
     private final AccessScope accessScope;
@@ -64,6 +66,11 @@ class IngestionPendingWork implements PendingWorkSource {
                             queries.openAlerts(scope, actor.id()))
                     .hint("Confirme ou exclua as linhas com valor fora do esperado.")
                     .route("/importacao").singleRoute(id -> "/importacao/conferencias/" + id).build());
+            items.add(PendingWorkItem.of(BLOCKED_BATCHES, "Arquivos recusados: peça um novo arquivo ao credor",
+                            queries.blockedWithoutFileRequest(scope))
+                    .hint("O arquivo traz um titular cujos dados foram eliminados; envie o pedido pronto e registre.")
+                    .route("/importacao").param("bloqueados", "pendentes")
+                    .singleRoute(id -> "/importacao/" + id).build());
         }
         return items;
     }

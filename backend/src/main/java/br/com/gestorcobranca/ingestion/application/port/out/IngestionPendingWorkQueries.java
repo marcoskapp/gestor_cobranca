@@ -22,4 +22,12 @@ public interface IngestionPendingWorkQueries {
      * @param creditorScope credores permitidos (nulo = todos)
      */
     PendingWorkCount openAlerts(Set<UUID> creditorScope, UUID ownerId);
+
+    /**
+     * Lotes bloqueados por titular anonimizado sem o pedido de novo arquivo registrado (decisão 1497). Sem prazo
+     * legal: a idade vem do bloqueio mais antigo.
+     *
+     * @param creditorScope credores do ator (nulo = todos)
+     */
+    PendingWorkCount blockedWithoutFileRequest(Set<UUID> creditorScope);
 }

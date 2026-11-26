@@ -34,8 +34,21 @@ import { NgbDropdownModule, NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 /** Intervalo de atualização enquanto houver lote em andamento na página. */
 export const POLL_MS = 5000;
 
-export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; status: string; source: string }): BatchFilter {
-  return { creditorId: v.creditor[0] ?? null, portfolioId: v.portfolio[0] ?? null, status: v.status || null, source: v.source || null };
+/** `?bloqueados=todos|pendentes|enviados` ("Minhas pendências" abre em `pendentes`). */
+const BLOCKED_FILTER: Record<string, BatchFilter['blocked']> = {
+  todos: 'ALL',
+  pendentes: 'PENDING_REQUEST',
+  enviados: 'REQUESTED',
+};
+
+export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; status: string; source: string; blocked?: string }): BatchFilter {
+  return {
+    creditorId: v.creditor[0] ?? null,
+    portfolioId: v.portfolio[0] ?? null,
+    status: v.status || null,
+    source: v.source || null,
+    blocked: BLOCKED_FILTER[v.blocked ?? ''] ?? null,
+  };
 }
 
 /** Lotes de importação de carteira com progresso dos que estão em andamento e as conferências abertas. */
@@ -142,6 +155,14 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
           }
         </select>
       </app-field>
+      <app-field label="Linhas recusadas (LGPD)" hint="Arquivos com titular cujos dados foram eliminados">
+        <select appInput formControlName="blocked">
+          <option value="">Todos os lotes</option>
+          <option value="todos">Todos com linhas recusadas</option>
+          <option value="pendentes">Sem pedido de novo arquivo</option>
+          <option value="enviados">Com pedido enviado</option>
+        </select>
+      </app-field>
     </form>
     </app-filter-bar>
 
@@ -157,8 +178,8 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
       (sortChange)="query.setSort($event)"
       (retry)="query.reload()"
       emptyIcon="file-earmark-arrow-up"
-      emptyMessage="Nenhum lote encontrado."
-      emptyHint="Baixe o modelo do layout padrão, preencha com os títulos do credor e envie primeiro em prévia."
+      [emptyMessage]="filters.value.blocked ? 'Nenhum arquivo com linhas recusadas nesta situação.' : 'Nenhum lote encontrado.'"
+      [emptyHint]="filters.value.blocked ? 'Escolha outra opção em Linhas recusadas para ver os demais lotes.' : 'Baixe o modelo do layout padrão, preencha com os títulos do credor e envie primeiro em prévia.'"
     >
       <ng-template appCell="created" [appCellOf]="query.rows()" let-b>{{ b.createdAt | appDate }}</ng-template>
       <ng-template appCell="file" [appCellOf]="query.rows()" let-b>
@@ -171,6 +192,11 @@ export function toBatchFilter(v: { creditor: string[]; portfolio: string[]; stat
       </ng-template>
       <ng-template appCell="status" [appCellOf]="query.rows()" let-b>
         <app-status-chip domain="importBatch" [status]="b.status" />
+        @if (b.blockedReason) {
+          <div>
+            <span class="badge text-bg-warning">LGPD: linhas recusadas<span class="visually-hidden">: o arquivo traz um titular cujos dados foram eliminados</span></span>
+          </div>
+        }
         @if (!terminal(b)) {
           @if (b.status !== 'AWAITING_FORMAT') {
             <div class="progress bl-progress" role="progressbar" [attr.aria-label]="progress(b)" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="b.progressPercent">
@@ -239,14 +265,21 @@ export class BatchList {
   protected readonly canExecute = computed(() => this.auth.hasPermission(Permission.IMPORT_EXECUTE));
 
   private readonly fb = inject(FormBuilder).nonNullable;
-  /** Filtros na URL (`?credor=&carteira=&situacao=&origem=`), preservados ao voltar. */
+  /** Filtros na URL (`?credor=&carteira=&situacao=&origem=&bloqueados=`), preservados ao voltar. */
   protected readonly filters = syncFormWithUrl(
-    this.fb.group({ creditor: this.fb.control<string[]>([]), portfolio: this.fb.control<string[]>([]), status: [''], source: [''] }),
+    this.fb.group({
+      creditor: this.fb.control<string[]>([]),
+      portfolio: this.fb.control<string[]>([]),
+      status: [''],
+      source: [''],
+      blocked: [''],
+    }),
     {
       creditor: urlParam.ids('credor'),
       portfolio: urlParam.ids('carteira'),
       status: urlParam.choice('situacao', statusOptions('importBatch').map((s) => s.value)),
       source: urlParam.choice('origem', Object.keys(SOURCE_LABELS)),
+      blocked: urlParam.choice('bloqueados', Object.keys(BLOCKED_FILTER)),
     },
   );
   private readonly filter = toSignal(

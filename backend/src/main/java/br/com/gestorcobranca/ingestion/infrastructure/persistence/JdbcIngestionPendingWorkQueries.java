@@ -58,6 +58,23 @@ class JdbcIngestionPendingWorkQueries implements IngestionPendingWorkQueries {
         return jdbc.queryForObject(sql, params, PendingWorkRows.COUNT);
     }
 
+    /** Índice: {@code ix_import_batch_blocked_sha} (parcial, só lotes bloqueados). */
+    @Override
+    public PendingWorkCount blockedWithoutFileRequest(Set<UUID> creditorScope) {
+        if (creditorScope != null && creditorScope.isEmpty()) {
+            return PendingWorkCount.NONE;
+        }
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String sql = """
+                select count(*) as total, 0 as overdue, 0 as due_today, min(r.blocked_at) as oldest_at,
+                       null::date as next_due, case when count(*) = 1 then (array_agg(r.id))[1] end as single_id
+                  from ingestion.import_batch r
+                 where r.blocked_reason is not null
+                   and not exists (select 1 from ingestion.import_file_request f where f.batch_id = r.id)
+                """ + scope(creditorScope, params);
+        return jdbc.queryForObject(sql, params, PendingWorkRows.COUNT);
+    }
+
     private static String scope(Set<UUID> creditorScope, MapSqlParameterSource params) {
         if (creditorScope == null) {
             return "";

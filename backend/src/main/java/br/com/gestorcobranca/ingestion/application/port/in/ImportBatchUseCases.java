@@ -133,9 +133,19 @@ public interface ImportBatchUseCases {
     record ReprocessCommand(String mode, String reason) {
     }
 
-    /** Filtros opcionais. */
+    /**
+     * Filtros opcionais.
+     *
+     * @param blocked lotes bloqueados por titular anonimizado: ALL (todos), PENDING_REQUEST (sem o pedido de novo
+     *                arquivo registrado), REQUESTED (com o pedido) ou nulo (sem filtro)
+     */
     record BatchSearch(UUID creditorId, UUID portfolioId, String status, String source, Instant createdFrom,
-                       Instant createdTo) {
+                       Instant createdTo, String blocked) {
+
+        public BatchSearch(UUID creditorId, UUID portfolioId, String status, String source, Instant createdFrom,
+                           Instant createdTo) {
+            this(creditorId, portfolioId, status, source, createdFrom, createdTo, null);
+        }
     }
 
     /**
@@ -152,7 +162,7 @@ public interface ImportBatchUseCases {
                            boolean issuesTruncated, Long totalRows, Integer progressPercent, long lastProcessedRow,
                            Instant cancelRequestedAt, UUID requestedBy, Instant createdAt, Instant startedAt,
                            Instant finishedAt, UUID reviewId, Map<String, String> numberFormat,
-                           Instant fileDeletedAt) {
+                           Instant fileDeletedAt, String blockedReason, Instant blockedAt) {
     }
 
     /**

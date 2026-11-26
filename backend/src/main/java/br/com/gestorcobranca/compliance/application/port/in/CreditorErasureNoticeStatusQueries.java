@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.compliance.application.port.in;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,4 +16,14 @@ public interface CreditorErasureNoticeStatusQueries {
      * e acesso ao credor.
      */
     Optional<UUID> noticeFor(UUID debtorId, UUID creditorId);
+
+    /**
+     * Situação do aviso para a tela do lote (só id, situação e quando o credor foi avisado; nada do texto nem dos
+     * títulos). Exige {@code IMPORT_VIEW} e acesso ao credor; aviso de outro credor → vazio.
+     */
+    Optional<NoticeStatus> statusOf(UUID noticeId, UUID creditorId);
+
+    /** @param status PENDING ou NOTIFIED */
+    record NoticeStatus(UUID id, String status, Instant notifiedAt) {
+    }
 }

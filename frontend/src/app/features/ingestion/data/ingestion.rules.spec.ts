@@ -28,6 +28,10 @@ describe('regras de tela do módulo ingestion', () => {
 
   it('ações do lote pela situação: importar e reprocessar passam pela conferência', () => {
     expect(batchActions({ status: 'PROCESSING', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: null })).toEqual(['cancel']);
+    // titular com dados eliminados: nada a importar, reprocessar ou cancelar; só consultar a conferência que existe
+    expect(batchActions({ status: 'COMPLETED', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: null, blockedReason: 'SUBJECT_ANONYMIZED' })).toEqual([]);
+    expect(batchActions({ status: 'PROCESSING', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: null, blockedReason: 'SUBJECT_ANONYMIZED' })).toEqual(['cancel']);
+    expect(batchActions({ status: 'VALIDATED', mode: 'VALIDATE_ONLY', source: 'CSV', cancelRequestedAt: null, reviewId: 'r-1', blockedReason: 'SUBJECT_ANONYMIZED' })).toEqual(['review']);
     expect(batchActions({ status: 'PROCESSING', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: 'x', reviewId: null })).toEqual([]);
     expect(batchActions({ status: 'VALIDATED', mode: 'VALIDATE_ONLY', source: 'XLSX', cancelRequestedAt: null, reviewId: null })).toEqual(['import']);
     expect(batchActions({ status: 'COMPLETED_WITH_ERRORS', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: null })).toEqual(['reprocess']);
@@ -41,7 +45,8 @@ describe('regras de tela do módulo ingestion', () => {
     expect(batchActions({ status: 'COMPLETED', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: null, fileDeletedAt: '2026-11-05T06:40:00Z' })).toEqual([]);
     expect(batchActions({ status: 'VALIDATED', mode: 'VALIDATE_ONLY', source: 'CSV', cancelRequestedAt: null, reviewId: null, fileDeletedAt: '2026-11-05T06:40:00Z' })).toEqual([]);
     expect(batchActions({ status: 'COMPLETED', mode: 'IMPORT', source: 'CSV', cancelRequestedAt: null, reviewId: 'r-1', fileDeletedAt: '2026-11-05T06:40:00Z' })).toEqual(['review']);
-    expect(toBatchFilter({ creditor: ['c-1'], portfolio: [], status: '', source: 'API' })).toEqual({ creditorId: 'c-1', portfolioId: null, status: null, source: 'API' });
+    expect(toBatchFilter({ creditor: ['c-1'], portfolio: [], status: '', source: 'API' })).toEqual({ creditorId: 'c-1', portfolioId: null, status: null, source: 'API', blocked: null });
+    expect(toBatchFilter({ creditor: [], portfolio: [], status: '', source: '', blocked: 'pendentes' }).blocked).toBe('PENDING_REQUEST');
   });
 
   it('mapeamento de colunas do layout', () => {

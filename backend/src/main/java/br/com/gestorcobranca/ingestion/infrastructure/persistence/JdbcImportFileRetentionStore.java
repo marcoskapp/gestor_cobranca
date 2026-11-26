@@ -199,9 +199,20 @@ class JdbcImportFileRetentionStore implements ImportFileRetentionStore {
     }
 
     @Override
+    public boolean addPendingErasureOfBatch(String fileKey, UUID pdfImportId, UUID originBatchId, Instant at) {
+        return jdbc.update("""
+                insert into ingestion.pending_file_erasure (id, tenant_id, file_key, pdf_import_id, origin_batch_id,
+                                                            created_at)
+                values (:id, shared.current_tenant_id(), :key, :pdf, :batch, :at)
+                on conflict do nothing
+                """, new MapSqlParameterSource("id", Ids.newId()).addValue("key", fileKey).addValue("pdf", pdfImportId)
+                .addValue("batch", originBatchId).addValue("at", Timestamp.from(at))) == 1;
+    }
+
+    @Override
     public List<PendingErasure> pendingErasures(int limit) {
         return jdbc.query("""
-                select e.id, e.file_key, e.pdf_import_id, e.source_event_id
+                select e.id, e.file_key, e.pdf_import_id, e.source_event_id, e.origin_batch_id
                   from ingestion.pending_file_erasure e
                  where e.tenant_id = shared.current_tenant_id()
                    and ((e.pdf_import_id is not null
@@ -218,7 +229,8 @@ class JdbcImportFileRetentionStore implements ImportFileRetentionStore {
                 """.formatted(PDF_OPEN, TERMINAL, OPEN_REVIEW.formatted("e.file_key")),
                 new MapSqlParameterSource("limit", limit),
                 (rs, i) -> new PendingErasure(rs.getObject("id", UUID.class), rs.getString("file_key"),
-                        rs.getObject("pdf_import_id", UUID.class), rs.getObject("source_event_id", UUID.class)));
+                        rs.getObject("pdf_import_id", UUID.class), rs.getObject("source_event_id", UUID.class),
+                        rs.getObject("origin_batch_id", UUID.class)));
     }
 
     @Override

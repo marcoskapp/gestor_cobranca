@@ -41,6 +41,9 @@ public interface DebtTitleRepository {
     /** Dentre os identificadores informados, os de títulos do credor cujo devedor está anonimizado. */
     List<String> findExternalIdsOfAnonymizedDebtors(UUID creditorId, Collection<String> externalIds);
 
+    /** Devedores anonimizados donos destes identificadores no credor. */
+    List<UUID> findAnonymizedDebtorIds(UUID creditorId, Collection<String> externalIds);
+
     /** Credores em que o devedor tem títulos (define a visibilidade do devedor por escopo). */
     List<UUID> findCreditorIdsByDebtorId(UUID debtorId);
 

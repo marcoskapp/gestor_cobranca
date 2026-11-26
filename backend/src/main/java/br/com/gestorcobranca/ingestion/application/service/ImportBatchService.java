@@ -270,14 +270,15 @@ class ImportBatchService implements ImportBatchUseCases {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ImportBatchView> search(BatchSearch filter, PageQuery page) {
-        BatchSearch f = filter == null ? new BatchSearch(null, null, null, null, null, null) : filter;
+        BatchSearch f = filter == null ? new BatchSearch(null, null, null, null, null, null, null) : filter;
         if (f.creditorId() != null && !accessScope.canAccessCreditor(f.creditorId())) {
             return new PageResponse<>(List.of(), page.page(), page.size(), 0, 0);
         }
         List<UUID> allowed = accessScope.hasAllCreditors() ? null : List.copyOf(accessScope.restrictCreditors(null));
         ImportBatchRepository.Criteria criteria = new ImportBatchRepository.Criteria(f.creditorId(), f.portfolioId(),
                 parseEnum(ImportBatchStatus.class, f.status(), "import_batch.status_invalid"),
-                parseEnum(ImportSource.class, f.source(), "import_batch.source_invalid"), f.createdFrom(), f.createdTo());
+                parseEnum(ImportSource.class, f.source(), "import_batch.source_invalid"), f.createdFrom(), f.createdTo(),
+                parseEnum(ImportBatchRepository.BlockedFilter.class, f.blocked(), "import_batch.blocked_filter_invalid"));
         return PageResponse.of(batches.search(allowed, criteria,
                 page.toPageable(SEARCH_SORT, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id")))),
                 b -> ImportViews.batch(b, json));

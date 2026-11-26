@@ -7,5 +7,10 @@ public enum BlockEffect {
     /** Estava em validação ou importação: para ao fim do bloco corrente (cancelamento do sistema). */
     STOP_REQUESTED,
     /** Já estava encerrado: só fica bloqueado. */
-    ALREADY_FINISHED
+    ALREADY_FINISHED,
+    /**
+     * O próprio processamento recusou linha de titular anonimizado (decisão 1496): as demais linhas seguem e o arquivo
+     * sai no encerramento.
+     */
+    FOUND_IN_LOAD
 }

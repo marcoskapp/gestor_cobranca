@@ -70,6 +70,23 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
         return Document.maskIfDocument(externalId).replaceAll("\\p{Cntrl}", " ").strip();
     }
 
+    @Override
+    public Set<UUID> anonymizedDebtorsOf(UUID creditorId, Collection<String> titleExternalIds,
+                                         Collection<String> contractExternalIds) {
+        accessScope.requirePermission(Permission.IMPORT_EXECUTE);
+        accessScope.requireCreditor(creditorId);
+        Set<String> titleKeys = normalized(titleExternalIds);
+        Set<String> contractKeys = normalized(contractExternalIds);
+        Set<UUID> debtorIds = new java.util.LinkedHashSet<>();
+        if (!titleKeys.isEmpty()) {
+            debtorIds.addAll(titles.findAnonymizedDebtorIds(creditorId, titleKeys));
+        }
+        if (!contractKeys.isEmpty()) {
+            debtorIds.addAll(contracts.findAnonymizedDebtorIds(creditorId, contractKeys));
+        }
+        return debtorIds;
+    }
+
     private static Set<String> normalized(Collection<String> ids) {
         return ids == null ? Set.of() : ids.stream().filter(Objects::nonNull).map(String::trim)
                 .filter(s -> !s.isEmpty()).collect(Collectors.toSet());

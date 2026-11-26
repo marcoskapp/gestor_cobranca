@@ -80,6 +80,9 @@ export interface ImportBatchView {
   numberFormat: Record<string, FormatOption>;
   /** Arquivo descartado pela política de retenção IMPORT_FILES (o lote, os contadores e a trilha ficam). */
   fileDeletedAt: string | null;
+  /** Bloqueado por titular com dados eliminados (LGPD): sem reprocessar, conferir de novo ou baixar. */
+  blockedReason: 'SUBJECT_ANONYMIZED' | null;
+  blockedAt: string | null;
 }
 
 export interface BatchFilter {
@@ -87,6 +90,35 @@ export interface BatchFilter {
   portfolioId?: string | null;
   status?: string | null;
   source?: string | null;
+  /** Lotes recusados por titular com dados eliminados: todos, sem o pedido ao credor ou com o pedido enviado. */
+  blocked?: 'ALL' | 'PENDING_REQUEST' | 'REQUESTED' | null;
+}
+
+/** Linha do arquivo com o titular (referência do título já mascarada). */
+export interface SubjectBlockLine {
+  rowNumber: number;
+  reference: string;
+  matchedBy: 'DEBTOR' | 'TITLE_REFERENCE';
+}
+
+export type FileRequestChannel = 'EMAIL' | 'PHONE' | 'LETTER' | 'MEETING' | 'OTHER';
+
+/** Lote bloqueado: linhas do titular, pedido de novo arquivo ao credor e aviso da eliminação. */
+export interface SubjectBlockView {
+  batchId: string;
+  blockedAt: string;
+  fileName: string | null;
+  fileSentAt: string;
+  /** Início do SHA-256 do arquivo, para o credor achar o arquivo. */
+  protocol: string;
+  lines: SubjectBlockLine[];
+  linesTotal: number;
+  /** Texto pronto do pedido (sem nome, documento ou contato do titular). */
+  message: string;
+  notice: { id: string; status: 'PENDING' | 'NOTIFIED'; notifiedAt: string | null } | null;
+  request: { sentAt: string; channel: FileRequestChannel; sentBy: string; registeredAt: string } | null;
+  /** O lote ainda está em processamento: as linhas podem crescer e o pedido espera o fim. */
+  inProgress: boolean;
 }
 
 /** `ImportIssueView` (`valueExcerpt` sempre mascarado). */

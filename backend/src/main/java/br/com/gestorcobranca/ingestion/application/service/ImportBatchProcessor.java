@@ -7,8 +7,11 @@ import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ImportSu
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
 import br.com.gestorcobranca.ingestion.application.IngestionProperties;
 import br.com.gestorcobranca.ingestion.application.ReviewProperties;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeStatusQueries;
+import br.com.gestorcobranca.ingestion.application.port.out.ImportFileRetentionStore;
 import br.com.gestorcobranca.ingestion.application.port.out.ImportRecordReader;
 import br.com.gestorcobranca.ingestion.application.port.out.RowValueStore;
+import br.com.gestorcobranca.ingestion.domain.model.BlockEffect;
 import br.com.gestorcobranca.ingestion.domain.model.BlockTally;
 import br.com.gestorcobranca.ingestion.domain.model.CanonicalField;
 import br.com.gestorcobranca.ingestion.domain.model.FileLayout;
@@ -17,6 +20,7 @@ import br.com.gestorcobranca.ingestion.domain.model.ImportBatchRow;
 import br.com.gestorcobranca.ingestion.domain.model.ImportBatchStatus;
 import br.com.gestorcobranca.ingestion.domain.model.ImportFileException;
 import br.com.gestorcobranca.ingestion.domain.model.ImportRowIssue;
+import br.com.gestorcobranca.ingestion.domain.model.SubjectBlock;
 import br.com.gestorcobranca.ingestion.domain.model.IssueSeverity;
 import br.com.gestorcobranca.ingestion.domain.model.ParsedRow;
 import br.com.gestorcobranca.ingestion.domain.model.RowIssue;
@@ -33,6 +37,7 @@ import br.com.gestorcobranca.ingestion.domain.model.review.RowValue;
 import br.com.gestorcobranca.ingestion.domain.model.review.TotalsComparison;
 import br.com.gestorcobranca.ingestion.domain.model.review.TotalsMeasure;
 import br.com.gestorcobranca.ingestion.domain.repository.ImportBatchRepository;
+import br.com.gestorcobranca.ingestion.domain.repository.SubjectBlockRepository;
 import br.com.gestorcobranca.ingestion.domain.repository.ImportBatchRowRepository;
 import br.com.gestorcobranca.ingestion.domain.repository.ImportLayoutRepository;
 import br.com.gestorcobranca.ingestion.domain.repository.ImportReviewAlertRepository;
@@ -53,6 +58,7 @@ import br.com.gestorcobranca.shared.crypto.BlindIndex;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
+import br.com.gestorcobranca.shared.security.Actor;
 import br.com.gestorcobranca.shared.jobs.PermanentJobFailure;
 import br.com.gestorcobranca.shared.json.JsonCodec;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
@@ -148,6 +154,9 @@ class ImportBatchProcessor {
     private final BlindIndex blindIndex;
     private final ReviewProperties reviewProperties;
     private final AnonymizedSubjectQueries anonymizedSubjects;
+    private final SubjectBlockRepository subjectBlocks;
+    private final ImportFileRetentionStore retentionStore;
+    private final CreditorErasureNoticeStatusQueries notices;
 
     ImportBatchProcessor(ImportBatchRepository batches, ImportBatchRowRepository rows, ImportRowIssueRepository issues,
                          ImportLayoutRepository layouts, ImportRecordReader reader, FileStorage fileStorage,
@@ -157,7 +166,8 @@ class ImportBatchProcessor {
                          PlatformTransactionManager transactionManager, JsonCodec json, RowValueStore rowValues,
                          ImportReviewRepository reviews, ImportReviewAlertRepository alerts, JobQueue jobQueue,
                          BlindIndex blindIndex, ReviewProperties reviewProperties,
-                         AnonymizedSubjectQueries anonymizedSubjects) {
+                         AnonymizedSubjectQueries anonymizedSubjects, SubjectBlockRepository subjectBlocks,
+                         ImportFileRetentionStore retentionStore, CreditorErasureNoticeStatusQueries notices) {
         this.batches = batches;
         this.rows = rows;
         this.issues = issues;
@@ -186,6 +196,9 @@ class ImportBatchProcessor {
         this.blindIndex = blindIndex;
         this.reviewProperties = reviewProperties;
         this.anonymizedSubjects = anonymizedSubjects;
+        this.subjectBlocks = subjectBlocks;
+        this.retentionStore = retentionStore;
+        this.notices = notices;
     }
 
     enum SliceOutcome {
@@ -561,6 +574,11 @@ class ImportBatchProcessor {
             List<ImportBatchRow> toRegister = new ArrayList<>();
             List<RowIssue> blockIssues = new ArrayList<>();
             List<RowValue> values = new ArrayList<>();
+            // linhas recusadas por titular anonimizado: o lote fica bloqueado e o arquivo sai no fim (decisão 1496)
+            List<SubjectBlock.Line> subjectLines = new ArrayList<>();
+            // identificadores crus das linhas recusadas: só para achar o aviso ao credor (nunca gravados)
+            Set<String> subjectTitleKeys = new java.util.HashSet<>();
+            Set<String> subjectContractKeys = new java.util.HashSet<>();
             int rowIssuesStored = 0;
 
             for (SourceRow source : current) {
@@ -588,6 +606,14 @@ class ImportBatchProcessor {
                 }
                 Optional<RowIssue> subjectAnonymized = subjectAnonymized(source, key, anonymized);
                 if (subjectAnonymized.isPresent()) {
+                    boolean byTitle = key != null && anonymized.titles().contains(key);
+                    subjectLines.add(new SubjectBlock.Line(source.rowNumber(), SubjectBlock.displayReference(
+                            byTitle ? key : contractKey(source)), SubjectBlock.MatchedBy.TITLE_REFERENCE));
+                    if (byTitle) {
+                        subjectTitleKeys.add(key);
+                    } else {
+                        subjectContractKeys.add(contractKey(source));
+                    }
                     tally.rejectedRow(1, 0);
                     blockIssues.add(subjectAnonymized.get());
                     metrics.rowsRejected(REASON_SUBJECT_ANONYMIZED);
@@ -628,6 +654,9 @@ class ImportBatchProcessor {
                 if (result.rejected()) {
                     if (result.errors().stream().anyMatch(e -> DebtIngestionPort.SUBJECT_ANONYMIZED.equals(e.code()))) {
                         metrics.rowsRejected(REASON_SUBJECT_ANONYMIZED);
+                        subjectLines.add(new SubjectBlock.Line(source.rowNumber(), SubjectBlock.displayReference(key),
+                                SubjectBlock.MatchedBy.TITLE_REFERENCE));
+                        subjectTitleKeys.add(key);
                     }
                     tally.rejectedRow(result.errors().size(), validation.warnings().size());
                     blockIssues.addAll(validation.warnings());
@@ -640,7 +669,8 @@ class ImportBatchProcessor {
                     rowIssuesStored += result.issuesStored();
                 }
             }
-            commit(current.getLast().rowNumber(), tally, toRegister, blockIssues, values, rowIssuesStored, last);
+            commit(current.getLast().rowNumber(), tally, toRegister, blockIssues, values,
+                    new SubjectFound(subjectLines, subjectTitleKeys, subjectContractKeys), rowIssuesStored, last);
         }
 
         private Optional<RowIssue> subjectAnonymized(SourceRow source, String key, AnonymizedKeys anonymized) {
@@ -671,12 +701,19 @@ class ImportBatchProcessor {
         }
 
         private void commit(long lastRow, BlockTally tally, List<ImportBatchRow> toRegister, List<RowIssue> blockIssues,
-                            List<RowValue> values, int rowIssuesStored, boolean last) {
+                            List<RowValue> values, SubjectFound subjectFound, int rowIssuesStored,
+                            boolean last) {
             long expected = checkpoint;
+            java.util.concurrent.atomic.AtomicBoolean blockedNow = new java.util.concurrent.atomic.AtomicBoolean();
             ImportBatch committed = tx.execute(s -> {
                 ImportBatch b = lock(batchId);
                 if (!b.isInProgress()) {
-                    throw new StopSlice(SliceOutcome.FINISHED);
+                    // encerrado por outra execução: o achado do titular não se perde (a pendência apaga o arquivo)
+                    if (!subjectFound.lines().isEmpty()) {
+                        subjectFound(b, subjectFound);
+                        batches.save(b);
+                    }
+                    return null;
                 }
                 int room = Math.max(0, properties.maxIssuesPerBatch() - issuesRecorded - rowIssuesStored);
                 List<ImportRowIssue> stored = blockIssues.stream().limit(room)
@@ -685,9 +722,19 @@ class ImportBatchProcessor {
                 issues.saveAll(stored);
                 rowValues.insertAll(batchId, values);
                 b.recordBlock(tally, expected, lastRow, rowIssuesStored + stored.size());
+                if (!subjectFound.lines().isEmpty()) {
+                    blockedNow.set(subjectFound(b, subjectFound));
+                }
                 return batches.save(b);
             });
+            if (committed == null) {
+                throw new StopSlice(SliceOutcome.FINISHED);
+            }
             metrics.block(mode, tally, committed.getIssuesRecorded() - issuesRecorded);
+            if (blockedNow.get()) {
+                // depois do commit: a nova tentativa do bloco não conta de novo
+                metrics.batchBlocked(BlockEffect.FOUND_IN_LOAD.name().toLowerCase(java.util.Locale.ROOT));
+            }
             checkpoint = committed.getLastProcessedRow();
             issuesRecorded = committed.getIssuesRecorded();
             if (committed.isCancelRequested()) {
@@ -729,6 +776,54 @@ class ImportBatchProcessor {
         }
     }
 
+    /**
+     * Linha de titular anonimizado recusada pelo processamento (SEG-20261126-M08a, decisão 1496), na transação do bloco
+     * com o lote travado: bloqueia o lote (sem cancelar), registra as linhas e deixa a remoção do arquivo pendente — o
+     * encerramento enfileira o job que a conclui.
+     */
+    private boolean subjectFound(ImportBatch b, SubjectFound found) {
+        boolean first = b.markSubjectFound(Instant.now(clock));
+        List<SubjectBlock.Line> lines = found.lines();
+        // o aviso ao credor da eliminação (compliance), para a tela do lote e a evidência do pedido de novo arquivo
+        UUID noticeId = anonymizedSubjects.anonymizedDebtorsOf(b.getCreditorId(), found.titleKeys(),
+                        found.contractKeys()).stream().findFirst()
+                .flatMap(debtorId -> notices.noticeFor(debtorId, b.getCreditorId())).orElse(null);
+        subjectBlocks.save(SubjectBlock.foundInLoad(b.getId(), b.getCreditorId(), noticeId, lines));
+        if (!first) {
+            return false;
+        }
+        Instant now = Instant.now(clock);
+        if (b.getFileKey() != null) {
+            retentionStore.addPendingErasureOfBatch(b.getFileKey(), null, b.getId(), now);
+        }
+        // o PDF de origem da conferência também sai (SEG-20261126-M12)
+        retentionStore.pdfImportsOfBatches(List.of(b.getId()))
+                .forEach(pdf -> retentionStore.addPendingErasureOfBatch(null, pdf, b.getId(), now));
+        auditTrail.record(AuditEntry.of("import_batch.blocked_subject_found", "import_batch", b.getId())
+                .creditor(b.getCreditorId())
+                .meta("effect", BlockEffect.FOUND_IN_LOAD)
+                .meta("lines", lines.size())
+                .reason("linha de titular com dados eliminados (LGPD) recusada na carga"));
+        businessEvents.log(BusinessEvent.of(BusinessEventTypes.IMPORT_BATCH_BLOCKED)
+                .creditor(b.getCreditorId()).portfolio(b.getPortfolioId())
+                .reference("import_batch", b.getId())
+                .attr("effect", BlockEffect.FOUND_IN_LOAD)
+                .attr("lines", lines.size()));
+        return true;
+    }
+
+    /**
+     * Linhas recusadas por titular anonimizado num bloco: as linhas para o registro (referência mascarada) e os
+     * identificadores crus só para achar o aviso ao credor.
+     */
+    private record SubjectFound(List<SubjectBlock.Line> lines, Set<String> titleKeys, Set<String> contractKeys) {
+
+        @Override
+        public String toString() {
+            return "SubjectFound[lines=" + lines.size() + "]";
+        }
+    }
+
     // ---------------------------------------------------------------- encerramento
 
     private void finish(UUID batchId, boolean cancelled) {
@@ -749,13 +844,15 @@ class ImportBatchProcessor {
             }
             batches.save(b);
             publishLoadedIfWritten(b);
-            queueReviewAnalysis(b);
             if (b.isBlocked()) {
+                // antes da análise: a conferência entra no contexto já travada e, cancelada, não recebe análise
+                closeReviewOfBlocked(b);
                 // titular anonimizado durante o processamento: a remoção do arquivo ficou pendente; conclui logo
                 // depois do commit (o job diário fica como última rede)
                 jobQueue.enqueue(PendingErasureJobHandler.TYPE, new PendingErasureJobHandler.Payload(b.getId()), null,
                         PendingErasureJobHandler.deduplicationKey(b.getId()));
             }
+            queueReviewAnalysis(b);
             BusinessEvent event = finishedEvent(b, eventType);
             if (b.getStatus() == ImportBatchStatus.FAILED) {
                 event.attr("failureCode", "import.no_rows");
@@ -778,6 +875,26 @@ class ImportBatchProcessor {
                     .addKeyValue("durationMs", durationMs(batch))
                     .log("Lote de importação encerrado");
         }
+    }
+
+    /**
+     * Prévia de conferência com titular anonimizado: o arquivo não pode ser importado (decisão 1469); a conferência é
+     * cancelada pelo sistema e o credor precisa mandar outro arquivo.
+     */
+    private void closeReviewOfBlocked(ImportBatch b) {
+        if (b.getReviewId() == null || b.writesToDebt()) {
+            return;
+        }
+        reviews.findByIdForUpdate(b.getReviewId()).filter(r -> !r.getStatus().isTerminal()).ifPresent(review -> {
+            String previous = review.getStatus().name();
+            review.cancel(Actor.SYSTEM_ID, Instant.now(clock), ImportBatch.SUBJECT_BLOCK_REASON);
+            reviews.saveAndFlush(review);
+            auditTrail.record(AuditEntry.of("import_review.closed_by_system", ImportReviewService.RESOURCE, review.getId())
+                    .creditor(review.getCreditorId())
+                    .change("status", previous, review.getStatus().name())
+                    .meta("batchId", b.getId())
+                    .reason("linha de titular com dados eliminados (LGPD) recusada na prévia"));
+        });
     }
 
     /** Prévia de conferência validada: a análise de valores (alertas) roda em job próprio. */

@@ -16,6 +16,7 @@ import {
   BatchFilter,
   BreakdownRow,
   CanonicalLayoutView,
+  FileRequestChannel,
   FormatOption,
   ImportBatchView,
   ImportIssueView,
@@ -26,6 +27,7 @@ import {
   ReviewStatus,
   ReviewSummaryView,
   ReviewView,
+  SubjectBlockView,
   TotalsCheckView,
   TotalsRequest,
   UploadRequest,
@@ -58,6 +60,16 @@ export class ImportBatchesApi {
 
   get(id: string): Observable<ImportBatchView> {
     return this.http.get<ImportBatchView>(`${BASE}/batches/${id}`);
+  }
+
+  /** Lote bloqueado por titular com dados eliminados: linhas, pedido de novo arquivo e aviso ao credor. */
+  subjectBlock(id: string): Observable<SubjectBlockView> {
+    return this.http.get<SubjectBlockView>(`${BASE}/batches/${id}/subject-block`);
+  }
+
+  /** Registra que o pedido de novo arquivo foi enviado ao credor (uma vez só). */
+  registerRequestSent(id: string, body: { sentAt: string; channel: FileRequestChannel }): Observable<SubjectBlockView> {
+    return this.http.post<SubjectBlockView>(`${BASE}/batches/${id}/subject-block/request-sent`, body);
   }
 
   /** Devedores que receberam contato novo na carga (selo "Novo"). Falha não interrompe o relatório. */

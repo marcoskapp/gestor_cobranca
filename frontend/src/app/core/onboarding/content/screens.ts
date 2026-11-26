@@ -956,7 +956,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'ingestion.batches',
-    version: 3,
+    version: 4,
     path: '/importacao',
     tourId: 'ingestion.batches',
     changes: [
@@ -971,6 +971,7 @@ export const SCREENS: readonly ScreenGuide[] = [
         version: 3,
         items: ['"Importação PDF inteligente": quando o credor só envia PDF, o sistema encontra os títulos e você valida o mapa antes de importar.'],
       },
+      { version: 4, items: ['Lote com titular cujos dados foram eliminados aparece como "LGPD: linhas recusadas"; o filtro "Linhas recusadas (LGPD)" separa os que ainda esperam o pedido de novo arquivo ao credor.'] },
     ],
   },
   { key: 'ingestion.layouts', version: 1, path: '/importacao/layouts' },
@@ -1011,7 +1012,7 @@ export const SCREENS: readonly ScreenGuide[] = [
   },
   {
     key: 'ingestion.batch-detail',
-    version: 5,
+    version: 6,
     path: '/importacao/:id',
     tourId: 'ingestion.batch-detail',
     changes: [
@@ -1019,6 +1020,13 @@ export const SCREENS: readonly ScreenGuide[] = [
       { version: 3, items: ['Com a retenção de arquivos de importação ligada, o lote mostra quando o arquivo original foi descartado; sem ele, não há download nem reprocessamento.'] },
       { version: 4, items: ['"Títulos importados" abre a lista de títulos desta carga (os criados ou atualizados por ela).'] },
       { version: 5, items: ['Carga concluída mostra quantos devedores que já existiam receberam contato novo; "Ver os devedores" abre a lista filtrada por esta carga.'] },
+      {
+        version: 6,
+        items: [
+          'Arquivo com titular cujos dados foram eliminados (LGPD): o lote fica recusado e o arquivo é apagado; sem reprocessar nem conferir de novo.',
+          '"Pedido de novo arquivo ao credor": as linhas do titular, o texto pronto para copiar e "Registrar pedido enviado".',
+        ],
+      },
     ],
   },
   {

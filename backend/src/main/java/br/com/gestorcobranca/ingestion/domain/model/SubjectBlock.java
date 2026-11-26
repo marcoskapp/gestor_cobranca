@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.ingestion.domain.model;
 
+import br.com.gestorcobranca.shared.domain.Document;
 import br.com.gestorcobranca.shared.domain.Guard;
 import br.com.gestorcobranca.shared.domain.TenantScopedEntity;
 import jakarta.persistence.CollectionTable;
@@ -13,6 +14,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +45,8 @@ public class SubjectBlock extends TenantScopedEntity {
     @Column(name = "notice_id", updatable = false)
     private UUID noticeId;
 
-    @Column(name = "source_event_id", nullable = false, updatable = false)
+    /** Evento de anonimização (nulo quando achado na própria carga). */
+    @Column(name = "source_event_id", updatable = false)
     private UUID sourceEventId;
 
     @Enumerated(EnumType.STRING)
@@ -58,6 +61,7 @@ public class SubjectBlock extends TenantScopedEntity {
     private int lines;
 
     @ElementCollection(fetch = FetchType.LAZY)
+    @BatchSize(size = 100)
     @CollectionTable(name = "import_subject_block_line", schema = "ingestion", joinColumns = @JoinColumn(name = "block_id"))
     @OrderColumn(name = "position")
     private List<Line> lineList = new ArrayList<>();
@@ -71,8 +75,10 @@ public class SubjectBlock extends TenantScopedEntity {
      */
     public SubjectBlock(UUID batchId, UUID creditorId, UUID noticeId, UUID sourceEventId, BlockEffect effect,
                         UUID reviewId, List<Line> found) {
-        Guard.require(batchId != null && creditorId != null && sourceEventId != null && effect != null,
-                "import_subject_block.required", "Lote, credor, evento e efeito obrigatórios");
+        Guard.require(batchId != null && creditorId != null && effect != null,
+                "import_subject_block.required", "Lote, credor e efeito obrigatórios");
+        Guard.require((effect == BlockEffect.FOUND_IN_LOAD) == (sourceEventId == null),
+                "import_subject_block.origin_invalid", "Bloqueio da carga sem evento; da anonimização, com evento");
         this.batchId = batchId;
         this.creditorId = creditorId;
         this.noticeId = noticeId;
@@ -82,6 +88,20 @@ public class SubjectBlock extends TenantScopedEntity {
         List<Line> safe = found == null ? List.of() : found;
         this.lines = safe.size();
         this.lineList = new ArrayList<>(safe.subList(0, Math.min(safe.size(), MAX_LINES)));
+    }
+
+    /** Linhas recusadas pelo próprio processamento (um registro por bloco da carga com recusa). */
+    public static SubjectBlock foundInLoad(UUID batchId, UUID creditorId, UUID noticeId, List<Line> found) {
+        return new SubjectBlock(batchId, creditorId, noticeId, null, BlockEffect.FOUND_IN_LOAD, null, found);
+    }
+
+    /**
+     * Referência para exibição a terceiros: CPF/CNPJ embutido mascarado e sem caracteres de controle — nunca o
+     * identificador cru.
+     */
+    public static String displayReference(String raw) {
+        String shown = raw == null ? "" : Document.maskIfDocument(raw).replaceAll("\\p{Cntrl}", " ").strip();
+        return shown.isEmpty() ? "(sem referência)" : shown;
     }
 
     public UUID getBatchId() { return batchId; }

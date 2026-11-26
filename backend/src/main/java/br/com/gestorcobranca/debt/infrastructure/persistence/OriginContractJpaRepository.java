@@ -33,6 +33,14 @@ interface OriginContractJpaRepository extends JpaRepository<OriginContract, UUID
     List<String> findExternalIdsOfAnonymizedDebtors(UUID creditorId, Collection<String> externalIds);
 
     @Override
+    @Query("""
+            select distinct d.id from OriginContract c, Debtor d
+            where d.id = c.debtorId and c.creditorId = :creditorId and c.externalId in :externalIds
+              and d.status = br.com.gestorcobranca.debt.domain.model.DebtorStatus.ANONYMIZED
+            """)
+    List<UUID> findAnonymizedDebtorIds(UUID creditorId, Collection<String> externalIds);
+
+    @Override
     List<OriginContract> findAllByIdIn(Collection<UUID> ids);
 
     @Override

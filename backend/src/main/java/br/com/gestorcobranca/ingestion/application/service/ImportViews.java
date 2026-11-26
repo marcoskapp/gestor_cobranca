@@ -32,7 +32,7 @@ final class ImportViews {
                 b.isIssuesTruncated(), b.getTotalRows(), b.progressPercent(), b.getLastProcessedRow(),
                 b.getCancelRequestedAt(), b.getCreatedBy(), b.getCreatedAt(), b.getStartedAt(), b.getFinishedAt(),
                 b.getReviewId(), NumberFormats.summary(NumberFormats.fromJson(json, b.getNumberFormat())),
-                b.getFileDeletedAt());
+                b.getFileDeletedAt(), b.getBlockedReason() == null ? null : b.getBlockedReason().name(), b.getBlockedAt());
     }
 
     static ImportIssueView issue(ImportRowIssue i) {

@@ -22,7 +22,6 @@ import br.com.gestorcobranca.ingestion.domain.repository.PdfImportRepository;
 import br.com.gestorcobranca.ingestion.domain.repository.SubjectBlockRepository;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
 import br.com.gestorcobranca.shared.audit.AuditTrail;
-import br.com.gestorcobranca.shared.domain.Document;
 import br.com.gestorcobranca.shared.logging.business.BusinessEvent;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventLogger;
 import br.com.gestorcobranca.shared.logging.business.BusinessEventTypes;
@@ -142,7 +141,7 @@ class IngestionAnonymizer {
         }
         files.filesWithDebtor(debtorId).forEach(f -> fileKeys.add(f.fileKey()));
         for (String key : fileKeys) {
-            if (!eraseFile(key, sourceEventId, now, keys) && files.addPendingErasure(key, null, sourceEventId, now)) {
+            if (!eraseFile(key, sourceEventId, null, now, keys) && files.addPendingErasure(key, null, sourceEventId, now)) {
                 pending++;
             }
         }
@@ -197,8 +196,7 @@ class IngestionAnonymizer {
     }
 
     private static String display(String externalId) {
-        String shown = Document.maskIfDocument(externalId).replaceAll("\\p{Cntrl}", " ").strip();
-        return shown.isEmpty() ? "(sem referência)" : shown;
+        return SubjectBlock.displayReference(externalId);
     }
 
     private void block(ImportBatch batch, List<Line> lines, UUID debtorId, UUID sourceEventId, Instant now,
@@ -261,6 +259,52 @@ class IngestionAnonymizer {
         return review.getId();
     }
 
+    /**
+     * Bloqueio achado na própria carga (decisão 1496): estende o bloqueio aos lotes do credor com o mesmo conteúdo sob
+     * outra chave (SEG-20261126-M13, a mesma regra de {@link #widen}), travados numa instrução em ordem de id, fora da
+     * transação do bloco da carga; os arquivos deles entram na remoção pendente. Na transação do chamador.
+     */
+    void extendFoundInLoad(UUID batchId) {
+        Instant now = Instant.now(clock);
+        List<BatchFile> self = files.filesOfBatches(List.of(batchId));
+        if (self.isEmpty()) {
+            return;
+        }
+        BatchFile origin = self.getFirst();
+        Set<UUID> siblings = new java.util.TreeSet<>(files.batchesWithContent(origin.creditorId(), origin.fileSha256()));
+        siblings.remove(batchId);
+        if (siblings.isEmpty()) {
+            return;
+        }
+        List<Line> lines = subjectBlocks.findByBatchIdOrderByCreatedAtAsc(batchId).stream()
+                .flatMap(sb -> sb.getLineList().stream()).toList();
+        UUID noticeId = subjectBlocks.findByBatchIdOrderByCreatedAtAsc(batchId).stream()
+                .map(SubjectBlock::getNoticeId).filter(java.util.Objects::nonNull).findFirst().orElse(null);
+        for (ImportBatch sibling : batches.findAllByIdInForUpdate(List.copyOf(siblings))) {
+            if (sibling.isBlocked()) {
+                continue;
+            }
+            // bloqueio completo: na fila, cancela; em processamento, para ao fim do bloco; encerrado, só marca
+            BlockEffect effect = sibling.block(BlockReason.SUBJECT_ANONYMIZED, now, Actor.SYSTEM_ID);
+            batches.saveAndFlush(sibling);
+            if (effect == BlockEffect.CANCELLED_NOW) {
+                jobQueue.cancelPending(ImportBatchJobHandler.TYPE, ImportBatchJobHandler.deduplicationKey(sibling.getId(), 0));
+                metrics.finished(sibling);
+            }
+            subjectBlocks.save(SubjectBlock.foundInLoad(sibling.getId(), sibling.getCreditorId(), noticeId, lines));
+            if (sibling.getFileKey() != null) {
+                files.addPendingErasureOfBatch(sibling.getFileKey(), null, batchId, now);
+            }
+            auditTrail.record(AuditEntry.of("import_batch.blocked_subject_found", BatchCreation.RESOURCE, sibling.getId())
+                    .creditor(sibling.getCreditorId())
+                    .meta("effect", effect)
+                    .meta("lines", lines.size())
+                    .meta("originBatchId", batchId)
+                    .reason("mesmo conteúdo de lote com linha de titular com dados eliminados (LGPD)"));
+            metrics.batchBlocked(BlockEffect.FOUND_IN_LOAD.name().toLowerCase(Locale.ROOT));
+        }
+    }
+
     /** @param candidates pendências selecionadas (rodada cheia = pode haver mais) */
     record PendingRound(int candidates, int deleted) {
     }
@@ -278,7 +322,7 @@ class IngestionAnonymizer {
         for (PendingErasure p : pending) {
             boolean done = p.pdfImportId() != null
                     ? erasePdf(p.pdfImportId(), p.sourceEventId(), now, keys)
-                    : eraseFile(p.fileKey(), p.sourceEventId(), now, keys);
+                    : eraseFile(p.fileKey(), p.sourceEventId(), p.originBatchId(), now, keys);
             if (done) {
                 files.removePendingErasure(p.id());
             }
@@ -310,8 +354,11 @@ class IngestionAnonymizer {
         return true;
     }
 
-    /** @return falso se algum lote com o arquivo ainda está aberto (fica pendente) */
-    private boolean eraseFile(String fileKey, UUID sourceEventId, Instant now, List<String> keys) {
+    /**
+     * @param originBatchId lote que recusou a linha do titular na carga (decisão 1496); nulo quando vem do evento
+     * @return falso se algum lote com o arquivo ainda está aberto (fica pendente)
+     */
+    private boolean eraseFile(String fileKey, UUID sourceEventId, UUID originBatchId, Instant now, List<String> keys) {
         List<ExpiredFile> current = files.fileByKey(fileKey);
         if (current.isEmpty()) {
             return true;
@@ -322,9 +369,11 @@ class IngestionAnonymizer {
         }
         ExpiredFile file = current.getFirst();
         keys.add(fileKey);
-        auditTrail.record(AuditEntry.of("import_batch.file_deleted", BatchCreation.RESOURCE, file.batchId())
+        AuditEntry audit = AuditEntry.of("import_batch.file_deleted", BatchCreation.RESOURCE, file.batchId())
                 .creditor(file.creditorId()).meta("batches", marked).meta("fileSha256", file.fileSha256())
-                .meta("sourceEventId", sourceEventId).reason(REASON));
+                .reason(REASON);
+        auditTrail.record(originBatchId != null ? audit.meta("originBatchId", originBatchId)
+                : audit.meta("sourceEventId", sourceEventId));
         return true;
     }
 }

@@ -174,4 +174,15 @@ class ImportBatchTest {
         assertThat(validating.getStatus()).isEqualTo(ImportBatchStatus.VALIDATING);
         assertThat(validating.isCancelRequested()).isTrue();
     }
+
+    @Test
+    void subjectFoundInTheLoadBlocksWithoutCancellingAndKeepsTheFirstInstant() {
+        ImportBatch running = batch(ImportMode.IMPORT);
+        running.begin(NOW, 10);
+        assertThat(running.markSubjectFound(NOW)).isTrue();
+        assertThat(running.markSubjectFound(NOW.plusSeconds(30))).isFalse();
+        assertThat(running.getBlockedAt()).isEqualTo(NOW);
+        assertThat(running.isCancelRequested()).isFalse();
+        assertThat(running.getStatus()).isEqualTo(ImportBatchStatus.PROCESSING);
+    }
 }

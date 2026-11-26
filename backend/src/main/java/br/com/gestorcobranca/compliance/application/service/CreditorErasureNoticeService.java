@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.compliance.application.service;
 
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeStatusQueries;
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeStatusQueries.NoticeStatus;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases;
 import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice;
 import br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice.Channel;
@@ -161,6 +162,15 @@ class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases, Cre
         accessScope.requirePermission(Permission.IMPORT_EXECUTE);
         accessScope.requireCreditor(creditorId);
         return notices.findIdByDebtorIdAndCreditorId(debtorId, creditorId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<NoticeStatus> statusOf(UUID noticeId, UUID creditorId) {
+        accessScope.requirePermission(Permission.IMPORT_VIEW);
+        accessScope.requireCreditor(creditorId);
+        return notices.findById(noticeId).filter(n -> n.getCreditorId().equals(creditorId))
+                .map(n -> new NoticeStatus(n.getId(), n.getStatus().name(), n.getNotifiedAt()));
     }
 
     @Override

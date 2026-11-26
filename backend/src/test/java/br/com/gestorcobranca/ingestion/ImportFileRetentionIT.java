@@ -1,7 +1,9 @@
 package br.com.gestorcobranca.ingestion;
 
 import br.com.gestorcobranca.compliance.application.port.in.RetentionUseCases;
+import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.ImportBatchView;
+import br.com.gestorcobranca.ingestion.application.port.in.ImportSubjectBlockUseCases;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.ReprocessCommand;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportReviewUseCases;
 import br.com.gestorcobranca.ingestion.application.service.IngestionTestHooks;
@@ -31,6 +33,10 @@ class ImportFileRetentionIT extends IngestionTestSupport {
     FileStorage fileStorage;
     @Autowired
     ApplicationContext context;
+    @Autowired
+    br.com.gestorcobranca.ingestion.application.port.in.ImportSubjectBlockUseCases subjectBlocks;
+    @Autowired
+    br.com.gestorcobranca.pendingwork.application.port.in.PendingWorkUseCases pendingWork;
     @Autowired
     org.springframework.context.ApplicationEventPublisher eventPublisher;
 
@@ -261,6 +267,83 @@ class ImportFileRetentionIT extends IngestionTestSupport {
                 "insert into ingestion.import_subject_block_line (block_id, position, row_number, reference, matched_by) "
                         + "values (?, 9, 9, 'x', 'DEBTOR')", blockId)))
                 .isInstanceOf(org.springframework.dao.DataAccessException.class);
+    }
+
+    /** Fatia 5 (decisão 1497): tela do lote bloqueado, pedido de novo arquivo e pendência de quem importa. */
+    @Test
+    void blockedBatchShowsTheFileRequestAndRegistersItOnce() {
+        String csv = HEADER + "\n" + line(cpf(21), "Lia", "R-21", "10,00", null) + "\n"
+                + line(cpf(22), "Max", "R-22", "20,00", null) + "\n";
+        ImportBatchView imported = uploadCsv("lia.csv", csv, "IMPORT");
+        runJobs();
+        UUID lia = system(() -> jdbcTemplate.queryForObject("select debtor_id from ingestion.import_batch_row "
+                + "where batch_id = ? and row_number = 2", UUID.class, imported.id()));
+        // lote sem bloqueio não tem a tela (404, como fora do escopo)
+        assertThatThrownBy(() -> asImporterOf(creditorA, () -> subjectBlocks.forBatch(imported.id())))
+                .isInstanceOf(br.com.gestorcobranca.shared.domain.ResourceNotFoundException.class);
+        IngestionTestHooks.anonymizeDebtor(context, tenant, lia);
+
+        var view = asImporterOf(creditorA, () -> subjectBlocks.forBatch(imported.id()));
+        assertThat(view.lines()).singleElement().satisfies(l -> {
+            assertThat(l.rowNumber()).isEqualTo(2);
+            assertThat(l.reference()).isEqualTo("R-21");
+        });
+        assertThat(view.message()).contains("\"lia.csv\"", "Linha 2: título R-21", view.protocol())
+                .doesNotContain("Lia", "Max", "R-22");
+        assertThat(view.request()).isNull();
+        assertThat(batch(imported.id()).blockedReason()).isEqualTo("SUBJECT_ANONYMIZED");
+        // filtro dos bloqueados e pendência de quem importa
+        assertThat(asImporterOf(creditorA, () -> batches.search(new ImportBatchUseCases.BatchSearch(null, null, null,
+                null, null, null, "PENDING_REQUEST"), br.com.gestorcobranca.shared.paging.PageQuery.of(0, 20)).content()))
+                .extracting(ImportBatchView::id).containsExactly(imported.id());
+        assertThat(asImporterOf(creditorA, () -> pendingWork.mine()).items())
+                .filteredOn(i -> i.type().equals("ingestion.blocked_batches")).singleElement()
+                .satisfies(i -> assertThat(i.route()).isEqualTo("/importacao/" + imported.id()));
+
+        // outro credor não vê nem registra (404); data futura ou anterior ao bloqueio é recusada
+        assertThatThrownBy(() -> asImporterOf(creditorB, () -> subjectBlocks.forBatch(imported.id())))
+                .isInstanceOf(br.com.gestorcobranca.shared.domain.ResourceNotFoundException.class);
+        assertThatThrownBy(() -> asImporterOf(creditorB, () -> subjectBlocks.registerRequestSent(imported.id(),
+                new ImportSubjectBlockUseCases.RegisterRequestCommand(java.time.Instant.now(), "EMAIL"))))
+                .isInstanceOf(br.com.gestorcobranca.shared.domain.ResourceNotFoundException.class);
+        assertThatThrownBy(() -> asImporterOf(creditorA, () -> subjectBlocks.registerRequestSent(imported.id(),
+                new ImportSubjectBlockUseCases.RegisterRequestCommand(java.time.Instant.now().plusSeconds(3600),
+                        "EMAIL")))).hasFieldOrPropertyWithValue("code", "import_file_request.sent_at_future");
+        assertThatThrownBy(() -> asImporterOf(creditorA, () -> subjectBlocks.registerRequestSent(imported.id(),
+                new ImportSubjectBlockUseCases.RegisterRequestCommand(view.blockedAt().minusSeconds(60), "EMAIL"))))
+                .hasFieldOrPropertyWithValue("code", "import_file_request.sent_at_before_block");
+        // em processamento o pedido espera o fim (a lista de linhas ainda pode crescer)
+        system(() -> jdbcTemplate.update("update ingestion.import_batch set status = 'PROCESSING', finished_at = null "
+                + "where id = ?", imported.id()));
+        assertThatThrownBy(() -> asImporterOf(creditorA, () -> subjectBlocks.registerRequestSent(imported.id(),
+                new ImportSubjectBlockUseCases.RegisterRequestCommand(java.time.Instant.now(), "EMAIL"))))
+                .hasFieldOrPropertyWithValue("code", "import_file_request.batch_in_progress");
+        assertThat(asImporterOf(creditorA, () -> subjectBlocks.forBatch(imported.id())).inProgress()).isTrue();
+        system(() -> jdbcTemplate.update("update ingestion.import_batch set status = 'COMPLETED', finished_at = now() "
+                + "where id = ?", imported.id()));
+        var sent = asImporterOf(creditorA, () -> subjectBlocks.registerRequestSent(imported.id(),
+                new ImportSubjectBlockUseCases.RegisterRequestCommand(java.time.Instant.now(), "EMAIL")));
+        assertThat(sent.request()).satisfies(r -> {
+            assertThat(r.channel()).isEqualTo("EMAIL");
+            assertThat(r.registeredAt()).isNotNull();
+        });
+        assertThatThrownBy(() -> asImporterOf(creditorA, () -> subjectBlocks.registerRequestSent(imported.id(),
+                new ImportSubjectBlockUseCases.RegisterRequestCommand(java.time.Instant.now(), "PHONE"))))
+                .hasFieldOrPropertyWithValue("code", "import_file_request.already_registered");
+        assertThat(count("select count(*) from shared.audit_event where tenant_id = ? "
+                + "and action = 'import_batch.file_request_sent' and entity_id = ?", tenant, imported.id())).isEqualTo(1);
+        assertThat(asImporterOf(creditorA, () -> pendingWork.mine()).items())
+                .noneSatisfy(i -> assertThat(i.type()).isEqualTo("ingestion.blocked_batches"));
+        // o filtro separa os recusados com e sem pedido (destino da pendência: sem pedido)
+        assertThat(asImporterOf(creditorA, () -> batches.search(new ImportBatchUseCases.BatchSearch(null, null, null,
+                null, null, null, "REQUESTED"), br.com.gestorcobranca.shared.paging.PageQuery.of(0, 20)).content()))
+                .extracting(ImportBatchView::id).containsExactly(imported.id());
+        assertThat(asImporterOf(creditorA, () -> batches.search(new ImportBatchUseCases.BatchSearch(null, null, null,
+                null, null, null, "PENDING_REQUEST"), br.com.gestorcobranca.shared.paging.PageQuery.of(0, 20)).content()))
+                .isEmpty();
+        assertThatThrownBy(() -> system(() -> jdbcTemplate.update(
+                "update ingestion.import_file_request set channel = 'PHONE'"))).isInstanceOf(
+                org.springframework.dao.DataAccessException.class);
     }
 
     private boolean stored(String key) {

@@ -17,9 +17,14 @@ class PendingErasureJobHandler implements JobHandler<PendingErasureJobHandler.Pa
     static final String TYPE = "ingestion.pending-erasure";
 
     private final ImportFileRetention retention;
+    private final IngestionAnonymizer anonymizer;
+    private final br.com.gestorcobranca.shared.tenancy.TenantExecution tenantExecution;
 
-    PendingErasureJobHandler(ImportFileRetention retention) {
+    PendingErasureJobHandler(ImportFileRetention retention, IngestionAnonymizer anonymizer,
+                             br.com.gestorcobranca.shared.tenancy.TenantExecution tenantExecution) {
         this.retention = retention;
+        this.anonymizer = anonymizer;
+        this.tenantExecution = tenantExecution;
     }
 
     /** @param batchId lote que encerrou (só para a deduplicação e o diagnóstico) */
@@ -53,6 +58,8 @@ class PendingErasureJobHandler implements JobHandler<PendingErasureJobHandler.Pa
 
     @Override
     public void handle(JobContext context, Payload payload) {
+        // lotes do mesmo conteúdo sob outra chave também ficam bloqueados (SEG-20261126-M13), em transação própria
+        tenantExecution.inTenant(context.tenantId(), "job:" + TYPE, () -> anonymizer.extendFoundInLoad(payload.batchId()));
         // a falha sobe: a fila tenta de novo (até maxAttempts); o job diário fica como última rede
         retention.completePendingErasuresOrThrow(context.tenantId());
     }

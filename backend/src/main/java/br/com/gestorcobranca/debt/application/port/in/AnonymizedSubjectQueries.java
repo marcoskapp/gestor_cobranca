@@ -28,6 +28,13 @@ public interface AnonymizedSubjectQueries {
     AnonymizedKeys anonymizedKeys(UUID creditorId, Collection<String> titleExternalIds,
                                   Collection<String> contractExternalIds);
 
+    /**
+     * Devedores anonimizados donos destes identificadores (títulos ou contratos) no credor — para o lote que recusou a
+     * linha na carga apontar para o aviso ao credor (decisão 1496). Só ids. Exige {@code IMPORT_EXECUTE} e o credor.
+     */
+    Set<UUID> anonymizedDebtorsOf(UUID creditorId, Collection<String> titleExternalIds,
+                                  Collection<String> contractExternalIds);
+
     /** Identificadores do credor que pertencem a devedor anonimizado. */
     record AnonymizedKeys(Set<String> titles, Set<String> contracts) {
         public AnonymizedKeys {

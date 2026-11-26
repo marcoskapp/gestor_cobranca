@@ -5,8 +5,10 @@ import java.util.List;
 import br.com.gestorcobranca.shared.paging.ChangeQuery;
 import br.com.gestorcobranca.shared.paging.ChangeSpecifications;
 
+import br.com.gestorcobranca.ingestion.domain.model.FileRequest;
 import br.com.gestorcobranca.ingestion.domain.model.ImportBatch;
 import br.com.gestorcobranca.ingestion.domain.repository.ImportBatchRepository;
+import br.com.gestorcobranca.ingestion.domain.repository.ImportBatchRepository.BlockedFilter;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -64,6 +66,17 @@ interface ImportBatchJpaRepository extends JpaRepository<ImportBatch, UUID>, Jpa
         }
         if (criteria.createdFrom() != null) {
             spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), criteria.createdFrom()));
+        }
+        if (criteria.blocked() != null) {
+            spec = spec.and((root, query, cb) -> cb.isNotNull(root.get("blockedReason")));
+            if (criteria.blocked() != BlockedFilter.ALL) {
+                spec = spec.and((root, query, cb) -> {
+                    var sub = query.subquery(Integer.class);
+                    var request = sub.from(FileRequest.class);
+                    sub.select(cb.literal(1)).where(cb.equal(request.get("batchId"), root.get("id")));
+                    return criteria.blocked() == BlockedFilter.REQUESTED ? cb.exists(sub) : cb.not(cb.exists(sub));
+                });
+            }
         }
         if (criteria.createdTo() != null) {
             spec = spec.and((root, query, cb) -> cb.lessThan(root.get("createdAt"), criteria.createdTo()));

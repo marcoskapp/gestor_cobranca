@@ -18,6 +18,9 @@ public interface OriginContractRepository {
     /** Dentre os identificadores informados, os de contratos do credor cujo devedor está anonimizado. */
     List<String> findExternalIdsOfAnonymizedDebtors(UUID creditorId, Collection<String> externalIds);
 
+    /** Devedores anonimizados donos destes identificadores no credor. */
+    List<UUID> findAnonymizedDebtorIds(UUID creditorId, Collection<String> externalIds);
+
     Optional<OriginContract> findByCreditorIdAndExternalId(UUID creditorId, String externalId);
 
     /** Lock pessimista: serializa a reclassificação e o recálculo de prescrição do contrato. */

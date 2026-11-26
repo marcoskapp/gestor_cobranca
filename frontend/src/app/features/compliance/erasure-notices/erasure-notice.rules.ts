@@ -5,20 +5,31 @@ const FUTURE_TOLERANCE_MS = 60_000;
  * Valida quando o credor foi avisado (`datetime-local`, fuso do navegador): obrigatório, não futuro e não anterior à
  * anonimização mais recente dos avisos registrados. Devolve a mensagem do problema, ou `null`.
  */
-export function sentAtProblem(value: string, latestErasedAt: string | null, now: Date = new Date()): string | null {
+/** Textos das mensagens (o mesmo diálogo registra o aviso da eliminação e o pedido de novo arquivo). */
+export interface SentAtTexts {
+  /** "o aviso", "o pedido" */
+  what: string;
+  missing: string;
+  /** "à eliminação dos dados", "ao bloqueio do arquivo" */
+  floor: string;
+}
+
+const NOTICE_TEXTS: SentAtTexts = { what: 'o aviso', missing: 'Informe quando o credor foi avisado.', floor: 'à eliminação dos dados' };
+
+export function sentAtProblem(value: string, latestErasedAt: string | null, now: Date = new Date(), texts: SentAtTexts = NOTICE_TEXTS): string | null {
   if (!value) {
-    return 'Informe quando o credor foi avisado.';
+    return texts.missing;
   }
   const at = new Date(value);
   if (Number.isNaN(at.getTime())) {
     return 'Data e hora inválidas.';
   }
   if (at.getTime() > now.getTime() + FUTURE_TOLERANCE_MS) {
-    return 'A data do aviso não pode ser futura.';
+    return `A data d${texts.what} não pode ser futura.`;
   }
   // o campo não tem segundos: no mesmo minuto da eliminação vale (o envio usa o instante da eliminação)
   if (latestErasedAt && at.getTime() < floorToMinute(new Date(latestErasedAt))) {
-    return 'O aviso não pode ser anterior à eliminação dos dados.';
+    return `${texts.what.charAt(0).toUpperCase()}${texts.what.slice(1)} não pode ser anterior ${texts.floor}.`;
   }
   return null;
 }

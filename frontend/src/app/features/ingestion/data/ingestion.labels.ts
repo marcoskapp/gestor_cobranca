@@ -17,6 +17,10 @@ export const UPLOAD_ERROR_LABELS: Record<string, string> = {
   'import.already_in_progress': 'Já existe um lote em processamento para esta carteira.',
   'import.file_signature_invalid': 'O conteúdo do arquivo não corresponde à extensão.',
   'import.number_format_undecided': 'Há colunas de valor com separador decimal ambíguo: use a conferência para escolher a leitura.',
+  'import.file_blocked_subject_anonymized':
+    'Este arquivo traz um titular cujos dados foram eliminados (LGPD) e não pode ser usado. Peça ao credor um arquivo sem as linhas dele.',
+  'import_batch.blocked_subject_anonymized':
+    'Este lote traz um titular cujos dados foram eliminados (LGPD): não pode ser reprocessado nem conferido de novo.',
 };
 
 export const ACCEPT = '.csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';

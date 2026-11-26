@@ -371,11 +371,27 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
 - **Trilha e indicadores**: auditoria `import_batch.blocked_subject_anonymized` (status, efeito, linhas, quantas pelo
   título, conferência, aviso, evento), evento de negócio `import.batch_blocked` e métrica `ingestion.batches.blocked{effect}`
   ([logs-e-metricas.md](../logs-e-metricas.md)).
+- **Achado na própria carga** (decisão 1496): o lote cujo processamento recusa linha de titular anonimizado (§8.1)
+  também é bloqueado no bloco em que a recusa acontece (`ImportBatch#markSubjectFound`, sem cancelar), com registro de
+  origem `FOUND_IN_LOAD` (V2306), ligado ao aviso ao credor (`AnonymizedSubjectQueries#anonymizedDebtorsOf` +
+  `noticeFor`), e remoção pendente do arquivo e do PDF de origem com o lote de origem em coluna própria
+  (`origin_batch_id`, V2308; a auditoria do descarte cita `originBatchId`, não `sourceEventId`); no encerramento, a
+  conferência aberta da prévia é cancelada pelo sistema e o job de uso único bloqueia os lotes do credor com o mesmo
+  conteúdo (`IngestionAnonymizer#extendFoundInLoad`) e apaga os arquivos. Auditoria `import_batch.blocked_subject_found`.
+- **Tela do lote e pedido de novo arquivo** (fatia 5, decisão 1497): `ImportSubjectBlockUseCases` (`GET
+  /api/v1/ingestion/batches/{id}/subject-block`, `IMPORT_VIEW`, 404 fora do escopo ou sem bloqueio; `POST
+  .../subject-block/request-sent`, `IMPORT_EXECUTE` + `IMPORT_VIEW` e o credor do lote, `{sentAt, channel}`, uma vez só,
+  recusado com o lote em processamento (`import_file_request.batch_in_progress`) —
+  `import_file_request`, V2307, append-only, retenção enquanto o lote existir). O texto pronto
+  (`CreditorFileRequestText`) identifica o arquivo pelo protocolo (data, nome e início do SHA-256) e as linhas pela
+  referência mascarada. A situação do aviso da eliminação vem de `CreditorErasureNoticeStatusQueries#statusOf`
+  (`IMPORT_VIEW` e o credor). Lista com o filtro `blocked` (`ALL`, `PENDING_REQUEST`, `REQUESTED`; na tela
+  `?bloqueados=todos|pendentes|enviados`) e o selo "LGPD: linhas recusadas"; pendência
+  `ingestion.blocked_batches` até o registro do pedido. Auditoria `import_batch.file_request_sent`, evento de negócio
+  `import.file_request_sent`.
 - **Resíduos** (decisão 1493): linha sem `id_titulo` ou com mais de 80 caracteres não é registrada e não é achada; PDF
-  ainda aberto (sem lote) e o reenvio do mesmo PDF; título novo do titular que nunca chegou ao debt. **Aberto** (SEG-20261126-M08a, decisão do
-  responsável): lote cujo arquivo traz o titular mas que ainda não gravou a linha dele (na fila, aguardando formato, em
-  processamento antes da linha) não é achado; quando chega à linha, a recusa por linha (1477) a barra, mas o lote
-  termina sem bloqueio e o arquivo fica guardado.
+  ainda aberto (sem lote) e o reenvio do mesmo PDF; título novo do titular que nunca chegou ao debt. O lote que ainda
+  não tinha gravado a linha do titular fica bloqueado quando o processamento chega a ela (decisão 1496).
 - Testes: `ImportBatchTest` (efeito em cada estado, idempotência, pedido do usuário mantido),
   `ImportFileRetentionIT` (conferência fechada e arquivo apagado na hora; 409 e 422; lote em processamento para e o
   encerramento agenda a remoção), `AnonymizedSubjectImportIT#earlierPreviewWithTheSubjectsTitleIsBlockedByTheTitleReference`.

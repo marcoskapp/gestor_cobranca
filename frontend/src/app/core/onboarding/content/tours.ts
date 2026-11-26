@@ -1282,9 +1282,9 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'ingestion.batch-detail',
-    version: 2,
+    version: 3,
     title: 'Lote de importação',
-    summary: 'Contadores, ocorrências por linha e reprocessamento.',
+    summary: 'Contadores, ocorrências por linha, reprocessamento e linhas recusadas (LGPD).',
     steps: [
       {
         anchor: 'batch-counters',
@@ -1300,6 +1300,11 @@ export const TOURS: readonly TourDefinition[] = [
         anchor: 'page-actions',
         title: 'Importar ou reprocessar',
         body: 'Depois da prévia, importe o mesmo arquivo. Reenviar não duplica títulos; arquivo já importado exige justificativa.',
+      },
+      {
+        anchor: 'batch-subject-block',
+        title: 'Arquivo recusado (LGPD)',
+        body: 'O arquivo traz um titular cujos dados foram eliminados. Copie o pedido pronto, envie ao credor e registre o envio.',
       },
     ],
   },

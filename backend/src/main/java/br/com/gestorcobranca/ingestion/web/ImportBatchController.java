@@ -1,6 +1,7 @@
 package br.com.gestorcobranca.ingestion.web;
 
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases;
+import br.com.gestorcobranca.ingestion.application.port.in.ImportSubjectBlockUseCases;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.BatchSearch;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.ControlTotalsCommand;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.DownloadableFile;
@@ -63,8 +64,11 @@ class ImportBatchController {
 
     private final ImportBatchUseCases batches;
 
-    ImportBatchController(ImportBatchUseCases batches) {
+    private final ImportSubjectBlockUseCases subjectBlocks;
+
+    ImportBatchController(ImportBatchUseCases batches, ImportSubjectBlockUseCases subjectBlocks) {
         this.batches = batches;
+        this.subjectBlocks = subjectBlocks;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -101,11 +105,30 @@ class ImportBatchController {
                                          @RequestParam(required = false) String source,
                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdFrom,
                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdTo,
+                                         @RequestParam(required = false) String blocked,
                                          @RequestParam(required = false) Integer page,
                                          @RequestParam(required = false) Integer size,
                                          @RequestParam(required = false) String sort) {
-        return batches.search(new BatchSearch(creditorId, portfolioId, status, source, createdFrom, createdTo),
-                PageQuery.of(page, size, sort));
+        return batches.search(new BatchSearch(creditorId, portfolioId, status, source, createdFrom, createdTo,
+                blocked), PageQuery.of(page, size, sort));
+    }
+
+    /** Lote bloqueado por titular anonimizado: linhas, pedido de novo arquivo e aviso ao credor. */
+    @GetMapping("/{id}/subject-block")
+    @PreAuthorize("hasAuthority('IMPORT_VIEW')")
+    ImportSubjectBlockUseCases.SubjectBlockView subjectBlock(@PathVariable UUID id) {
+        return subjectBlocks.forBatch(id);
+    }
+
+    @PostMapping("/{id}/subject-block/request-sent")
+    @PreAuthorize("hasAuthority('IMPORT_EXECUTE')")
+    ImportSubjectBlockUseCases.SubjectBlockView requestSent(@PathVariable UUID id,
+                                                             @Valid @RequestBody RequestSentRequest request) {
+        return subjectBlocks.registerRequestSent(id, new ImportSubjectBlockUseCases.RegisterRequestCommand(
+                request.sentAt(), request.channel()));
+    }
+
+    record RequestSentRequest(@NotNull Instant sentAt, @NotBlank @Size(max = 20) String channel) {
     }
 
     @GetMapping("/{id}")

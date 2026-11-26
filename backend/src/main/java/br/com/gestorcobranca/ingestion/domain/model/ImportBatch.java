@@ -435,6 +435,21 @@ public class ImportBatch extends TenantScopedEntity {
         return BlockEffect.ALREADY_FINISHED;
     }
 
+    /**
+     * O processamento recusou linha de titular anonimizado (decisão 1496): marca o bloqueio sem cancelar — as demais
+     * linhas continuam sendo gravadas e o arquivo sai no encerramento. Idempotente.
+     *
+     * @return verdadeiro se o lote acabou de ser bloqueado
+     */
+    public boolean markSubjectFound(Instant now) {
+        if (blockedReason != null) {
+            return false;
+        }
+        blockedReason = BlockReason.SUBJECT_ANONYMIZED;
+        blockedAt = now;
+        return true;
+    }
+
     public boolean isBlocked() {
         return blockedReason != null;
     }
