@@ -28,6 +28,18 @@ public interface DebtorRepository {
      */
     void refreshForUpdate(Debtor debtor);
 
+    /**
+     * Trava compartilhada da linha do devedor com releitura do estado (decisão 1602): quem cria ou reabre vínculo de
+     * dívida (título, coobrigação) espera a eliminação em andamento e vê o devedor já anonimizado; a eliminação, se vier
+     * depois, espera e vê o vínculo. Ordem das travas: devedor, depois contrato, depois título. Nunca subir de
+     * compartilhada para exclusiva na mesma transação sobre o mesmo devedor sem ter pego a exclusiva antes (deadlock
+     * entre duas cargas).
+     */
+    void refreshForShare(Debtor debtor);
+
+    /** Grava e envia ao banco na hora (a checagem do titular eliminado roda depois do insert, decisão 1601). */
+    Debtor saveAndFlush(Debtor debtor);
+
     /** Ids das unidades da mesma empresa (mesma raiz do CNPJ), sem escopo — uso interno (insolvência). */
     List<UUID> findIdsByDocumentRootHash(String documentRootHash);
 

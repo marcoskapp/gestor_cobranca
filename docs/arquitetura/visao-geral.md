@@ -60,7 +60,7 @@ shared ◄── organization ◄── identity
               ▲   ▲
               │   └─ debt ◄── ingestion (→ debt, organization, compliance [retenção, aviso ao credor da anonimização])
               │       ▲  ▲
-              │       │  └── compliance  (→ debt, organization, identity [responsável por solicitação de titular])
+              │       │  └── compliance  (→ debt [usecases e spi: titular eliminado não volta, decisão 1600], organization, identity [responsável por solicitação de titular])
               │       │        ▲
               ├── collection ──┘  (collection → debt, organization, identity, compliance)
               │       ▲

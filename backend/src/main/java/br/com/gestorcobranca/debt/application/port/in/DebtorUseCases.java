@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.debt.application.port.in;
 
+import br.com.gestorcobranca.shared.domain.Document;
 import br.com.gestorcobranca.shared.paging.PageQuery;
 import br.com.gestorcobranca.shared.paging.PageResponse;
 
@@ -17,6 +18,25 @@ import java.util.UUID;
  * específica e é registrada no log de acesso.
  */
 public interface DebtorUseCases {
+
+    /**
+     * Resultado da anonimização.
+     *
+     * @param debtor          o cadastro já anonimizado
+     * @param erasedDocument  o documento que o cadastro tinha (vazio se já não tinha), só para o índice do titular no
+     *                        pedido; nunca gravar em claro, exibir nem registrar em log (o {@code toString} o omite)
+     */
+    record Anonymization(DebtorView debtor, Optional<Document> erasedDocument) {
+        public Anonymization {
+            erasedDocument = erasedDocument == null ? Optional.empty() : erasedDocument;
+        }
+
+        @Override
+        public String toString() {
+            return "Anonymization[debtorId=" + debtor.id() + ", erasedDocument=" + (erasedDocument.isPresent() ? "***" : "-")
+                    + "]";
+        }
+    }
 
     /** Cadastro manual. Documento já cadastrado no tenant → conflito {@code debtor.document_taken}. */
     DebtorView register(RegisterDebtorCommand command);
@@ -66,8 +86,11 @@ public interface DebtorUseCases {
      * Uso pelo módulo compliance no atendimento de solicitação do titular ou na política de
      * retenção. Exige {@code DATA_SUBJECT_REQUEST_MANAGE} e escopo sobre todos os credores do
      * devedor; recusado enquanto houver título em cobrança ({@code debtor.has_open_titles}).
+     * <p>
+     * Só o portão da eliminação do compliance chama ({@code ArchitectureTest#onlyErasureGateAnonymizesDebtors}): ele
+     * recebe o documento eliminado para gravar o índice do titular no pedido (decisão 1471) e nunca o guarda em claro.
      */
-    DebtorView anonymize(UUID debtorId, String reason);
+    Anonymization anonymize(UUID debtorId, String reason);
 
     /**
      * <strong>Uso interno do módulo compliance (retenção); não exposto via web.</strong>

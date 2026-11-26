@@ -327,8 +327,13 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
   `ingestion.rows.rejected{reason=subject_anonymized}`; a recusa vem antes da duplicidade. Linha "pago/cancelado"
   (que não grava o título) de título de titular anonimizado é recusada no `RowWriter` em vez de suspendê-lo, defesa
   para a anonimização no meio do bloco (decisão 1477). API pública: o `code` é documentado no `ImportIssue`, sem
-  mudar o contrato (changelog 1.0.0). Teste: `AnonymizedSubjectImportIT`. Título novo ou coobrigado do titular ainda
-  não é reconhecido (decisão 1471, fatia própria).
+  mudar o contrato (changelog 1.0.0). Teste: `AnonymizedSubjectImportIT`.
+- **Titular eliminado a pedido com título novo ou como coobrigado** (decisões 1471 e 1498): só na importação (nunca na
+  validação nem na prévia), as linhas válidas a gravar de cada bloco são conferidas pelo documento do devedor e dos
+  coobrigados contra os pedidos de eliminação executados (`AnonymizedSubjectQueries#erasedSubjectsAmong`, uma consulta
+  por bloco). A linha inteira é recusada com `row.not_accepted`, sem campo e com texto neutro; o lote **não** é
+  bloqueado nem pede novo arquivo; métrica `ingestion.rows.rejected{reason=erasure_request}`. A criação do devedor
+  confere de novo depois do insert (corrida com a eliminação). Desenho em `conformidade.md` §10.
 - Sem o arquivo: download do original, nova conferência a partir do lote e reprocessamento respondem
   **409 `import_batch.file_deleted`**; um job de processamento que encontre o lote sem arquivo falha de forma
   definitiva. A tela do lote mostra a data do descarte e esconde o download e o reprocessamento (`fileDeletedAt` na

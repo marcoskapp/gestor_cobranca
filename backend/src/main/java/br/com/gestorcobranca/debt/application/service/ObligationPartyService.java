@@ -64,6 +64,9 @@ class ObligationPartyService implements ObligationPartyUseCases {
         ObligationRole role = DebtViews.parseEnum(ObligationRole.class, command.role(), "obligation_party.role_invalid",
                 "Papel na obrigação");
         Debtor person = debtorRegistry.findOrCreate(Document.parse(command.document()), command.name(), command.birthDate());
+        // trava compartilhada com releitura (decisão 1602): a eliminação simultânea da pessoa termina antes ou espera
+        debtors.refreshForShare(person);
+        DebtorRegistry.requireNotErasedMeanwhile(person);
         if (parties.findByOriginContractIdAndDebtorIdAndRole(contractId, person.getId(), role).isPresent()) {
             throw new ConflictException("obligation_party.duplicate", "Pessoa já cadastrada neste papel no contrato");
         }

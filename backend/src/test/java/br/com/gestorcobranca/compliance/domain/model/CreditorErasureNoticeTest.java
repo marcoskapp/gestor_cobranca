@@ -51,4 +51,15 @@ class CreditorErasureNoticeTest {
         assertThatThrownBy(() -> notice.registerNotified(NOW, Channel.EMAIL, by, NOW))
                 .hasFieldOrPropertyWithValue("code", "creditor_erasure_notice.already_notified");
     }
+
+    /** Decisão 1605: o contrato em que o titular era coobrigado vira item marcado, sem passar do limite do item. */
+    @Test
+    void coObligorContractItemIsMarkedAndNeverExceedsTheLimit() {
+        Item item = new Item(Ids.newId(), CreditorErasureNotice.coObligorReference("C-9"), null);
+        assertThat(item.getReference()).isEqualTo("Contrato C-9 (coobrigado)");
+        assertThat(item.isCoObligorContract()).isTrue();
+        assertThat(new Item(Ids.newId(), "C-9", 1).isCoObligorContract()).isFalse();
+        String longest = "x".repeat(CreditorErasureNotice.MAX_REFERENCE);
+        assertThat(CreditorErasureNotice.coObligorReference(longest)).isEqualTo(longest);
+    }
 }

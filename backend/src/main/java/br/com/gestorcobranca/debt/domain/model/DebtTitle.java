@@ -27,7 +27,8 @@ import java.util.UUID;
  * por {@link #recordPosting}. Regras de status ({@link TitleStatus}):
  * <ul>
  *   <li>saldo zerado por crédito (pagamento, desconto, baixa) → {@code SETTLED} automático;</li>
- *   <li>estorno que torna o saldo positivo num título quitado → {@code OPEN};</li>
+ *   <li>estorno que torna o saldo positivo num título quitado → {@code OPEN} (com o titular eliminado, o título fica
+ *       quitado com o saldo: {@link #keepSettledAfterErasure});</li>
  *   <li>títulos {@code SETTLED}, {@code CANCELLED} e {@code RETURNED} não aceitam pagamentos nem
  *       encargos; estornos são aceitos em qualquer status (o dinheiro devolvido precisa constar).</li>
  * </ul>
@@ -38,6 +39,8 @@ public class DebtTitle extends TenantScopedEntity {
 
     private static final int EXTERNAL_ID_MAX = 80;
     private static final int REASON_MAX = 500;
+    /** Motivo do título que fica quitado depois do estorno, com o titular eliminado (decisão 1603). */
+    public static final String ERASED_HOLDER_REASON = "Estorno depois da eliminação do titular: saldo registrado, sem cobrança";
 
     @Column(name = "creditor_id", nullable = false, updatable = false)
     private UUID creditorId;
@@ -272,6 +275,16 @@ public class DebtTitle extends TenantScopedEntity {
             moveTo(TitleStatus.OPEN, null);
         }
         return previous;
+    }
+
+    /**
+     * Estorno que deixou saldo num título quitado de titular eliminado (decisão 1603): o título fica quitado, com o
+     * saldo registrado, e não volta à cobrança (voltaria a correr prazo e a entrar em fila sem titular).
+     */
+    public void keepSettledAfterErasure() {
+        Guard.requireState(status == TitleStatus.OPEN && openBalance.isPositive(), "title.not_reopened",
+                "Só o título reaberto pelo estorno fica quitado");
+        moveTo(TitleStatus.SETTLED, ERASED_HOLDER_REASON);
     }
 
     // ---------------------------------------------------------------- ciclo de vida manual

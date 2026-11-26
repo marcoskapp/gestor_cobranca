@@ -80,7 +80,16 @@ public interface DataSubjectRequestUseCases {
                               String requesterContact, String details, Instant receivedAt) {
     }
 
-    record RequestFilter(String status, String type, UUID debtorId, String document, Boolean overdue) {
+    /**
+     * @param returnPending só solicitações com tentativa de retorno do titular eliminado ainda sem revisão
+     *                      (decisão 1604)
+     */
+    record RequestFilter(String status, String type, UUID debtorId, String document, Boolean overdue,
+                         Boolean returnPending) {
+
+        public RequestFilter(String status, String type, UUID debtorId, String document, Boolean overdue) {
+            this(status, type, debtorId, document, overdue, null);
+        }
     }
 
     /**

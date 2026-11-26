@@ -36,6 +36,10 @@ interface DebtTitleJpaRepository extends JpaRepository<DebtTitle, UUID>, JpaSpec
     Optional<UUID> findCreditorIdById(UUID id);
 
     @Override
+    @Query("select t.debtorId from DebtTitle t where t.id = :id")
+    Optional<UUID> findDebtorIdById(UUID id);
+
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from DebtTitle t where t.id in :ids order by t.id")
     List<DebtTitle> findAllByIdInForUpdate(Collection<UUID> ids);

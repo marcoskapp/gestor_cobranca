@@ -27,4 +27,7 @@ public interface CompliancePendingWorkQueries {
 
     /** Avisos ao credor da anonimização ainda sem registro de envio (LGPD art. 18 §6º); sem prazo legal próprio. */
     PendingWorkCount creditorErasureNoticesPending();
+
+    /** Solicitações com tentativa de retorno do titular eliminado ainda sem revisão (decisão 1604). */
+    PendingWorkCount erasedSubjectReturnsPending();
 }

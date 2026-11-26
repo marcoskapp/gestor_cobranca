@@ -22,6 +22,7 @@ import br.com.gestorcobranca.ingestion.domain.model.ImportFileException;
 import br.com.gestorcobranca.ingestion.domain.model.ImportRowIssue;
 import br.com.gestorcobranca.ingestion.domain.model.SubjectBlock;
 import br.com.gestorcobranca.ingestion.domain.model.IssueSeverity;
+import br.com.gestorcobranca.ingestion.domain.model.ParsedLegal;
 import br.com.gestorcobranca.ingestion.domain.model.ParsedRow;
 import br.com.gestorcobranca.ingestion.domain.model.RowIssue;
 import br.com.gestorcobranca.ingestion.domain.model.SourceRow;
@@ -56,6 +57,7 @@ import br.com.gestorcobranca.shared.audit.AuditTrail;
 import br.com.gestorcobranca.shared.config.TimeConfig;
 import br.com.gestorcobranca.shared.crypto.BlindIndex;
 import br.com.gestorcobranca.shared.domain.BusinessRuleException;
+import br.com.gestorcobranca.shared.domain.Document;
 import br.com.gestorcobranca.shared.domain.ResourceNotFoundException;
 import br.com.gestorcobranca.shared.jobs.JobQueue;
 import br.com.gestorcobranca.shared.security.Actor;
@@ -96,6 +98,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 /**
@@ -489,6 +492,19 @@ class ImportBatchProcessor {
     // ---------------------------------------------------------------- blocos
 
     static final String REASON_SUBJECT_ANONYMIZED = "subject_anonymized";
+    /** Pessoa da linha eliminada a pedido (decisão 1471). */
+    static final String REASON_ERASURE_REQUEST = "erasure_request";
+
+    /** Linha válida à espera da gravação, depois da recusa do titular eliminado do bloco inteiro. */
+    private record PendingWrite(SourceRow source, String key, ParsedRow parsed, RowValidation validation) {
+    }
+
+    /** Pessoas da linha que viram cadastro: o devedor e os coobrigados. */
+    private static Stream<Document> people(ParsedRow row) {
+        Stream<Document> parties = row.legal() == null ? Stream.empty()
+                : row.legal().parties().stream().map(ParsedLegal.Party::document);
+        return Stream.concat(Stream.of(row.document()), parties);
+    }
 
     /** Número do contrato da linha, como a carga o grava (sem espaços nas pontas), ou nulo. */
     private static String contractKey(SourceRow row) {
@@ -579,6 +595,8 @@ class ImportBatchProcessor {
             // identificadores crus das linhas recusadas: só para achar o aviso ao credor (nunca gravados)
             Set<String> subjectTitleKeys = new java.util.HashSet<>();
             Set<String> subjectContractKeys = new java.util.HashSet<>();
+            // linhas válidas a gravar: antes, a recusa do titular eliminado a pedido, num só pedido ao debt (decisão 1471)
+            List<PendingWrite> pendingWrites = new ArrayList<>();
             int rowIssuesStored = 0;
 
             for (SourceRow source : current) {
@@ -649,10 +667,32 @@ class ImportBatchProcessor {
                     toRegister.add(ImportBatchRow.registered(batchId, key, source.rowNumber()));
                     continue;
                 }
+                // só o modo que grava chega aqui; a prévia (que coleta os valores por linha) nunca é conferida (decisão 1498)
+                pendingWrites.add(new PendingWrite(source, key, parsed, validation));
+            }
+            Set<Document> erasedSubjects = erasedSubjects(pendingWrites);
+            for (PendingWrite pending : pendingWrites) {
+                SourceRow source = pending.source();
+                String key = pending.key();
+                ParsedRow parsed = pending.parsed();
+                RowValidation validation = pending.validation();
+                if (!erasedSubjects.isEmpty() && people(parsed).anyMatch(erasedSubjects::contains)) {
+                    // titular eliminado a pedido (decisão 1471): recusa neutra só da linha — o lote segue, sem bloqueio
+                    // nem pedido de novo arquivo, para não contar ao credor que a pessoa pediu eliminação (decisão 1498)
+                    tally.rejectedRow(1, 0);
+                    blockIssues.add(RowIssue.of(source.rowNumber(), IssueSeverity.ERROR, null,
+                            DebtIngestionPort.SUBJECT_NOT_ACCEPTED, DebtIngestionPort.subjectNotAcceptedMessage()));
+                    metrics.rowsRejected(REASON_ERASURE_REQUEST);
+                    toRegister.add(ImportBatchRow.registered(batchId, key, source.rowNumber()));
+                    continue;
+                }
                 int budget = properties.maxIssuesPerBatch() - issuesRecorded - rowIssuesStored - blockIssues.size();
                 RowWriter.Result result = rowWriter.write(target, parsed, validation.warnings(), budget);
                 if (result.rejected()) {
-                    if (result.errors().stream().anyMatch(e -> DebtIngestionPort.SUBJECT_ANONYMIZED.equals(e.code()))) {
+                    if (result.errors().stream().anyMatch(e -> DebtIngestionPort.SUBJECT_NOT_ACCEPTED.equals(e.code()))) {
+                        // eliminação concluída no meio do bloco: a criação do devedor conferiu de novo (decisão 1601)
+                        metrics.rowsRejected(REASON_ERASURE_REQUEST);
+                    } else if (result.errors().stream().anyMatch(e -> DebtIngestionPort.SUBJECT_ANONYMIZED.equals(e.code()))) {
                         metrics.rowsRejected(REASON_SUBJECT_ANONYMIZED);
                         subjectLines.add(new SubjectBlock.Line(source.rowNumber(), SubjectBlock.displayReference(key),
                                 SubjectBlock.MatchedBy.TITLE_REFERENCE));
@@ -671,6 +711,17 @@ class ImportBatchProcessor {
             }
             commit(current.getLast().rowNumber(), tally, toRegister, blockIssues, values,
                     new SubjectFound(subjectLines, subjectTitleKeys, subjectContractKeys), rowIssuesStored, last);
+        }
+
+        /** Devedor e coobrigados das linhas a gravar que são de titular eliminado a pedido (decisão 1471). */
+        private Set<Document> erasedSubjects(List<PendingWrite> pendingWrites) {
+            if (pendingWrites.isEmpty()) {
+                return Set.of();
+            }
+            Map<Document, Integer> linesByDocument = new HashMap<>();
+            pendingWrites.forEach(w -> people(w.parsed()).distinct().forEach(d -> linesByDocument.merge(d, 1, Integer::sum)));
+            // consulta com efeito: o compliance registra as tentativas reconhecidas numa transação própria
+            return readTx.execute(s -> anonymizedSubjects.erasedSubjectsAmong(target.creditorId(), batchId, linesByDocument));
         }
 
         private Optional<RowIssue> subjectAnonymized(SourceRow source, String key, AnonymizedKeys anonymized) {

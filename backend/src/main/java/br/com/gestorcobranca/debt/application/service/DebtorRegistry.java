@@ -1,5 +1,9 @@
 package br.com.gestorcobranca.debt.application.service;
 
+import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort;
+import br.com.gestorcobranca.debt.application.port.spi.ErasedSubjects;
+import br.com.gestorcobranca.debt.application.port.spi.ErasedSubjects.ReturnAttempt;
+import br.com.gestorcobranca.debt.application.port.spi.ErasedSubjects.Source;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.ContactRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.DebtorRecord;
 import br.com.gestorcobranca.debt.application.port.in.DebtIngestionPort.Outcome;
@@ -52,11 +56,13 @@ class DebtorRegistry {
     private final ContactNoveltyTracker novelty;
     private final BusinessEventLogger businessEvents;
     private final DebtMetrics metrics;
+    private final ErasedSubjects erasedSubjects;
     private final Clock clock;
 
     DebtorRegistry(DebtorRepository debtors, ContactRegistry contactRegistry,
                    RepresentativeRegistry representativeRegistry, PersonalDataIndex index, AuditTrail auditTrail,
-                   ContactNoveltyTracker novelty, BusinessEventLogger businessEvents, DebtMetrics metrics, Clock clock) {
+                   ContactNoveltyTracker novelty, BusinessEventLogger businessEvents, DebtMetrics metrics,
+                   ErasedSubjects erasedSubjects, Clock clock) {
         this.debtors = debtors;
         this.contactRegistry = contactRegistry;
         this.representativeRegistry = representativeRegistry;
@@ -65,6 +71,7 @@ class DebtorRegistry {
         this.novelty = novelty;
         this.businessEvents = businessEvents;
         this.metrics = metrics;
+        this.erasedSubjects = erasedSubjects;
         this.clock = clock;
     }
 
@@ -72,15 +79,14 @@ class DebtorRegistry {
         return debtors.findByDocumentHash(index.document(document));
     }
 
-    /** Cria o devedor; o chamador garante que o documento ainda não está cadastrado. */
-    Debtor create(Document document, String name, LocalDate birthDate, String notes, ContactSource source) {
-        return create(document, name, null, birthDate, notes, source, null);
-    }
-
-    /** @param tradeName nome fantasia (só CNPJ) */
+    /**
+     * Cadastro manual do devedor; o chamador garante que o documento ainda não está cadastrado.
+     *
+     * @param tradeName nome fantasia (só CNPJ)
+     */
     Debtor create(Document document, String name, String tradeName, LocalDate birthDate, String notes,
                   ContactSource source) {
-        return create(document, name, tradeName, birthDate, notes, source, null);
+        return create(document, name, tradeName, birthDate, notes, source, null, Source.DEBTOR_FORM);
     }
 
     /**
@@ -88,13 +94,16 @@ class DebtorRegistry {
      * @param importBatchId carga que cria o devedor (nulo fora de carga)
      */
     private Debtor create(Document document, String name, String tradeName, LocalDate birthDate, String notes,
-                          ContactSource source, UUID importBatchId) {
+                          ContactSource source, UUID importBatchId, Source attempt) {
         Debtor created = new Debtor(document, index.document(document), index.documentRoot(document), name, tradeName,
                 birthDate, notes);
         if (importBatchId != null) {
             created.createdByImport(importBatchId);
         }
-        Debtor debtor = debtors.save(created);
+        // insert antes da checagem (decisão 1601): a eliminação em andamento do mesmo documento segura a unicidade do
+        // índice até o commit; em READ COMMITTED a consulta seguinte já vê o pedido executado e desfaz a criação
+        Debtor debtor = debtors.saveAndFlush(created);
+        requireNotErased(document, attempt, importBatchId);
         AuditEntry audit = AuditEntry.of("debtor.created", "debtor", debtor.getId())
                 .created("personType", debtor.getPersonType())
                 .created("document", document.masked())
@@ -110,7 +119,32 @@ class DebtorRegistry {
 
     /** Pessoa informada manualmente (ex.: coobrigado): usa o cadastro existente sem alterá-lo, ou cria. */
     Debtor findOrCreate(Document document, String name, LocalDate birthDate) {
-        return findByDocument(document).orElseGet(() -> create(document, name, birthDate, null, ContactSource.MANUAL));
+        return findByDocument(document).orElseGet(() -> create(document, name, null, birthDate, null,
+                ContactSource.MANUAL, null, Source.CO_OBLIGOR_FORM));
+    }
+
+    /**
+     * Titular eliminado a pedido não volta como devedor nem coobrigado (decisão 1471). Recusa neutra, igual em todos os
+     * caminhos, sem dizer por que a pessoa não é aceita (decisão 1498): a quem cadastra não se revela que ela pediu
+     * eliminação. A tentativa fica registrada no compliance para revisão.
+     */
+    /**
+     * Eliminação concluída entre a busca pelo documento e a trava (decisão 1602): recusa neutra, igual à do bloco
+     * (decisão 1498) — a quem envia não se diz que a pessoa foi anonimizada (SEG-20261126-E11).
+     */
+    static void requireNotErasedMeanwhile(Debtor debtor) {
+        if (debtor.isAnonymized()) {
+            throw new BusinessRuleException(DebtIngestionPort.SUBJECT_NOT_ACCEPTED,
+                    DebtIngestionPort.subjectNotAcceptedMessage());
+        }
+    }
+
+    private void requireNotErased(Document document, Source source, UUID importBatchId) {
+        ReturnAttempt attempt = new ReturnAttempt(source, null, importBatchId);
+        if (!erasedSubjects.erasedAmong(Map.of(document, 1), attempt).isEmpty()) {
+            throw new BusinessRuleException(DebtIngestionPort.SUBJECT_NOT_ACCEPTED,
+                    DebtIngestionPort.subjectNotAcceptedMessage());
+        }
     }
 
     /**
@@ -128,7 +162,7 @@ class DebtorRegistry {
         Debtor debtor;
         if (existing.isEmpty()) {
             debtor = create(document, record.name(), tradeName, birthDate, null, ContactSource.IMPORT,
-                    record.importBatchId());
+                    record.importBatchId(), record.importBatchId() == null ? Source.DEBTOR_FORM : Source.IMPORT);
             outcome = Outcome.CREATED;
         } else {
             debtor = existing.get();

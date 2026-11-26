@@ -14,4 +14,12 @@ class DebtorLockingImpl implements DebtorLocking {
     public void refreshForUpdate(Debtor debtor) {
         entityManager.refresh(debtor, LockModeType.PESSIMISTIC_WRITE);
     }
+
+    @Override
+    public void refreshForShare(Debtor debtor) {
+        // refresh, não consulta: o devedor pode estar no contexto de persistência com o estado de antes da trava; o flush
+        // antes guarda o que a transação já mudou nele (a carga atualiza o nome antes de gravar o título)
+        entityManager.flush();
+        entityManager.refresh(debtor, LockModeType.PESSIMISTIC_READ);
+    }
 }

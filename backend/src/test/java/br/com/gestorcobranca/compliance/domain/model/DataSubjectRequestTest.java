@@ -92,4 +92,37 @@ class DataSubjectRequestTest {
         assertThat(RequestStatus.COMPLETED.allowedTransitions()).isEmpty();
         assertThat(RequestStatus.REJECTED.isFinal()).isTrue();
     }
+
+    /** Decisões 1471 e 1600: a eliminação grava só o índice e o autor; executada, a solicitação não é mais recusada. */
+    @Test
+    void erasureRecordsTheSubjectIndexAndCannotBeRejectedAfterwards() {
+        DataSubjectRequest r = request(RequestType.ANONYMIZATION);
+        r.verifyIdentity(UUID.randomUUID(), ACTOR, RECEIVED);
+        r.start(ACTOR);
+        String hash = "a".repeat(64);
+        r.recordErasure(RECEIVED.plusSeconds(60), ACTOR, hash);
+        assertThat(r.getExecutedAt()).isEqualTo(RECEIVED.plusSeconds(60));
+        assertThat(r.getExecutedBy()).isEqualTo(ACTOR);
+        assertThat(r.getErasedSubjectHash()).isEqualTo(hash);
+        assertThatThrownBy(() -> r.reject("Recusa tardia", RECEIVED.plusSeconds(120)))
+                .hasFieldOrPropertyWithValue("code", "dsr.already_executed");
+        assertThat(r.getStatus()).isEqualTo(RequestStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void onlyErasureRecordsTheSubjectIndex() {
+        DataSubjectRequest r = request(RequestType.OPPOSITION);
+        r.verifyIdentity(UUID.randomUUID(), ACTOR, RECEIVED);
+        r.start(ACTOR);
+        assertThatThrownBy(() -> r.recordErasure(RECEIVED, ACTOR, "a".repeat(64)))
+                .hasFieldOrPropertyWithValue("code", "dsr.not_erasure");
+        DataSubjectRequest erasure = request(RequestType.ANONYMIZATION);
+        erasure.verifyIdentity(UUID.randomUUID(), ACTOR, RECEIVED);
+        erasure.start(ACTOR);
+        assertThatThrownBy(() -> erasure.recordErasure(RECEIVED, ACTOR, "curto"))
+                .hasFieldOrPropertyWithValue("code", "dsr.subject_hash_invalid");
+        // devedor sem documento: a eliminação vale, sem índice (resíduo registrado)
+        erasure.recordErasure(RECEIVED, ACTOR, null);
+        assertThat(erasure.getErasedSubjectHash()).isNull();
+    }
 }

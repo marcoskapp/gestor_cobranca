@@ -134,6 +134,10 @@
     <app-response-draft-card [request]="r" (use)="complete(r, $event)" />
   }
 
+  @if (r.type === 'ANONYMIZATION' && r.executedAt && canAssign()) {
+    <app-erased-subject-returns-card [requestId]="r.id" />
+  }
+
   <section class="app-card" aria-labelledby="historico-solicitacao">
     <h2 class="app-card__title" id="historico-solicitacao">Atendimento</h2>
     <dl class="app-definition-list">

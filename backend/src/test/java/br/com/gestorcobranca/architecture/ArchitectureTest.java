@@ -349,6 +349,36 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    /**
+     * A recusa do titular eliminado a pedido (decisão 1471): só o compliance implementa a SPI; no debt, só a criação do
+     * devedor e a consulta da carga a usam; na carga, só o processador consulta o bloco. A consulta não tem permissão
+     * própria e nunca pode virar caminho de enumeração de documentos (SEG-20261126-E06).
+     */
+    @Test
+    void erasedSubjectsAreCheckedOnlyByTheirOwners() {
+        String spi = ROOT + ".debt.application.port.spi.ErasedSubjects";
+        classes().that().implement(spi)
+                .should().resideInAPackage(ROOT + ".compliance..")
+                .because("o dono do pedido do titular é o compliance")
+                .check(classes);
+        noClasses().that().resideInAPackage(ROOT + ".debt..")
+                .and().doNotHaveFullyQualifiedName(ROOT + ".debt.application.service.DebtorRegistry")
+                .and().doNotHaveFullyQualifiedName(ROOT + ".debt.application.service.AnonymizedSubjectQueryService")
+                .should().dependOnClassesThat().haveFullyQualifiedName(spi)
+                .because("a recusa vale na criação do devedor e na carga, e em nenhum outro lugar (decisão 1471)")
+                .check(classes);
+        noClasses().that().resideOutsideOfPackages(ROOT + ".debt..", ROOT + ".compliance..")
+                .should().dependOnClassesThat().haveFullyQualifiedName(spi)
+                .because("só o debt consulta e só o compliance implementa (decisão 1471)")
+                .check(classes);
+        noClasses().that().doNotHaveFullyQualifiedName(ROOT + ".ingestion.application.service.ImportBatchProcessor")
+                .and().doNotHaveFullyQualifiedName(ROOT + ".ingestion.application.service.ImportBatchProcessor$SliceRun")
+                .should().callMethod(ROOT + ".debt.application.port.in.AnonymizedSubjectQueries", "erasedSubjectsAmong",
+                        "java.util.UUID", "java.util.UUID", "java.util.Map")
+                .because("só a recusa por bloco da carga consulta documentos em lote (SEG-20261126-E06)")
+                .check(classes);
+    }
+
     /** O aviso ao credor só nasce no portão da eliminação, na transação da anonimização (decisão 1481). */
     @Test
     void onlyErasureGateOpensCreditorErasureNotices() {

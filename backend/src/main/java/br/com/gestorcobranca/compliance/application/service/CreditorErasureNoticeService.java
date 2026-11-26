@@ -14,6 +14,7 @@ import br.com.gestorcobranca.compliance.domain.service.CreditorErasureNoticeText
 import br.com.gestorcobranca.compliance.domain.service.CreditorErasureNoticeText.Subject;
 import br.com.gestorcobranca.compliance.domain.service.RemittanceCut;
 import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries;
+import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries.ContractReference;
 import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries.TitleReference;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory;
 import br.com.gestorcobranca.identity.application.port.in.UserDirectory.UserSummary;
@@ -44,6 +45,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -99,16 +101,23 @@ class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases, Cre
     /**
      * Um aviso por credor com títulos conservados do titular recém-anonimizado (credor sem título não é avisado: não
      * tem o que eliminar nem o que mandar de novo na carga). Na transação do chamador: se a anonimização for desfeita,
-     * o aviso também é. Coobrigado sem título próprio não entra (resíduo da decisão 1480).
+     * o aviso também é. O credor do contrato em que o titular era coobrigado também é avisado (revisão da decisão 1480,
+     * decisão 1605): o item cita o contrato, marcado como coobrigação.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     List<CreditorErasureNotice> openFor(UUID debtorId, Origin origin, UUID originId, Instant erasedAt) {
-        Map<UUID, List<TitleReference>> byCreditor = anonymizedSubjects.referencesOf(debtorId).stream()
-                .collect(Collectors.groupingBy(TitleReference::creditorId, LinkedHashMap::new, Collectors.toList()));
+        Map<UUID, List<Item>> byCreditor = new LinkedHashMap<>();
+        anonymizedSubjects.referencesOf(debtorId).stream().sorted(ITEM_ORDER).forEach(t -> byCreditor
+                .computeIfAbsent(t.creditorId(), c -> new ArrayList<>())
+                .add(new Item(t.portfolioId(), t.displayReference(), t.installmentNumber())));
+        anonymizedSubjects.coObligorContractsOf(debtorId).stream()
+                .sorted(Comparator.comparing((ContractReference c) -> c.portfolioId().toString())
+                        .thenComparing(ContractReference::displayReference))
+                .forEach(c -> byCreditor.computeIfAbsent(c.creditorId(), k -> new ArrayList<>())
+                        .add(new Item(c.portfolioId(), CreditorErasureNotice.coObligorReference(c.displayReference()),
+                                null)));
         return byCreditor.entrySet().stream().map(e -> {
-            List<Item> items = e.getValue().stream().sorted(ITEM_ORDER)
-                    .map(t -> new Item(t.portfolioId(), t.displayReference(), t.installmentNumber()))
-                    .toList();
+            List<Item> items = e.getValue();
             CreditorErasureNotice notice = notices.save(new CreditorErasureNotice(debtorId, e.getKey(), origin,
                     originId, erasedAt, items));
             auditTrail.record(AuditEntry.of("creditor_erasure_notice.opened", RESOURCE, notice.getId())

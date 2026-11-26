@@ -301,3 +301,26 @@ São a única referência que sobra dele no debt, e servem para três coisas (SE
   inteiro ou embutido, decisão 1472); exige `DATA_SUBJECT_REQUEST_MANAGE` e todos os credores (o sistema tem os dois).
   O `externalId` cru só serve para casar com as cargas: nunca é gravado, exibido nem registrado em log fora do debt (o
   `toString` do record o omite).
+
+## 13. Titular eliminado a pedido não volta (SPI `ErasedSubjects`, decisão 1471)
+
+- **SPI** `debt.application.port.spi.ErasedSubjects` (decisão 1600), implementada só pelo compliance, dono do pedido do
+  titular; injeção obrigatória. O debt consulta em dois lugares (`ArchitectureTest#erasedSubjectsAreCheckedOnlyByTheirOwners`):
+  `DebtorRegistry.create` (todo devedor novo: carga, cadastro manual e coobrigado manual) e
+  `AnonymizedSubjectQueries#erasedSubjectsAmong` (recusa por bloco da carga; `IMPORT_EXECUTE` e o credor).
+- `DebtorRegistry.create` grava com `saveAndFlush` e confere depois (decisão 1601); reconhecido, recusa com
+  `DebtIngestionPort.SUBJECT_NOT_ACCEPTED` (`row.not_accepted`) e texto neutro (decisão 1498), e a criação é desfeita.
+- **Trava compartilhada** `DebtorRepository#refreshForShare` (decisão 1602): `flush` e `refresh` com `PESSIMISTIC_READ`
+  antes de criar título (`DebtIngestionService#upsertTitle`), coobrigação (`#upsertObligationParty`,
+  `ObligationPartyService#add`) e no estorno (`DebtLedgerService`, que lê o devedor do título sem trava e o trava antes
+  do título). Ordem devedor → contrato → título em todos os caminhos. Se a eliminação terminou entre a busca e a trava,
+  recusa neutra `row.not_accepted` (`DebtorRegistry#requireNotErasedMeanwhile`).
+- **Estorno** que deixaria aberto título quitado de titular eliminado: o título fica `SETTLED` com o saldo e o motivo
+  `DebtTitle.ERASED_HOLDER_REASON` (`keepSettledAfterErasure`), auditoria `debt_title.reversal_kept_settled`
+  (decisão 1603).
+- `DebtorUseCases#anonymize` devolve `Anonymization` (o cadastro e o documento eliminado, `toString` mascarado), só para
+  o portão do compliance gravar o índice do titular no pedido.
+- `AnonymizedSubjectQueries#coObligorContractsOf`: contratos em que o titular era coobrigado, para o aviso ao credor
+  (decisão 1605).
+
+Testes: `ErasedSubjectReturnIT`, `DebtTitleTest#reopenedTitleOfErasedHolderStaysSettled`.

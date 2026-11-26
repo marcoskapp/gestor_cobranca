@@ -224,6 +224,36 @@ export interface DataSubjectRequestFilter {
   type?: string | null;
   debtorId?: string | null;
   overdue?: boolean | null;
+  /** Só com tentativa de retorno do titular eliminado ainda sem revisão (decisão 1604). */
+  returnPending?: boolean | null;
+}
+
+export type ErasedSubjectReturnSource = 'IMPORT' | 'DEBTOR_FORM' | 'CO_OBLIGOR_FORM';
+export type ErasedSubjectReturnOutcome = 'KEPT' | 'RELEASED';
+
+/** Tentativa de trazer de volta o titular eliminado a pedido (decisão 1471). */
+export interface ErasedSubjectReturnView {
+  id: string;
+  attemptedAt: string;
+  source: ErasedSubjectReturnSource;
+  creditorId: string | null;
+  batchId: string | null;
+  lines: number;
+  outcome: ErasedSubjectReturnOutcome | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+}
+
+/**
+ * Retorno do titular eliminado: se a carga e o cadastro o recusam hoje, as tentativas e a liberação (decisão 1604).
+ * `releasable`: quem vê pode liberar (não foi quem executou a eliminação).
+ */
+export interface ErasedSubjectReturnsView {
+  requestId: string;
+  refusing: boolean;
+  releasable: boolean;
+  attempts: ErasedSubjectReturnView[];
+  release: { releasedAt: string; releasedBy: string; reason: string } | null;
 }
 
 export interface OpenDataSubjectRequest {

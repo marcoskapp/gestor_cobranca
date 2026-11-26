@@ -15,7 +15,8 @@ import java.util.UUID;
 /**
  * Índices: {@code ix_dsr_status_due (tenant_id, status, due_at)};
  * {@code ix_vuln_suggestion_status (tenant_id, status, creditor_id, suggested_at)};
- * {@code ix_creditor_erasure_notice_pending (tenant_id, created_at) where status = 'PENDING'}.
+ * {@code ix_creditor_erasure_notice_pending (tenant_id, created_at) where status = 'PENDING'};
+ * {@code ix_erased_subject_return_pending (tenant_id, attempted_at) where outcome is null}.
  */
 @Component
 class JdbcCompliancePendingWorkQueries implements CompliancePendingWorkQueries {
@@ -70,6 +71,20 @@ class JdbcCompliancePendingWorkQueries implements CompliancePendingWorkQueries {
                        case when count(*) = 1 then (array_agg(id))[1] end as single_id
                   from compliance.creditor_erasure_notice
                  where status = 'PENDING'
+                """, new MapSqlParameterSource(), PendingWorkRows.COUNT);
+    }
+
+    /** Uma pendência por solicitação (a revisão é feita na solicitação), pelo índice parcial das pendentes. */
+    @Override
+    public PendingWorkCount erasedSubjectReturnsPending() {
+        return jdbc.queryForObject("""
+                select count(*) as total, 0 as overdue, 0 as due_today,
+                       min(first_at) as oldest_at, null::timestamptz as next_due,
+                       case when count(*) = 1 then (array_agg(request_id))[1] end as single_id
+                  from (select request_id, min(attempted_at) as first_at
+                          from compliance.erased_subject_return
+                         where outcome is null
+                         group by request_id) pending
                 """, new MapSqlParameterSource(), PendingWorkRows.COUNT);
     }
 }

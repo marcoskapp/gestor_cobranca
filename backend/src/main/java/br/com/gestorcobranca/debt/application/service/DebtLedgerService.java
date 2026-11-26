@@ -3,11 +3,13 @@ package br.com.gestorcobranca.debt.application.service;
 import br.com.gestorcobranca.debt.application.port.in.DebtLedgerPort;
 import br.com.gestorcobranca.debt.application.service.TitleChangeNotifier.Trigger;
 import br.com.gestorcobranca.debt.domain.model.DebtTitle;
+import br.com.gestorcobranca.debt.domain.model.Debtor;
 import br.com.gestorcobranca.debt.domain.model.LedgerComponent;
 import br.com.gestorcobranca.debt.domain.model.LedgerEntryType;
 import br.com.gestorcobranca.debt.domain.model.PaymentReceiver;
 import br.com.gestorcobranca.debt.domain.model.TitleStatus;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
+import br.com.gestorcobranca.debt.domain.repository.DebtorRepository;
 import br.com.gestorcobranca.debt.domain.service.TitleLedger;
 import br.com.gestorcobranca.debt.domain.service.TitleLedger.Posting;
 import br.com.gestorcobranca.shared.audit.AuditEntry;
@@ -25,6 +27,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -40,9 +43,11 @@ class DebtLedgerService implements DebtLedgerPort {
     private final AccessScope accessScope;
     private final AuditTrail auditTrail;
     private final TitleChangeNotifier notifier;
+    private final DebtorRepository debtors;
 
     DebtLedgerService(DebtTitleRepository titles, LedgerRecorder recorder, AccessScope accessScope,
-                      AuditTrail auditTrail, TitleChangeNotifier notifier) {
+                      AuditTrail auditTrail, TitleChangeNotifier notifier, DebtorRepository debtors) {
+        this.debtors = debtors;
         this.titles = titles;
         this.recorder = recorder;
         this.accessScope = accessScope;
@@ -61,8 +66,11 @@ class DebtLedgerService implements DebtLedgerPort {
     @Override
     public LedgerResult reversePayment(PaymentReversal reversal) {
         Guard.require(reversal.paymentId() != null, "ledger.payment_required", "Pagamento obrigatório");
+        // o estorno pode reabrir título de titular eliminado: devedor travado antes do título, como na carga (decisão 1602)
+        Optional<Debtor> holder = lockHolderForShare(reversal.titleId());
         return post(reversal.titleId(), title -> TitleLedger.reversePayment(title, recorder.existingEntries(title),
-                reversal.paymentId(), reversal.reversedAt(), reversal.reason()), "debt_title.payment_reversed", Trigger.REVERSAL);
+                reversal.paymentId(), reversal.reversedAt(), reversal.reason()), "debt_title.payment_reversed", Trigger.REVERSAL,
+                holder);
     }
 
     @Override
@@ -118,13 +126,48 @@ class DebtLedgerService implements DebtLedgerPort {
     }
 
     private LedgerResult post(UUID titleId, Function<DebtTitle, Posting> operation, String auditAction, Trigger trigger) {
+        return post(titleId, operation, auditAction, trigger, Optional.empty());
+    }
+
+    /**
+     * @param holder devedor já travado (trava compartilhada, antes do título) quando o lançamento pode reabrir o título;
+     *               só o estorno leva um título quitado de volta à cobrança
+     */
+    private LedgerResult post(UUID titleId, Function<DebtTitle, Posting> operation, String auditAction, Trigger trigger,
+                              Optional<Debtor> holder) {
         DebtTitle title = lock(titleId);
         TitleStatus statusBefore = title.getStatus();
         Posting posting = operation.apply(title);
+        boolean keptSettled = posting.applied() && posting.previousStatus() == TitleStatus.SETTLED
+                && title.getStatus() == TitleStatus.OPEN && holder.map(Debtor::isAnonymized).orElse(false);
+        if (keptSettled) {
+            // estorno tardio em título conservado de titular eliminado (decisão 1603): o dinheiro devolvido consta no
+            // razão, mas a cobrança não reabre — não há com quem cobrar sem trazer o titular de volta
+            title.keepSettledAfterErasure();
+        }
         recorder.record(title, posting, auditAction, trigger);
+        if (keptSettled) {
+            auditTrail.record(AuditEntry.of("debt_title.reversal_kept_settled", "debt_title", title.getId())
+                    .creditor(title.getCreditorId())
+                    .meta("openBalance", title.getOpenBalance()));
+        }
         return new LedgerResult(title.getId(), posting.applied(),
                 posting.applied() ? posting.previousStatus().name() : statusBefore.name(), title.getStatus().name(),
                 title.getOpenBalance().amount(), title.getPaidTotal().amount());
+    }
+
+    /**
+     * Trava compartilhada com releitura do devedor do título, antes do título (decisão 1602: devedor → título em todos
+     * os caminhos; a carga pode segurar o devedor exclusivo antes de travar o título). O devedor do título é imutável.
+     */
+    private Optional<Debtor> lockHolderForShare(UUID titleId) {
+        Guard.require(titleId != null, "title.required", "Título obrigatório");
+        // escopo antes de travar: sem o credor do título, nada é travado
+        titles.findCreditorIdById(titleId).ifPresent(accessScope::requireCreditor);
+        return titles.findDebtorIdById(titleId).flatMap(debtors::findById).map(debtor -> {
+            debtors.refreshForShare(debtor);
+            return debtor;
+        });
     }
 
     private DebtTitle lock(UUID titleId) {

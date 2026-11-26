@@ -250,11 +250,14 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
             reject(request, refusalJustification(inCollection, now), now, "open_titles");
             return;
         }
-        List<CreditorErasureNotice> opened = erasureGate.erase(debtorId, Origin.DATA_SUBJECT_REQUEST, request.getId(),
+        ErasureGate.Erasure erasure = erasureGate.erase(debtorId, Origin.DATA_SUBJECT_REQUEST, request.getId(),
                 "Solicitação de titular %s (LGPD art. 18)".formatted(request.getId()));
-        request.markExecuted(now);
+        List<CreditorErasureNotice> opened = erasure.notices();
+        // o índice do titular vem do devedor eliminado, informado ou não o documento no pedido (decisão 1471)
+        request.recordErasure(now, currentActor.actorId(), erasure.subjectHash());
         auditTrail.record(AuditEntry.of("data_subject_request.anonymized", RESOURCE, request.getId())
                 .meta("debtorId", debtorId)
+                .meta("returnRefused", erasure.subjectHash() != null)
                 .meta("creditorNotices", opened.size()));
     }
 
@@ -367,12 +370,16 @@ class DataSubjectRequestService implements DataSubjectRequestUseCases {
         } else {
             accessScope.requireAllCreditors(RESOURCE);
         }
+        if (Boolean.TRUE.equals(filter.returnPending())) {
+            // a tentativa de retorno cita credor e lote: só para quem tem todos os credores, também pelo titular
+            accessScope.requireAllCreditors(RESOURCE);
+        }
         String document = filter.document() == null || filter.document().isBlank() ? null
                 : Document.parse(filter.document()).number();
         return PageResponse.of(requests.search(
                 ComplianceEnums.parseOptional(RequestStatus.class, filter.status(), "dsr.status_invalid", "Status"),
                 ComplianceEnums.parseOptional(RequestType.class, filter.type(), "dsr.type_invalid", "Tipo"),
-                filter.debtorId(), documentHash(document), filter.overdue(), false,
+                filter.debtorId(), documentHash(document), filter.overdue(), false, filter.returnPending(),
                 page.toPageable(Sort.by("dueAt", "id"))), DataSubjectRequestService::view);
     }
 

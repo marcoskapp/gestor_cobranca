@@ -1,5 +1,7 @@
 import { IconName } from '../../../shared/components/icon/icon-names';
 import {
+  ErasedSubjectReturnOutcome,
+  ErasedSubjectReturnSource,
   ContactChannel,
   ErasureNoticeChannel,
   ErasureNoticeOrigin,
@@ -262,6 +264,18 @@ export function dueText(days: number, overdue: boolean): string {
 export const ERASURE_NOTICE_ORIGIN_LABELS: Record<ErasureNoticeOrigin, string> = {
   DATA_SUBJECT_REQUEST: 'Pedido do titular',
   RETENTION: 'Prazo de retenção',
+};
+
+/** Origem da tentativa de retorno do titular eliminado (decisão 1471). */
+export const ERASED_SUBJECT_RETURN_SOURCE_LABELS: Record<ErasedSubjectReturnSource, string> = {
+  IMPORT: 'Importação de carteira',
+  DEBTOR_FORM: 'Cadastro de devedor',
+  CO_OBLIGOR_FORM: 'Inclusão de coobrigado',
+};
+
+export const ERASED_SUBJECT_RETURN_OUTCOME_LABELS: Record<ErasedSubjectReturnOutcome, string> = {
+  KEPT: 'Recusa mantida',
+  RELEASED: 'Retorno liberado',
 };
 
 /** Canal pelo qual a assessoria avisou o credor. */

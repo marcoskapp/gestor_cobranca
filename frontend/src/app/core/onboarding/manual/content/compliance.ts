@@ -86,7 +86,10 @@ export const MANUAL: ModuleManual = {
       id: 'compliance.requests',
       title: 'Solicitações de titulares',
       objective: 'Fila de pedidos LGPD dos titulares, com o prazo legal em destaque.',
-      purpose: ['Pedidos vencidos aparecem em vermelho com ícone; os que vencem em até 3 dias, em amarelo. Clique num indicador para filtrar.'],
+      purpose: [
+        'Pedidos vencidos aparecem em vermelho com ícone; os que vencem em até 3 dias, em amarelo. Clique num indicador para filtrar.',
+        '"Eliminados enviados de novo" mostra as eliminações cuja pessoa a importação ou o cadastro tentou trazer de volta, à espera da sua revisão.',
+      ],
       profiles: ['COMPLIANCE'],
       inputs: ['Pedidos recebidos por qualquer canal.'],
       outputs: ['Pedidos atendidos no prazo, com resposta e evidência.'],
@@ -101,9 +104,9 @@ export const MANUAL: ModuleManual = {
       title: 'Atendimento ao titular',
       objective: 'Etapas do atendimento de um pedido do titular: identidade, ação, resposta e evidências.',
       purpose: [
-        'Aparece só a ação possível agora. Acesso e portabilidade geram arquivo; eliminação pede confirmação reforçada.',
-        'O arquivo do titular traz os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos os credores; para os demais, o botão aparece desabilitado com o motivo.',
+        'Aparece só a ação possível agora; depois de executada, o pedido não pode mais ser recusado, só concluído. Acesso e portabilidade geram arquivo (com os dados em todos os credores, sem máscara: só baixa quem tem acesso a todos; para os demais, o botão aparece desabilitado com o motivo); eliminação pede confirmação reforçada.',
         'Confirmação de tratamento e compartilhamento: em "Resposta sugerida", clique em "Montar resposta sugerida" (a consulta lê dados do titular e fica registrada). O cartão lista credores, prestadores (inclusive os operadores cadastrados à mão, como hospedagem), escritórios e integrações, com link para a evidência e atalhos para resolver os alertas. "Usar como resposta" abre a conclusão com o texto editável; nada é enviado sozinho.',
+        'Depois da eliminação, a importação e o cadastro recusam a pessoa como devedora ou coobrigada, em qualquer credor (o credor vê só "pessoa não aceita"). Em "Retorno do titular", "Manter recusa" encerra a revisão das tentativas e "Liberar retorno" volta a aceitá-la, com motivo, sem desfazer e nunca por quem executou a eliminação.',
       ],
       profiles: ['COMPLIANCE'],
       inputs: ['Pedido registrado e documentos do titular.'],

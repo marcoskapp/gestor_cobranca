@@ -1066,7 +1066,7 @@
         "description" : "Ocorrência de uma linha (valor sempre mascarado)",
         "properties" : {
           "code" : {
-            "description" : "Código estável da ocorrência (ex.: title.subject_anonymized — o título ou contrato pertence a um titular cujos dados foram eliminados; envie o arquivo sem a linha)",
+            "description" : "Código estável da ocorrência (ex.: title.subject_anonymized — o título ou contrato pertence a um titular cujos dados foram eliminados; envie o arquivo sem a linha; row.not_accepted — a pessoa da linha não pode ser aceita pela assessoria; não envie a linha de novo)",
             "type" : "string"
           },
           "field" : {

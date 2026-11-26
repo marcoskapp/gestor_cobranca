@@ -1,9 +1,13 @@
 package br.com.gestorcobranca.debt.application.service;
 
+import br.com.gestorcobranca.debt.application.port.spi.ErasedSubjects;
+import br.com.gestorcobranca.debt.application.port.spi.ErasedSubjects.ReturnAttempt;
 import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries;
 import br.com.gestorcobranca.debt.domain.model.Debtor;
+import br.com.gestorcobranca.debt.domain.model.ObligationParty;
 import br.com.gestorcobranca.debt.domain.repository.DebtTitleRepository;
 import br.com.gestorcobranca.debt.domain.repository.DebtorRepository;
+import br.com.gestorcobranca.debt.domain.repository.ObligationPartyRepository;
 import br.com.gestorcobranca.debt.domain.repository.OriginContractRepository;
 import br.com.gestorcobranca.shared.domain.Document;
 import br.com.gestorcobranca.shared.security.AccessScope;
@@ -13,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -28,13 +33,28 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
     private final DebtTitleRepository titles;
     private final OriginContractRepository contracts;
     private final AccessScope accessScope;
+    private final ErasedSubjects erasedSubjects;
+    private final ObligationPartyRepository parties;
 
     AnonymizedSubjectQueryService(DebtorRepository debtors, DebtTitleRepository titles,
-                                  OriginContractRepository contracts, AccessScope accessScope) {
+                                  OriginContractRepository contracts, AccessScope accessScope,
+                                  ErasedSubjects erasedSubjects, ObligationPartyRepository parties) {
+        this.parties = parties;
         this.debtors = debtors;
         this.titles = titles;
         this.contracts = contracts;
         this.accessScope = accessScope;
+        this.erasedSubjects = erasedSubjects;
+    }
+
+    @Override
+    public Set<Document> erasedSubjectsAmong(UUID creditorId, UUID batchId, Map<Document, Integer> linesByDocument) {
+        accessScope.requirePermission(Permission.IMPORT_EXECUTE);
+        accessScope.requireCreditor(creditorId);
+        if (linesByDocument == null || linesByDocument.isEmpty()) {
+            return Set.of();
+        }
+        return erasedSubjects.erasedAmong(linesByDocument, ReturnAttempt.importBatch(creditorId, batchId));
     }
 
     @Override
@@ -47,6 +67,24 @@ class AnonymizedSubjectQueryService implements AnonymizedSubjectQueries {
         return titles.findByDebtor(debtorId, null).stream()
                 .map(t -> new TitleReference(t.getCreditorId(), t.getPortfolioId(), t.getExternalId(),
                         display(t.getExternalId()), t.getInstallmentNumber()))
+                .toList();
+    }
+
+    @Override
+    public List<ContractReference> coObligorContractsOf(UUID debtorId) {
+        accessScope.requirePermission(Permission.DATA_SUBJECT_REQUEST_MANAGE);
+        accessScope.requireAllCreditors(RESOURCE);
+        if (debtors.findById(debtorId).filter(Debtor::isAnonymized).isEmpty()) {
+            return List.of();
+        }
+        List<UUID> contractIds = parties.findByDebtorIdOrderByCreatedAtAsc(debtorId).stream()
+                .map(ObligationParty::getOriginContractId).distinct().toList();
+        if (contractIds.isEmpty()) {
+            return List.of();
+        }
+        return contracts.findAllByIdIn(contractIds).stream()
+                .filter(c -> !debtorId.equals(c.getDebtorId()))
+                .map(c -> new ContractReference(c.getCreditorId(), c.getPortfolioId(), display(c.getExternalId())))
                 .toList();
     }
 

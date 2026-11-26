@@ -62,11 +62,19 @@ public final class CreditorErasureNoticeText {
                 appendTitles(text, portfolioNames, subject.items());
             }
         }
-        return text.append("\nPedimos que:\n")
+        boolean coObligor = subjects.stream().flatMap(subject -> subject.items().stream())
+                .anyMatch(Item::isCoObligorContract);
+        text.append("\nPedimos que:\n")
                 .append(single ? "1. eliminem ou anonimizem este titular" : "1. eliminem ou anonimizem estes titulares")
                 .append(" também no sistema de vocês, como determina a LGPD (art. 18, § 6º);\n")
                 .append("2. não incluam as linhas destes títulos nos próximos arquivos de carga: o arquivo que as ")
-                .append("trouxer terá essas linhas recusadas e precisará ser enviado de novo sem elas.\n\n")
+                .append("trouxer terá essas linhas recusadas e precisará ser enviado de novo sem elas");
+        if (coObligor) {
+            // decisão 1605: o credor do contrato em que o titular era coobrigado também é avisado
+            text.append(";\n3. nos contratos marcados como coobrigação, não informem mais ")
+                    .append(single ? "esta pessoa" : "estas pessoas").append(" como coobrigada");
+        }
+        return text.append(".\n\n")
                 .append("Por segurança, este aviso não traz nome, documento nem contato ")
                 .append(single ? "do titular.\n" : "dos titulares.\n")
                 .toString();
@@ -78,7 +86,7 @@ public final class CreditorErasureNoticeText {
         byPortfolio.forEach((portfolioId, list) -> {
             text.append("Carteira ").append(portfolioNames.getOrDefault(portfolioId, "não identificada")).append(":\n");
             list.forEach(i -> {
-                text.append("- Título ").append(i.getReference());
+                text.append(i.isCoObligorContract() ? "- " : "- Título ").append(i.getReference());
                 if (i.getInstallmentNumber() != null) {
                     text.append(", parcela ").append(i.getInstallmentNumber());
                 }

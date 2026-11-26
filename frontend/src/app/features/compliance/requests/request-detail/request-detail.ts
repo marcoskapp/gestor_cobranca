@@ -36,6 +36,7 @@ import { draftAvailability } from '../../data/data-sharing';
 import { EvidenceButtons } from '../../restrictions/evidence/evidence-buttons';
 import { PickDialog, PickDialogData, ResponseDialog, ResponseDialogData } from './request-dialogs';
 import { DraftUse, ResponseDraftCard } from './response-draft-card';
+import { ErasedSubjectReturnsCard } from './erased-subject-returns-card';
 import { NgbTooltip } from '@ng-bootstrap/ng-bootstrap';
 import { Icon } from '../../../../shared/components/icon/icon';
 import { DialogService } from '../../../../shared/dialog/dialog.service';
@@ -69,14 +70,15 @@ export function requestActions(r: DataSubjectRequestView): {
     execute: inProgress && executable && !r.executedAt,
     complete: inProgress,
     completeBlocker,
-    reject: !final,
+    // ação já executada não se desfaz: a solicitação só pode ser concluída (decisão 1499)
+    reject: !final && !r.executedAt,
     assign: !final,
   };
 }
 
 @Component({
   selector: 'app-request-detail',
-  imports: [RouterLink, PageHeader, StatusChip, DocumentDisplay, EmptyState, Skeleton, AppDatePipe, EvidenceButtons, Icon, NgbTooltip, InfoHint, DisabledAction, ResponseDraftCard],
+  imports: [RouterLink, PageHeader, StatusChip, DocumentDisplay, EmptyState, Skeleton, AppDatePipe, EvidenceButtons, Icon, NgbTooltip, InfoHint, DisabledAction, ResponseDraftCard, ErasedSubjectReturnsCard],
   templateUrl: './request-detail.html',
   styleUrl: '../../compliance.scss',
 })

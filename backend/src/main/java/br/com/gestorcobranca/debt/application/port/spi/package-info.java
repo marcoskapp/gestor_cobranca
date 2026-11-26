@@ -5,6 +5,9 @@
  * <p>
  * {@link br.com.gestorcobranca.debt.application.port.spi.TitleAgreementGuard}: o negotiation informa se um título está
  * num acordo em vigor (a correção manual do valor fica impedida até renegociar ou cancelar o acordo).
+ * <p>
+ * {@link br.com.gestorcobranca.debt.application.port.spi.ErasedSubjects}: o compliance informa se o documento é de
+ * titular eliminado a pedido (decisão 1471) — o devedor e o coobrigado não são criados de novo.
  */
 @NamedInterface("spi")
 package br.com.gestorcobranca.debt.application.port.spi;

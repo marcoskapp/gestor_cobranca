@@ -458,15 +458,21 @@ SEG-20261124-D01h, decisões 1469 e 1478–1486. Backend na fatia 3a; tela, reme
 - Na transação do chamador (`Propagation.MANDATORY`): o debt trava o devedor (`DebtorService#anonymize` com
   `findByIdForUpdate`), confere os títulos em cobrança e anonimiza; o portão abre em seguida os avisos. Falhou qualquer
   parte, nada fica.
-- A trava protege contra outra eliminação simultânea; a carga que cria título para o mesmo devedor no mesmo instante lê
-  o devedor sem trava (lacuna registrada no D01h; `for share` nos caminhos que criam ou reabrem título com a decisão 1471).
+- A trava protege contra outra eliminação simultânea; quem cria vínculo de dívida com o devedor (título, coobrigação)
+  pega trava compartilhada com releitura (`refreshForShare`, decisão 1602, §10.4): espera a eliminação e vê o devedor
+  anonimizado, ou a eliminação espera e vê o título em cobrança.
+- `DebtorUseCases#anonymize` devolve também o documento eliminado (`Anonymization`, `toString` mascarado), só para o
+  portão gravar o índice do titular no pedido (§10.1).
 - É o ponto em que entram a retenção jurídica antes da eliminação (decisão 1467; ADR 0013 na fatia do jurídico) e a
   releitura por devedor da elegibilidade da retenção (hoje calculada por lote antes da trava).
 
 ### 9.2 Aviso (`compliance.creditor_erasure_notice`, V0511)
 
-- Um por par devedor × credor com títulos conservados do titular (`AnonymizedSubjectQueries#referencesOf`, no debt);
-  credor sem título e coobrigado sem título próprio não geram aviso (resíduo, decisão 1480).
+- Um por par devedor × credor com títulos conservados do titular (`AnonymizedSubjectQueries#referencesOf`, no debt) ou
+  com contrato em que o titular era coobrigado, ativo ou encerrado (`#coObligorContractsOf`; revisão da decisão 1480,
+  decisão 1605): o item cita "Contrato … (coobrigado)" e o texto pede também que o credor não informe mais a pessoa
+  como coobrigada. Credor que nunca teve o titular não recebe aviso (o que ele recebe, se mandar a pessoa, é a recusa
+  neutra da linha, §10).
 - Guarda origem (`DATA_SUBJECT_REQUEST` ou `RETENTION`) e o id da solicitação ou da execução, a data da anonimização e
   os itens (`creditor_erasure_notice_item`: carteira, referência mascarada por `Document.maskIfDocument`, parcela;
   append-only, RLS pelo aviso). Nenhum nome, documento ou contato; a referência mascarada ainda é pseudonimizada
@@ -524,3 +530,85 @@ remessa com dois titulares, lote misto recusado sem gravar, registro em lote, pe
 com todos os credores; devedor sem título sem aviso); `ArchitectureTest`. Front: `erasure-notice.rules.spec`
 (data futura, anterior e no mesmo minuto da eliminação), `erasure-notice-list.spec` (remessa ao escolher o credor;
 nenhuma chamada sem todos os credores).
+
+## 10. Titular eliminado a pedido não volta (decisão 1471) — 26/11/2026
+
+SEG-20261124-D01h; decisões do responsável 1471 e 1498; decisões 1499 e 1600–1608. Parecer preventivo do
+`engenheiro-seguranca` (SEG-20261126-E01 a E10) e do `arquiteto` (AQ-01 a AQ-06).
+
+### 10.1 Índice do titular no pedido (V0515)
+
+- `compliance.data_subject_request.erased_subject_hash`: HMAC por tenant (`BlindIndex`, finalidade
+  `data_subject_request.document`) do documento **do devedor eliminado**, gravado pelo `ErasureGate` na transação da
+  anonimização — também quando o requerente não informou documento. Só o índice, nunca o documento (minimização,
+  decisão 1499). Escrita única (gatilho `trg_dsr_erased_subject_write_once`); `check` só em `ANONYMIZATION` executada;
+  índice parcial `ix_dsr_erased_subject`. Pedidos já executados com documento receberam o índice na migration.
+- `executed_by`: quem executou a eliminação (segregação na liberação, §10.5).
+- O reconhecimento vale pela **execução**, não pela conclusão: entre executar e concluir a pessoa já foi eliminada.
+  Pedido com a ação executada não pode mais ser recusado (`dsr.already_executed`), só concluído.
+- Retenção automática (`DEBTOR_INACTIVE`) não grava índice: a pessoa eliminada pela retenção pode voltar (resíduo
+  registrado na decisão 1471). Devedor sem documento também não. A guarda do índice é a do pedido (decisão 1483):
+  quando o pedido ganhar prazo de descarte, a recusa acaba junto (decisão 1607).
+
+### 10.2 Onde a recusa vale
+
+- **SPI** `debt :: spi` `ErasedSubjects` (decisão 1600), implementada pelo compliance (`ErasedSubjectsProvider`), com
+  injeção obrigatória (sem ela a aplicação não sobe). O compliance recalcula o índice com a finalidade do pedido a
+  partir do documento que o debt recebeu; o índice do devedor nunca sai do debt. Tenant do ator (o mesmo da RLS); sem
+  ator, falha. Até 5.000 documentos por consulta. Devolve só documentos da entrada.
+- **`DebtorRegistry.create`** — o funil de todo devedor novo: carga (devedor e coobrigado da linha), cadastro manual,
+  coobrigado manual. Grava e envia ao banco antes de conferir (decisão 1601): a eliminação em andamento segura a
+  unicidade do índice do devedor até o commit, e a consulta seguinte já vê o pedido executado.
+- **Carga, por bloco** (`ImportBatchProcessor`): as linhas válidas a gravar do bloco são conferidas de uma vez
+  (`AnonymizedSubjectQueries#erasedSubjectsAmong`, só o processador chama — `ArchitectureTest`), pelo devedor e pelos
+  coobrigados. Só na importação: a validação (`VALIDATE_ONLY`) e a prévia da conferência não consultam (decisão 1498,
+  anti-sondagem).
+- **Resposta neutra** (decisão 1498): ocorrência `row.not_accepted`, sem campo, "Pessoa não aceita pela assessoria. Não
+  a inclua de novo; em caso de dúvida, fale com a assessoria."; no cadastro manual, o mesmo código e texto. O lote
+  **não** é bloqueado nem pede novo arquivo (o texto do pedido diria que houve eliminação). A linha inteira é recusada,
+  também quando só o coobrigado casa (decisão 1606). Valor da conferência sem identificadores (D01k).
+- Coobrigado de devedor existente e título novo: trava compartilhada com releitura antes do vínculo (§10.4).
+
+### 10.3 Tentativas de retorno (`compliance.erased_subject_return`, V0515)
+
+- Cada reconhecimento grava, **em transação própria** (`ErasedSubjectReturnRecorder`, `REQUIRES_NEW`), o pedido, o
+  credor (na carga), a origem (`IMPORT`, `DEBTOR_FORM`, `CO_OBLIGOR_FORM`), o lote e quantas linhas — mesmo que a
+  criação seja desfeita pela recusa. Sem dado pessoal. Registro imutável; a revisão (`outcome`, uma vez) é a única
+  escrita depois (grant por coluna). Retomada de lote depois de queda pode repetir a tentativa de um bloco; a tentativa da corrida com a eliminação, na
+  criação do devedor da carga, fica sem credor (resíduos, decisão 1607). Métrica só depois do commit da tentativa.
+- Evento de negócio `erased_subject.return_refused` (credor, lote, origem, quantidades; nunca o pedido, o documento
+  ou o índice) e métrica `compliance.erased_subject.returns_refused{source}`; alarme de volume (decisão 1608).
+- Pendência `compliance.erased_subject_returns` ("Titulares eliminados enviados de novo"): uma por solicitação com
+  tentativa sem revisão, para quem atende titulares com todos os credores; abre a fila filtrada
+  (`?retorno=pendente`) ou a solicitação.
+
+### 10.4 Travas
+
+`DebtorRepository#refreshForShare` (`PESSIMISTIC_READ` com `refresh`, depois de `flush`: o devedor pode estar no contexto
+com o estado de antes da trava, e o flush guarda o nome atualizado pela carga). Chamado em `upsertTitle`, em
+`upsertObligationParty`, em `ObligationPartyService#add` e no estorno (`DebtLedgerService`). Ordem: devedor → contrato →
+título em todos os caminhos — o estorno lê o devedor do título sem trava e trava o devedor antes do título. Depois da
+trava, a eliminação concluída no meio recusa com a mesma resposta neutra (`row.not_accepted`, SEG-20261126-E11). Estorno tardio em título
+quitado de titular eliminado deixa o título quitado, com o saldo e o motivo próprio, e audita
+`debt_title.reversal_kept_settled` (decisão 1603).
+
+### 10.5 Revisão e liberação (`compliance.erased_subject_release`, V0516)
+
+- `ErasedSubjectReturnUseCases` (`DATA_SUBJECT_REQUEST_MANAGE` e todos os credores): `of`, `keep` (as tentativas
+  pendentes ficam `KEPT`) e `release` (motivo de 10 a 500 caracteres; quem executou a eliminação não libera; uma
+  liberação por pedido, imutável). Liberado, o documento volta a ser aceito na assessoria inteira; a eliminação feita
+  não se desfaz (decisão 1604). Auditoria `data_subject_request.erased_subject_return_kept` e
+  `…erased_subject_released`; evento `erased_subject.return_reviewed`.
+- Endpoints: `GET /api/v1/compliance/data-subject-requests/{id}/erased-subject-returns`, `POST …/keep`,
+  `POST …/release`. Busca `returnPending=true`.
+- Tela: cartão "Retorno do titular" no detalhe da solicitação executada (tentativas com link para o lote, "Manter
+  recusa", "Liberar retorno" — oculto para quem executou a eliminação) e o filtro "Titular enviado de novo" na fila.
+
+### 10.6 Testes
+
+`ErasedSubjectReturnIT` (carga com devedor e coobrigado, recusa neutra sem bloqueio, prévia sem consulta, cadastro e
+coobrigado manuais, escrita única, recusa depois de executar, outra assessoria aceita, estorno que fica quitado, aviso ao
+credor do coobrigado, corrida com a eliminação em duas transações, revisão e liberação); `DataSubjectRequestTest`,
+`ErasedSubjectReturnTest`, `CreditorErasureNoticeTest`, `CreditorErasureNoticeTextTest`, `DebtTitleTest`;
+`ArchitectureTest#erasedSubjectsAreCheckedOnlyByTheirOwners`. Front: `erased-subject-returns-card.spec`,
+`compliance.rules.spec`.

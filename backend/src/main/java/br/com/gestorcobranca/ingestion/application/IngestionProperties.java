@@ -1,5 +1,7 @@
 package br.com.gestorcobranca.ingestion.application;
 
+import br.com.gestorcobranca.debt.application.port.in.AnonymizedSubjectQueries;
+import br.com.gestorcobranca.ingestion.domain.model.CanonicalField;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.unit.DataSize;
 
@@ -26,11 +28,20 @@ public record IngestionProperties(DataSize maxFileSize, int maxRows, int maxApiR
                                   Duration sliceDuration, int maxIssuesPerBatch, DataSize xlsxMaxUncompressedSize,
                                   DataSize xlsxMaxSharedStringsSize, int xlsxMaxEntries, int xlsxMaxCompressionRatio) {
 
+    /** Devedor e os coobrigados do layout canônico (cada um vira cadastro conferido contra o titular eliminado). */
+    private static final int PEOPLE_PER_ROW = 1 + (int) java.util.Arrays.stream(CanonicalField.values())
+            .filter(f -> f.name().startsWith("CO_OBLIGOR_") && f.name().endsWith("_DOCUMENT")).count();
+
     public IngestionProperties {
         maxFileSize = maxFileSize == null ? DataSize.ofMegabytes(50) : maxFileSize;
         maxRows = maxRows <= 0 ? 1_000_000 : maxRows;
         maxApiRecords = maxApiRecords <= 0 ? 1000 : maxApiRecords;
         blockSize = blockSize <= 0 ? 500 : blockSize;
+        // devedor e até dois coobrigados por linha numa só consulta do titular eliminado (decisão 1471)
+        if (blockSize * PEOPLE_PER_ROW > AnonymizedSubjectQueries.MAX_ERASED_SUBJECT_DOCUMENTS) {
+            throw new IllegalArgumentException("app.ingestion.block-size acima de %d linhas".formatted(
+                    AnonymizedSubjectQueries.MAX_ERASED_SUBJECT_DOCUMENTS / PEOPLE_PER_ROW));
+        }
         sliceDuration = sliceDuration == null || sliceDuration.isNegative() || sliceDuration.isZero()
                 ? Duration.ofMinutes(2) : sliceDuration;
         maxIssuesPerBatch = maxIssuesPerBatch <= 0 ? 50_000 : maxIssuesPerBatch;

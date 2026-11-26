@@ -3,6 +3,8 @@ package br.com.gestorcobranca.compliance.web;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestAssigneeUseCases;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestAssigneeUseCases.AssigneeView;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.ErasedSubjectReturnUseCases;
+import br.com.gestorcobranca.compliance.application.port.in.ErasedSubjectReturnUseCases.ReturnsView;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.OpenRequestCommand;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.RequestFilter;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.RequestView;
@@ -44,12 +46,14 @@ class DataSubjectRequestController {
     private final DataSubjectRequestUseCases requests;
     private final DataSubjectRequestAssigneeUseCases assignees;
     private final DataSubjectResponseDraftUseCases drafts;
+    private final ErasedSubjectReturnUseCases returns;
 
     DataSubjectRequestController(DataSubjectRequestUseCases requests, DataSubjectRequestAssigneeUseCases assignees,
-                                 DataSubjectResponseDraftUseCases drafts) {
+                                 DataSubjectResponseDraftUseCases drafts, ErasedSubjectReturnUseCases returns) {
         this.requests = requests;
         this.assignees = assignees;
         this.drafts = drafts;
+        this.returns = returns;
     }
 
     /**
@@ -73,9 +77,11 @@ class DataSubjectRequestController {
                                      @RequestParam(required = false) String type,
                                      @RequestParam(required = false) UUID debtorId,
                                      @RequestParam(required = false) Boolean overdue,
+                                     @RequestParam(required = false) Boolean returnPending,
                                      @RequestParam(required = false) Integer page,
                                      @RequestParam(required = false) Integer size) {
-        return requests.search(new RequestFilter(status, type, debtorId, null, overdue), PageQuery.of(page, size));
+        return requests.search(new RequestFilter(status, type, debtorId, null, overdue, returnPending),
+                PageQuery.of(page, size));
     }
 
     @PostMapping("/lookup")
@@ -130,6 +136,25 @@ class DataSubjectRequestController {
         return requests.complete(id, request.response(), request.draftSha256());
     }
 
+    /** Tentativas de retorno do titular eliminado e a liberação (decisões 1471 e 1604). */
+    @GetMapping("/{id}/erased-subject-returns")
+    @PreAuthorize("hasAuthority('DATA_SUBJECT_REQUEST_MANAGE')")
+    ReturnsView erasedSubjectReturns(@PathVariable UUID id) {
+        return returns.of(id);
+    }
+
+    @PostMapping("/{id}/erased-subject-returns/keep")
+    @PreAuthorize("hasAuthority('DATA_SUBJECT_REQUEST_MANAGE')")
+    ReturnsView keepErasedSubjectRefusal(@PathVariable UUID id) {
+        return returns.keep(id);
+    }
+
+    @PostMapping("/{id}/erased-subject-returns/release")
+    @PreAuthorize("hasAuthority('DATA_SUBJECT_REQUEST_MANAGE')")
+    ReturnsView releaseErasedSubject(@PathVariable UUID id, @Valid @RequestBody ReleaseRequest request) {
+        return returns.release(id, request.reason());
+    }
+
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('DATA_SUBJECT_REQUEST_MANAGE')")
     RequestView reject(@PathVariable UUID id, @Valid @RequestBody ResponseRequest request) {
@@ -166,6 +191,9 @@ class DataSubjectRequestController {
     /** @param draftSha256 resumo do rascunho sugerido, quando a resposta partiu dele */
     record CompleteRequest(@NotBlank @Size(max = 4000) String response,
                            @Pattern(regexp = "[0-9a-f]{64}") String draftSha256) {
+    }
+
+    record ReleaseRequest(@NotBlank @Size(max = 500) String reason) {
     }
 
     record DocumentLookupRequest(@NotBlank @Size(max = 20) String document) {

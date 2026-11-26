@@ -23,6 +23,9 @@ public interface DebtTitleRepository {
     /** Credor do título, sem carregar a entidade nem travar a linha (conferência de escopo antes de um lock). */
     Optional<UUID> findCreditorIdById(UUID id);
 
+    /** Devedor do título, sem carregar a entidade (trava do devedor antes do título no estorno, decisão 1602). */
+    Optional<UUID> findDebtorIdById(UUID id);
+
     /** Lock pessimista em lote, sempre na ordem do id (evita deadlock entre operações em lote). */
     List<DebtTitle> findAllByIdInForUpdate(Collection<UUID> ids);
 

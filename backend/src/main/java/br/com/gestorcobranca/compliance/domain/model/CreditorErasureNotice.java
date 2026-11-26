@@ -48,6 +48,20 @@ public class CreditorErasureNotice extends TenantScopedEntity {
     public static final int MAX_REFERENCE = 80 * 18;
     /** Avisos por remessa ao credor (decisão 1486); também o lote de carga dos itens. */
     public static final int MAX_PER_REMITTANCE = 100;
+    /** Prefixo e sufixo do item que é contrato em que o titular era coobrigado (decisão 1605). */
+    private static final String CO_OBLIGOR_PREFIX = "Contrato ";
+    private static final String CO_OBLIGOR_SUFFIX = " (coobrigado)";
+
+    /**
+     * Referência do item de contrato em que o titular era coobrigado, para o credor achar a coobrigação. Se a marcação
+     * passasse do limite do item (identificador patológico), fica só a referência: a eliminação nunca é recusada por
+     * isso (SEG-20261126-M01).
+     */
+    public static String coObligorReference(String displayReference) {
+        String marked = CO_OBLIGOR_PREFIX + displayReference + CO_OBLIGOR_SUFFIX;
+        return marked.length() <= MAX_REFERENCE ? marked : displayReference;
+    }
+
     /** Relógio do navegador adiantado em relação ao servidor (decisão 1485). */
     private static final Duration FUTURE_TOLERANCE = Duration.ofMinutes(1);
 
@@ -162,6 +176,12 @@ public class CreditorErasureNotice extends TenantScopedEntity {
         private Integer installmentNumber;
 
         protected Item() {
+        }
+
+        /** Contrato em que o titular era coobrigado (decisão 1605), não título dele. */
+        public boolean isCoObligorContract() {
+            return reference != null && reference.startsWith(CO_OBLIGOR_PREFIX) && reference.endsWith(CO_OBLIGOR_SUFFIX)
+                    && installmentNumber == null;
         }
 
         /** @param maskedReference referência do título no credor, com CPF/CNPJ embutido já mascarado */

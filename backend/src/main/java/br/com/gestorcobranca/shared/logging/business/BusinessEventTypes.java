@@ -200,6 +200,10 @@ public final class BusinessEventTypes {
     // Aviso ao credor da anonimização do titular (LGPD art. 18 §6º, decisão 1478) — só ids, origem, quantidade e canal
     public static final String CREDITOR_ERASURE_NOTICE_OPENED = "creditor_erasure_notice.opened";
     public static final String CREDITOR_ERASURE_NOTICE_NOTIFIED = "creditor_erasure_notice.notified";
+    // Retorno recusado do titular eliminado a pedido (decisão 1471) — credor, lote, origem e linhas; nunca o documento,
+    // o índice nem o pedido
+    public static final String ERASED_SUBJECT_RETURN_REFUSED = "erased_subject.return_refused";
+    public static final String ERASED_SUBJECT_RETURN_REVIEWED = "erased_subject.return_reviewed";
     // Marcador de vulnerabilidade (compliance) — sem devedor e sem a categoria sensível; §3.1a de logs-e-metricas.md
     public static final String VULNERABILITY_REGISTERED = "vulnerability.registered";
     public static final String VULNERABILITY_RETIRED = "vulnerability.retired";

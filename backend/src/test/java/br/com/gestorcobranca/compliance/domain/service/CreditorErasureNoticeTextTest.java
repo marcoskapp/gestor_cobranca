@@ -35,4 +35,18 @@ class CreditorErasureNoticeTextTest {
                 "Titular 2 (dados eliminados em 21/11/2026):\nCarteira Cartões:\n- Título R-9\n",
                 "eliminem ou anonimizem estes titulares", "dos titulares.");
     }
+
+    /** Decisão 1605: o credor do contrato em que o titular era coobrigado é avisado e pedido a não informá-lo mais. */
+    @Test
+    void coObligorContractIsListedAndAsksToStopInformingThePerson() {
+        UUID cards = Ids.newId();
+        String text = CreditorErasureNoticeText.compose("Banco A", Map.of(cards, "Cartões"), LocalDate.of(2026, 11, 20),
+                List.of(new Item(cards, br.com.gestorcobranca.compliance.domain.model.CreditorErasureNotice
+                        .coObligorReference("C-9"), null)));
+        assertThat(text).contains("- Contrato C-9 (coobrigado)\n", "não informem mais esta pessoa como coobrigada.")
+                .doesNotContain("Título Contrato");
+        String withoutCoObligor = CreditorErasureNoticeText.compose("Banco A", Map.of(cards, "Cartões"),
+                LocalDate.of(2026, 11, 20), List.of(new Item(cards, "R-7", 1)));
+        assertThat(withoutCoObligor).contains("enviado de novo sem elas.\n\n").doesNotContain("coobrigad");
+    }
 }

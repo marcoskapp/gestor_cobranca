@@ -114,4 +114,18 @@ class DebtTitleTest {
         assertThatThrownBy(() -> new DebtTitle(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null, "X", 0,
                 LocalDate.now(), Money.of(1), null)).hasFieldOrPropertyWithValue("code", "title.installment_invalid");
     }
+
+    /** Decisão 1603: estorno tardio em título quitado de titular eliminado deixa o título quitado, com o saldo. */
+    @Test
+    void reopenedTitleOfErasedHolderStaysSettled() {
+        DebtTitle t = title("50.00", LocalDate.of(2026, 1, 10));
+        assertThatThrownBy(t::keepSettledAfterErasure).hasFieldOrPropertyWithValue("code", "title.not_reopened");
+        t.recordPosting(LedgerEntryType.PAYMENT, Money.ZERO, Money.of("50.00"), Money.ZERO, null);
+        t.recordPosting(LedgerEntryType.REVERSAL, Money.of("50.00"), Money.ZERO, Money.ZERO, null);
+        assertThat(t.getStatus()).isEqualTo(TitleStatus.OPEN);
+        t.keepSettledAfterErasure();
+        assertThat(t.getStatus()).isEqualTo(TitleStatus.SETTLED);
+        assertThat(t.getOpenBalance()).isEqualTo(Money.of("50.00"));
+        assertThat(t.getStatusReason()).isEqualTo(DebtTitle.ERASED_HOLDER_REASON);
+    }
 }

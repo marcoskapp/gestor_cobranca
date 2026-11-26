@@ -29,6 +29,18 @@ public interface DebtIngestionPort {
                 + "(LGPD); peça ao credor um arquivo sem esta linha";
     }
 
+    /**
+     * Pessoa da linha (devedor ou coobrigado) não aceita: o documento é de titular eliminado a pedido (decisão 1471). O
+     * código e a mensagem são neutros de propósito (decisão 1498): a quem envia não se diz que a pessoa pediu eliminação
+     * nem que já foi devedora de outro credor. Nenhum devedor é criado.
+     */
+    String SUBJECT_NOT_ACCEPTED = "row.not_accepted";
+
+    /** Mensagem única da recusa {@link #SUBJECT_NOT_ACCEPTED}. */
+    static String subjectNotAcceptedMessage() {
+        return "Pessoa não aceita pela assessoria. Não a inclua de novo; em caso de dúvida, fale com a assessoria.";
+    }
+
     /** Casa pelo documento; contatos novos do registro são acrescentados (origem IMPORT). */
     UpsertResult upsertDebtor(DebtorRecord record);
 

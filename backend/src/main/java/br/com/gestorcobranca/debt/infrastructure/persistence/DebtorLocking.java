@@ -6,4 +6,6 @@ import br.com.gestorcobranca.debt.domain.model.Debtor;
 interface DebtorLocking {
 
     void refreshForUpdate(Debtor debtor);
+
+    void refreshForShare(Debtor debtor);
 }

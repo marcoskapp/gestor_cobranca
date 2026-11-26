@@ -22,6 +22,9 @@ public interface ObligationPartyRepository {
     /** Participações vigentes da pessoa como coobrigada. */
     List<ObligationParty> findByDebtorIdAndEndedOnIsNullOrderByCreatedAtAsc(UUID debtorId);
 
+    /** Todas as participações da pessoa, ativas ou encerradas (aviso ao credor na eliminação, decisão 1605). */
+    List<ObligationParty> findByDebtorIdOrderByCreatedAtAsc(UUID debtorId);
+
     /** Credores dos contratos em que a pessoa é coobrigada vigente (define sua visibilidade por escopo). */
     List<UUID> findActiveCreditorIdsByDebtorId(UUID debtorId);
 

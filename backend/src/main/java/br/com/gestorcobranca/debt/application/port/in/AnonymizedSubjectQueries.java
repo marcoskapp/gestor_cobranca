@@ -1,7 +1,9 @@
 package br.com.gestorcobranca.debt.application.port.in;
 
+import br.com.gestorcobranca.shared.domain.Document;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -13,12 +15,26 @@ import java.util.UUID;
  */
 public interface AnonymizedSubjectQueries {
 
+    /** Teto de documentos por consulta de titular eliminado a pedido (o mesmo da SPI do compliance). */
+    int MAX_ERASED_SUBJECT_DOCUMENTS = 5_000;
+
     /**
      * Títulos do devedor anonimizado, com a referência do credor já mascarada se tiver formato de documento. Vazio se o
      * devedor não existe ou não está anonimizado. Exige {@code DATA_SUBJECT_REQUEST_MANAGE} e escopo de todos os
      * credores (o sistema tem os dois).
      */
     List<TitleReference> referencesOf(UUID debtorId);
+
+    /**
+     * Contratos de origem em que o devedor anonimizado era coobrigado (fiador, avalista…), ativos ou encerrados, com a
+     * referência do credor já mascarada: o credor do contrato tem o dado do titular e precisa ser avisado (revisão da
+     * decisão 1480, decisão 1605). Mesmas exigências de {@link #referencesOf}.
+     */
+    List<ContractReference> coObligorContractsOf(UUID debtorId);
+
+    /** Contrato do credor em que o titular era coobrigado (sem o identificador cru). */
+    record ContractReference(UUID creditorId, UUID portfolioId, String displayReference) {
+    }
 
     /**
      * Dentre os identificadores informados, os que pertencem, no credor, a títulos ou contratos de origem de devedor
@@ -34,6 +50,15 @@ public interface AnonymizedSubjectQueries {
      */
     Set<UUID> anonymizedDebtorsOf(UUID creditorId, Collection<String> titleExternalIds,
                                   Collection<String> contractExternalIds);
+
+    /**
+     * Dentre os documentos das linhas de um bloco da carga (devedor e coobrigados), os de titular eliminado a pedido
+     * (decisão 1471), para recusar a linha antes de gravar. A tentativa de retorno fica registrada no compliance. Exige
+     * {@code IMPORT_EXECUTE} e acesso ao credor; no máximo {@code ErasedSubjects.MAX_DOCUMENTS} documentos.
+     *
+     * @param linesByDocument documento e quantas linhas do bloco o trazem
+     */
+    Set<Document> erasedSubjectsAmong(UUID creditorId, UUID batchId, Map<Document, Integer> linesByDocument);
 
     /** Identificadores do credor que pertencem a devedor anonimizado. */
     record AnonymizedKeys(Set<String> titles, Set<String> contracts) {

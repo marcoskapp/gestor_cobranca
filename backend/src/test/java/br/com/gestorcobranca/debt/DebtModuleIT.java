@@ -478,7 +478,7 @@ class DebtModuleIT extends IntegrationTest {
 
         system(() -> ledgerPort.applyPayment(new PaymentApplication(titleId, Ids.newId(),
                 ComponentAmounts.principalOnly(new BigDecimal("100.00")), Instant.now())));
-        DebtorView anonymized = system(() -> debtors.anonymize(debtorId, "Solicitação do titular"));
+        DebtorView anonymized = system(() -> debtors.anonymize(debtorId, "Solicitação do titular")).debtor();
         assertThat(anonymized.name()).isEqualTo("Titular anonimizado");
         assertThat(anonymized.maskedDocument()).isNull();
         // contato neutralizado no lugar, nunca apagado: conversas, interações (imutáveis) e chamadas apontam para ele, e a

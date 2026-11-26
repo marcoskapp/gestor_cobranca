@@ -195,14 +195,15 @@ class DebtorService implements DebtorUseCases {
     }
 
     @Override
-    public DebtorView anonymize(UUID debtorId, String reason) {
+    public Anonymization anonymize(UUID debtorId, String reason) {
         accessScope.requirePermission(Permission.DATA_SUBJECT_REQUEST_MANAGE);
         if (reason == null || reason.isBlank()) {
             throw new BusinessRuleException("debtor.anonymize_reason_required", "Informe o motivo da anonimização");
         }
         Debtor debtor = visibility.requireFullScope(debtorId);
         // trava e relê o devedor (SEG-20261124-D01h, decisão 1481): a segunda eliminação simultânea vê o devedor já
-        // anonimizado. A carga que cria título ainda lê o devedor sem trava (for share com a decisão 1471)
+        // anonimizado; a carga e o cadastro que criam vínculo de dívida travam o devedor (for share, decisão 1602) e, se
+        // chegarem antes, a conferência abaixo vê o título ou a coobrigação
         debtors.refreshForUpdate(debtor);
         // coobrigado de contrato em cobrança também responde pela dívida: não pode ser anonimizado
         if (titles.existsOpenByDebtorId(debtorId) || parties.existsActiveWithOpenTitles(debtorId)) {
@@ -210,6 +211,7 @@ class DebtorService implements DebtorUseCases {
                     "Devedor possui títulos em cobrança (próprios ou como coobrigado); encerre-os antes de anonimizar");
         }
         String maskedDocument = debtor.maskedDocument();
+        Optional<Document> erasedDocument = debtor.document();
         List<DebtorContact> removed = contacts.findByDebtorIdOrderByTypeAscPriorityAscCreatedAtAsc(debtorId);
         // representantes da empresa seguem a retenção do cadastro dela (LGPD): saem junto
         List<CompanyRepresentative> removedRepresentatives = representatives.findByCompanyDebtorIdOrderByCreatedAtAsc(debtorId);
@@ -230,7 +232,7 @@ class DebtorService implements DebtorUseCases {
                 .change("document", maskedDocument, null)
                 .meta("contactsRemoved", removed.size())
                 .meta("representativesRemoved", removedRepresentatives.size()));
-        return DebtViews.debtor(debtor);
+        return new Anonymization(DebtViews.debtor(debtor), erasedDocument);
     }
 
     @Override

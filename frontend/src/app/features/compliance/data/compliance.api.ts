@@ -8,6 +8,7 @@ import { FileDownloadService } from '../../../shared/data/file-download';
 import { PageRequest, PageResponse } from '../../../shared/models/page';
 import {
   AttemptView,
+  ErasedSubjectReturnsView,
   CreateRestrictionRequest,
   CreditorPendingNotices,
   ErasureNoticeFilter,
@@ -208,6 +209,18 @@ export class DataSubjectRequestsApi {
 
   downloadResult(id: string): Observable<string> {
     return this.files.download(`${this.base}/${id}/result`, 'dados-do-titular.json');
+  }
+
+  erasedSubjectReturns(id: string): Observable<ErasedSubjectReturnsView> {
+    return this.http.get<ErasedSubjectReturnsView>(`${this.base}/${id}/erased-subject-returns`);
+  }
+
+  keepErasedSubjectRefusal(id: string): Observable<ErasedSubjectReturnsView> {
+    return this.http.post<ErasedSubjectReturnsView>(`${this.base}/${id}/erased-subject-returns/keep`, null);
+  }
+
+  releaseErasedSubject(id: string, reason: string): Observable<ErasedSubjectReturnsView> {
+    return this.http.post<ErasedSubjectReturnsView>(`${this.base}/${id}/erased-subject-returns/release`, { reason });
   }
 }
 

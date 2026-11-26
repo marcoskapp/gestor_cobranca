@@ -1042,14 +1042,17 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'compliance.processors', version: 1, path: '/compliance/operadores', tourId: 'compliance.processors' },
   {
     key: 'compliance.requests',
-    version: 2,
+    version: 3,
     path: '/compliance/solicitacoes-titulares',
     tourId: 'compliance.requests',
-    changes: [{ version: 2, items: ['Vinda da ficha do devedor ou de uma solicitação, a fila mostra só os pedidos daquele titular; "Ver todas as solicitações" volta à fila completa.'] }],
+    changes: [
+      { version: 2, items: ['Vinda da ficha do devedor ou de uma solicitação, a fila mostra só os pedidos daquele titular; "Ver todas as solicitações" volta à fila completa.'] },
+      { version: 3, items: ['"Eliminados enviados de novo" filtra as eliminações cuja pessoa a importação ou o cadastro tentou trazer de volta, à espera da revisão.'] },
+    ],
   },
   {
     key: 'compliance.request-detail',
-    version: 8,
+    version: 9,
     path: '/compliance/solicitacoes-titulares/:id',
     tourId: 'compliance.request-detail',
     changes: [
@@ -1077,6 +1080,13 @@ export const SCREENS: readonly ScreenGuide[] = [
       {
         version: 8,
         items: ['Depois da eliminação dos dados, "Avisos aos credores" leva aos avisos que a eliminação abriu para cada credor com títulos do titular.'],
+      },
+      {
+        version: 9,
+        items: [
+          'A pessoa eliminada não volta: a importação e o cadastro a recusam, e o cartão "Retorno do titular" mostra cada tentativa para você manter a recusa ou liberar o retorno com motivo.',
+          'Depois de executada a ação, o pedido não pode mais ser recusado, só concluído.',
+        ],
       }],
   },
   { key: 'compliance.erasure-notices', version: 1, path: '/compliance/avisos-credores', tourId: 'compliance.erasure-notices' },

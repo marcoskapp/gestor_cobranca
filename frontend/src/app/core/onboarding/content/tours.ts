@@ -574,7 +574,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'compliance.request-detail',
-    version: 2,
+    version: 3,
     title: 'Atendimento ao titular',
     summary: 'Etapas, ação automática, resposta sugerida e evidências.',
     steps: [
@@ -592,6 +592,12 @@ export const TOURS: readonly TourDefinition[] = [
         anchor: 'dsr-draft',
         title: 'Resposta sugerida',
         body: 'Em confirmação e compartilhamento, "Montar resposta sugerida" lista com quem os dados foram compartilhados e sugere o texto. Confira e use.',
+        placement: 'above',
+      },
+      {
+        anchor: 'dsr-erased-returns',
+        title: 'Retorno do titular',
+        body: 'Depois da eliminação, as tentativas de trazer a pessoa de volta pela importação ou pelo cadastro. Mantenha a recusa ou libere o retorno com motivo.',
         placement: 'above',
       },
       {

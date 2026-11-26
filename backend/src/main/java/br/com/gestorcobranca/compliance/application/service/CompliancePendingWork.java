@@ -24,6 +24,7 @@ import java.util.UUID;
  * do responsável atribuído.
  * <p>
  * Avisos ao credor da anonimização do titular ainda sem registro de envio: mesma equipe e mesma regra de alcance.
+ * Titular eliminado a pedido que a carga ou o cadastro trouxe de novo, à espera da revisão: também.
  * <p>
  * Sugestões de marcador de vulnerabilidade do assistente aguardando confirmação: de quem registra marcadores, no
  * escopo de credores do ator (credor do contato em que houve a detecção).
@@ -34,6 +35,7 @@ class CompliancePendingWork implements PendingWorkSource {
     static final String DATA_SUBJECT_REQUESTS = "compliance.data_subject_requests";
     static final String VULNERABILITY_SUGGESTIONS = "compliance.vulnerability_suggestions";
     static final String CREDITOR_ERASURE_NOTICES = "compliance.creditor_erasure_notices";
+    static final String ERASED_SUBJECT_RETURNS = "compliance.erased_subject_returns";
 
     private final CompliancePendingWorkQueries queries;
     private final AccessScope accessScope;
@@ -74,6 +76,11 @@ class CompliancePendingWork implements PendingWorkSource {
                     .hint("Envie ao credor o aviso pronto e registre o envio (LGPD art. 18, § 6º).")
                     .route("/compliance/avisos-credores").param("situacao", "PENDING")
                     .singleRoute(id -> "/compliance/avisos-credores/" + id).build());
+            PendingWorkCount returns = queries.erasedSubjectReturnsPending();
+            items.add(PendingWorkItem.of(ERASED_SUBJECT_RETURNS, "Titulares eliminados enviados de novo", returns)
+                    .hint("Mantenha a recusa ou libere o retorno, se houver base legal nova.")
+                    .route("/compliance/solicitacoes-titulares").param("retorno", "pendente")
+                    .singleRoute(id -> "/compliance/solicitacoes-titulares/" + id).build());
         }
         if (vulnerability(actor)) {
             Set<UUID> scope = accessScope.hasAllCreditors() ? null : accessScope.restrictCreditors(List.of());

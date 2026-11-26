@@ -34,6 +34,8 @@ export interface RequestQueueFilter {
   status: string | null;
   type: string | null;
   overdue: boolean | null;
+  /** Só com tentativa de retorno do titular eliminado a revisar (`?retorno=pendente`, de "Minhas pendências"). */
+  returnPending: boolean | null;
   /** Titular (devedor) vindo da ficha do devedor ou da solicitação: só o id, na URL (`?devedor=`). */
   debtorId: string | null;
   document: string | null;
@@ -41,13 +43,21 @@ export interface RequestQueueFilter {
   incomplete: boolean;
 }
 
-export function toQueueFilter(v: { status: string; type: string; overdue: boolean; document: string; debtor?: string }): RequestQueueFilter {
+export function toQueueFilter(v: {
+  status: string;
+  type: string;
+  overdue: boolean;
+  document: string;
+  debtor?: string;
+  returnPending?: boolean;
+}): RequestQueueFilter {
   const digits = onlyDigits(v.document);
   const complete = (digits.length === 11 || digits.length === 14) && isValidDocument(digits);
   return {
     status: v.status || null,
     type: v.type || null,
     overdue: v.overdue ? true : null,
+    returnPending: v.returnPending ? true : null,
     debtorId: v.debtor || null,
     document: complete ? digits : null,
     incomplete: digits.length > 0 && !complete,
@@ -59,6 +69,13 @@ const OVERDUE_PARAM: UrlCodec<boolean> = {
   param: 'vencidas',
   parse: (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined),
   format: (v) => (v ? 'true' : 'false'),
+};
+
+/** `?retorno=pendente`: titular eliminado enviado de novo, à espera da revisão (decisão 1604). */
+const RETURN_PENDING_PARAM: UrlCodec<boolean> = {
+  param: 'retorno',
+  parse: (raw) => (raw === 'pendente' ? true : undefined),
+  format: (v) => (v ? 'pendente' : null),
 };
 
 /** Fila de solicitações de titulares com prazo legal e atraso em destaque. */
@@ -85,10 +102,11 @@ export class RequestList {
    * Filtros na URL (`?situacao=&pedido=&vencidas=true`): `vencidas` vem de "Minhas pendências" e tudo se preserva ao
    * voltar. O CPF/CNPJ do titular nunca vai para a URL (dado pessoal).
    */
-  protected readonly filters = syncFormWithUrl(this.fb.group({ status: [''], type: [''], overdue: [false], document: [''], debtor: [''] }), {
+  protected readonly filters = syncFormWithUrl(this.fb.group({ status: [''], type: [''], overdue: [false], returnPending: [false], document: [''], debtor: [''] }), {
     status: urlParam.choice('situacao', this.statuses.map((s) => s.value)),
     type: urlParam.choice('pedido', this.types.map((t) => t.value)),
     overdue: OVERDUE_PARAM,
+    returnPending: RETURN_PENDING_PARAM,
     debtor: urlParam.id('devedor'),
   });
 
@@ -175,6 +193,16 @@ export class RequestList {
     if (f.document) {
       return this.api.lookup(f.document, page);
     }
-    return this.api.search({ status: f.status, type: f.type, overdue: f.overdue, debtorId: f.debtorId }, page);
+    return this.api.search(
+      // o filtro de retorno é de quem tem todos os credores (link copiado por outro perfil é ignorado, sem 403)
+      {
+        status: f.status,
+        type: f.type,
+        overdue: f.overdue,
+        returnPending: this.allCreditors() ? f.returnPending : null,
+        debtorId: f.debtorId,
+      },
+      page,
+    );
   }
 }

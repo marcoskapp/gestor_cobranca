@@ -160,10 +160,13 @@ describe('regras de tela do módulo compliance', () => {
         status: 'RECEIVED',
         type: 'ACCESS',
         overdue: null,
+        returnPending: null,
         debtorId: null,
         document: null,
         incomplete: false,
       });
+      // "Minhas pendências": titular eliminado enviado de novo (decisão 1604)
+      expect(toQueueFilter({ status: '', type: '', overdue: false, document: '', returnPending: true }).returnPending).toBe(true);
       // titular vindo de outra tela: só o id
       expect(toQueueFilter({ status: '', type: '', overdue: false, document: '', debtor: 'd-1' }).debtorId).toBe('d-1');
     });

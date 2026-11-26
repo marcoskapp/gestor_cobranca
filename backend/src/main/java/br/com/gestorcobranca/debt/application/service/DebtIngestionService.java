@@ -174,7 +174,10 @@ class DebtIngestionService implements DebtIngestionPort {
                 "Carteira não pertence ao credor informado");
         Debtor debtor = debtors.findById(record.debtorId())
                 .orElseThrow(() -> ResourceNotFoundException.of("debtor", record.debtorId()));
-        Guard.requireState(!debtor.isAnonymized(), "debtor.anonymized", "Devedor anonimizado não recebe títulos");
+        // trava compartilhada com releitura antes do título (decisão 1602, ordem devedor → contrato → título): a
+        // eliminação simultânea termina antes e o devedor aparece anonimizado, ou espera e vê o título em cobrança
+        debtors.refreshForShare(debtor);
+        DebtorRegistry.requireNotErasedMeanwhile(debtor);
         Guard.require(record.principalAmount() != null, "title.principal_invalid", "Valor principal obrigatório");
         Guard.require(record.reportedBalance() == null || record.balanceReferenceDate() != null,
                 "title.balance_reference_date_required", "Data-base do saldo informado obrigatória");
@@ -383,6 +386,9 @@ class DebtIngestionService implements DebtIngestionPort {
                 "Papel na obrigação");
         UpsertResult person = debtorRegistry.upsertFromImport(record.person());
         Debtor debtor = debtors.findById(person.id()).orElseThrow();
+        // mesma trava do título (decisão 1602): coobrigação nova não nasce para pessoa eliminada no mesmo instante
+        debtors.refreshForShare(debtor);
+        DebtorRegistry.requireNotErasedMeanwhile(debtor);
         List<String> warnings = new ArrayList<>(person.warnings());
         Optional<ObligationParty> existing = parties.findByOriginContractIdAndDebtorIdAndRole(contract.getId(),
                 debtor.getId(), role);

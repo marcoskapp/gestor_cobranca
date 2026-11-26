@@ -92,6 +92,18 @@ public class DataSubjectRequest extends TenantScopedEntity {
     @Column(name = "executed_at")
     private Instant executedAt;
 
+    /** Quem executou a ação (só na eliminação: segregação de funções na liberação do retorno, decisão 1604). */
+    @Column(name = "executed_by")
+    private UUID executedBy;
+
+    /**
+     * Índice cego do documento do devedor eliminado (finalidade {@link #DOCUMENT_HASH_PURPOSE}), gravado na execução da
+     * eliminação — com ou sem documento informado pelo requerente — para recusar o retorno do titular (decisão 1471). Só o
+     * índice; escrita única (gatilho no banco).
+     */
+    @Column(name = "erased_subject_hash", length = 64)
+    private String erasedSubjectHash;
+
     @Column(name = "completed_at")
     private Instant completedAt;
 
@@ -188,6 +200,21 @@ public class DataSubjectRequest extends TenantScopedEntity {
         this.executedAt = now;
     }
 
+    /**
+     * Eliminação executada (decisão 1471): grava o índice do documento do devedor eliminado, quando ele tinha documento.
+     * Sem documento (cadastro já sem documento), a eliminação vale do mesmo jeito e o retorno não é reconhecido (resíduo
+     * registrado).
+     */
+    public void recordErasure(Instant now, UUID actorId, String subjectHash) {
+        Guard.requireState(type == RequestType.ANONYMIZATION, "dsr.not_erasure", "Solicitação não é de eliminação");
+        Guard.require(actorId != null, "dsr.executor_required", "Autor da eliminação obrigatório");
+        Guard.require(subjectHash == null || subjectHash.length() == 64, "dsr.subject_hash_invalid",
+                "Índice do titular inválido");
+        markExecuted(now);
+        this.executedBy = actorId;
+        this.erasedSubjectHash = subjectHash;
+    }
+
     public void complete(String summary, Instant now) {
         Guard.requireState(!type.isExecutable() || executedAt != null, "dsr.execution_required",
                 "Execute a ação da solicitação antes de concluir");
@@ -199,6 +226,9 @@ public class DataSubjectRequest extends TenantScopedEntity {
 
     /** Recusa fundamentada: o resumo deve conter a justificativa apresentada ao titular. */
     public void reject(String justification, Instant now) {
+        // a ação já executada (eliminação, exportação, restrição) não se desfaz: recusar depois a esconderia (decisão 1499)
+        Guard.requireState(executedAt == null, "dsr.already_executed",
+                "A ação da solicitação já foi executada; conclua a solicitação");
         moveTo(RequestStatus.REJECTED);
         close(justification, now);
     }
@@ -298,6 +328,14 @@ public class DataSubjectRequest extends TenantScopedEntity {
 
     public Instant getExecutedAt() {
         return executedAt;
+    }
+
+    public UUID getExecutedBy() {
+        return executedBy;
+    }
+
+    public String getErasedSubjectHash() {
+        return erasedSubjectHash;
     }
 
     public Instant getCompletedAt() {
