@@ -1,7 +1,10 @@
 package br.com.gestorcobranca.ingestion.application.service;
 
+import br.com.gestorcobranca.ingestion.domain.model.ParsedRow;
+import br.com.gestorcobranca.ingestion.domain.model.RowIssue;
 import org.springframework.context.ApplicationContext;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -36,5 +39,17 @@ public final class IngestionTestHooks {
                         new br.com.gestorcobranca.shared.jobs.JobContext(br.com.gestorcobranca.shared.domain.Ids.newId(),
                                 tenantId, PendingErasureJobHandler.TYPE, 1),
                         new PendingErasureJobHandler.Payload(batchId)));
+    }
+
+    /**
+     * Gravação de uma linha direto pelo {@code RowWriter}, sem a recusa por bloco do processamento: o mesmo que a
+     * anonimização do titular acontecer entre a leitura do bloco e a gravação (SEG-20261125-K07). Roda no contexto do
+     * chamador (o importador). Devolve os códigos de erro da linha recusada; vazio se a linha foi gravada.
+     */
+    public static List<String> writeRow(ApplicationContext context, UUID batchId, UUID creditorId, UUID portfolioId,
+                                        ParsedRow row) {
+        RowWriter.Result result = context.getBean(RowWriter.class)
+                .write(new RowWriter.Target(batchId, creditorId, portfolioId, "teste"), row, List.of(), 10);
+        return result.rejected() ? result.errors().stream().map(RowIssue::code).toList() : List.of();
     }
 }
