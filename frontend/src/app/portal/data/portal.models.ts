@@ -74,6 +74,8 @@ export interface TitleSummary {
   daysOverdue: number;
   openBalance: Money;
   status: string;
+  /** Entra no valor atualizado e nas condições do portal (o motivo de ficar fora nunca vem). */
+  inOffer: boolean;
 }
 
 export type UnavailableReason = 'AGREEMENT_ACTIVE' | 'NOT_ELIGIBLE' | 'NO_POLICY' | 'LEGAL_HOLD';
@@ -124,6 +126,8 @@ export interface OffersView {
   breakOverdueInstallments: number | null;
   breakToleranceDays: number | null;
   offers: OfferSummary[];
+  /** Parcelas em aberto da dívida que ficaram fora do valor e das condições. */
+  titlesOutside: number;
 }
 
 export interface SimulateRequest {

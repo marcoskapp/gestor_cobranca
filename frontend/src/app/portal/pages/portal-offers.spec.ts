@@ -8,7 +8,7 @@ import { PortalOffers } from './portal-offers';
 
 const OFFERS: OffersView = {
   simulationId: 'sim-1', portfolioId: 'p1', updatedAmount: 1800, referenceDate: '2026-10-23', maxInstallments: 6,
-  maxDaysToFirstPayment: 10, proposalValidityDays: 5, breakOverdueInstallments: 2, breakToleranceDays: 5,
+  maxDaysToFirstPayment: 10, proposalValidityDays: 5, breakOverdueInstallments: 2, breakToleranceDays: 5, titlesOutside: 0,
   offers: [
     { level: 1, installments: 1, downPayment: 1500, installmentAmount: 1500, total: 1500, discount: 300, discountPercent: 16.6,
       financingInterest: 0, firstDueDate: '2026-10-23', schedule: [{ number: 1, dueDate: '2026-10-23', amount: 1500 }] },
@@ -39,6 +39,7 @@ describe('PortalOffers', () => {
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
     expect(el.textContent).not.toContain('Quem está negociando');
+    expect(el.textContent).not.toContain('Não inclui');
     expect(el.textContent).toContain('À vista');
     expect(el.textContent).toContain('3x de');
     const buttons = () => Array.from(el.querySelectorAll('button')) as HTMLButtonElement[];
@@ -61,6 +62,18 @@ describe('PortalOffers', () => {
     fixture.detectChanges();
     expect(el.textContent).toContain('Acordo fechado!');
     expect(el.textContent).toContain('000201pix');
+  });
+
+  it('avisa quando parcelas da dívida ficam fora do valor e das condições, sem dizer o motivo', async () => {
+    const fixture = TestBed.createComponent(PortalOffers);
+    fixture.componentRef.setInput('slug', 'banco-a');
+    fixture.componentRef.setInput('portfolioId', 'p1');
+    fixture.detectChanges();
+    http.expectOne('/api/portal/v1/me/portfolios/p1/offers').flush({ ...OFFERS, titlesOutside: 2 });
+    http.expectOne('/api/portal/v1/me/representative').flush({ required: false, declared: false, declaredName: null, humanCompletion: false });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Não inclui 2 parcelas, que ficam fora destas condições.');
   });
 
   it('empresa informa quem está negociando e, sem representante confirmado, o aceite vira atendimento', async () => {

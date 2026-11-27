@@ -76,9 +76,14 @@ public interface PortalSelfServiceUseCases {
                          boolean negotiable, String unavailableReason, UUID activeAgreementId, List<TitleSummary> titles) {
     }
 
-    /** @param reference número do contrato/título mascarado (só os 4 últimos caracteres) */
+    /**
+     * @param reference número do contrato/título mascarado (só os 4 últimos caracteres)
+     * @param inOffer   o título entra no valor atualizado e nas condições do portal; falso quando o motor do
+     *                  negotiation o deixou de fora (ex.: contestação só dele) ou quando a carteira não tem condição.
+     *                  Nunca diz o motivo (SEG-20261126-PA05, decisão 1682)
+     */
     record TitleSummary(UUID titleId, String reference, LocalDate dueDate, long daysOverdue, BigDecimal openBalance,
-                        String status) {
+                        String status, boolean inOffer) {
     }
 
     // ------------------------------------------------------------------ ofertas
@@ -93,10 +98,13 @@ public interface PortalSelfServiceUseCases {
     /**
      * @param offers               só as válidas e dentro da alçada do canal, a melhor por número de pagamentos
      * @param breakRule            "N parcelas em atraso há mais de D dias" desfazem o acordo
+     * @param titlesOutside        parcelas em aberto da carteira que ficaram fora do valor e das condições, sem motivo
+     *                             (SEG-20261126-PA05)
      */
     record OffersView(UUID simulationId, UUID portfolioId, BigDecimal updatedAmount, LocalDate referenceDate,
                       int maxInstallments, int maxDaysToFirstPayment, int proposalValidityDays,
-                      Integer breakOverdueInstallments, Integer breakToleranceDays, List<OfferSummary> offers) {
+                      Integer breakOverdueInstallments, Integer breakToleranceDays, List<OfferSummary> offers,
+                      int titlesOutside) {
     }
 
     /**

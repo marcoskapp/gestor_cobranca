@@ -61,7 +61,13 @@ type Step = 'choose' | 'review' | 'done';
     } @else if (offers.value(); as o) {
       @if (step() === 'choose') {
         <h1 class="portal-title">Escolha como pagar</h1>
-        <p class="mb-3 text-body-secondary">Valor atualizado hoje: <strong><app-amount [value]="o.updatedAmount" /></strong></p>
+        <p class="text-body-secondary" [class.mb-1]="o.titlesOutside > 0" [class.mb-3]="o.titlesOutside === 0">Valor atualizado hoje: <strong><app-amount [value]="o.updatedAmount" /></strong></p>
+        @if (o.titlesOutside > 0) {
+          <p class="portal-label mb-3">{{ o.titlesOutside === 1
+            ? 'Não inclui 1 parcela, que fica fora destas condições.'
+            : 'Não inclui ' + o.titlesOutside + ' parcelas, que ficam fora destas condições.' }}
+            <a [routerLink]="['/portal', slug(), 'atendimento']">Falar com atendente sobre {{ o.titlesOutside === 1 ? 'ela' : 'elas' }}</a></p>
+        }
         @if (o.offers.length === 0) {
           <p class="alert alert-info d-flex align-items-start gap-2" role="note"><app-icon name="info-circle" />
             <span>Não há condições disponíveis pelo portal para esta dívida. Um atendente pode ajudar.</span></p>

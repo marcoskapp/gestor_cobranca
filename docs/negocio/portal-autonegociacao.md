@@ -28,7 +28,7 @@ Antes de ver as dívidas, o devedor lê e confirma o aviso de privacidade do cre
 
 ## O que o devedor vê e faz
 
-1. **Minhas dívidas**: só as carteiras que a operação habilitou no portal, com o valor atualizado de hoje (juros, multa e encargos pela política do credor) e as parcelas em aberto. Parcela suspensa (por exemplo, a que o credor informou como paga) não aparece. Dívida que não pode ser negociada pelo portal aparece com o valor em aberto, um aviso e "Falar com atendente":
+1. **Minhas dívidas**: só as carteiras que a operação habilitou no portal, com o valor atualizado de hoje (juros, multa e encargos pela política do credor) e as parcelas em aberto. Parcela suspensa (por exemplo, a que o credor informou como paga) não aparece. Parcela em aberto que não entra nas condições (por exemplo, contestada) aparece numa lista à parte, "não entra nas condições do portal", sem dizer o motivo, e o valor atualizado vale só para as que entram (decisão 1682). Dívida que não pode ser negociada pelo portal aparece com o valor em aberto, um aviso e "Falar com atendente":
    - **no jurídico**, quando esse é o único motivo: "Esta dívida está com uma equipe especializada e não pode ser negociada por aqui. Fale com um atendente para saber como pagar ou fazer um acordo." — sem fase, processo nem advogado;
    - **qualquer outro motivo** (contestação, recuperação judicial, situação de vulnerabilidade, carteira inativa, ou mais de um motivo): o aviso genérico "Esta dívida não pode ser negociada pelo portal agora. Fale com um atendente.", que não revela qual é.
 

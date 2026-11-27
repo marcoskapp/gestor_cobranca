@@ -7,6 +7,7 @@ import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.A
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.AgreementView;
 import br.com.gestorcobranca.negotiation.application.port.in.AgreementUseCases.InstallmentView;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases;
+import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.ExcludedTitleView;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.JustificationInput;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.OfferView;
 import br.com.gestorcobranca.negotiation.application.port.in.NegotiationSimulationUseCases.PlanInput;
@@ -164,11 +165,15 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
             Optional<ActiveAgreementRef> agreement = active.stream().filter(a -> portfolioId.equals(a.portfolioId())).findFirst();
             BigDecimal updated = null;
             String unavailable = null;
+            Set<UUID> inOffer = Set.of();
             if (agreement.isPresent()) {
                 unavailable = "AGREEMENT_ACTIVE";
             } else {
                 try {
-                    updated = quote(c, openIds(titles)).offer().negotiated();
+                    List<UUID> ids = openIds(titles);
+                    ValidationView q = quote(c, ids);
+                    updated = q.offer().negotiated();
+                    inOffer = inOffer(ids, q.excludedTitles());
                 } catch (DomainException ex) {
                     unavailable = "negotiation.policy_missing".equals(ex.code()) ? "NO_POLICY"
                             : legalHold.onlyLegalHold(debtorId, portfolioId, titles) ? "LEGAL_HOLD" : "NOT_ELIGIBLE";
@@ -177,9 +182,10 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
             if (unavailable != null) {
                 metrics.debtUnavailable(unavailable);
             }
+            Set<UUID> offered = inOffer;
             result.add(new PortfolioDebt(portfolioId, names.get(portfolioId), open, updated, unavailable == null,
                     unavailable, agreement.map(ActiveAgreementRef::id).orElse(null),
-                    titles.stream().map(PortalSelfServiceService::title).toList()));
+                    titles.stream().map(t -> title(t, offered.contains(t.id()))).toList()));
         }
         return new DebtsView(c.config().getDisplayName(), result);
     }
@@ -250,7 +256,8 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
                 r.maxDaysToFirstPayment() == null ? 0 : r.maxDaysToFirstPayment(),
                 r.proposalValidityDays() == null ? 0 : r.proposalValidityDays(),
                 r.breakRule() == null ? null : r.breakRule().overdueInstallments(),
-                r.breakRule() == null ? null : r.breakRule().toleranceDays(), offers);
+                r.breakRule() == null ? null : r.breakRule().toleranceDays(), offers,
+                titleIds.size() - inOffer(titleIds, r.excludedTitles()).size());
     }
 
     /** Só ofertas válidas e dentro da alçada do canal; por número de pagamentos, a de menor total. */
@@ -695,10 +702,21 @@ class PortalSelfServiceService implements PortalSelfServiceUseCases {
         return sessions.findById(c.session().getId()).orElseThrow();
     }
 
-    private static TitleSummary title(TitleView t) {
+    private static TitleSummary title(TitleView t, boolean inOffer) {
         String suffix = KnowledgeVerifier.suffix(t.externalId());
         return new TitleSummary(t.id(), suffix.isEmpty() ? null : "final " + suffix, t.dueDate(), t.daysOverdue(),
-                t.openBalance(), t.status());
+                t.openBalance(), t.status(), inOffer);
+    }
+
+    /**
+     * Títulos que o motor usou no valor atualizado: os pedidos menos os que ele deixou de fora por inelegibilidade (da
+     * mesma chamada que deu o valor: cotação em "Minhas dívidas", simulação nas condições). O
+     * motivo da exclusão fica no servidor — a tela só separa as parcelas (SEG-20261126-PA05).
+     */
+    static Set<UUID> inOffer(List<UUID> requested, List<ExcludedTitleView> excludedTitles) {
+        Set<UUID> excluded = excludedTitles == null ? Set.of() : excludedTitles.stream()
+                .map(ExcludedTitleView::titleId).collect(Collectors.toSet());
+        return requested.stream().filter(id -> !excluded.contains(id)).collect(Collectors.toUnmodifiableSet());
     }
 
     private static ServiceRequestView view(ServiceRequest r, String disputeIntakeStatus) {

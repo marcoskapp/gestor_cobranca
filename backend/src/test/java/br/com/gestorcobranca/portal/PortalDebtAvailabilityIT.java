@@ -1,6 +1,8 @@
 package br.com.gestorcobranca.portal;
 
 import br.com.gestorcobranca.collection.application.port.in.CaseUseCases;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases;
+import br.com.gestorcobranca.collection.application.port.in.DisputeUseCases.OpenDisputeCommand;
 import br.com.gestorcobranca.compliance.application.port.in.VulnerabilityUseCases;
 import br.com.gestorcobranca.compliance.application.port.in.VulnerabilityUseCases.RegisterMarkerCommand;
 import br.com.gestorcobranca.debt.application.port.in.DebtTitleUseCases;
@@ -20,6 +22,7 @@ import tools.jackson.databind.JsonNode;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,6 +39,8 @@ class PortalDebtAvailabilityIT extends PortalTestSupport {
     DebtTitleUseCases titles;
     @Autowired
     CaseUseCases cases;
+    @Autowired
+    DisputeUseCases disputes;
     @Autowired
     VulnerabilityUseCases vulnerability;
     @Autowired
@@ -122,6 +127,7 @@ class PortalDebtAvailabilityIT extends PortalTestSupport {
         assertThat(debt.get("negotiable").asBoolean()).isFalse();
         assertThat(debt.get("unavailableReason").asString()).isEqualTo("LEGAL_HOLD");
         assertThat(debt.get("updatedAmount").isNull()).isTrue();
+        debt.get("titles").forEach(t -> assertThat(t.get("inOffer").asBoolean()).isFalse());
         // pelo endereço direto das condições: recusa sem condição nenhuma
         Response offers = get("/api/portal/v1/me/portfolios/" + portfolioA + "/offers", token);
         assertThat(offers.status()).isBetween(400, 499);
@@ -130,6 +136,51 @@ class PortalDebtAvailabilityIT extends PortalTestSupport {
         asManager(() -> vulnerability.register(new RegisterMarkerCommand(maria, "SUPER_INDEBTED", "LEGAL_OBLIGATION",
                 "DEBTOR_DECLARATION", null)));
         assertThat(onlyPortfolio(token).get("unavailableReason").asString()).isEqualTo("NOT_ELIGIBLE");
+    }
+
+    /**
+     * SEG-20261126-PA05 (decisão 1682): contestação só de uma parcela — ela continua em aberto na lista, mas fica fora
+     * do valor atualizado e das condições; a tela sabe quais (inOffer) e quantas (titlesOutside), nunca o motivo.
+     */
+    @Test
+    void titleLeftOutOfTheQuoteIsFlaggedWithoutTheReason() {
+        TitleView disputed = system(() -> titles.listByDebtor(maria)).stream()
+                .filter(t -> "CT-0002-5432".equals(t.externalId())).findFirst().orElseThrow();
+        String token = loginReady(CPF_MARIA);
+        BigDecimal before = new BigDecimal(onlyPortfolio(token).get("updatedAmount").asString());
+        UUID caseId = asManager(() -> cases.findActive(maria, portfolioA)).orElseThrow().id();
+        asManager(() -> disputes.open(caseId, new OpenDisputeCommand(Set.of(disputed.id()), "ALREADY_PAID", "DEBTOR",
+                "Contestação de teste", true, null)));
+        drainJobs("collection.");
+
+        Response debts = get("/api/portal/v1/me/debts", token);
+        assertThat(debts.status()).isEqualTo(200);
+        assertThat(debts.body()).doesNotContain("dispute").doesNotContain("ALREADY_PAID");
+        JsonNode debt = onlyPortfolio(token);
+        assertThat(debt.get("negotiable").asBoolean()).isTrue();
+        // o cartão passa a valer só para a parcela que entra
+        assertThat(new BigDecimal(debt.get("updatedAmount").asString())).isLessThan(before);
+        assertThat(debt.get("titles").size()).isEqualTo(2);
+        for (JsonNode t : debt.get("titles")) {
+            boolean isDisputed = disputed.id().toString().equals(t.get("titleId").asString());
+            assertThat(t.get("inOffer").asBoolean()).isEqualTo(!isDisputed);
+            assertThat(t.has("reasons")).isFalse();
+        }
+        Response offers = get("/api/portal/v1/me/portfolios/" + portfolioA + "/offers", token);
+        assertThat(offers.status()).isEqualTo(200);
+        assertThat(offers.json().get("titlesOutside").asInt()).isEqualTo(1);
+        assertThat(offers.body()).doesNotContain("dispute").doesNotContain("ALREADY_PAID");
+    }
+
+    @Test
+    void everyTitleIsInTheOfferWhenNothingIsLeftOut() {
+        String token = loginReady(CPF_MARIA);
+        JsonNode debt = onlyPortfolio(token);
+        for (JsonNode t : debt.get("titles")) {
+            assertThat(t.get("inOffer").asBoolean()).isTrue();
+        }
+        assertThat(get("/api/portal/v1/me/portfolios/" + portfolioA + "/offers", token).json()
+                .get("titlesOutside").asInt()).isZero();
     }
 
     /** H07 parte 3, decisão do responsável 4 (RS-112): título com estorno em conferência não aparece nem soma. */
