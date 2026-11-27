@@ -1,5 +1,6 @@
 package br.com.gestorcobranca.compliance.application.service;
 
+import br.com.gestorcobranca.compliance.application.port.spi.NewFileRequests;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeStatusQueries;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeStatusQueries.NoticeStatus;
 import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases;
@@ -81,11 +82,13 @@ class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases, Cre
     private final AuditTrail auditTrail;
     private final BusinessEventLogger businessEvents;
     private final Clock clock;
+    private final NewFileRequests fileRequests;
 
     CreditorErasureNoticeService(CreditorErasureNoticeRepository notices, AnonymizedSubjectQueries anonymizedSubjects,
                                  CreditorUseCases creditors, PortfolioUseCases portfolios, UserDirectory users,
                                  AccessScope accessScope, CurrentActor currentActor, AuditTrail auditTrail,
-                                 BusinessEventLogger businessEvents, Clock clock) {
+                                 BusinessEventLogger businessEvents, Clock clock, NewFileRequests fileRequests) {
+        this.fileRequests = fileRequests;
         this.notices = notices;
         this.anonymizedSubjects = anonymizedSubjects;
         this.creditors = creditors;
@@ -289,13 +292,29 @@ class CreditorErasureNoticeService implements CreditorErasureNoticeUseCases, Cre
         LocalDate erasedOn = LocalDate.ofInstant(n.getErasedAt(), TimeConfig.BUSINESS_ZONE);
         String message = CreditorErasureNoticeText.compose(Objects.requireNonNullElse(creditorName, "credor"),
                 portfolioNames, erasedOn, items);
+        FileRequests evidence = fileRequestsOf(n);
         return new NoticeView(n.getId(), n.getDebtorId(), n.getCreditorId(), creditorName, n.getOrigin().name(),
                 n.getOriginId(), n.getErasedAt(), n.getStatus().name(), n.getNotifiedAt(),
                 n.getNotifiedChannel() == null ? null : n.getNotifiedChannel().name(), n.getNotifiedBy(),
                 notifiedByName, n.getRegisteredAt(),
                 items.stream().map(i -> new NoticeItemView(i.getPortfolioId(), portfolioNames.get(i.getPortfolioId()),
                         i.getReference(), i.getInstallmentNumber())).toList(),
-                message);
+                message, evidence.items(), evidence.total());
+    }
+
+    private record FileRequests(List<FileRequestView> items, int total) {
+    }
+
+    /** Evidência do pedido de novo arquivo (decisões 1497 e 1623): os lotes bloqueados com o aviso, pela porta do ingestion. */
+    private FileRequests fileRequestsOf(CreditorErasureNotice n) {
+        NewFileRequests.Evidence found = fileRequests.ofNotice(n.getId(), n.getCreditorId());
+        List<UUID> authors = found.items().stream().map(NewFileRequests.NewFileRequest::sentBy).filter(Objects::nonNull)
+                .distinct().toList();
+        Map<UUID, String> names = authors.isEmpty() ? Map.of() : users.findAll(authors).stream()
+                .collect(Collectors.toMap(UserSummary::id, UserSummary::name, (a, b) -> a));
+        return new FileRequests(found.items().stream().map(r -> new FileRequestView(r.batchId(), r.protocol(),
+                r.blockedAt(), r.lines(), r.inProgress(), r.sentAt(), r.channel(), r.sentBy(),
+                r.sentBy() == null ? null : names.get(r.sentBy()))).toList(), found.total());
     }
 
     private Map<UUID, String> creditorNames(List<UUID> creditorIds) {

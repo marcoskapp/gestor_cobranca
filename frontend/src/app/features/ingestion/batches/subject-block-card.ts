@@ -61,7 +61,7 @@ import { ImportBatchView } from '../data/ingestion.models';
             <h2 class="app-card__title mb-1" id="sb-title">Pedido de novo arquivo ao credor</h2>
             <p class="app-muted small mb-0">
               Protocolo <span class="app-mono">{{ v.protocol }}</span> · {{ v.linesTotal }}
-              {{ v.linesTotal === 1 ? 'linha' : 'linhas' }} do titular · bloqueado em {{ v.blockedAt | appDate }}
+              {{ v.linesTotal === 1 ? 'linha' : 'linhas' }} do titular · recusado em {{ v.blockedAt | appDate }}
             </p>
           </div>
           <button class="btn btn-outline-secondary" type="button" (click)="copy(v.message)">

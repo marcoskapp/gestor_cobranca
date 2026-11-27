@@ -49,6 +49,8 @@ export class ErasureNoticeDetail {
     () => this.auth.hasPermission(Permission.ORGANIZATION_AREA_VIEW) && this.auth.hasPermission(Permission.CREDITOR_VIEW),
   );
   protected readonly canOpenDebtor = computed(() => this.auth.hasPermission(Permission.DEBTOR_VIEW));
+  /** Mesma permissão da rota do lote (`/importacao/:id`). */
+  protected readonly canOpenBatches = computed(() => this.auth.hasPermission(Permission.IMPORT_VIEW));
 
   protected readonly crumb = recordLabel(() => {
     const n = this.current();

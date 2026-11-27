@@ -144,13 +144,15 @@ export const MANUAL: ModuleManual = {
       purpose: [
         'O texto não traz nome, documento nem contato do titular: o credor encontra a pessoa pelos títulos. Referência com CPF aparece mascarada.',
         'Depois de enviar, registre data, hora e canal. O registro é a evidência do aviso e não pode ser corrigido.',
+        'Em "Pedidos de novo arquivo": arquivos do credor com linhas do titular e se o novo arquivo já foi pedido (registro feito no lote).',
       ],
       profiles: ['COMPLIANCE'],
       inputs: ['Títulos conservados do titular eliminado.'],
-      outputs: ['Evidência de que o credor foi avisado (LGPD art. 18, § 6º).'],
+      outputs: ['Evidência de que o credor foi avisado (LGPD art. 18, § 6º) e do pedido de novo arquivo.'],
       related: [
         { screen: 'compliance.erasure-notices', why: 'Todos os avisos e a remessa por credor.' },
         { screen: 'compliance.request-detail', why: 'Pedido do titular.' },
+        { screen: 'ingestion.batch-detail', why: 'Lote recusado e o registro do pedido de novo arquivo.' },
       ],
       terms: ['titular', 'anonimizacao'],
     },

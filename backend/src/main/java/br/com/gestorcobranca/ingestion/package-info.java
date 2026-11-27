@@ -7,7 +7,8 @@
  * ({@code RetentionUseCases.retentionFor}).
  */
 @ApplicationModule(displayName = "Ingestion",
-        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "compliance :: usecases"})
+        allowedDependencies = {"shared", "organization :: usecases", "debt :: usecases", "compliance :: usecases",
+                "compliance :: spi"})
 package br.com.gestorcobranca.ingestion;
 
 import org.springframework.modulith.ApplicationModule;

@@ -489,6 +489,27 @@ export interface ErasureNoticeView extends ErasureNoticeSummary {
   items: ErasureNoticeItem[];
   /** Texto pronto do aviso, sem nome, documento ou contato do titular. */
   message: string;
+  /**
+   * Lotes da importação bloqueados com o titular do aviso e o pedido de novo arquivo de cada um (decisões 1497 e 1623),
+   * até 50: primeiro os sem pedido, do mais recente ao mais antigo.
+   */
+  fileRequests: ErasureNoticeFileRequest[];
+  /** Quantos lotes há (maior que `fileRequests.length` quando a lista foi cortada). */
+  fileRequestsTotal: number;
+}
+
+/** Evidência do pedido de novo arquivo ao credor, registrado na importação. */
+export interface ErasureNoticeFileRequest {
+  batchId: string;
+  /** Protocolo do arquivo citado no pedido (início do código de integridade). */
+  protocol: string;
+  blockedAt: string | null;
+  lines: number;
+  inProgress: boolean;
+  sentAt: string | null;
+  channel: ErasureNoticeChannel | null;
+  sentBy: string | null;
+  sentByName: string | null;
 }
 
 export interface ErasureNoticeFilter {

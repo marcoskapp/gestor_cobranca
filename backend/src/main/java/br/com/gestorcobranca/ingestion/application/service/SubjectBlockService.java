@@ -149,7 +149,7 @@ class SubjectBlockService implements ImportSubjectBlockUseCases {
             }
         }
         int listed = Math.min(byRow.size(), MAX_LINES);
-        int linesTotal = Math.max(byRow.size(), blocks.stream().mapToInt(SubjectBlock::getLines).max().orElse(0));
+        int linesTotal = SubjectBlock.linesOf(blocks);
         List<BlockLineView> lines = new ArrayList<>();
         List<RequestLine> textLines = new ArrayList<>();
         byRow.values().stream().limit(listed).forEach(l -> {

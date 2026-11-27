@@ -12,4 +12,7 @@ public interface SubjectBlockRepository {
     boolean existsByBatchIdAndSourceEventId(UUID batchId, UUID sourceEventId);
 
     List<SubjectBlock> findByBatchIdOrderByCreatedAtAsc(UUID batchId);
+
+    /** Bloqueios ligados ao aviso da eliminação ao credor (compliance), do mais antigo ao mais recente. */
+    List<SubjectBlock> findByNoticeIdOrderByCreatedAtAsc(UUID noticeId);
 }

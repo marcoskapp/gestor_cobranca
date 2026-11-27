@@ -105,4 +105,62 @@
     <p class="app-muted small">Sem nome, documento ou contato do titular: o credor encontra a pessoa pelos títulos.</p>
     <pre class="cmp-notice-text" tabindex="0" role="region" aria-labelledby="texto-aviso">{{ n.message }}</pre>
   </section>
+
+  @if (n.fileRequests.length > 0) {
+    <section class="app-card" aria-labelledby="pedidos-arquivo" data-tour="notice-file-requests">
+      <h2 class="app-card__title" id="pedidos-arquivo">Pedidos de novo arquivo</h2>
+      <p class="app-muted small">
+        Arquivos de importação do credor com linhas deste titular. Quem importa pede ao credor um arquivo sem essas linhas
+        e registra o pedido no lote.
+      </p>
+      <div class="table-responsive" tabindex="0" role="region" aria-label="Pedidos de novo arquivo ao credor">
+        <table class="table table-sm align-middle mb-0">
+          <caption class="visually-hidden">Arquivos com linhas do titular e o pedido de novo arquivo</caption>
+          <thead>
+            <tr>
+              <th scope="col">Arquivo</th>
+              <th scope="col">Recusado em</th>
+              <th scope="col" class="text-end">Linhas do titular</th>
+              <th scope="col">Pedido ao credor</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (f of n.fileRequests; track f.batchId) {
+              <tr>
+                <td>
+                  @if (canOpenBatches()) {
+                    <a [routerLink]="['/importacao', f.batchId]">Protocolo <span class="app-mono">{{ f.protocol }}</span></a>
+                  } @else {
+                    Protocolo <span class="app-mono">{{ f.protocol }}</span>
+                  }
+                </td>
+                <td>{{ f.blockedAt ? (f.blockedAt | appDate) : '—' }}</td>
+                <td class="text-end app-numeric">{{ f.lines }}</td>
+                <td>
+                  @if (f.sentAt) {
+                    Enviado em {{ f.sentAt | appDate }}@if (f.channel) { · {{ channelLabels[f.channel] }}}
+                    @if (f.sentByName) {
+                      <span class="d-block app-muted small">registrado por {{ f.sentByName }}</span>
+                    }
+                  } @else if (f.inProgress) {
+                    <span class="app-muted">A importação ainda está em andamento</span>
+                  } @else {
+                    <span class="badge text-bg-warning">Ainda não enviado</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (n.fileRequestsTotal > n.fileRequests.length) {
+        <p class="app-muted small mt-2 mb-0">
+          Mostrando {{ n.fileRequests.length }} de {{ n.fileRequestsTotal }} arquivos, primeiro os ainda sem pedido.
+          @if (canOpenBatches()) {
+            <a [routerLink]="['/importacao']" [queryParams]="{ credor: n.creditorId, bloqueados: 'pendentes' }">Ver os arquivos recusados do credor ainda sem pedido</a>
+          }
+        </p>
+      }
+    </section>
+  }
 }

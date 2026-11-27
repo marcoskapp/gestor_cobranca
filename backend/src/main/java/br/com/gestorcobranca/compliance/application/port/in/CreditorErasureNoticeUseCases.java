@@ -90,10 +90,27 @@ public interface CreditorErasureNoticeUseCases {
      * @param message      texto pronto do aviso ao credor (sem nome, documento ou contato do titular)
      * @param notifiedBy   quem registrou o aviso (nulo enquanto pendente)
      * @param registeredAt quando o aviso foi registrado no sistema
+     * @param fileRequests lotes da carga bloqueados com o titular deste aviso e o pedido de novo arquivo de cada um
+     *                     (evidência, decisões 1497 e 1623), até {@code NewFileRequests.MAX_BATCHES}: primeiro os sem
+     *                     pedido, do mais recente ao mais antigo
+     * @param fileRequestsTotal quantos lotes há (maior que {@code fileRequests.size()} quando a lista foi cortada)
      */
     record NoticeView(UUID id, UUID debtorId, UUID creditorId, String creditorName, String origin, UUID originId,
                       Instant erasedAt, String status, Instant notifiedAt, String notifiedChannel, UUID notifiedBy,
-                      String notifiedByName, Instant registeredAt, List<NoticeItemView> items, String message) {
+                      String notifiedByName, Instant registeredAt, List<NoticeItemView> items, String message,
+                      List<FileRequestView> fileRequests, int fileRequestsTotal) {
+    }
+
+    /**
+     * Lote bloqueado com o titular do aviso e o registro do pedido de novo arquivo ao credor.
+     *
+     * @param protocol   protocolo do arquivo citado no pedido (início do SHA-256)
+     * @param inProgress o lote ainda processa (o pedido é registrado depois)
+     * @param sentAt     quando o pedido foi enviado (nulo enquanto não registrado)
+     * @param sentByName quem registrou o envio (nulo sem o registro ou sem o usuário)
+     */
+    record FileRequestView(UUID batchId, String protocol, Instant blockedAt, int lines, boolean inProgress,
+                           Instant sentAt, String channel, UUID sentBy, String sentByName) {
     }
 
     /** @param reference referência do título no credor, com CPF/CNPJ embutido mascarado */

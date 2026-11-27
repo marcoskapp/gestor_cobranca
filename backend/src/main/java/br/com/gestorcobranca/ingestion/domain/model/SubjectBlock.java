@@ -113,6 +113,21 @@ public class SubjectBlock extends TenantScopedEntity {
     public int getLines() { return lines; }
     public List<Line> getLineList() { return List.copyOf(lineList); }
 
+    /**
+     * Linhas do titular num lote a partir dos registros de bloqueio (a anonimização e a carga, que grava um por bloco de
+     * processamento, podem repetir linhas): as linhas distintas guardadas, ou o maior total registrado quando passa do
+     * que é guardado. A mesma conta na tela do lote e na evidência do aviso ao credor.
+     */
+    public static int linesOf(java.util.Collection<SubjectBlock> blocks) {
+        java.util.Set<Long> rows = new java.util.HashSet<>();
+        int max = 0;
+        for (SubjectBlock block : blocks) {
+            block.getLineList().forEach(l -> rows.add(l.getRowNumber()));
+            max = Math.max(max, block.getLines());
+        }
+        return Math.max(rows.size(), max);
+    }
+
     /** Linha do titular: número no arquivo, referência do título mascarada e como foi encontrada. */
     @Embeddable
     public static class Line {

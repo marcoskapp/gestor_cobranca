@@ -398,7 +398,8 @@ O original de cada lote (CSV, XLSX, registros da API em JSON e o CSV canônico g
   `import_file_request`, V2307, append-only, retenção enquanto o lote existir). O texto pronto
   (`CreditorFileRequestText`) identifica o arquivo pelo protocolo (data, nome e início do SHA-256) e as linhas pela
   referência mascarada. A situação do aviso da eliminação vem de `CreditorErasureNoticeStatusQueries#statusOf`
-  (`IMPORT_VIEW` e o credor). Lista com o filtro `blocked` (`ALL`, `PENDING_REQUEST`, `REQUESTED`; na tela
+  (`IMPORT_VIEW` e o credor). O registro do pedido também aparece como evidência no aviso da eliminação ao credor, pela
+  porta `compliance :: spi` `NewFileRequests` que o ingestion implementa (decisão 1623). Lista com o filtro `blocked` (`ALL`, `PENDING_REQUEST`, `REQUESTED`; na tela
   `?bloqueados=todos|pendentes|enviados`) e o selo "LGPD: linhas recusadas"; pendência
   `ingestion.blocked_batches` até o registro do pedido. Auditoria `import_batch.file_request_sent`, evento de negócio
   `import.file_request_sent`.

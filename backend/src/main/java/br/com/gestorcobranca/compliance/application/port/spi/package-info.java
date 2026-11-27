@@ -6,6 +6,10 @@
  * {@link br.com.gestorcobranca.compliance.application.port.spi.RetentionDefaults}: o módulo dono dos dados (portal,
  * scoring) informa o prazo padrão do sistema das categorias de retenção que ele descarta, exibido na tela de
  * Retenção e usado enquanto a assessoria não configura o próprio.
+ * <p>
+ * {@link br.com.gestorcobranca.compliance.application.port.spi.NewFileRequests}: o ingestion informa, para o aviso da
+ * eliminação ao credor, os lotes bloqueados com o titular e o registro do pedido de novo arquivo (evidência, decisão
+ * 1497).
  */
 @NamedInterface("spi")
 package br.com.gestorcobranca.compliance.application.port.spi;

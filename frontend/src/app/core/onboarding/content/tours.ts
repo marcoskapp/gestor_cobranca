@@ -531,7 +531,7 @@ export const TOURS: readonly TourDefinition[] = [
   },
   {
     id: 'compliance.erasure-notice-detail',
-    version: 1,
+    version: 2,
     title: 'Aviso ao credor',
     summary: 'Títulos citados, texto pronto e registro do envio.',
     steps: [
@@ -545,6 +545,11 @@ export const TOURS: readonly TourDefinition[] = [
         anchor: 'notice-sent',
         title: 'Registro do envio',
         body: 'Depois de enviar, use "Registrar aviso" e informe data, hora e canal. O registro não pode ser corrigido.',
+      },
+      {
+        anchor: 'notice-file-requests',
+        title: 'Pedidos de novo arquivo',
+        body: 'Arquivos do credor com linhas do titular e se o novo arquivo já foi pedido. O pedido é registrado no lote.',
       },
     ],
   },

@@ -1119,9 +1119,15 @@ export const SCREENS: readonly ScreenGuide[] = [
   { key: 'compliance.erasure-notices', version: 1, path: '/compliance/avisos-credores', tourId: 'compliance.erasure-notices' },
   {
     key: 'compliance.erasure-notice-detail',
-    version: 1,
+    version: 2,
     path: '/compliance/avisos-credores/:id',
     tourId: 'compliance.erasure-notice-detail',
+    changes: [
+      {
+        version: 2,
+        items: ['Novo quadro "Pedidos de novo arquivo": os arquivos de importação do credor com linhas do titular e se o pedido de um arquivo sem essas linhas já foi enviado, com data, canal e quem registrou.'],
+      },
+    ],
   },
   {
     key: 'compliance.retention',

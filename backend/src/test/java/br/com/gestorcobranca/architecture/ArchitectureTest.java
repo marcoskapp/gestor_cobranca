@@ -426,6 +426,22 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    /** Evidência do pedido de novo arquivo (decisões 1497 e 1623): o ingestion implementa, só o aviso ao credor consulta. */
+    @Test
+    void newFileRequestsAreReadOnlyByTheCreditorNotice() {
+        String spi = ROOT + ".compliance.application.port.spi.NewFileRequests";
+        classes().that().implement(spi)
+                .should().resideInAPackage(ROOT + ".ingestion..")
+                .because("o dono do lote e do pedido de novo arquivo é o ingestion")
+                .check(classes);
+        noClasses().that().doNotHaveFullyQualifiedName(ROOT + ".compliance.application.service.CreditorErasureNoticeService")
+                .and().doNotHaveFullyQualifiedName(ROOT + ".ingestion.application.service.NoticeFileRequestsProvider")
+                .and().resideOutsideOfPackage(ROOT + ".compliance.application.port.spi")
+                .should().dependOnClassesThat().haveFullyQualifiedName(spi)
+                .because("só o aviso ao credor lê a evidência (a porta não confere permissão: o chamador já conferiu)")
+                .check(classes);
+    }
+
     /** O aviso ao credor só nasce no portão da eliminação, na transação da anonimização (decisão 1481). */
     @Test
     void onlyErasureGateOpensCreditorErasureNotices() {

@@ -1,11 +1,13 @@
 package br.com.gestorcobranca.ingestion;
 
+import br.com.gestorcobranca.compliance.application.port.in.CreditorErasureNoticeUseCases;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases;
 import br.com.gestorcobranca.compliance.application.port.in.DataSubjectRequestUseCases.OpenRequestCommand;
 import br.com.gestorcobranca.debt.application.port.in.DebtLedgerPort;
 import br.com.gestorcobranca.debt.application.port.in.DebtLedgerPort.ComponentAmounts;
 import br.com.gestorcobranca.debt.application.port.in.DebtLedgerPort.PaymentApplication;
 import br.com.gestorcobranca.ingestion.application.port.in.ImportBatchUseCases.ImportBatchView;
+import br.com.gestorcobranca.ingestion.application.port.in.ImportSubjectBlockUseCases;
 import br.com.gestorcobranca.shared.crypto.ExternalIdDigest;
 import br.com.gestorcobranca.shared.crypto.ExternalIdDigest.Kind;
 import br.com.gestorcobranca.shared.domain.Document;
@@ -35,6 +37,10 @@ class ExternalIdAnonymizationIT extends IngestionTestSupport {
     DataSubjectRequestUseCases requests;
     @Autowired
     ExternalIdDigest digest;
+    @Autowired
+    CreditorErasureNoticeUseCases notices;
+    @Autowired
+    ImportSubjectBlockUseCases subjectBlocks;
 
     @Test
     void titleWithTheDocumentIsReplacedAndItsLinesAreStillFoundAndRefused() {
@@ -97,6 +103,31 @@ class ExternalIdAnonymizationIT extends IngestionTestSupport {
                     assertThat(r.get("row_number")).isEqualTo(2L);
                     assertThat(r.get("matched_by")).isEqualTo("TITLE_REFERENCE");
                 });
+
+        // evidência do pedido de novo arquivo no aviso ao credor (decisão 1497): os dois lotes bloqueados, sem pedido
+        UUID noticeId = system(() -> jdbcTemplate.queryForObject("select id from compliance.creditor_erasure_notice "
+                + "where debtor_id = ? and creditor_id = ?", UUID.class, iara, creditorA));
+        var notice = system(() -> notices.get(noticeId));
+        assertThat(notice.fileRequests()).extracting(f -> f.batchId()).containsExactlyInAnyOrder(first.id(), preview.id());
+        assertThat(notice.fileRequestsTotal()).isEqualTo(2);
+        assertThat(notice.fileRequests()).allSatisfy(f -> {
+            assertThat(f.sentAt()).isNull();
+            assertThat(f.lines()).isEqualTo(1);
+            String sha = system(() -> jdbcTemplate.queryForObject("select file_sha256 from ingestion.import_batch "
+                    + "where id = ?", String.class, f.batchId()));
+            assertThat(f.protocol()).isEqualTo(sha.substring(0, f.protocol().length())).hasSizeGreaterThan(4);
+        });
+        // registrado na importação: aparece no aviso, com canal e autor
+        asImporterOf(creditorA, () -> subjectBlocks.registerRequestSent(first.id(),
+                new ImportSubjectBlockUseCases.RegisterRequestCommand(Instant.now(), "EMAIL")));
+        var after = system(() -> notices.get(noticeId)).fileRequests();
+        // o que ainda pede ação vem primeiro
+        assertThat(after).extracting(f -> f.batchId()).containsExactly(preview.id(), first.id());
+        assertThat(after.get(1)).satisfies(f -> {
+            assertThat(f.sentAt()).isNotNull();
+            assertThat(f.channel()).isEqualTo("EMAIL");
+            assertThat(f.sentBy()).isNotNull();
+        });
 
         // a mesma linha numa carga nova: recusada, sem título novo com o identificador cru
         ImportBatchView again = uploadCsv("a3.csv", HEADER + "\n" + line(cpf(31), "Iara", raw, "90,00", null) + "\n"

@@ -498,6 +498,14 @@ SEG-20261124-D01h, decisões 1469 e 1478–1486. Backend na fatia 3a; tela, reme
   não usa o `get`: ganha métodos próprios e mínimos (`findFor(devedor, credor)` e a situação do aviso, com
   `IMPORT_EXECUTE` e o credor do lote, 404 para outro credor), numa **porta própria** (ex.:
   `CreditorErasureNoticeStatusQueries`), para o ingestion não enxergar a remessa nem o registro.
+- **Evidência do pedido de novo arquivo** (decisões 1497 e 1623): o `NoticeView` traz `fileRequests` — os lotes da
+  carga do credor bloqueados com o titular do aviso (`import_subject_block.notice_id`) e o registro do pedido de novo
+  arquivo de cada um (protocolo, recusa, linhas do titular por `SubjectBlock.linesOf`, envio, canal e quem registrou),
+  até 50 — primeiro os sem pedido, do mais recente ao mais antigo — e `fileRequestsTotal`. Vem da porta `compliance :: spi`
+  `NewFileRequests`, implementada pelo ingestion (`NoticeFileRequestsProvider`, só leitura, na transação do aviso, que
+  já conferiu `DATA_SUBJECT_REQUEST_MANAGE` e todos os credores; índice `ix_import_subject_block_notice`, V2310). Só o
+  aviso consulta (`ArchitectureTest#newFileRequestsAreReadOnlyByTheCreditorNotice`). Na tela, o quadro "Pedidos de novo
+  arquivo", com atalho ao lote só para quem tem `IMPORT_VIEW`.
 - `GET /api/v1/compliance/creditor-erasure-notices?status=&creditorId=&originId=&page=&size=`, `GET /{id}`,
   `POST /{id}/notified` (`{notifiedAt, channel}`), `GET /pending-by-creditor`, `GET /remittance?creditorId=` e
   `POST /notified` (`{noticeIds, notifiedAt, channel}`, 1 a 100 avisos do mesmo credor).
